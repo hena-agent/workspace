@@ -1,5 +1,5 @@
-import type { SnapshotFileDiff } from "@opencode-ai/sdk/v2"
-import type { PartGroup } from "@opencode-ai/session-ui/message-part"
+import type { SnapshotFileDiff } from "@hena-agent/sdk/v2"
+import type { PartGroup } from "@hena-agent/session-ui/message-part"
 import { Data, Equal } from "effect"
 
 export type SummaryDiff = SnapshotFileDiff & { file: string }

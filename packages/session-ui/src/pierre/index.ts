@@ -16,7 +16,7 @@ export type DiffProps<T = {}> = FileDiffOptions<T> & {
 
 const unsafeCSS = `
 :host {
-  --diffs-bg: var(--opencode-diffs-bg, var(--color-background-stronger));
+  --diffs-bg: var(--hena-agent-diffs-bg, var(--color-background-stronger));
 }
 
 [data-diff],
@@ -57,11 +57,11 @@ const unsafeCSS = `
   background-color: var(--diffs-bg-selection-text);
 }
 
-::highlight(opencode-find) {
+::highlight(hena-agent-find) {
   background-color: rgb(from var(--surface-warning-base) r g b / 0.35);
 }
 
-::highlight(opencode-find-current) {
+::highlight(hena-agent-find-current) {
   background-color: rgb(from var(--surface-warning-strong) r g b / 0.55);
 }
 
@@ -156,7 +156,7 @@ ${lineCommentStyles}
 
 export function createDefaultOptions<T>(style: FileDiffOptions<T>["diffStyle"]) {
   return {
-    theme: "OpenCode",
+    theme: "Hena Agent",
     themeType: "system",
     disableLineNumbers: false,
     overflow: "wrap",

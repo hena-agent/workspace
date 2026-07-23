@@ -1,6 +1,6 @@
-# OpenCode Desktop
+# Hena Agent Desktop
 
-The OpenCode Desktop app, built with Electron.
+The Hena Agent desktop app, built with Electron.
 
 ## Development
 

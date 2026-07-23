@@ -1,5 +1,5 @@
 import type { APIEvent } from "@solidjs/start/server"
-import { Resource } from "@opencode-ai/console-resource"
+import { Resource } from "@hena-agent/console-resource"
 import { LOCALE_HEADER, cookie, localeFromRequest, route, tag } from "~/lib/language"
 
 const dataPath = "/data"
@@ -12,7 +12,7 @@ export async function statsProxy(evt: APIEvent) {
 
   const targetUrl = new URL(req.url)
   targetUrl.protocol = "https:"
-  targetUrl.hostname = Resource.App.stage === "production" ? "stats.opencode.ai" : "stats.dev.opencode.ai"
+  targetUrl.hostname = Resource.App.stage === "production" ? "stats.hena.ai" : "stats.dev.hena.ai"
   targetUrl.port = ""
 
   if (

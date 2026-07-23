@@ -23,7 +23,7 @@ beforeAll(async () => {
     useLocation: () => ({ pathname: "", query: {} }),
     useNavigate: () => () => undefined,
   }))
-  mock.module("@opencode-ai/ui/context", () => ({
+  mock.module("@hena-agent/ui/context", () => ({
     createSimpleContext: () => ({
       use: () => undefined,
       provider: () => undefined,

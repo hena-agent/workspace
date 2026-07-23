@@ -1,5 +1,5 @@
 import { Meta, Title } from "@solidjs/meta"
-import { ProviderIcon } from "@opencode-ai/ui/provider-icon"
+import { ProviderIcon } from "@hena-agent/ui/provider-icon"
 import {
   getStatsLabData,
   getStatsHomeData,
@@ -8,7 +8,7 @@ import {
   type ModelUsagePoint,
   type StatsHomeData,
   type StatsLabData,
-} from "@opencode-ai/stats-core/domain/home"
+} from "@hena-agent/stats-core/domain/home"
 import { createAsync, query, useParams } from "@solidjs/router"
 import { createMemo, createSignal, createUniqueId, For, onMount, Show, type JSX } from "solid-js"
 import { getRequestEvent } from "solid-js/web"
@@ -35,6 +35,7 @@ import {
   getGitHubStars,
   Header,
   isThemePreference,
+  readThemePreference,
   themeStorageKey,
   type HeaderLink,
   type ThemePreference,
@@ -108,7 +109,7 @@ export default function StatsLab() {
 
   onMount(() => {
     if (typeof window === "undefined") return
-    const preference = window.localStorage.getItem(themeStorageKey)
+    const preference = readThemePreference(window.localStorage)
     const nextPreference = isThemePreference(preference) ? preference : "system"
     applyThemePreference(nextPreference)
     setThemePreference(nextPreference)
@@ -120,7 +121,7 @@ export default function StatsLab() {
       <Meta name="description" content={labDescription()} />
       <LocaleLinks path={labPath()} />
       <Meta property="og:type" content="website" />
-      <Meta property="og:site_name" content="OpenCode" />
+      <Meta property="og:site_name" content="Hena Agent" />
       <Meta property="og:title" content={labTitle()} />
       <Meta property="og:description" content={labDescription()} />
       <Meta property="og:url" content={labUrl()} />
@@ -643,7 +644,7 @@ function LabModelTooltip(props: { state: LabModelTooltipState }) {
           </span>
           <strong>{props.state.model.name}</strong>
         </div>
-        <p>{props.state.model.description ?? "Recent OpenCode Go usage, share, context, and output limits."}</p>
+        <p>{props.state.model.description ?? "Recent Hena Go usage, share, context, and output limits."}</p>
       </div>
       <div data-slot="tooltip-divider" />
       <div data-slot="lab-model-tooltip-metrics">

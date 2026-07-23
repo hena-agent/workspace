@@ -1,6 +1,6 @@
 const providers = [
-  "opencode",
-  "opencode-go",
+  "hena-agent",
+  "hena-agent-go",
   "anthropic",
   "openai",
   "google",

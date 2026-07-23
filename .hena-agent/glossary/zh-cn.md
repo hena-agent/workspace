@@ -2,13 +2,13 @@
 
 ## Sources
 
-- PR #13942: https://github.com/anomalyco/opencode/pull/13942
+- PR #13942: https://github.com/hena-agent/hena/pull/13942
 
 ## Do Not Translate (Locale Additions)
 
-- `OpenCode` (preserve casing in prose; keep `opencode` only when it is part of commands, package names, paths, or code)
-- `OpenCode Zen`
-- `OpenCode CLI`
+- `Hena Agent` (preserve casing in prose; keep `hena-agent` only when it is part of commands, package names, paths, or code)
+- `Hena Zen`
+- `Hena Agent CLI`
 - `CLI`, `TUI`, `MCP`, `OAuth`
 - `Model Context Protocol` (prefer the English expansion when introducing `MCP`)
 
@@ -38,5 +38,5 @@ These are preferred terms for docs/UI prose and may evolve.
 
 ## Avoid
 
-- Avoid `opencode` in prose when referring to the product name; use `OpenCode`
+- Avoid `hena-agent` in prose when referring to the product name; use `Hena Agent`
 - Avoid mixing alternative terms for the same concept across docs when a preferred term is already established

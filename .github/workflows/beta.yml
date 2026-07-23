@@ -24,14 +24,14 @@ jobs:
         id: setup-git-committer
         uses: ./.github/actions/setup-git-committer
         with:
-          opencode-app-id: ${{ vars.OPENCODE_APP_ID }}
-          opencode-app-secret: ${{ secrets.OPENCODE_APP_SECRET }}
+          hena-agent-app-id: ${{ vars.HENA_AGENT_APP_ID }}
+          hena-agent-app-secret: ${{ secrets.HENA_AGENT_APP_SECRET }}
 
-      - name: Install OpenCode
-        run: bun i -g opencode-ai
+      - name: Install Hena Agent
+        run: bun i -g hena-agent
 
       - name: Sync beta branch
         env:
           GH_TOKEN: ${{ steps.setup-git-committer.outputs.token }}
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          HENA_AGENT_API_KEY: ${{ secrets.HENA_AGENT_API_KEY }}
         run: bun script/beta.ts

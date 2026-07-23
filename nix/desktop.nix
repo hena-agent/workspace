@@ -10,14 +10,14 @@
   autoPatchelfHook,
   copyDesktopItems,
   makeDesktopItem,
-  opencode,
+  hena-agent,
 }:
 let
   electron = electron_41;
 in
 stdenv.mkDerivation (finalAttrs: {
-  pname = "opencode-desktop";
-  inherit (opencode)
+  pname = "hena-agent-desktop";
+  inherit (hena-agent)
     version
     src
     node_modules
@@ -44,16 +44,16 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   desktopItems = lib.optional stdenv.hostPlatform.isLinux (makeDesktopItem {
-    name = "ai.opencode.desktop";
-    desktopName = "OpenCode";
-    exec = "opencode-desktop %U";
-    icon = "ai.opencode.desktop";
+    name = "ai.hena-agent.desktop";
+    desktopName = "Hena Agent";
+    exec = "hena-agent-desktop %U";
+    icon = "ai.hena-agent.desktop";
     # Electron 41 derives X11 WM_CLASS from app.name.
-    startupWMClass = "OpenCode";
+    startupWMClass = "Hena Agent";
     categories = [ "Development" ];
   });
 
-  env = opencode.env // {
+  env = hena-agent.env // {
     ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
   };
 
@@ -71,7 +71,7 @@ stdenv.mkDerivation (finalAttrs: {
       FILES=(src/main/windows.ts)
       for file in "''${FILES[@]}"; do
         substituteInPlace $BASE_PATH/$file \
-          --replace-fail "process.resourcesPath" "'$out/opt/opencode-desktop/resources'"
+          --replace-fail "process.resourcesPath" "'$out/opt/hena-agent-desktop/resources'"
       done
     '';
 
@@ -104,27 +104,27 @@ stdenv.mkDerivation (finalAttrs: {
   + lib.optionalString stdenv.hostPlatform.isDarwin ''
     mkdir -p $out/Applications
     mv dist/mac*/*.app $out/Applications
-    makeWrapper "$out/Applications/OpenCode.app/Contents/MacOS/OpenCode" $out/bin/opencode-desktop
+    makeWrapper "$out/Applications/Hena Agent.app/Contents/MacOS/Hena Agent" $out/bin/hena-agent-desktop
   ''
   + lib.optionalString stdenv.hostPlatform.isLinux ''
-    mkdir -p $out/opt/opencode-desktop
-    cp -r dist/linux*-unpacked/{resources,LICENSE*} $out/opt/opencode-desktop
+    mkdir -p $out/opt/hena-agent-desktop
+    cp -r dist/linux*-unpacked/{resources,LICENSE*} $out/opt/hena-agent-desktop
     install -Dm644 resources/icons/32x32.png \
-      "$out/share/icons/hicolor/32x32/apps/ai.opencode.desktop.png"
+      "$out/share/icons/hicolor/32x32/apps/ai.hena-agent.desktop.png"
     install -Dm644 resources/icons/64x64.png \
-      "$out/share/icons/hicolor/64x64/apps/ai.opencode.desktop.png"
+      "$out/share/icons/hicolor/64x64/apps/ai.hena-agent.desktop.png"
     install -Dm644 resources/icons/128x128.png \
-      "$out/share/icons/hicolor/128x128/apps/ai.opencode.desktop.png"
+      "$out/share/icons/hicolor/128x128/apps/ai.hena-agent.desktop.png"
     install -Dm644 resources/icons/128x128@2x.png \
-      "$out/share/icons/hicolor/256x256/apps/ai.opencode.desktop.png"
+      "$out/share/icons/hicolor/256x256/apps/ai.hena-agent.desktop.png"
     install -Dm644 resources/icons/icon.png \
-      "$out/share/icons/hicolor/512x512/apps/ai.opencode.desktop.png"
-    install -Dm644 resources/ai.opencode.desktop.metainfo.xml \
-      "$out/share/metainfo/ai.opencode.desktop.metainfo.xml"
-    makeWrapper ${lib.getExe electron} $out/bin/opencode-desktop \
+      "$out/share/icons/hicolor/512x512/apps/ai.hena-agent.desktop.png"
+    install -Dm644 resources/ai.hena-agent.desktop.metainfo.xml \
+      "$out/share/metainfo/ai.hena-agent.desktop.metainfo.xml"
+    makeWrapper ${lib.getExe electron} $out/bin/hena-agent-desktop \
      --inherit-argv0 \
      --set ELECTRON_FORCE_IS_PACKAGED 1 \
-     --add-flags $out/opt/opencode-desktop/resources/app.asar \
+     --add-flags $out/opt/hena-agent-desktop/resources/app.asar \
      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --enable-wayland-ime=true}}"
   ''
   + ''
@@ -136,8 +136,8 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   meta = {
-    description = "OpenCode Desktop App";
-    mainProgram = "opencode-desktop";
-    inherit (opencode.meta) homepage license platforms;
+    description = "Hena Agent Desktop App";
+    mainProgram = "hena-agent-desktop";
+    inherit (hena-agent.meta) homepage license platforms;
   };
 })

@@ -1,35 +1,35 @@
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
-import { AgentV2 } from "@opencode-ai/core/agent"
-import { ModelV2 } from "@opencode-ai/core/model"
-import { SessionV2 } from "@opencode-ai/core/session"
-import { Agent } from "@opencode-ai/schema/agent"
-import { Location } from "@opencode-ai/schema/location"
-import { Model } from "@opencode-ai/schema/model"
-import { AgentAttachment, FileAttachment, Prompt, Source } from "@opencode-ai/schema/prompt"
-import { Provider } from "@opencode-ai/schema/provider"
-import { Project } from "@opencode-ai/schema/project"
-import { ProjectDirectories } from "@opencode-ai/schema/project-directories"
-import { PermissionV1 } from "@opencode-ai/schema/permission-v1"
-import { Session } from "@opencode-ai/schema/session"
-import { SessionInput } from "@opencode-ai/schema/session-input"
-import { SessionMessage } from "@opencode-ai/schema/session-message"
-import { Workspace } from "@opencode-ai/schema/workspace"
-import { Command } from "@opencode-ai/schema/command"
-import { Connection } from "@opencode-ai/schema/connection"
-import { Credential } from "@opencode-ai/schema/credential"
-import { FileSystem } from "@opencode-ai/schema/filesystem"
-import { Integration } from "@opencode-ai/schema/integration"
-import { LLM } from "@opencode-ai/schema/llm"
-import { Permission } from "@opencode-ai/schema/permission"
-import { Plugin } from "@opencode-ai/schema/plugin"
-import { Pty } from "@opencode-ai/schema/pty"
-import { Reference } from "@opencode-ai/schema/reference"
-import { SessionTodo } from "@opencode-ai/schema/session-todo"
-import { Skill } from "@opencode-ai/schema/skill"
-import { AbsolutePath, DateTimeUtcFromMillis, optional, statics } from "@opencode-ai/schema/schema"
-import { ProviderV2 } from "@opencode-ai/core/provider"
-import { PluginV2 } from "@opencode-ai/core/plugin"
+import { AgentV2 } from "@hena-agent/core/agent"
+import { ModelV2 } from "@hena-agent/core/model"
+import { SessionV2 } from "@hena-agent/core/session"
+import { Agent } from "@hena-agent/schema/agent"
+import { Location } from "@hena-agent/schema/location"
+import { Model } from "@hena-agent/schema/model"
+import { AgentAttachment, FileAttachment, Prompt, Source } from "@hena-agent/schema/prompt"
+import { Provider } from "@hena-agent/schema/provider"
+import { Project } from "@hena-agent/schema/project"
+import { ProjectDirectories } from "@hena-agent/schema/project-directories"
+import { PermissionV1 } from "@hena-agent/schema/permission-v1"
+import { Session } from "@hena-agent/schema/session"
+import { SessionInput } from "@hena-agent/schema/session-input"
+import { SessionMessage } from "@hena-agent/schema/session-message"
+import { Workspace } from "@hena-agent/schema/workspace"
+import { Command } from "@hena-agent/schema/command"
+import { Connection } from "@hena-agent/schema/connection"
+import { Credential } from "@hena-agent/schema/credential"
+import { FileSystem } from "@hena-agent/schema/filesystem"
+import { Integration } from "@hena-agent/schema/integration"
+import { LLM } from "@hena-agent/schema/llm"
+import { Permission } from "@hena-agent/schema/permission"
+import { Plugin } from "@hena-agent/schema/plugin"
+import { Pty } from "@hena-agent/schema/pty"
+import { Reference } from "@hena-agent/schema/reference"
+import { SessionTodo } from "@hena-agent/schema/session-todo"
+import { Skill } from "@hena-agent/schema/skill"
+import { AbsolutePath, DateTimeUtcFromMillis, optional, statics } from "@hena-agent/schema/schema"
+import { ProviderV2 } from "@hena-agent/core/provider"
+import { PluginV2 } from "@hena-agent/core/plugin"
 
 test("Core reuses the canonical shared schemas", async () => {
   const [
@@ -55,27 +55,27 @@ test("Core reuses the canonical shared schemas", async () => {
     coreSchema,
     coreWorkspace,
   ] = await Promise.all([
-    import("@opencode-ai/core/command"),
-    import("@opencode-ai/core/integration/connection"),
-    import("@opencode-ai/core/credential"),
-    import("@opencode-ai/core/filesystem"),
-    import("@opencode-ai/core/integration"),
-    import("@opencode-ai/core/location"),
-    import("@opencode-ai/llm"),
-    import("@opencode-ai/core/permission"),
-    import("@opencode-ai/core/v1/permission"),
-    import("@opencode-ai/core/project/copy"),
-    import("@opencode-ai/core/pty"),
-    import("@opencode-ai/core/project/schema"),
-    import("@opencode-ai/core/reference"),
-    import("@opencode-ai/core/session/input"),
-    import("@opencode-ai/core/session/message"),
-    import("@opencode-ai/core/session/todo"),
-    import("@opencode-ai/core/session/prompt"),
-    import("@opencode-ai/core/skill"),
-    import("@opencode-ai/core/v2-schema"),
-    import("@opencode-ai/core/schema"),
-    import("@opencode-ai/core/workspace"),
+    import("@hena-agent/core/command"),
+    import("@hena-agent/core/integration/connection"),
+    import("@hena-agent/core/credential"),
+    import("@hena-agent/core/filesystem"),
+    import("@hena-agent/core/integration"),
+    import("@hena-agent/core/location"),
+    import("@hena-agent/llm"),
+    import("@hena-agent/core/permission"),
+    import("@hena-agent/core/v1/permission"),
+    import("@hena-agent/core/project/copy"),
+    import("@hena-agent/core/pty"),
+    import("@hena-agent/core/project/schema"),
+    import("@hena-agent/core/reference"),
+    import("@hena-agent/core/session/input"),
+    import("@hena-agent/core/session/message"),
+    import("@hena-agent/core/session/todo"),
+    import("@hena-agent/core/session/prompt"),
+    import("@hena-agent/core/skill"),
+    import("@hena-agent/core/v2-schema"),
+    import("@hena-agent/core/schema"),
+    import("@hena-agent/core/workspace"),
   ])
 
   const schemas = [

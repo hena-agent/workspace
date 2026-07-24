@@ -44,11 +44,7 @@ jobs:
   claude-review:
     uses: ./.github/workflows/_opencode-review.yml
     with:
-      # `opencode github run`'s model resolver rejects the provider-prefixed
-      # "anthropic/claude-opus-4-8" (fails with "Model not found", suggesting
-      # the unprefixed id instead), even though it resolves fine under plain
-      # `opencode run`. Verified against opencode 1.18.4.
-      model: claude-opus-4-8
+      model: anthropic/claude-opus-4-8
       variant: max
       app-client-id: ${{ vars.CLAUDE_REVIEWER_CLIENT_ID }}
       prompt: |

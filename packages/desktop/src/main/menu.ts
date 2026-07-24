@@ -5,7 +5,7 @@ import {
   desktopMenuVisible,
   type DesktopMenuEntry,
   type DesktopMenuRole,
-} from "@hena-agent/app/desktop-menu"
+} from "@hena/app/desktop-menu"
 
 import { UPDATER_ENABLED } from "./constants"
 import { runDesktopMenuAction } from "./desktop-menu-actions"

@@ -1,14 +1,14 @@
 import { sentryVitePlugin } from "@sentry/vite-plugin"
 import { defineConfig } from "electron-vite"
-import appPlugin from "@hena-agent/app/vite"
+import appPlugin from "@hena/app/vite"
 import * as fs from "node:fs/promises"
 
-const HENA_AGENT_SERVER_DIST = "../hena-agent/dist/node"
+const HENA_SERVER_DIST = "../hena/dist/node"
 
 const channel = (() => {
-  const raw = process.env.HENA_AGENT_CHANNEL
+  const raw = process.env.HENA_CHANNEL
   if (raw === "dev" || raw === "beta" || raw === "prod") return raw
-  if (process.env.HENA_AGENT_CHANNEL === "latest") return "prod"
+  if (process.env.HENA_CHANNEL === "latest") return "prod"
   return "dev"
 })()
 
@@ -34,7 +34,7 @@ const sentry =
 export default defineConfig({
   main: {
     define: {
-      "import.meta.env.HENA_AGENT_CHANNEL": JSON.stringify(channel),
+      "import.meta.env.HENA_CHANNEL": JSON.stringify(channel),
     },
     build: {
       rollupOptions: {
@@ -55,25 +55,25 @@ const require = __cjs_mod__.createRequire(import.meta.url);
     },
     plugins: [
       {
-        name: "hena-agent:node-pty-narrower",
+        name: "hena:node-pty-narrower",
         enforce: "pre",
         resolveId(s) {
           if (s === "@lydell/node-pty") return nodePtyPkg
         },
       },
       {
-        name: "hena-agent:virtual-server-module",
+        name: "hena:virtual-server-module",
         enforce: "pre",
         resolveId(id) {
-          if (id === "virtual:hena-agent-server") return this.resolve(`${HENA_AGENT_SERVER_DIST}/node.js`)
+          if (id === "virtual:hena-server") return this.resolve(`${HENA_SERVER_DIST}/node.js`)
         },
       },
       {
-        name: "hena-agent:copy-server-assets",
+        name: "hena:copy-server-assets",
         async writeBundle() {
-          for (const l of await fs.readdir(HENA_AGENT_SERVER_DIST)) {
+          for (const l of await fs.readdir(HENA_SERVER_DIST)) {
             if (!l.endsWith(".wasm")) continue
-            await fs.writeFile(`./out/main/chunks/${l}`, await fs.readFile(`${HENA_AGENT_SERVER_DIST}/${l}`))
+            await fs.writeFile(`./out/main/chunks/${l}`, await fs.readFile(`${HENA_SERVER_DIST}/${l}`))
           }
         },
       },

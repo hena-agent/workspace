@@ -1,9 +1,9 @@
 ---
 title: การรองรับ ACP
-description: ใช้ Hena Agent ในโปรแกรมแก้ไขที่รองรับ ACP
+description: ใช้ Hena ในโปรแกรมแก้ไขที่รองรับ ACP
 ---
 
-Hena Agent รองรับ [Agent Client Protocol](https://agentclientprotocol.com) (ACP) ซึ่งช่วยให้สามารถทำงานร่วมกับ editor และ IDE ต่างๆ ได้โดยตรง
+Hena รองรับ [Agent Client Protocol](https://agentclientprotocol.com) (ACP) ซึ่งช่วยให้สามารถทำงานร่วมกับ editor และ IDE ต่างๆ ได้โดยตรง
 
 :::tip
 สำหรับรายชื่อเครื่องมือที่รองรับ ACP สามารถดูได้ที่ [ACP progress report](https://zed.dev/blog/acp-progress-report#available-now)
@@ -15,9 +15,9 @@ ACP เป็นมาตรฐานเปิดสำหรับการส�
 
 ## การกำหนดค่า
 
-ในการใช้ Hena Agent ผ่าน ACP ให้กำหนดค่าโปรแกรมแก้ไขของคุณให้รันคำสั่ง `hena-agent acp`
+ในการใช้ Hena ผ่าน ACP ให้กำหนดค่าโปรแกรมแก้ไขของคุณให้รันคำสั่ง `hena acp`
 
-คำสั่งนี้จะเริ่ม Hena Agent เป็น process ย่อยที่รองรับ ACP ซึ่งสื่อสารกับโปรแกรมแก้ไขของคุณผ่าน JSON-RPC ทาง stdio
+คำสั่งนี้จะเริ่ม Hena เป็น process ย่อยที่รองรับ ACP ซึ่งสื่อสารกับโปรแกรมแก้ไขของคุณผ่าน JSON-RPC ทาง stdio
 
 นี่คือตัวอย่างสำหรับโปรแกรมแก้ไขยอดนิยมที่รองรับ ACP
 
@@ -30,8 +30,8 @@ ACP เป็นมาตรฐานเปิดสำหรับการส�
 ```json title="~/.config/zed/settings.json"
 {
   "agent_servers": {
-    "Hena Agent": {
-      "command": "hena-agent",
+    "Hena": {
+      "command": "hena",
       "args": ["acp"]
     }
   }
@@ -51,9 +51,9 @@ ACP เป็นมาตรฐานเปิดสำหรับการส�
         {
           "agent": {
             "custom": {
-              "name": "Hena Agent",
+              "name": "Hena",
               "command": {
-                "command": "hena-agent",
+                "command": "hena",
                 "args": ["acp"]
               }
             }
@@ -74,15 +74,15 @@ ACP เป็นมาตรฐานเปิดสำหรับการส�
 ```json title="acp.json"
 {
   "agent_servers": {
-    "Hena Agent": {
-      "command": "/absolute/path/bin/hena-agent",
+    "Hena": {
+      "command": "/absolute/path/bin/hena",
       "args": ["acp"]
     }
   }
 }
 ```
 
-นี่เป็นการเปิดให้ตัวแทน 'Hena Agent' ในเนื้อหาของตัวแทน AI Chat
+นี่เป็นการเปิดให้ตัวแทน 'Hena' ในเนื้อหาของตัวแทน AI Chat
 
 ---
 
@@ -93,24 +93,24 @@ ACP เป็นมาตรฐานเปิดสำหรับการส�
 ```lua
 {
   acp_providers = {
-    ["hena-agent"] = {
-      command = "hena-agent",
+    ["hena"] = {
+      command = "hena",
       args = { "acp" }
     }
   }
 }
 ```
 
-หากคุณต้องการส่งผ่าน environment variables (เช่น `HENA_AGENT_API_KEY`) คุณต้องระบุใน `env`:
+หากคุณต้องการส่งผ่าน environment variables (เช่น `HENA_API_KEY`) คุณต้องระบุใน `env`:
 
 ```lua {6-8}
 {
   acp_providers = {
-    ["hena-agent"] = {
-      command = "hena-agent",
+    ["hena"] = {
+      command = "hena",
       args = { "acp" },
       env = {
-        HENA_AGENT_API_KEY = os.getenv("HENA_AGENT_API_KEY")
+        HENA_API_KEY = os.getenv("HENA_API_KEY")
       }
     }
   }
@@ -121,14 +121,14 @@ ACP เป็นมาตรฐานเปิดสำหรับการส�
 
 ### CodeCompanion.nvim
 
-ลองใช้ Hena Agent ACP ใน [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) ให้เพิ่มสิ่งต่อไปนี้ใน Neovim ของคุณ:
+ลองใช้ Hena ACP ใน [CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) ให้เพิ่มสิ่งต่อไปนี้ใน Neovim ของคุณ:
 
 ```lua
 require("codecompanion").setup({
   interactions = {
     chat = {
       adapter = {
-        name = "hena-agent",
+        name = "hena",
         model = "claude-sonnet-4",
       },
     },
@@ -136,13 +136,13 @@ require("codecompanion").setup({
 })
 ```
 
-คุณสามารถใช้ CodeCompanion เพื่อใช้ hena-agent เป็น ACP agent สำหรับแชท
+คุณสามารถใช้ CodeCompanion เพื่อใช้ hena เป็น ACP agent สำหรับแชท
 
-หากคุณต้องส่ง environment variables (เช่น `HENA_AGENT_API_KEY`) โปรดดู [Configuring Adapters: Environment Variables](https://codecompanion.olimorris.dev/getting-started#setting-an-api-key) ในเอกสารของ CodeCompanion.nvim สำหรับรายละเอียดทั้งหมด
+หากคุณต้องส่ง environment variables (เช่น `HENA_API_KEY`) โปรดดู [Configuring Adapters: Environment Variables](https://codecompanion.olimorris.dev/getting-started#setting-an-api-key) ในเอกสารของ CodeCompanion.nvim สำหรับรายละเอียดทั้งหมด
 
 ## การรองรับ
 
-hena-agent ทำงานผ่าน ACP เหมือนกับใน terminal และรองรับฟีเจอร์ทั้งหมด:
+hena ทำงานผ่าน ACP เหมือนกับใน terminal และรองรับฟีเจอร์ทั้งหมด:
 
 :::note
 คำสั่ง slash ในตัวบางคำสั่งเช่น `/undo` และ `/redo` ยังไม่รองรับในขณะนี้
@@ -150,7 +150,7 @@ hena-agent ทำงานผ่าน ACP เหมือนกับใน ter
 
 - เครื่องมือใน (ไฟล์ไฟล์คำสั่งอื่นๆ)
 - คำอธิบายและคำสั่งสแลช
-- MCP แขกที่นี่คือข้อมูลเพิ่มเติมของ Hena Agent ของคุณ
+- MCP แขกที่นี่คือข้อมูลเพิ่มเติมของ Hena ของคุณ
 - กฎเฉพาะโครงการจาก `AGENTS.md`
 - คนจัดรูปแบบและ linters เวียนนา
 - ระบบตัวแทนและระบบ

@@ -1,31 +1,31 @@
-import { Message, Model, Part, Session, SessionStatus, SnapshotFileDiff, UserMessage } from "@hena-agent/sdk/v2"
-import { SessionTurn } from "@hena-agent/session-ui/session-turn"
-import { SessionReview } from "@hena-agent/session-ui/session-review"
-import { DataProvider } from "@hena-agent/session-ui/context"
-import { FileComponentProvider } from "@hena-agent/ui/context/file"
-import { WorkerPoolProvider } from "@hena-agent/ui/context/worker-pool"
+import { Message, Model, Part, Session, SessionStatus, SnapshotFileDiff, UserMessage } from "@hena/sdk/v2"
+import { SessionTurn } from "@hena/session-ui/session-turn"
+import { SessionReview } from "@hena/session-ui/session-review"
+import { DataProvider } from "@hena/session-ui/context"
+import { FileComponentProvider } from "@hena/ui/context/file"
+import { WorkerPoolProvider } from "@hena/ui/context/worker-pool"
 import { createAsync, query, useParams } from "@solidjs/router"
 import { createMemo, createSignal, ErrorBoundary, For, Match, Show, Switch } from "solid-js"
 import { Share } from "~/core/share"
-import { Logo, Mark } from "@hena-agent/ui/logo"
-import { IconButton } from "@hena-agent/ui/icon-button"
-import { ProviderIcon } from "@hena-agent/ui/provider-icon"
-import { iife } from "@hena-agent/core/util/iife"
-import { Binary } from "@hena-agent/core/util/binary"
-import { NamedError } from "@hena-agent/core/util/error"
+import { Logo, Mark } from "@hena/ui/logo"
+import { IconButton } from "@hena/ui/icon-button"
+import { ProviderIcon } from "@hena/ui/provider-icon"
+import { iife } from "@hena/core/util/iife"
+import { Binary } from "@hena/core/util/binary"
+import { NamedError } from "@hena/core/util/error"
 import { DateTime } from "luxon"
 import { createStore } from "solid-js/store"
 import NotFound from "../[...404]"
-import { Tabs } from "@hena-agent/ui/tabs"
-import { MessageNav } from "@hena-agent/session-ui/message-nav"
-import { FileSSR } from "@hena-agent/session-ui/file-ssr"
+import { Tabs } from "@hena/ui/tabs"
+import { MessageNav } from "@hena/session-ui/message-nav"
+import { FileSSR } from "@hena/session-ui/file-ssr"
 import { clientOnly } from "@solidjs/start"
 import { Meta, Title } from "@solidjs/meta"
 import { Base64 } from "js-base64"
 import { getRequestEvent } from "solid-js/web"
 
 const ClientOnlyWorkerPoolProvider = clientOnly(() =>
-  import("@hena-agent/session-ui/pierre/worker").then((m) => ({
+  import("@hena/session-ui/pierre/worker").then((m) => ({
     default: (props: { children: any }) => (
       <WorkerPoolProvider pools={m.getWorkerPools()}>{props.children}</WorkerPoolProvider>
     ),
@@ -179,15 +179,15 @@ export default function () {
               modelParam = "unknown"
             }
             const version = `v${info().version}`
-            return `https://social-cards.sst.dev/hena-agent-share/${encodedTitle}.png?model=${modelParam}&version=${version}&id=${data().shareID}`
+            return `https://social-cards.sst.dev/hena-share/${encodedTitle}.png?model=${modelParam}&version=${version}&id=${data().shareID}`
           })
 
           return (
             <>
               <Show when={info().title}>
-                <Title>{info().title} | Hena Agent</Title>
+                <Title>{info().title} | Hena</Title>
               </Show>
-              <Meta name="description" content="hena-agent - The AI coding agent built for the terminal." />
+              <Meta name="description" content="hena - The AI coding agent built for the terminal." />
               <Meta property="og:image" content={ogImage()} />
               <Meta name="twitter:image" content={ogImage()} />
               <ClientOnlyWorkerPoolProvider>

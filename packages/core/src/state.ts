@@ -26,7 +26,7 @@ export interface Transformable<DraftApi> {
   readonly reload: Reload
 }
 
-const CurrentBatch = Context.Reference<Set<Reload> | undefined>("@hena-agent/State/CurrentBatch", {
+const CurrentBatch = Context.Reference<Set<Reload> | undefined>("@hena/State/CurrentBatch", {
   defaultValue: () => undefined,
 })
 

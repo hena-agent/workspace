@@ -1,4 +1,4 @@
-import type { Event as SDKEvent } from "@hena-agent/sdk/v2/types"
+import type { Event as SDKEvent } from "@hena/sdk/v2/types"
 import type { Stream } from "effect"
 
 export type EventMap = {

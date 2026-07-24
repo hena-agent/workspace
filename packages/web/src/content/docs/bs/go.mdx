@@ -9,9 +9,9 @@ export const email = `mailto:${config.email}`
 
 Hena Go je povoljna pretplata — **$5 za vaš prvi mjesec**, a zatim **$10/mjesečno** — koja vam pruža pouzdan pristup popularnim otvorenim modelima za programiranje.
 
-Go radi kao bilo koji drugi provajder u Hena Agent-u. Pretplatite se na Hena Go i
+Go radi kao bilo koji drugi provajder u Hena-u. Pretplatite se na Hena Go i
 dobijete svoj API ključ. On je **potpuno opcionalan** i ne morate ga koristiti da
-biste koristili Hena Agent.
+biste koristili Hena.
 
 Dizajniran je prvenstveno za međunarodne korisnike, sa modelima hostovanim u SAD-u, EU i Singapuru za stabilan globalni pristup.
 
@@ -27,7 +27,7 @@ Međutim, dobiti pouzdan pristup s niskom latencijom do njih može biti teško. 
 variraju u pogledu kvaliteta i dostupnosti.
 
 :::tip
-Testirali smo odabranu grupu modela i provajdera koji dobro rade sa Hena Agent-om.
+Testirali smo odabranu grupu modela i provajdera koji dobro rade sa Hena-om.
 :::
 
 Da bismo to popravili, uradili smo nekoliko stvari:
@@ -45,7 +45,7 @@ Hena Go vam daje pristup ovim modelima za **$5 za vaš prvi mjesec**, a zatim **
 
 ## Kako funkcioniše
 
-Hena Go radi kao bilo koji drugi provajder u Hena Agent-u.
+Hena Go radi kao bilo koji drugi provajder u Hena-u.
 
 1. Prijavite se na **<a href={console}>Hena Zen</a>**, pretplatite se na Go i
    kopirajte svoj API ključ.
@@ -206,9 +206,9 @@ Također možete pristupiti Go modelima putem sljedećih API endpointa.
 | Qwen3.6 Plus      | qwen3.6-plus      | `https://hena.dev/zen/go/v1/messages`         | `@ai-sdk/anthropic`         |
 | Hy3               | hy3               | `https://hena.dev/zen/go/v1/chat/completions` | `@ai-sdk/openai-compatible` |
 
-[Model id](/docs/config/#models) u vašoj Hena Agent konfiguraciji
-koristi format `hena-agent-go/<model-id>`. Na primjer, za Kimi K3, koristili biste
-`hena-agent-go/kimi-k3` u svojoj konfiguraciji.
+[Model id](/docs/config/#models) u vašoj Hena konfiguraciji
+koristi format `hena-go/<model-id>`. Na primjer, za Kimi K3, koristili biste
+`hena-go/kimi-k3` u svojoj konfiguraciji.
 
 ---
 
@@ -235,4 +235,4 @@ Napravili smo Hena Go da bismo:
 1. Učinili AI programiranje **dostupnim** većem broju ljudi putem povoljne pretplate.
 2. Pružili **pouzdan** pristup najboljim otvorenim modelima za programiranje.
 3. Odabrali modele koji su **testirani i benchmarkovani** za upotrebu od strane agenata za programiranje.
-4. Osigurali da **nema zaključavanja (no lock-in)**, omogućavajući vam da uz Hena Agent koristite i bilo kojeg drugog provajdera.
+4. Osigurali da **nema zaključavanja (no lock-in)**, omogućavajući vam da uz Hena koristite i bilo kojeg drugog provajdera.

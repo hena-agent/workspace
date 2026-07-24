@@ -2,19 +2,19 @@ import { createEffect, createMemo, createResource, createSignal, Match, on, onCl
 import { createStore } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
 import { makeEventListener } from "@solid-primitives/event-listener"
-import type { FileSearchHandle } from "@hena-agent/session-ui/file"
-import { useFileComponent } from "@hena-agent/ui/context/file"
-import { cloneSelectedLineRange, previewSelectedLines } from "@hena-agent/session-ui/pierre/selection-bridge"
-import { createLineCommentController } from "@hena-agent/session-ui/line-comment-annotations"
-import { createLineCommentControllerV2 } from "@hena-agent/session-ui/v2/line-comment-annotations-v2"
-import { sampledChecksum } from "@hena-agent/core/util/encode"
-import { normalize, text } from "@hena-agent/session-ui/session-diff"
-import { DropdownMenu } from "@hena-agent/ui/dropdown-menu"
-import { IconButton } from "@hena-agent/ui/icon-button"
-import { LineCommentV2OverflowIcon } from "@hena-agent/ui/v2/line-comment-v2"
-import { MenuV2 } from "@hena-agent/ui/v2/menu-v2"
-import { Tabs } from "@hena-agent/ui/tabs"
-import { ScrollView } from "@hena-agent/ui/scroll-view"
+import type { FileSearchHandle } from "@hena/session-ui/file"
+import { useFileComponent } from "@hena/ui/context/file"
+import { cloneSelectedLineRange, previewSelectedLines } from "@hena/session-ui/pierre/selection-bridge"
+import { createLineCommentController } from "@hena/session-ui/line-comment-annotations"
+import { createLineCommentControllerV2 } from "@hena/session-ui/v2/line-comment-annotations-v2"
+import { sampledChecksum } from "@hena/core/util/encode"
+import { normalize, text } from "@hena/session-ui/session-diff"
+import { DropdownMenu } from "@hena/ui/dropdown-menu"
+import { IconButton } from "@hena/ui/icon-button"
+import { LineCommentV2OverflowIcon } from "@hena/ui/v2/line-comment-v2"
+import { MenuV2 } from "@hena/ui/v2/menu-v2"
+import { Tabs } from "@hena/ui/tabs"
+import { ScrollView } from "@hena/ui/scroll-view"
 import { showToast } from "@/utils/toast"
 import { selectionFromLines, useFile, type FileSelection, type SelectedLineRange } from "@/context/file"
 import { useComments } from "@/context/comments"
@@ -801,7 +801,7 @@ function SessionFileViewV2(props: { tab: string; diff?: ReturnType<typeof normal
           commentsUi.onLineNumberSelectionEnd(range)
         }}
         search={search}
-        class="select-text [--hena-agent-diffs-bg:var(--v2-background-bg-base)]"
+        class="select-text [--hena-diffs-bg:var(--v2-background-bg-base)]"
         media={{
           mode: "auto",
           path: path(),

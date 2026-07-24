@@ -2,16 +2,16 @@ import { describe, expect } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Effect, Schema } from "effect"
-import { AgentV2 } from "@hena-agent/core/agent"
-import { Config } from "@hena-agent/core/config"
-import { ConfigAgentPlugin } from "@hena-agent/core/config/plugin/agent"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { FSUtil } from "@hena-agent/core/fs-util"
-import { Global } from "@hena-agent/core/global"
-import { PermissionV2 } from "@hena-agent/core/permission"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { ConfigMigrateV1 } from "@hena-agent/core/v1/config/migrate"
+import { AgentV2 } from "@hena/core/agent"
+import { Config } from "@hena/core/config"
+import { ConfigAgentPlugin } from "@hena/core/config/plugin/agent"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { FSUtil } from "@hena/core/fs-util"
+import { Global } from "@hena/core/global"
+import { PermissionV2 } from "@hena/core/permission"
+import { AbsolutePath } from "@hena/core/schema"
+import { ConfigMigrateV1 } from "@hena/core/v1/config/migrate"
 import { tmpdir } from "../fixture/tmpdir"
 import { testEffect } from "../lib/effect"
 import { agentHost, host } from "../plugin/host"
@@ -23,7 +23,7 @@ describe("ConfigAgentPlugin.Plugin", () => {
   it.effect("matches POSIX paths against home-relative permissions", () =>
     Effect.gen(function* () {
       const permissions = yield* loadHomePermissions("/home/test")
-      expect(PermissionV2.evaluate("external_directory", "/home/test/p/hena-agent/src/*", permissions).effect).toBe(
+      expect(PermissionV2.evaluate("external_directory", "/home/test/p/hena/src/*", permissions).effect).toBe(
         "allow",
       )
       expect(PermissionV2.evaluate("external_directory", "/home/test/cache/files/*", permissions).effect).toBe("deny")
@@ -37,7 +37,7 @@ describe("ConfigAgentPlugin.Plugin", () => {
     Effect.gen(function* () {
       const permissions = yield* loadHomePermissions("C:\\Users\\test")
       expect(
-        PermissionV2.evaluate("external_directory", "C:\\Users\\test\\p\\hena-agent\\src\\*", permissions).effect,
+        PermissionV2.evaluate("external_directory", "C:\\Users\\test\\p\\hena\\src\\*", permissions).effect,
       ).toBe("allow")
       expect(PermissionV2.evaluate("external_directory", "C:\\Users\\test\\cache\\files\\*", permissions).effect).toBe(
         "deny",

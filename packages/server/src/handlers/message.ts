@@ -1,9 +1,9 @@
-import { SessionMessage } from "@hena-agent/core/session/message"
-import { SessionV2 } from "@hena-agent/core/session"
+import { SessionMessage } from "@hena/core/session/message"
+import { SessionV2 } from "@hena/core/session"
 import { Effect, Schema } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Api } from "../api"
-import { InvalidCursorError, SessionNotFoundError, UnknownError } from "@hena-agent/protocol/errors"
+import { InvalidCursorError, SessionNotFoundError, UnknownError } from "@hena/protocol/errors"
 
 const DefaultMessagesLimit = 50
 

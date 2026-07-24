@@ -1,68 +1,34 @@
 ---
 title: GitLab
-description: ใช้ Hena Agent ในปัญหา GitLab และรวมคำขอ
+description: ใช้ Hena ในปัญหา GitLab และรวมคำขอ
 ---
 
-Hena Agent ทำงานร่วมกับเวิร์กโฟลว์ GitLab ของคุณผ่านไปป์ไลน์ GitLab CI/CD หรือกับ GitLab Duo
+Hena ทำงานร่วมกับเวิร์กโฟลว์ GitLab ของคุณผ่านไปป์ไลน์ GitLab CI/CD หรือกับ GitLab Duo
 
-ในทั้งสองกรณี Hena Agent จะทำงานบน GitLab runners ของคุณ
-
----
-
-## GitLab CI
-
-Hena Agent ทำงานในไปป์ไลน์ GitLab ปกติ คุณสามารถสร้างมันลงในไปป์ไลน์เป็น [องค์ประกอบ CI](https://docs.gitlab.com/ee/ci/components/)
-
-ที่นี่เรากำลังใช้คอมโพเนนต์ CI/CD ที่สร้างโดยชุมชนสำหรับ Hena Agent — [nagyv/gitlab-opencode](https://gitlab.com/nagyv/gitlab-opencode)
+ในทั้งสองกรณี Hena จะทำงานบน GitLab runners ของคุณ
 
 ---
 
-### คุณสมบัติ
-
-- **ใช้การกำหนดค่าแบบกำหนดเองต่องาน**: กำหนดค่า Hena Agent ด้วยไดเร็กทอรีการกำหนดค่าแบบกำหนดเอง เช่น `./config/#custom-directory` เพื่อเปิดหรือปิดฟังก์ชันการทำงานต่อการเรียกใช้ Hena Agent
-- **การตั้งค่าขั้นต่ำ**: องค์ประกอบ CI จะตั้งค่า Hena Agent ในเบื้องหลัง คุณเพียงแค่ต้องสร้างการกำหนดค่า Hena Agent และข้อความแจ้งเริ่มต้นเท่านั้น
-- **ยืดหยุ่น**: ส่วนประกอบ CI รองรับอินพุตหลายอินพุตเพื่อปรับแต่งลักษณะการทำงาน
-
----
-
-### ตั้งค่า
-
-1. จัดเก็บการรับรองความถูกต้อง Hena Agent ของคุณ JSON เป็นประเภทไฟล์ CI ตัวแปรสภาพแวดล้อมภายใต้ **การตั้งค่า** > **CI/CD** > **ตัวแปร** ตรวจสอบให้แน่ใจว่าได้ทำเครื่องหมายว่าเป็น "ปิดบังและซ่อนไว้"
-2. เพิ่มสิ่งต่อไปนี้ในไฟล์ `.gitlab-ci.yml` ของคุณ
-
-   ```yaml title=".gitlab-ci.yml"
-   include:
-     - component: $CI_SERVER_FQDN/nagyv/gitlab-opencode/opencode@2
-       inputs:
-         config_dir: ${CI_PROJECT_DIR}/hena-agent-config
-         auth_json: $HENA_AGENT_AUTH_JSON # The variable name for your Hena Agent authentication JSON
-         command: optional-custom-command
-         message: "Your prompt here"
-   ```
-
-หากต้องการข้อมูลเพิ่มเติมและกรณีการใช้งาน [ตรวจสอบเอกสาร](https://gitlab.com/explore/catalog/nagyv/gitlab-opencode) สำหรับส่วนประกอบนี้
-
----
 
 ## GitLab Duo
 
-Hena Agent ทำงานร่วมกับเวิร์กโฟลว์ GitLab ของคุณ
-พูดถึง `@hena-agent` ในความคิดเห็น แล้ว Hena Agent จะดำเนินการงานภายในไปป์ไลน์ GitLab CI ของคุณ
+Hena ทำงานร่วมกับเวิร์กโฟลว์ GitLab ของคุณ
+พูดถึง `@hena` ในความคิดเห็น แล้ว Hena จะดำเนินการงานภายในไปป์ไลน์ GitLab CI ของคุณ
 
 ---
 
 ### คุณสมบัติ
 
-- **Issue Triage**: ขอให้ Hena Agent ตรวจสอบปัญหาและอธิบายให้คุณทราบ
-- **แก้ไขและนำไปใช้**: ขอให้ Hena Agent แก้ไขปัญหาหรือใช้ฟีเจอร์
+- **Issue Triage**: ขอให้ Hena ตรวจสอบปัญหาและอธิบายให้คุณทราบ
+- **แก้ไขและนำไปใช้**: ขอให้ Hena แก้ไขปัญหาหรือใช้ฟีเจอร์
   มันจะสร้างสาขาใหม่และขอรวมการเปลี่ยนแปลง
-- **ปลอดภัย**: Hena Agent ทำงานบนนักวิ่ง GitLab ของคุณ
+- **ปลอดภัย**: Hena ทำงานบนนักวิ่ง GitLab ของคุณ
 
 ---
 
 ### ตั้งค่า
 
-Hena Agent ทำงานในไปป์ไลน์ GitLab CI/CD ของคุณ นี่คือสิ่งที่คุณจะต้องตั้งค่า:
+Hena ทำงานในไปป์ไลน์ GitLab CI/CD ของคุณ นี่คือสิ่งที่คุณจะต้องตั้งค่า:
 
 :::tip
 ตรวจสอบ [**เอกสาร GitLab**](https://docs.gitlab.com/user/duo_agent_platform/agent_assistant/) เพื่อดูคำแนะนำล่าสุด
@@ -82,19 +48,19 @@ Hena Agent ทำงานในไปป์ไลน์ GitLab CI/CD ของ�
     ```yaml
     image: node:22-slim
     commands:
-      - echo "Installing hena-agent"
-      - npm install --global hena-agent
+      - echo "Installing hena"
+      - npm install --global hena
       - echo "Installing glab"
-      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA_AGENT
+      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA
       - apt-get update --quiet && apt-get install --yes curl wget gpg git && rm --recursive --force /var/lib/apt/lists/*
       - curl --silent --show-error --location "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash
       - apt-get install --yes glab
       - echo "Configuring glab"
       - echo $GITLAB_HOST
-      - echo "Creating Hena Agent auth configuration"
-      - mkdir --parents ~/.local/share/hena-agent
+      - echo "Creating Hena auth configuration"
+      - mkdir --parents ~/.local/share/hena
       - |
-        cat > ~/.local/share/hena-agent/auth.json << EOF
+        cat > ~/.local/share/hena/auth.json << EOF
         {
           "anthropic": {
             "type": "api",
@@ -103,13 +69,13 @@ Hena Agent ทำงานในไปป์ไลน์ GitLab CI/CD ของ�
         }
         EOF
       - echo "Configuring git"
-      - git config --global user.email "hena-agent@gitlab.com"
-      - git config --global user.name "Hena Agent"
+      - git config --global user.email "hena@gitlab.com"
+      - git config --global user.name "Hena"
       - echo "Testing glab"
       - glab issue list
-      - echo "Running Hena Agent"
+      - echo "Running Hena"
       - |
-        hena-agent run "
+        hena run "
         You are an AI assistant helping with GitLab operations.
 
         Context: $AI_FLOW_CONTEXT
@@ -146,7 +112,7 @@ Hena Agent ทำงานในไปป์ไลน์ GitLab CI/CD ของ�
         fi
     variables:
       - ANTHROPIC_API_KEY
-      - GITLAB_TOKEN_HENA_AGENT
+      - GITLAB_TOKEN_HENA
       - GITLAB_HOST
     ```
 
@@ -158,10 +124,10 @@ Hena Agent ทำงานในไปป์ไลน์ GitLab CI/CD ของ�
 
 ### ตัวอย่าง
 
-นี่คือตัวอย่างบางส่วนของวิธีที่คุณสามารถใช้ Hena Agent ใน GitLab
+นี่คือตัวอย่างบางส่วนของวิธีที่คุณสามารถใช้ Hena ใน GitLab
 
 :::tip
-คุณสามารถกำหนดค่าให้ใช้วลีทริกเกอร์ที่แตกต่างจาก `@hena-agent`
+คุณสามารถกำหนดค่าให้ใช้วลีทริกเกอร์ที่แตกต่างจาก `@hena`
 :::
 
 - **อธิบายปัญหา**
@@ -169,27 +135,27 @@ Hena Agent ทำงานในไปป์ไลน์ GitLab CI/CD ของ�
   เพิ่มความคิดเห็นนี้ในปัญหา GitLab
 
   ```
-  @hena-agent explain this issue
+  @hena explain this issue
   ```
 
-  Hena Agent จะอ่านปัญหาและตอบกลับพร้อมคำอธิบายที่ชัดเจน
+  Hena จะอ่านปัญหาและตอบกลับพร้อมคำอธิบายที่ชัดเจน
 
 - **แก้ไขปัญหา**
 
   ในปัญหา GitLab ให้พูดว่า:
 
   ```
-  @hena-agent fix this
+  @hena fix this
   ```
 
-  Hena Agent จะสร้างสาขาใหม่ ดำเนินการเปลี่ยนแปลง และเปิดคำขอรวมที่มีการเปลี่ยนแปลง
+  Hena จะสร้างสาขาใหม่ ดำเนินการเปลี่ยนแปลง และเปิดคำขอรวมที่มีการเปลี่ยนแปลง
 
 - **ตรวจสอบคำขอรวม**
 
   แสดงความคิดเห็นต่อไปนี้ในคำขอรวม GitLab
 
   ```
-  @hena-agent review this merge request
+  @hena review this merge request
   ```
 
-  Hena Agent จะตรวจสอบคำขอรวมและให้ข้อเสนอแนะ
+  Hena จะตรวจสอบคำขอรวมและให้ข้อเสนอแนะ

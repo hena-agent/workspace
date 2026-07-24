@@ -1,21 +1,21 @@
 ---
 title: Yapılandırma
-description: hena-agent JSON yapılandırması kullanır.
+description: hena JSON yapılandırması kullanır.
 ---
 
-hena-agent'u JSON yapılandırma dosyası kullanarak yapılandırabilirsiniz.
+hena'u JSON yapılandırma dosyası kullanarak yapılandırabilirsiniz.
 
 ---
 
 ## Format
 
-hena-agent hem **JSON** hem de **JSONC** (JSON Yorumlarla birlikte) formatlarını destekler.
+hena hem **JSON** hem de **JSONC** (JSON Yorumlarla birlikte) formatlarını destekler.
 
-```jsonc title="hena-agent.jsonc"
+```jsonc title="hena.jsonc"
 {
   "$schema": "https://hena.dev/config.json",
   // Theme configuration
-  "theme": "hena-agent",
+  "theme": "hena",
   "model": "anthropic/claude-sonnet-4-5",
   "autoupdate": true,
 }
@@ -34,7 +34,7 @@ Yapılandırma dosyaları **birleştirilir**, değiştirilmez.
 
 Yapılandırma dosyaları değiştirilmez, birleştirilir. Aşağıdaki yapılandırma konumlarındaki ayarlar birleştirilir. Daha sonraki yapılandırmalar, yalnızca çakışan anahtarlar için önceki yapılandırmaları geçersiz kılar. Tüm yapılandırmalardaki çakışmayan ayarlar korunur.
 
-Örneğin, genel ayarınız `theme: "hena-agent"` ve `autoupdate: true`'yi ayarlıyorsa ve proje ayarlarınız `model: "anthropic/claude-sonnet-4-5"`'yi ayarlıyorsa, nihai yapılandırma üç ayarı da içerecektir.
+Örneğin, genel ayarınız `theme: "hena"` ve `autoupdate: true`'yi ayarlıyorsa ve proje ayarlarınız `model: "anthropic/claude-sonnet-4-5"`'yi ayarlıyorsa, nihai yapılandırma üç ayarı da içerecektir.
 
 ---
 
@@ -42,30 +42,30 @@ Yapılandırma dosyaları değiştirilmez, birleştirilir. Aşağıdaki yapılan
 
 Yapılandırma kaynakları bu sırayla yüklenir (sonraki kaynaklar öncekileri geçersiz kılar):
 
-1. **Uzak yapılandırma** (`.well-known/hena-agent`'dan) - kurumsal varsayılanlar
-2. **Genel yapılandırma** (`~/.config/hena-agent/hena.json`) - kullanıcı tercihleri
-3. **Özel yapılandırma** (`HENA_AGENT_CONFIG` env var) - özel geçersiz kılmalar
-4. **Proje yapılandırması** (projedeki `hena-agent.json`) - projeye özgü ayarlar
-5. **`.hena-agent` dizinleri** - agent'lar, komutlar, eklentiler
-6. **Satır içi yapılandırma** (`HENA_AGENT_CONFIG_CONTENT` env var) - çalışma zamanı geçersiz kılmaları
+1. **Uzak yapılandırma** (`.well-known/hena`'dan) - kurumsal varsayılanlar
+2. **Genel yapılandırma** (`~/.config/hena/hena.json`) - kullanıcı tercihleri
+3. **Özel yapılandırma** (`HENA_CONFIG` env var) - özel geçersiz kılmalar
+4. **Proje yapılandırması** (projedeki `hena.json`) - projeye özgü ayarlar
+5. **`.hena` dizinleri** - agent'lar, komutlar, eklentiler
+6. **Satır içi yapılandırma** (`HENA_CONFIG_CONTENT` env var) - çalışma zamanı geçersiz kılmaları
 
 Bu, proje yapılandırmalarının genel varsayılanları geçersiz kılabileceği ve genel yapılandırmaların uzak organizasyonel varsayılanları geçersiz kılabileceği anlamına gelir.
 
 :::note
-`.hena-agent` ve `~/.config/hena-agent` dizinleri alt dizinler için **çoğul adlar** kullanır: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/` ve `themes/`. Tekil adlar (örneğin, `agent/`) da geriye dönük uyumluluk açısından desteklenir.
+`.hena` ve `~/.config/hena` dizinleri alt dizinler için **çoğul adlar** kullanır: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/` ve `themes/`. Tekil adlar (örneğin, `agent/`) da geriye dönük uyumluluk açısından desteklenir.
 :::
 
 ---
 
 ### Uzak
 
-Kuruluşlar, `.well-known/hena-agent` uç noktası aracılığıyla varsayılan yapılandırmayı sağlayabilir. Bu, onu destekleyen bir sağlayıcıyla kimlik doğrulaması yaptığınızda otomatik olarak alınır.
+Kuruluşlar, `.well-known/hena` uç noktası aracılığıyla varsayılan yapılandırmayı sağlayabilir. Bu, onu destekleyen bir sağlayıcıyla kimlik doğrulaması yaptığınızda otomatik olarak alınır.
 
 Uzak yapılandırma ilk olarak yüklenir ve temel katman görevi görür. Diğer tüm yapılandırma kaynakları (genel, proje) bu varsayılanları geçersiz kılabilir.
 
 Örneğin, kuruluşunuz varsayılan olarak devre dışı bırakılan MCP sunucuları sağlıyorsa:
 
-```json title="Remote config from .well-known/hena-agent"
+```json title="Remote config from .well-known/hena"
 {
   "mcp": {
     "jira": {
@@ -79,7 +79,7 @@ Uzak yapılandırma ilk olarak yüklenir ve temel katman görevi görür. Diğer
 
 Yerel yapılandırmanızda belirli sunucuları etkinleştirebilirsiniz:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "mcp": {
     "jira": {
@@ -95,7 +95,7 @@ Yerel yapılandırmanızda belirli sunucuları etkinleştirebilirsiniz:
 
 ### Global
 
-Global hena-agent yapılandırmanızı `~/.config/hena-agent/hena.json` içine yerleştirin. Temalar, sağlayıcılar veya tuş atamaları gibi kullanıcı çapındaki tercihler için genel yapılandırmayı kullanın.
+Global hena yapılandırmanızı `~/.config/hena/hena.json` içine yerleştirin. Temalar, sağlayıcılar veya tuş atamaları gibi kullanıcı çapındaki tercihler için genel yapılandırmayı kullanın.
 
 Genel yapılandırma, uzak kurumsal varsayılanları geçersiz kılar.
 
@@ -103,13 +103,13 @@ Genel yapılandırma, uzak kurumsal varsayılanları geçersiz kılar.
 
 ### Proje başına
 
-Proje kökünüze `hena-agent.json` ekleyin. Proje yapılandırması, standart yapılandırma dosyaları arasında en yüksek önceliğe sahiptir; hem genel hem de uzak yapılandırmaları geçersiz kılar.
+Proje kökünüze `hena.json` ekleyin. Proje yapılandırması, standart yapılandırma dosyaları arasında en yüksek önceliğe sahiptir; hem genel hem de uzak yapılandırmaları geçersiz kılar.
 
 :::tip
 Projeye özel yapılandırmayı projenizin köküne yerleştirin.
 :::
 
-hena-agent başlatıldığında geçerli dizinde bir yapılandırma dosyası arar veya en yakın Git dizinine gider.
+hena başlatıldığında geçerli dizinde bir yapılandırma dosyası arar veya en yakın Git dizinine gider.
 
 Bunun Git'te kontrol edilmesi de güvenlidir ve global olanla aynı şemayı kullanır.
 
@@ -117,11 +117,11 @@ Bunun Git'te kontrol edilmesi de güvenlidir ve global olanla aynı şemayı kul
 
 ### Özel yol
 
-`HENA_AGENT_CONFIG` ortam değişkenini kullanarak özel bir yapılandırma dosyası yolu belirtin.
+`HENA_CONFIG` ortam değişkenini kullanarak özel bir yapılandırma dosyası yolu belirtin.
 
 ```bash
-export HENA_AGENT_CONFIG=/path/to/my/custom-config.json
-hena-agent run "Hello world"
+export HENA_CONFIG=/path/to/my/custom-config.json
+hena run "Hello world"
 ```
 
 Özel yapılandırma genel ve proje yapılandırmaları arasında öncelik sırasına göre yüklenir.
@@ -130,17 +130,17 @@ hena-agent run "Hello world"
 
 ### Özel dizin
 
-`HENA_AGENT_CONFIG_DIR` kullanarak özel bir yapılandırma dizini belirtin
+`HENA_CONFIG_DIR` kullanarak özel bir yapılandırma dizini belirtin
 ortam değişkeni. Bu dizin agent'lar, komutlar için aranacaktır.
-modlar ve eklentiler tıpkı standart `.hena-agent` dizini gibi olmalıdır ve
+modlar ve eklentiler tıpkı standart `.hena` dizini gibi olmalıdır ve
 aynı yapıyı takip edin.
 
 ```bash
-export HENA_AGENT_CONFIG_DIR=/path/to/my/config-directory
-hena-agent run "Hello world"
+export HENA_CONFIG_DIR=/path/to/my/config-directory
+hena run "Hello world"
 ```
 
-Özel dizin, genel yapılandırma ve `.hena-agent` dizinlerinden sonra yüklenir, böylece bunların ayarlarını **geçersiz kılabilir**.
+Özel dizin, genel yapılandırma ve `.hena` dizinlerinden sonra yüklenir, böylece bunların ayarlarını **geçersiz kılabilir**.
 
 ---
 
@@ -156,7 +156,7 @@ Editörünüz şemaya göre doğrulama ve otomatik tamamlama yapabilmelidir.
 
 TUI'ye özgü ayarları `tui` seçeneği aracılığıyla yapılandırabilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "tui": {
@@ -181,9 +181,9 @@ Mevcut seçenekler:
 
 ### Sunucu
 
-`hena-agent serve` ve `hena-agent web` komutları için sunucu ayarlarını `server` seçeneği aracılığıyla yapılandırabilirsiniz.
+`hena serve` ve `hena web` komutları için sunucu ayarlarını `server` seçeneği aracılığıyla yapılandırabilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "server": {
@@ -200,8 +200,8 @@ Mevcut seçenekler:
 
 - `port` - Dinlenecek port.
 - `hostname` - Dinlenecek ana bilgisayar adı. `mdns` etkinleştirildiğinde ve hiçbir ana bilgisayar adı ayarlanmadığında, varsayılan değer `0.0.0.0` olur.
-- `mdns` - mDNS hizmet bulmayı etkinleştirin. Bu, ağdaki diğer cihazların hena-agent sunucunuzu keşfetmesine olanak tanır.
-- `mdnsDomain` - mDNS hizmeti için özel alan adı. Varsayılan olarak `hena-agent.local` şeklindedir. Aynı ağda birden fazla örneği çalıştırmak için kullanışlıdır.
+- `mdns` - mDNS hizmet bulmayı etkinleştirin. Bu, ağdaki diğer cihazların hena sunucunuzu keşfetmesine olanak tanır.
+- `mdnsDomain` - mDNS hizmeti için özel alan adı. Varsayılan olarak `hena.local` şeklindedir. Aynı ağda birden fazla örneği çalıştırmak için kullanışlıdır.
 - `cors` - Tarayıcı tabanlı bir istemciden HTTP sunucusunu kullanırken CORS'ye izin verecek ek kaynaklar. Değerler tam kaynaklar olmalıdır (şema + ana bilgisayar + isteğe bağlı bağlantı noktası), örneğin `https://app.example.com`.
 
 [Sunucu hakkında daha fazla bilgi](/docs/server).
@@ -212,7 +212,7 @@ Mevcut seçenekler:
 
 Bir LLM'nin kullanabileceği araçları `tools` seçeneği aracılığıyla yönetebilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "tools": {
@@ -228,9 +228,9 @@ Bir LLM'nin kullanabileceği araçları `tools` seçeneği aracılığıyla yön
 
 ### Modeller
 
-hena-agent yapılandırmanızda kullanmak istediğiniz sağlayıcıları ve modelleri `provider`, `model` ve `small_model` seçenekleri aracılığıyla yapılandırabilirsiniz.
+hena yapılandırmanızda kullanmak istediğiniz sağlayıcıları ve modelleri `provider`, `model` ve `small_model` seçenekleri aracılığıyla yapılandırabilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {},
@@ -239,11 +239,11 @@ hena-agent yapılandırmanızda kullanmak istediğiniz sağlayıcıları ve mode
 }
 ```
 
-`small_model` seçeneği, başlık oluşturma gibi hafif görevler için ayrı bir model yapılandırır. Varsayılan olarak hena-agent, sağlayıcınızda mevcutsa daha ucuz bir model kullanmaya çalışır, aksi takdirde ana modelinize geri döner.
+`small_model` seçeneği, başlık oluşturma gibi hafif görevler için ayrı bir model yapılandırır. Varsayılan olarak hena, sağlayıcınızda mevcutsa daha ucuz bir model kullanmaya çalışır, aksi takdirde ana modelinize geri döner.
 
 Sağlayıcı seçenekleri `timeout` ve `setCacheKey` içerebilir:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -272,7 +272,7 @@ Bazı sağlayıcılar genel `timeout` ve `apiKey` ayarlarının ötesinde ek yap
 
 Amazon Bedrock, AWS'a özgü yapılandırmayı destekler:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -301,9 +301,9 @@ Taşıyıcı belirteçleri (`AWS_BEARER_TOKEN_BEDROCK` veya `/connect`) profil t
 
 ### Temalar
 
-hena-agent yapılandırmanızda kullanmak istediğiniz temayı `theme` seçeneği aracılığıyla yapılandırabilirsiniz.
+hena yapılandırmanızda kullanmak istediğiniz temayı `theme` seçeneği aracılığıyla yapılandırabilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "theme": ""
@@ -318,7 +318,7 @@ hena-agent yapılandırmanızda kullanmak istediğiniz temayı `theme` seçeneğ
 
 `agent` seçeneği aracılığıyla özel görevlere yönelik özel agent'ları yapılandırabilirsiniz.
 
-```jsonc title="hena-agent.jsonc"
+```jsonc title="hena.jsonc"
 {
   "$schema": "https://hena.dev/config.json",
   "agent": {
@@ -337,7 +337,7 @@ hena-agent yapılandırmanızda kullanmak istediğiniz temayı `theme` seçeneğ
 }
 ```
 
-Agent'ları `~/.config/hena-agent/agents/` veya `.hena-agent/agents/` içindeki Markdown dosyalarıyla da tanımlayabilirsiniz. [Daha fazla bilgi](/docs/agents).
+Agent'ları `~/.config/hena/agents/` veya `.hena/agents/` içindeki Markdown dosyalarıyla da tanımlayabilirsiniz. [Daha fazla bilgi](/docs/agents).
 
 ---
 
@@ -345,16 +345,16 @@ Agent'ları `~/.config/hena-agent/agents/` veya `.hena-agent/agents/` içindeki 
 
 `default_agent` seçeneğini kullanarak varsayılan agent'ı ayarlayabilirsiniz. Bu, hiçbiri açıkça belirtilmediğinde hangi agent'ın kullanılacağını belirler.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "default_agent": "plan"
 }
 ```
 
-Varsayılan agent, birincil agent olmalıdır (alt agent değil). Bu, `"build"` veya `"plan"` gibi yerleşik bir agent ya da tanımladığınız bir [özel agent](/docs/agents) olabilir. Belirtilen agent mevcut değilse veya bir alt agent ise, hena-agent bir uyarıyla birlikte `"build"`'ye geri döner.
+Varsayılan agent, birincil agent olmalıdır (alt agent değil). Bu, `"build"` veya `"plan"` gibi yerleşik bir agent ya da tanımladığınız bir [özel agent](/docs/agents) olabilir. Belirtilen agent mevcut değilse veya bir alt agent ise, hena bir uyarıyla birlikte `"build"`'ye geri döner.
 
-Bu ayar tüm arayüzler için geçerlidir: TUI, CLI (`hena-agent run`), masaüstü uygulaması ve GitHub Action.
+Bu ayar tüm arayüzler için geçerlidir: TUI, CLI (`hena run`), masaüstü uygulaması ve GitHub Action.
 
 ---
 
@@ -362,7 +362,7 @@ Bu ayar tüm arayüzler için geçerlidir: TUI, CLI (`hena-agent run`), masaüst
 
 [share](/docs/share) özelliğini `share` seçeneği aracılığıyla yapılandırabilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "share": "manual"
@@ -383,7 +383,7 @@ Varsayılan olarak paylaşım, `/share` komutunu kullanarak konuşmaları açık
 
 `command` seçeneği aracılığıyla tekrarlanan görevler için özel komutlar yapılandırabilirsiniz.
 
-```jsonc title="hena-agent.jsonc"
+```jsonc title="hena.jsonc"
 {
   "$schema": "https://hena.dev/config.json",
   "command": {
@@ -401,7 +401,7 @@ Varsayılan olarak paylaşım, `/share` komutunu kullanarak konuşmaları açık
 }
 ```
 
-Komutları `~/.config/hena-agent/commands/` veya `.hena-agent/commands/` içindeki Markdown dosyalarıyla da tanımlayabilirsiniz. [Daha fazla bilgi](/docs/commands).
+Komutları `~/.config/hena/commands/` veya `.hena/commands/` içindeki Markdown dosyalarıyla da tanımlayabilirsiniz. [Daha fazla bilgi](/docs/commands).
 
 ---
 
@@ -409,7 +409,7 @@ Komutları `~/.config/hena-agent/commands/` veya `.hena-agent/commands/` içinde
 
 Tuş atamalarınızı `keybinds` seçeneği aracılığıyla özelleştirebilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "keybinds": {}
@@ -422,9 +422,9 @@ Tuş atamalarınızı `keybinds` seçeneği aracılığıyla özelleştirebilirs
 
 ### Otomatik Güncelleme
 
-hena-agent başlatıldığında yeni güncellemeleri otomatik olarak indirecektir. Bunu `autoupdate` seçeneğiyle devre dışı bırakabilirsiniz.
+hena başlatıldığında yeni güncellemeleri otomatik olarak indirecektir. Bunu `autoupdate` seçeneğiyle devre dışı bırakabilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "autoupdate": false
@@ -440,7 +440,7 @@ Bunun yalnızca Homebrew gibi bir paket yöneticisi kullanılarak yüklenmemişs
 
 Kod formatlayıcılarını `formatter` seçeneği aracılığıyla yapılandırabilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {
@@ -464,11 +464,11 @@ Kod formatlayıcılarını `formatter` seçeneği aracılığıyla yapılandıra
 
 ### İzinler
 
-Varsayılan olarak, hena-agent açık bir onay gerektirmeden **tüm işlemlere izin verir**. `permission` seçeneğini kullanarak bunu değiştirebilirsiniz.
+Varsayılan olarak, hena açık bir onay gerektirmeden **tüm işlemlere izin verir**. `permission` seçeneğini kullanarak bunu değiştirebilirsiniz.
 
 Örneğin, `edit` ve `bash` araçlarının kullanıcı onayı gerektirdiğinden emin olmak için:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -486,7 +486,7 @@ Varsayılan olarak, hena-agent açık bir onay gerektirmeden **tüm işlemlere i
 
 Bağlam sıkıştırma davranışını `compaction` seçeneği aracılığıyla kontrol edebilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "compaction": {
@@ -507,7 +507,7 @@ Bağlam sıkıştırma davranışını `compaction` seçeneği aracılığıyla 
 
 Dosya izleyicinin yok sayma kalıplarını `watcher` seçeneği aracılığıyla yapılandırabilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "watcher": {
@@ -524,7 +524,7 @@ Desenler glob sözdizimini takip eder. Gürültülü dizinleri dosya izlemenin d
 
 Kullanmak istediğiniz MCP sunucularını `mcp` seçeneği aracılığıyla yapılandırabilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "mcp": {}
@@ -537,11 +537,11 @@ Kullanmak istediğiniz MCP sunucularını `mcp` seçeneği aracılığıyla yap�
 
 ### Eklentiler
 
-[Eklentiler](/docs/plugins) hena-agent'u özel araçlar, kancalar ve entegrasyonlarla genişletin.
+[Eklentiler](/docs/plugins) hena'u özel araçlar, kancalar ve entegrasyonlarla genişletin.
 
-Eklenti dosyalarını `.hena-agent/plugins/` veya `~/.config/hena-agent/plugins/` içine yerleştirin. Ayrıca eklentileri `plugin` seçeneği aracılığıyla npm'den de yükleyebilirsiniz.
+Eklenti dosyalarını `.hena/plugins/` veya `~/.config/hena/plugins/` içine yerleştirin. Ayrıca eklentileri `plugin` seçeneği aracılığıyla npm'den de yükleyebilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "plugin": ["opencode-helicone-session", "@my-org/custom-plugin"]
@@ -556,7 +556,7 @@ Eklenti dosyalarını `.hena-agent/plugins/` veya `~/.config/hena-agent/plugins/
 
 Kullandığınız modele ilişkin talimatları `instructions` seçeneği aracılığıyla yapılandırabilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
@@ -571,7 +571,7 @@ Bu, talimat dosyalarına giden bir dizi yolu ve glob desenini alır. [Kurallar h
 
 `disabled_providers` seçeneği aracılığıyla otomatik olarak yüklenen sağlayıcıları devre dışı bırakabilirsiniz. Bu, belirli sağlayıcıların kimlik bilgileri mevcut olsa bile yüklenmesini engellemek istediğinizde kullanışlıdır.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "disabled_providers": ["openai", "gemini"]
@@ -594,14 +594,14 @@ Bu, talimat dosyalarına giden bir dizi yolu ve glob desenini alır. [Kurallar h
 
 `enabled_providers` seçeneğini kullanarak sağlayıcıların izin verilenler listesini belirtebilirsiniz. Ayarlandığında yalnızca belirtilen sağlayıcılar etkinleştirilecek ve diğerleri göz ardı edilecektir.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "enabled_providers": ["anthropic", "openai"]
 }
 ```
 
-Bu, hena-agent'u tek tek devre dışı bırakmak yerine yalnızca belirli sağlayıcıları kullanacak şekilde kısıtlamak istediğinizde kullanışlıdır.
+Bu, hena'u tek tek devre dışı bırakmak yerine yalnızca belirli sağlayıcıları kullanacak şekilde kısıtlamak istediğinizde kullanışlıdır.
 
 :::note
 `disabled_providers`, `enabled_providers`'ye göre önceliklidir.
@@ -615,7 +615,7 @@ Bir sağlayıcı hem `enabled_providers` hem de `disabled_providers`'de görün�
 
 `experimental` anahtarı aktif olarak geliştirilmekte olan seçenekleri içerir.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "experimental": {}
@@ -638,10 +638,10 @@ Ortam değişkenlerine ve dosya içeriklerine referans vermek için yapılandır
 
 Ortam değişkenlerini değiştirmek için `{env:VARIABLE_NAME}` kullanın:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
-  "model": "{env:HENA_AGENT_MODEL}",
+  "model": "{env:HENA_MODEL}",
   "provider": {
     "anthropic": {
       "models": {},
@@ -661,7 +661,7 @@ Ortam değişkeni ayarlanmamışsa boş bir dizeyle değiştirilecektir.
 
 Bir dosyanın biçimini değiştirmek için `{file:path/to/file}` kullanın:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "instructions": ["./custom-instructions.md"],

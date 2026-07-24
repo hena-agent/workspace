@@ -1,11 +1,11 @@
 import { Component, Show, createMemo, createResource, onMount } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
-import { ButtonV2 } from "@hena-agent/ui/v2/button-v2"
-import { SelectV2 } from "@hena-agent/ui/v2/select-v2"
-import { Switch } from "@hena-agent/ui/v2/switch-v2"
-import { TextInputV2 } from "@hena-agent/ui/v2/text-input-v2"
-import { useTheme, type ColorScheme } from "@hena-agent/ui/theme/context"
-import { useDialog } from "@hena-agent/ui/context/dialog"
+import { ButtonV2 } from "@hena/ui/v2/button-v2"
+import { SelectV2 } from "@hena/ui/v2/select-v2"
+import { Switch } from "@hena/ui/v2/switch-v2"
+import { TextInputV2 } from "@hena/ui/v2/text-input-v2"
+import { useTheme, type ColorScheme } from "@hena/ui/theme/context"
+import { useDialog } from "@hena/ui/context/dialog"
 import { useLanguage } from "@/context/language"
 import { usePermission } from "@/context/permission"
 import { usePlatform } from "@/context/platform"
@@ -338,7 +338,7 @@ export const SettingsGeneralV2: Component<{
           </div>
         </SettingsRowV2>
 
-        <Show when={mobile() && import.meta.env.VITE_HENA_AGENT_CHANNEL !== "prod"}>
+        <Show when={mobile() && import.meta.env.VITE_HENA_CHANNEL !== "prod"}>
           <SettingsRowV2
             title={language.t("settings.general.row.mobileTitlebarBottom.title")}
             description={language.t("settings.general.row.mobileTitlebarBottom.description")}

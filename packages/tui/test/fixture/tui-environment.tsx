@@ -17,10 +17,10 @@ export function TestTuiContexts(
   return (
     <TuiPathsProvider
       value={{
-        cwd: props.cwd ?? props.directory ?? "/tmp/hena-agent/packages/tui",
-        home: "/tmp/hena-agent/home",
-        state: "/tmp/hena-agent/state",
-        worktree: "/tmp/hena-agent",
+        cwd: props.cwd ?? props.directory ?? "/tmp/hena/packages/tui",
+        home: "/tmp/hena/home",
+        state: "/tmp/hena/state",
+        worktree: "/tmp/hena",
         ...props.paths,
       }}
     >

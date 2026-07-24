@@ -2,9 +2,9 @@ import fs from "fs/promises"
 import path from "path"
 import { describe, expect, test } from "bun:test"
 import { Effect, Option } from "effect"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { Global } from "@hena-agent/core/global"
-import { Npm } from "@hena-agent/core/npm"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { Global } from "@hena/core/global"
+import { Npm } from "@hena/core/npm"
 import { tmpdir } from "./fixture/tmpdir"
 
 const win = process.platform === "win32"
@@ -23,14 +23,14 @@ const npmLayer = (cache: string) =>
 
 describe("Npm.sanitize", () => {
   test("keeps normal scoped package specs unchanged", () => {
-    expect(Npm.sanitize("@hena-agent/acme")).toBe("@hena-agent/acme")
-    expect(Npm.sanitize("@hena-agent/acme@1.0.0")).toBe("@hena-agent/acme@1.0.0")
+    expect(Npm.sanitize("@hena/acme")).toBe("@hena/acme")
+    expect(Npm.sanitize("@hena/acme@1.0.0")).toBe("@hena/acme@1.0.0")
     expect(Npm.sanitize("prettier")).toBe("prettier")
   })
 
   test("handles git https specs", () => {
-    const spec = "acme@git+https://github.com/hena-agent/acme.git"
-    const expected = win ? "acme@git+https_//github.com/hena-agent/acme.git" : spec
+    const spec = "acme@git+https://github.com/hena/acme.git"
+    const expected = win ? "acme@git+https_//github.com/hena/acme.git" : spec
     expect(Npm.sanitize(spec)).toBe(expected)
   })
 })

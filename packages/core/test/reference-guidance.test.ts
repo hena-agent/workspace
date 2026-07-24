@@ -1,10 +1,10 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { Reference } from "@hena-agent/core/reference"
-import { ReferenceGuidance } from "@hena-agent/core/reference/guidance"
-import { SystemContext } from "@hena-agent/core/system-context/index"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { AbsolutePath } from "@hena/core/schema"
+import { Reference } from "@hena/core/reference"
+import { ReferenceGuidance } from "@hena/core/reference/guidance"
+import { SystemContext } from "@hena/core/system-context/index"
 import { it } from "./lib/effect"
 
 const guidanceLayer = (referenceLayer: Layer.Layer<Reference.Service>) =>

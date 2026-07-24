@@ -3,7 +3,7 @@ import type {
   WslInstalledDistro,
   WslJob,
   WslOnlineDistro,
-  WslHenaAgentCheck,
+  WslHenaCheck,
   WslRuntimeCheck,
   WslServerConfig,
   WslServerItem,
@@ -13,11 +13,11 @@ import type {
 } from "../../preload/types"
 import { WSL_SERVERS_KEY } from "../store-keys"
 import { getStore } from "../store"
-import { expectHenaAgentVersion, pendingRestartAfterWslInstall, wslServerIdsToStartOnInitialize } from "./startup"
+import { expectHenaVersion, pendingRestartAfterWslInstall, wslServerIdsToStartOnInitialize } from "./startup"
 import { clearWslDistroState, wslServerIdToRestart } from "./policy"
 import {
   installWslDistro,
-  installWslHenaAgent,
+  installWslHena,
   installWslRuntimeElevated,
   listInstalledWslDistros,
   listOnlineWslDistros,
@@ -25,7 +25,7 @@ import {
   probeWslDistro,
   probeWslRuntime,
   readWslCommandVersion,
-  resolveWslHenaAgent,
+  resolveWslHena,
   summarize,
 } from "./runtime"
 
@@ -48,7 +48,7 @@ type WslServersControllerOptions = {
   readServers?: () => WslServerConfig[]
   writeServers?: (servers: WslServerConfig[]) => void
   probeDistro?: typeof probeWslDistro
-  resolveHenaAgent?: typeof resolveWslHenaAgent
+  resolveHena?: typeof resolveWslHena
   readCommandVersion?: typeof readWslCommandVersion
 }
 
@@ -121,25 +121,25 @@ export function createWslServersController(
     updateServer(id, (item) => ({ ...item, runtime }))
   }
 
-  const setHenaAgentCheck = (distro: string, check: WslHenaAgentCheck) => {
+  const setHenaCheck = (distro: string, check: WslHenaCheck) => {
     setState({
-      henaAgentChecks: {
-        ...state.henaAgentChecks,
+      henaChecks: {
+        ...state.henaChecks,
         [distro]: check,
       },
     })
   }
 
-  const checkHenaAgent = async (distro: string, opts?: { signal?: AbortSignal }) => {
-    const resolved = await (options?.resolveHenaAgent ?? resolveWslHenaAgent)(distro, opts)
+  const checkHena = async (distro: string, opts?: { signal?: AbortSignal }) => {
+    const resolved = await (options?.resolveHena ?? resolveWslHena)(distro, opts)
     const version = resolved
       ? await (options?.readCommandVersion ?? readWslCommandVersion)(resolved, distro, opts)
       : null
-    return henaAgentCheck(distro, resolved, version, appVersion)
+    return henaCheck(distro, resolved, version, appVersion)
   }
 
-  const refreshHenaAgentCheck = async (distro: string, opts?: { signal?: AbortSignal }) => {
-    setHenaAgentCheck(distro, await checkHenaAgent(distro, opts))
+  const refreshHenaCheck = async (distro: string, opts?: { signal?: AbortSignal }) => {
+    setHenaCheck(distro, await checkHena(distro, opts))
   }
 
   const probeAddableDistros = async (distros: string[], opts?: { signal?: AbortSignal }) => {
@@ -153,14 +153,14 @@ export function createWslServersController(
       setState({ distroProbes: { ...state.distroProbes, ...Object.fromEntries(distroProbes) } })
     }
 
-    const henaAgentChecks = await Promise.all(
+    const henaChecks = await Promise.all(
       unique
         .filter((distro) => distroProbeReady(state.distroProbes[distro]))
-        .filter((distro) => !state.henaAgentChecks[distro])
-        .map(async (distro) => [distro, await checkHenaAgent(distro, opts)] as const),
+        .filter((distro) => !state.henaChecks[distro])
+        .map(async (distro) => [distro, await checkHena(distro, opts)] as const),
     )
-    if (henaAgentChecks.length) {
-      setState({ henaAgentChecks: { ...state.henaAgentChecks, ...Object.fromEntries(henaAgentChecks) } })
+    if (henaChecks.length) {
+      setState({ henaChecks: { ...state.henaChecks, ...Object.fromEntries(henaChecks) } })
     }
   }
 
@@ -168,29 +168,29 @@ export function createWslServersController(
     return state.servers.some((item) => item.config.id === id && item.config.distro === distro)
   }
 
-  const refreshHenaAgentCheckBackground = (id: string, distro: string) => {
-    void checkHenaAgent(distro)
+  const refreshHenaCheckBackground = (id: string, distro: string) => {
+    void checkHena(distro)
       .then((check) => {
         if (!hasServer(id, distro)) return
-        setHenaAgentCheck(distro, check)
+        setHenaCheck(distro, check)
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : String(error)
-        logger?.error("WSL Hena Agent check failed", { id, distro, message })
+        logger?.error("WSL Hena check failed", { id, distro, message })
       })
   }
 
-  const refreshHenaAgentChecks = async () => {
+  const refreshHenaChecks = async () => {
     await Promise.all(
       state.servers.map((item) =>
-        checkHenaAgent(item.config.distro)
+        checkHena(item.config.distro)
           .then((check) => {
             if (!hasServer(item.config.id, item.config.distro)) return
-            setHenaAgentCheck(item.config.distro, check)
+            setHenaCheck(item.config.distro, check)
           })
           .catch((error) => {
             const message = error instanceof Error ? error.message : String(error)
-            logger?.error("WSL Hena Agent check failed", {
+            logger?.error("WSL Hena check failed", {
               id: item.config.id,
               distro: item.config.distro,
               message,
@@ -251,7 +251,7 @@ export function createWslServersController(
         setRuntime(id, { kind: "failed", message })
         logger?.error("wsl sidecar exited", { id, distro: item.config.distro, code, signal })
       })
-      refreshHenaAgentCheckBackground(id, item.config.distro)
+      refreshHenaCheckBackground(id, item.config.distro)
       logger?.log("wsl sidecar ready", { id, distro: item.config.distro, url: sidecar.url })
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
@@ -303,7 +303,7 @@ export function createWslServersController(
 
     async initialize() {
       refreshFromStore()
-      void refreshHenaAgentChecks()
+      void refreshHenaChecks()
       for (const id of wslServerIdsToStartOnInitialize(state.servers.map((item) => item.config))) void startServer(id)
     },
 
@@ -358,14 +358,14 @@ export function createWslServersController(
       })
     },
 
-    async installHenaAgent(name: string) {
-      await runJob({ kind: "install-hena-agent", distro: name, startedAt: Date.now() }, async (abort) => {
-        const result = await installWslHenaAgent(appVersion, name, { signal: abort.signal })
+    async installHena(name: string) {
+      await runJob({ kind: "install-hena", distro: name, startedAt: Date.now() }, async (abort) => {
+        const result = await installWslHena(appVersion, name, { signal: abort.signal })
         if (result.code !== 0) {
-          throw new Error(summarize(result.stderr || result.stdout) || "Hena Agent installation failed")
+          throw new Error(summarize(result.stderr || result.stdout) || "Hena installation failed")
         }
-        await refreshHenaAgentCheck(name, { signal: abort.signal })
-        expectHenaAgentVersion(state.henaAgentChecks[name]?.version ?? null, appVersion, name)
+        await refreshHenaCheck(name, { signal: abort.signal })
+        expectHenaVersion(state.henaChecks[name]?.version ?? null, appVersion, name)
         const id = wslServerIdToRestart(state.servers, name)
         if (id) await startServer(id)
       })
@@ -400,7 +400,7 @@ export function createWslServersController(
       persistServers(remaining)
       setState({
         servers: state.servers.filter((item) => item.config.id !== id),
-        ...(distro ? clearWslDistroState(state.distroProbes, state.henaAgentChecks, distro) : {}),
+        ...(distro ? clearWslDistroState(state.distroProbes, state.henaChecks, distro) : {}),
       })
     },
 
@@ -426,7 +426,7 @@ function initialState(): WslServersState {
     installed: [],
     online: [],
     distroProbes: {},
-    henaAgentChecks: {},
+    henaChecks: {},
     pendingRestart: false,
     servers: [],
     job: null,
@@ -462,12 +462,12 @@ function normalizePersistedServer(value: unknown): WslServerConfig[] {
   ]
 }
 
-function henaAgentCheck(
+function henaCheck(
   distro: string,
   resolvedPath: string | null,
   version: string | null,
   expectedVersion: string,
-): WslHenaAgentCheck {
+): WslHenaCheck {
   if (!resolvedPath) {
     return {
       distro,
@@ -475,7 +475,7 @@ function henaAgentCheck(
       version: null,
       expectedVersion,
       matchesDesktop: null,
-      error: "Hena Agent is not installed in this distro",
+      error: "Hena is not installed in this distro",
     }
   }
   if (!version) {
@@ -485,7 +485,7 @@ function henaAgentCheck(
       version: null,
       expectedVersion,
       matchesDesktop: null,
-      error: "Hena Agent is installed but could not run",
+      error: "Hena is installed but could not run",
     }
   }
   return {
@@ -512,7 +512,7 @@ export type {
   WslOnlineDistro,
   WslRuntimeCheck,
   WslDistroProbe,
-  WslHenaAgentCheck,
+  WslHenaCheck,
   WslServerConfig,
   WslServerItem,
   WslServerRuntime,

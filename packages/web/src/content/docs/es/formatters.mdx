@@ -1,15 +1,15 @@
 ---
 title: Formateadores
-description: Hena Agent utiliza formateadores específicos del idioma.
+description: Hena utiliza formateadores específicos del idioma.
 ---
 
-Hena Agent formatea automáticamente los archivos después de escribirlos o editarlos utilizando formateadores específicos del idioma. Esto garantiza que el código generado siga los estilos de código de su proyecto.
+Hena formatea automáticamente los archivos después de escribirlos o editarlos utilizando formateadores específicos del idioma. Esto garantiza que el código generado siga los estilos de código de su proyecto.
 
 ---
 
 ## Integrados
 
-Hena Agent viene con varios formateadores integrados para lenguajes y marcos populares. A continuación se muestra una lista de los formateadores, las extensiones de archivo compatibles y los comandos u opciones de configuración que necesita.
+Hena viene con varios formateadores integrados para lenguajes y marcos populares. A continuación se muestra una lista de los formateadores, las extensiones de archivo compatibles y los comandos u opciones de configuración que necesita.
 
 | Formateador          | Extensiones                                                                                          | Requisitos                                                                                                             |
 | -------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -39,13 +39,13 @@ Hena Agent viene con varios formateadores integrados para lenguajes y marcos pop
 | oxfmt (Experimental) | .js, .jsx, .ts, .tsx                                                                                 | Dependencia de `oxfmt` en `package.json` y un [indicador de variable de entorno experimental](/docs/cli/#experimental) |
 | ormolu               | .hs                                                                                                  | Comando `ormolu` disponible                                                                                            |
 
-Entonces, si su proyecto tiene `prettier` en su `package.json`, Hena Agent lo usará automáticamente.
+Entonces, si su proyecto tiene `prettier` en su `package.json`, Hena lo usará automáticamente.
 
 ---
 
 ## Cómo funciona
 
-Cuando Hena Agent escribe o edita un archivo:
+Cuando Hena escribe o edita un archivo:
 
 1. Comprueba la extensión del archivo con todos los formateadores habilitados.
 2. Ejecuta el comando de formateo apropiado en el archivo.
@@ -57,9 +57,9 @@ Este proceso ocurre en segundo plano, lo que garantiza que los estilos de su có
 
 ## Configuración
 
-Puede personalizar los formateadores a través de la sección `formatter` en su configuración Hena Agent.
+Puede personalizar los formateadores a través de la sección `formatter` en su configuración Hena.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {}
@@ -83,7 +83,7 @@ Veamos algunos ejemplos.
 
 Para deshabilitar **todos** los formateadores globalmente, configure `formatter` en `false`:
 
-```json title="hena-agent.json" {3}
+```json title="hena.json" {3}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": false
@@ -92,7 +92,7 @@ Para deshabilitar **todos** los formateadores globalmente, configure `formatter`
 
 Para deshabilitar un formateador **específico**, establezca `disabled` en `true`:
 
-```json title="hena-agent.json" {5}
+```json title="hena.json" {5}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {
@@ -109,7 +109,7 @@ Para deshabilitar un formateador **específico**, establezca `disabled` en `true
 
 Puede anular los formateadores integrados o agregar otros nuevos especificando el comando, las variables de entorno y las extensiones de archivo:
 
-```json title="hena-agent.json" {4-14}
+```json title="hena.json" {4-14}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {

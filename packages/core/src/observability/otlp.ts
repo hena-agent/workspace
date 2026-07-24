@@ -35,13 +35,13 @@ function resourceAttributes() {
 
 export function resource(): { serviceName: string; serviceVersion: string; attributes: Record<string, string> } {
   return {
-    serviceName: "hena-agent",
+    serviceName: "hena",
     serviceVersion: InstallationVersion,
     attributes: {
       ...resourceAttributes(),
       "deployment.environment.name": InstallationChannel,
-      "hena-agent.client": Flag.HENA_AGENT_CLIENT,
-      "hena-agent.run": runID,
+      "hena.client": Flag.HENA_CLIENT,
+      "hena.run": runID,
       "service.instance.id": runID,
     },
   }

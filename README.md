@@ -3,14 +3,14 @@
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena Agent logo">
+      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena logo">
     </picture>
   </a>
 </p>
 <p align="center">The open source AI coding agent.</p>
 <p align="center">
   <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/hena"><img alt="npm" src="https://img.shields.io/npm/v/hena?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
 
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
+[![Hena Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -50,12 +50,12 @@
 curl -fsSL https://hena.dev/install | bash
 
 # Package managers
-npm i -g hena-agent@latest        # or bun/pnpm/yarn
-scoop install hena-agent             # Windows
-choco install hena-agent             # Windows
-brew install hena-agent/tap/hena-agent # macOS and Linux
-sudo pacman -S hena-agent            # Arch Linux
-mise use -g hena-agent               # Any OS
+npm i -g hena@latest        # or bun/pnpm/yarn
+scoop install hena             # Windows
+choco install hena             # Windows
+brew install hena-agent/tap/hena # macOS and Linux
+sudo pacman -S hena            # Arch Linux
+mise use -g hena               # Any OS
 nix run github:hena-agent/hena       # Latest dev branch
 ```
 
@@ -64,40 +64,40 @@ nix run github:hena-agent/hena       # Latest dev branch
 
 ### Desktop App (BETA)
 
-Hena Agent is also available as a desktop application. Download it from the [releases page](https://github.com/hena-agent/hena/releases) or [hena.dev/download](https://hena.dev/download).
+Hena is also available as a desktop application. Download it from the [releases page](https://github.com/hena-agent/hena/releases) or [hena.dev/download](https://hena.dev/download).
 
 | Platform              | Download                           |
 | --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `hena-agent-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `hena-agent-desktop-mac-x64.dmg`     |
-| Windows               | `hena-agent-desktop-windows-x64.exe` |
+| macOS (Apple Silicon) | `hena-desktop-mac-arm64.dmg`   |
+| macOS (Intel)         | `hena-desktop-mac-x64.dmg`     |
+| Windows               | `hena-desktop-windows-x64.exe` |
 | Linux                 | `.deb`, `.rpm`, or `.AppImage`     |
 
 ```bash
 # macOS (Homebrew)
-brew install --cask hena-agent
+brew install --cask hena
 # Windows (Scoop)
-scoop install hena-agent
+scoop install hena
 ```
 
 #### Installation Directory
 
 The install script respects the following priority order for the installation path:
 
-1. `$HENA_AGENT_INSTALL_DIR` - Custom installation directory
+1. `$HENA_INSTALL_DIR` - Custom installation directory
 2. `$XDG_BIN_DIR` - XDG Base Directory Specification compliant path
 3. `$HOME/bin` - Standard user binary directory (if it exists or can be created)
-4. `$HOME/.hena-agent/bin` - Default fallback
+4. `$HOME/.hena/bin` - Default fallback
 
 ```bash
 # Examples
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+HENA_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
 XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agents
 
-Hena Agent includes two built-in agents you can switch between with the `Tab` key.
+Hena includes two built-in agents you can switch between with the `Tab` key.
 
 - **build** - Default, full-access agent for development work
 - **plan** - Read-only agent for analysis and code exploration
@@ -112,15 +112,15 @@ Learn more about [agents](https://hena.dev/docs/agents).
 
 ### Documentation
 
-For more info on how to configure Hena Agent, [**head over to our docs**](https://hena.dev/docs).
+For more info on how to configure Hena, [**head over to our docs**](https://hena.dev/docs).
 
 ### Contributing
 
-If you're interested in contributing to Hena Agent, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
+If you're interested in contributing to Hena, please read our [contributing docs](./CONTRIBUTING.md) before submitting a pull request.
 
-### Building on Hena Agent
+### Building on Hena
 
-If you are working on a project related to Hena Agent and use "hena-agent" as part of its name, clarify that it is not built by or affiliated with the Hena Agent team.
+If you are working on a project related to Hena and use "hena" as part of its name, clarify that it is not built by or affiliated with the Hena team.
 
 ---
 

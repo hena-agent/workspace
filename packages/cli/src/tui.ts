@@ -1,8 +1,8 @@
-import { run } from "@hena-agent/tui"
-import { TuiConfig } from "@hena-agent/tui/config"
+import { run } from "@hena/tui"
+import { TuiConfig } from "@hena/tui/config"
 import { Effect } from "effect"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { Global } from "@hena-agent/core/global"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { Global } from "@hena/core/global"
 
 export function runTui(transport: { url: string; headers: RequestInit["headers"] }) {
   const config = TuiConfig.resolve({}, { terminalSuspend: false })

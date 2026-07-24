@@ -1,12 +1,12 @@
-import { AISDK } from "@hena-agent/core/aisdk"
+import { AISDK } from "@hena/core/aisdk"
 import { describe, expect, mock } from "bun:test"
 import { Effect } from "effect"
-import { Catalog } from "@hena-agent/core/catalog"
-import { ModelV2 } from "@hena-agent/core/model"
-import { PluginV2 } from "@hena-agent/core/plugin"
-import { PluginHost } from "@hena-agent/core/plugin/host"
-import { CerebrasPlugin } from "@hena-agent/core/plugin/provider/cerebras"
-import { ProviderV2 } from "@hena-agent/core/provider"
+import { Catalog } from "@hena/core/catalog"
+import { ModelV2 } from "@hena/core/model"
+import { PluginV2 } from "@hena/core/plugin"
+import { PluginHost } from "@hena/core/plugin/host"
+import { CerebrasPlugin } from "@hena/core/plugin/provider/cerebras"
+import { ProviderV2 } from "@hena/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -43,7 +43,7 @@ describe("CerebrasPlugin", () => {
       yield* addPlugin()
       expect((yield* catalog.provider.get(ProviderV2.ID.make("cerebras")))?.request.headers).toEqual({
         Existing: "1",
-        "X-Cerebras-3rd-Party-Integration": "hena-agent",
+        "X-Cerebras-3rd-Party-Integration": "hena",
       })
     }),
   )

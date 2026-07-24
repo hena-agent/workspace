@@ -1,6 +1,6 @@
 export * as GrepTool from "./grep"
 
-import { ToolFailure } from "@hena-agent/llm"
+import { ToolFailure } from "@hena/llm"
 import { Effect, Layer, Schema } from "effect"
 import path from "path"
 import { makeLocationNode } from "../effect/app-node"

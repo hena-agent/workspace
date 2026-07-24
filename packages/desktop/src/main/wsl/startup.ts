@@ -2,10 +2,10 @@ export function wslServerIdsToStartOnInitialize(servers: { id: string }[]) {
   return servers.map((server) => server.id)
 }
 
-export function expectHenaAgentVersion(installed: string | null, expected: string, distro = "Debian") {
+export function expectHenaVersion(installed: string | null, expected: string, distro = "Debian") {
   if (installed === expected) return
   throw new Error(
-    `Hena Agent update finished but ${distro} still reports ${installed ?? "no version"}; expected ${expected}`,
+    `Hena update finished but ${distro} still reports ${installed ?? "no version"}; expected ${expected}`,
   )
 }
 

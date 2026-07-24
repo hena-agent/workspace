@@ -1,8 +1,8 @@
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime"
-import { Athena } from "@hena-agent/stats-core/athena"
-import { ModelStatRepo } from "@hena-agent/stats-core/domain/model"
-import { layer as statsLayer } from "@hena-agent/stats-core/runtime"
-import { syncStats } from "@hena-agent/stats-core/stat-sync"
+import { Athena } from "@hena/stats-core/athena"
+import { ModelStatRepo } from "@hena/stats-core/domain/model"
+import { layer as statsLayer } from "@hena/stats-core/runtime"
+import { syncStats } from "@hena/stats-core/stat-sync"
 import { Cause, Duration, Effect, Layer, Schedule } from "effect"
 
 const SYNC_INTERVAL = "1 hour"

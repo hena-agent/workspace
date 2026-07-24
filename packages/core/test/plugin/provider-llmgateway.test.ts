@@ -1,12 +1,12 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Catalog } from "@hena-agent/core/catalog"
-import { Integration } from "@hena-agent/core/integration"
-import { PluginV2 } from "@hena-agent/core/plugin"
-import { PluginHost } from "@hena-agent/core/plugin/host"
-import { ProviderPlugins } from "@hena-agent/core/plugin/provider"
-import { LLMGatewayPlugin } from "@hena-agent/core/plugin/provider/llmgateway"
-import { ProviderV2 } from "@hena-agent/core/provider"
+import { Catalog } from "@hena/core/catalog"
+import { Integration } from "@hena/core/integration"
+import { PluginV2 } from "@hena/core/plugin"
+import { PluginHost } from "@hena/core/plugin/host"
+import { ProviderPlugins } from "@hena/core/plugin/provider"
+import { LLMGatewayPlugin } from "@hena/core/plugin/provider/llmgateway"
+import { ProviderV2 } from "@hena/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -47,8 +47,8 @@ describe("LLMGatewayPlugin", () => {
       expect((yield* catalog.provider.get(ProviderV2.ID.make("llmgateway")))?.request.headers).toEqual({
         Existing: "value",
         "HTTP-Referer": "https://hena.dev/",
-        "X-Title": "hena-agent",
-        "X-Source": "hena-agent",
+        "X-Title": "hena",
+        "X-Source": "hena",
       })
       expect((yield* catalog.provider.get(ProviderV2.ID.openrouter))?.request.headers).toEqual({})
     }),

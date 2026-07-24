@@ -1,4 +1,4 @@
-import { Catalog } from "@hena-agent/core/catalog"
+import { Catalog } from "@hena/core/catalog"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Api } from "../api"

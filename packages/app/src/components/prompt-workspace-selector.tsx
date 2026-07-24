@@ -1,9 +1,9 @@
 import { For, Show } from "solid-js"
-import { MenuV2 } from "@hena-agent/ui/v2/menu-v2"
-import { TooltipV2 } from "@hena-agent/ui/v2/tooltip-v2"
-import { Icon } from "@hena-agent/ui/icon"
-import { Icon as IconV2 } from "@hena-agent/ui/v2/icon"
-import { getFilename } from "@hena-agent/core/util/path"
+import { MenuV2 } from "@hena/ui/v2/menu-v2"
+import { TooltipV2 } from "@hena/ui/v2/tooltip-v2"
+import { Icon } from "@hena/ui/icon"
+import { Icon as IconV2 } from "@hena/ui/v2/icon"
+import { getFilename } from "@hena/core/util/path"
 import { useLanguage } from "@/context/language"
 
 export function PromptWorkspaceSelector(props: {

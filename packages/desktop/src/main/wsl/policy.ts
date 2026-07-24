@@ -1,4 +1,4 @@
-import type { WslDistroProbe, WslHenaAgentCheck, WslServerItem } from "../../preload/types"
+import type { WslDistroProbe, WslHenaCheck, WslServerItem } from "../../preload/types"
 
 export function wslServerIdToRestart(servers: WslServerItem[], distro: string) {
   return servers.find((item) => item.config.distro === distro)?.config.id
@@ -6,14 +6,14 @@ export function wslServerIdToRestart(servers: WslServerItem[], distro: string) {
 
 export function clearWslDistroState(
   distroProbes: Record<string, WslDistroProbe>,
-  henaAgentChecks: Record<string, WslHenaAgentCheck>,
+  henaChecks: Record<string, WslHenaCheck>,
   distro: string,
 ) {
   const nextDistroProbes = { ...distroProbes }
-  const nextHenaAgentChecks = { ...henaAgentChecks }
+  const nextHenaChecks = { ...henaChecks }
   delete nextDistroProbes[distro]
-  delete nextHenaAgentChecks[distro]
-  return { distroProbes: nextDistroProbes, henaAgentChecks: nextHenaAgentChecks }
+  delete nextHenaChecks[distro]
+  return { distroProbes: nextDistroProbes, henaChecks: nextHenaChecks }
 }
 
 export function wslTerminalArgs(distro?: string | null) {

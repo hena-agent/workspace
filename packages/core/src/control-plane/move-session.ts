@@ -64,7 +64,7 @@ export interface Interface {
   readonly moveSession: (input: Input) => Effect.Effect<void, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@hena-agent/ControlPlaneMoveSession") {}
+export class Service extends Context.Service<Service, Interface>()("@hena/ControlPlaneMoveSession") {}
 
 const layer = Layer.effect(
   Service,

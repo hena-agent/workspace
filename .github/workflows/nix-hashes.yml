@@ -104,8 +104,8 @@ jobs:
       - name: Setup git committer
         uses: ./.github/actions/setup-git-committer
         with:
-          hena-agent-app-id: ${{ vars.HENA_AGENT_APP_ID }}
-          hena-agent-app-secret: ${{ secrets.HENA_AGENT_APP_SECRET }}
+          hena-app-id: ${{ vars.HENA_APP_ID }}
+          hena-app-secret: ${{ secrets.HENA_APP_SECRET }}
 
       - name: Pull latest changes
         run: |

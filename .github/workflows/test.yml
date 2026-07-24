@@ -52,7 +52,7 @@ jobs:
       - name: Configure git identity
         run: |
           git config --global user.email "bot@hena.dev"
-          git config --global user.name "hena-agent"
+          git config --global user.name "hena"
 
       - name: Cache Turbo
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -67,7 +67,7 @@ jobs:
         timeout-minutes: 20
         run: GITHUB_ACTIONS=false bun turbo test
         env:
-          HENA_AGENT_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
+          HENA_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
 
       - name: Check generated client
         if: runner.os == 'Linux'
@@ -76,7 +76,7 @@ jobs:
 
       - name: Run HttpApi exerciser gates
         if: runner.os == 'Linux'
-        working-directory: packages/hena-agent
+        working-directory: packages/hena
         run: bun run test:httpapi
 
   e2e:

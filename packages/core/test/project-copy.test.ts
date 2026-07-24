@@ -4,16 +4,16 @@ import fs from "fs/promises"
 import path from "path"
 import { eq } from "drizzle-orm"
 import { Effect, Fiber, Stream } from "effect"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { Git } from "@hena-agent/core/git"
-import { Database } from "@hena-agent/core/database/database"
-import { EventV2 } from "@hena-agent/core/event"
-import { Project } from "@hena-agent/core/project"
-import { ProjectDirectoryTable, ProjectTable } from "@hena-agent/core/project/sql"
-import { ProjectCopy } from "@hena-agent/core/project/copy"
-import { ProjectDirectories } from "@hena-agent/core/project/directories"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { AbsolutePath } from "@hena/core/schema"
+import { Git } from "@hena/core/git"
+import { Database } from "@hena/core/database/database"
+import { EventV2 } from "@hena/core/event"
+import { Project } from "@hena/core/project"
+import { ProjectDirectoryTable, ProjectTable } from "@hena/core/project/sql"
+import { ProjectCopy } from "@hena/core/project/copy"
+import { ProjectDirectories } from "@hena/core/project/directories"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 
@@ -31,7 +31,7 @@ async function initRepo(directory: string) {
   await $`git init`.cwd(directory).quiet()
   await $`git config core.fsmonitor false`.cwd(directory).quiet()
   await $`git config commit.gpgsign false`.cwd(directory).quiet()
-  await $`git config user.email test@hena-agent.test`.cwd(directory).quiet()
+  await $`git config user.email test@hena.test`.cwd(directory).quiet()
   await $`git config user.name Test`.cwd(directory).quiet()
   await $`git commit --allow-empty -m root`.cwd(directory).quiet()
 }

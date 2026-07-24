@@ -1,12 +1,12 @@
 import path from "path"
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { AgentV2 } from "@hena-agent/core/agent"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { SkillV2 } from "@hena-agent/core/skill"
-import { SystemContext } from "@hena-agent/core/system-context"
-import { SkillGuidance } from "@hena-agent/core/skill/guidance"
+import { AgentV2 } from "@hena/core/agent"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { AbsolutePath } from "@hena/core/schema"
+import { SkillV2 } from "@hena/core/skill"
+import { SystemContext } from "@hena/core/system-context"
+import { SkillGuidance } from "@hena/core/skill/guidance"
 import { it } from "../lib/effect"
 
 const build = AgentV2.ID.make("build")

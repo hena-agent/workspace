@@ -1,18 +1,18 @@
 import path from "path"
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { Catalog } from "@hena-agent/core/catalog"
-import { Integration } from "@hena-agent/core/integration"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { EventV2 } from "@hena-agent/core/event"
-import { Flag } from "@hena-agent/core/flag/flag"
-import { Location } from "@hena-agent/core/location"
-import { ModelV2 } from "@hena-agent/core/model"
-import { ModelsDev } from "@hena-agent/core/models-dev"
-import { ModelsDevPlugin } from "@hena-agent/core/plugin/models-dev"
-import { ProviderV2 } from "@hena-agent/core/provider"
-import { AbsolutePath } from "@hena-agent/core/schema"
+import { Catalog } from "@hena/core/catalog"
+import { Integration } from "@hena/core/integration"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { EventV2 } from "@hena/core/event"
+import { Flag } from "@hena/core/flag/flag"
+import { Location } from "@hena/core/location"
+import { ModelV2 } from "@hena/core/model"
+import { ModelsDev } from "@hena/core/models-dev"
+import { ModelsDevPlugin } from "@hena/core/plugin/models-dev"
+import { ProviderV2 } from "@hena/core/provider"
+import { AbsolutePath } from "@hena/core/schema"
 import { location } from "../fixture/location"
 import { testEffect } from "../lib/effect"
 import { catalogHost, host, integrationHost } from "./host"
@@ -128,11 +128,11 @@ describe("ModelsDevPlugin", () => {
     Effect.acquireUseRelease(
       Effect.sync(() => {
         const previous = {
-          path: Flag.HENA_AGENT_MODELS_PATH,
-          disabled: Flag.HENA_AGENT_DISABLE_MODELS_FETCH,
+          path: Flag.HENA_MODELS_PATH,
+          disabled: Flag.HENA_DISABLE_MODELS_FETCH,
         }
-        Flag.HENA_AGENT_MODELS_PATH = path.join(import.meta.dir, "fixtures", "models-dev.json")
-        Flag.HENA_AGENT_DISABLE_MODELS_FETCH = true
+        Flag.HENA_MODELS_PATH = path.join(import.meta.dir, "fixtures", "models-dev.json")
+        Flag.HENA_DISABLE_MODELS_FETCH = true
         return previous
       }),
       () =>
@@ -162,8 +162,8 @@ describe("ModelsDevPlugin", () => {
         }).pipe(Effect.provide(AppNodeBuilder.build(ModelsDev.node))),
       (previous) =>
         Effect.sync(() => {
-          Flag.HENA_AGENT_MODELS_PATH = previous.path
-          Flag.HENA_AGENT_DISABLE_MODELS_FETCH = previous.disabled
+          Flag.HENA_MODELS_PATH = previous.path
+          Flag.HENA_DISABLE_MODELS_FETCH = previous.disabled
         }),
     ),
   )

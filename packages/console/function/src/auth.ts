@@ -7,16 +7,16 @@ import { THEME_OPENAUTH } from "@openauthjs/openauth/ui/theme"
 import { GithubProvider } from "@openauthjs/openauth/provider/github"
 import { GoogleOidcProvider } from "@openauthjs/openauth/provider/google"
 import { CloudflareStorage } from "@openauthjs/openauth/storage/cloudflare"
-import { Account } from "@hena-agent/console-core/account.js"
-import { Workspace } from "@hena-agent/console-core/workspace.js"
-import { Actor } from "@hena-agent/console-core/actor.js"
-import { Resource } from "@hena-agent/console-resource"
-import { User } from "@hena-agent/console-core/user.js"
-import { and, Database, eq, isNull, or } from "@hena-agent/console-core/drizzle/index.js"
-import { WorkspaceTable } from "@hena-agent/console-core/schema/workspace.sql.js"
-import { UserTable } from "@hena-agent/console-core/schema/user.sql.js"
-import { AuthTable } from "@hena-agent/console-core/schema/auth.sql.js"
-import { Identifier } from "@hena-agent/console-core/identifier.js"
+import { Account } from "@hena/console-core/account.js"
+import { Workspace } from "@hena/console-core/workspace.js"
+import { Actor } from "@hena/console-core/actor.js"
+import { Resource } from "@hena/console-resource"
+import { User } from "@hena/console-core/user.js"
+import { and, Database, eq, isNull, or } from "@hena/console-core/drizzle/index.js"
+import { WorkspaceTable } from "@hena/console-core/schema/workspace.sql.js"
+import { UserTable } from "@hena/console-core/schema/user.sql.js"
+import { AuthTable } from "@hena/console-core/schema/auth.sql.js"
+import { Identifier } from "@hena/console-core/identifier.js"
 
 type Env = {
   AuthStorage: KVNamespace
@@ -112,14 +112,14 @@ export default {
           const emails = (await fetch("https://api.github.com/user/emails", {
             headers: {
               Authorization: `Bearer ${response.tokenset.access}`,
-              "User-Agent": "hena-agent",
+              "User-Agent": "hena",
               Accept: "application/vnd.github+json",
             },
           }).then((x) => x.json())) as any
           const user = (await fetch("https://api.github.com/user", {
             headers: {
               Authorization: `Bearer ${response.tokenset.access}`,
-              "User-Agent": "hena-agent",
+              "User-Agent": "hena",
               Accept: "application/vnd.github+json",
             },
           }).then((x) => x.json())) as any

@@ -1,9 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { Location } from "@hena-agent/core/location"
-import { Policy } from "@hena-agent/core/policy"
-import { AbsolutePath } from "@hena-agent/core/schema"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { Location } from "@hena/core/location"
+import { Policy } from "@hena/core/policy"
+import { AbsolutePath } from "@hena/core/schema"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
 

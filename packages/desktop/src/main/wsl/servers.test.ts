@@ -7,7 +7,7 @@ import {
   wslTerminalArgs,
 } from "./policy"
 import {
-  expectHenaAgentVersion,
+  expectHenaVersion,
   pendingRestartAfterWslInstall,
   pollWslHealth,
   wslServerIdsToStartOnInitialize,
@@ -15,7 +15,7 @@ import {
 import { createWslServersController, type WslServerConfig } from "./servers"
 
 let persistedServers: WslServerConfig[] = []
-let releaseHenaAgentResolve: (() => void) | undefined
+let releaseHenaResolve: (() => void) | undefined
 
 test("starts every configured WSL server on initialization", () => {
   expect(
@@ -27,13 +27,13 @@ test("starts every configured WSL server on initialization", () => {
 })
 
 test("rejects an update that did not install the desktop version", () => {
-  expect(() => expectHenaAgentVersion("1.16.2", "1.16.2")).not.toThrow()
-  expect(() => expectHenaAgentVersion("1.14.35", "1.16.2")).toThrow(
-    "Hena Agent update finished but Debian still reports 1.14.35; expected 1.16.2",
+  expect(() => expectHenaVersion("1.16.2", "1.16.2")).not.toThrow()
+  expect(() => expectHenaVersion("1.14.35", "1.16.2")).toThrow(
+    "Hena update finished but Debian still reports 1.14.35; expected 1.16.2",
   )
 })
 
-test("restarts an existing distro server after updating Hena Agent", () => {
+test("restarts an existing distro server after updating Hena", () => {
   expect(
     wslServerIdToRestart(
       [
@@ -55,7 +55,7 @@ test("clears cached distro probes when removing a WSL server", () => {
       {
         Debian: {
           distro: "Debian",
-          resolvedPath: "/home/luke/.hena-agent/bin/hena-agent",
+          resolvedPath: "/home/luke/.hena/bin/hena",
           version: "1.16.2",
           expectedVersion: "1.16.2",
           matchesDesktop: true,
@@ -64,7 +64,7 @@ test("clears cached distro probes when removing a WSL server", () => {
       },
       "Debian",
     ),
-  ).toEqual({ distroProbes: {}, henaAgentChecks: {} })
+  ).toEqual({ distroProbes: {}, henaChecks: {} })
 })
 
 test("opens terminals for distro names containing spaces", () => {
@@ -104,9 +104,9 @@ test("derives a required Windows restart from the post-install runtime probe", (
   expect(pendingRestartAfterWslInstall({ available: true, version: "WSL version: 2.6.1", error: null })).toBe(false)
 })
 
-test("ignores stale background Hena Agent checks after removing a WSL server", async () => {
+test("ignores stale background Hena checks after removing a WSL server", async () => {
   persistedServers = []
-  releaseHenaAgentResolve = undefined
+  releaseHenaResolve = undefined
   const controller = createWslServersController(
     "1.16.2",
     async () => ({
@@ -115,25 +115,25 @@ test("ignores stale background Hena Agent checks after removing a WSL server", a
         onExit: () => undefined,
       },
       url: "http://127.0.0.1:4096",
-      username: "hena-agent",
+      username: "hena",
       password: "secret",
     }),
     testControllerOptions(),
   )
 
   await controller.addServer("Debian")
-  await waitFor(() => !!releaseHenaAgentResolve)
+  await waitFor(() => !!releaseHenaResolve)
   await controller.removeServer("wsl:Debian")
-  releaseHenaAgentResolve?.()
+  releaseHenaResolve?.()
   await new Promise((resolve) => setTimeout(resolve, 0))
 
   expect(controller.getState().servers).toEqual([])
-  expect(controller.getState().henaAgentChecks).toEqual({})
+  expect(controller.getState().henaChecks).toEqual({})
 })
 
-test("ignores stale startup Hena Agent checks after removing a WSL server", async () => {
+test("ignores stale startup Hena checks after removing a WSL server", async () => {
   persistedServers = [{ id: "wsl:Debian", distro: "Debian" }]
-  releaseHenaAgentResolve = undefined
+  releaseHenaResolve = undefined
   const controller = createWslServersController(
     "1.16.2",
     async () => new Promise<never>(() => undefined),
@@ -141,20 +141,20 @@ test("ignores stale startup Hena Agent checks after removing a WSL server", asyn
   )
 
   await controller.initialize()
-  await waitFor(() => !!releaseHenaAgentResolve)
+  await waitFor(() => !!releaseHenaResolve)
   await controller.removeServer("wsl:Debian")
-  releaseHenaAgentResolve?.()
+  releaseHenaResolve?.()
   await new Promise((resolve) => setTimeout(resolve, 0))
 
   expect(controller.getState().servers).toEqual([])
-  expect(controller.getState().henaAgentChecks).toEqual({})
+  expect(controller.getState().henaChecks).toEqual({})
 })
 
-test("probes addable distros in parallel before checking Hena Agent", async () => {
+test("probes addable distros in parallel before checking Hena", async () => {
   persistedServers = []
   const started: string[] = []
   const release = new Map<string, () => void>()
-  const henaAgent: string[] = []
+  const hena: string[] = []
   const controller = createWslServersController("1.16.2", async () => new Promise<never>(() => undefined), {
     ...testControllerOptions(),
     probeDistro: async (distro) => {
@@ -162,28 +162,28 @@ test("probes addable distros in parallel before checking Hena Agent", async () =
       await new Promise<void>((resolve) => release.set(distro, resolve))
       return { name: distro, canExecute: true, hasBash: true, hasCurl: true, error: null }
     },
-    resolveHenaAgent: async (distro) => {
-      henaAgent.push(distro)
-      return "/home/me/.hena-agent/bin/hena-agent"
+    resolveHena: async (distro) => {
+      hena.push(distro)
+      return "/home/me/.hena/bin/hena"
     },
   })
 
   const task = controller.probeAddable(["Debian", "Ubuntu"])
   await waitFor(() => started.length === 2)
   expect(started).toEqual(["Debian", "Ubuntu"])
-  expect(henaAgent).toEqual([])
+  expect(hena).toEqual([])
   release.get("Debian")?.()
   release.get("Ubuntu")?.()
   await task
 
   expect(Object.keys(controller.getState().distroProbes)).toEqual(["Debian", "Ubuntu"])
-  expect(henaAgent).toEqual(["Debian", "Ubuntu"])
-  expect(Object.keys(controller.getState().henaAgentChecks)).toEqual(["Debian", "Ubuntu"])
+  expect(hena).toEqual(["Debian", "Ubuntu"])
+  expect(Object.keys(controller.getState().henaChecks)).toEqual(["Debian", "Ubuntu"])
 })
 
-test("does not check Hena Agent in addable distros that cannot execute commands", async () => {
+test("does not check Hena in addable distros that cannot execute commands", async () => {
   persistedServers = []
-  const henaAgent: string[] = []
+  const hena: string[] = []
   const controller = createWslServersController("1.16.2", async () => new Promise<never>(() => undefined), {
     ...testControllerOptions(),
     probeDistro: async (distro) => ({
@@ -193,17 +193,17 @@ test("does not check Hena Agent in addable distros that cannot execute commands"
       hasCurl: distro === "Debian",
       error: distro === "Debian" ? null : "Open Ubuntu once to finish setup",
     }),
-    resolveHenaAgent: async (distro) => {
-      henaAgent.push(distro)
-      return "/home/me/.hena-agent/bin/hena-agent"
+    resolveHena: async (distro) => {
+      hena.push(distro)
+      return "/home/me/.hena/bin/hena"
     },
   })
 
   await controller.probeAddable(["Debian", "Ubuntu"])
 
   expect(Object.keys(controller.getState().distroProbes)).toEqual(["Debian", "Ubuntu"])
-  expect(henaAgent).toEqual(["Debian"])
-  expect(Object.keys(controller.getState().henaAgentChecks)).toEqual(["Debian"])
+  expect(hena).toEqual(["Debian"])
+  expect(Object.keys(controller.getState().henaChecks)).toEqual(["Debian"])
 })
 
 async function waitFor(check: () => boolean) {
@@ -221,11 +221,11 @@ function testControllerOptions() {
       persistedServers = servers
     },
     readCommandVersion: async () => "1.16.2",
-    resolveHenaAgent: async () => {
+    resolveHena: async () => {
       await new Promise<void>((resolve) => {
-        releaseHenaAgentResolve = resolve
+        releaseHenaResolve = resolve
       })
-      return "/home/me/.hena-agent/bin/hena-agent"
+      return "/home/me/.hena/bin/hena"
     },
   }
 }

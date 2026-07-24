@@ -1,66 +1,33 @@
 ---
 title: GitLab
-description: Koristite Hena Agent u GitLab problemima i zahtjevima za spajanje.
+description: Koristite Hena u GitLab problemima i zahtjevima za spajanje.
 ---
 
-Hena Agent se integriše sa vašim GitLab radnim tokom kroz vaš GitLab CI/CD cevovod ili sa GitLab Duo.
-U oba slučaja, Hena Agent će se pokrenuti na vašim GitLab pokretačima.
-
----
-
-## GitLab CI
-
-Hena Agent radi u redovnom GitLab cevovodu. Možete ga ugraditi u cjevovod kao [CI komponenta](https://docs.gitlab.com/ee/ci/components/)
-Ovdje koristimo CI/CD komponentu kreiranu u zajednici za Hena Agent — [nagyv/gitlab-opencode](https://gitlab.com/nagyv/gitlab-opencode).
+Hena se integriše sa vašim GitLab radnim tokom kroz vaš GitLab CI/CD cevovod ili sa GitLab Duo.
+U oba slučaja, Hena će se pokrenuti na vašim GitLab pokretačima.
 
 ---
 
-### Funkcije
-
-- **Koristite prilagođenu konfiguraciju po poslu**: Konfigurirajte Hena Agent s prilagođenim konfiguracijskim direktorijem, na primjer `./config/#custom-directory` da omogućite ili onemogućite funkcionalnost po Hena Agent pozivanju.
-- **Minimalno podešavanje**: CI komponenta postavlja Hena Agent u pozadini, samo trebate kreirati Hena Agent konfiguraciju i početnu prompt.
-- **Fleksibilno**: CI komponenta podržava nekoliko ulaza za prilagođavanje njenog ponašanja
-
----
-
-### Podešavanje
-
-1. Sačuvajte JSON za autentifikaciju Hena Agent kao CI varijable okruženja tipa datoteke pod **Postavke** > **CI/CD** > **Varijable**. Obavezno ih označite kao "Maskirane i skrivene".
-2. Dodajte sljedeće u svoju `.gitlab-ci.yml` datoteku.
-
-```yaml title=".gitlab-ci.yml"
-include:
-  - component: $CI_SERVER_FQDN/nagyv/gitlab-opencode/opencode@2
-    inputs:
-      config_dir: ${CI_PROJECT_DIR}/hena-agent-config
-      auth_json: $HENA_AGENT_AUTH_JSON # The variable name for your Hena Agent authentication JSON
-      command: optional-custom-command
-      message: "Your prompt here"
-```
-
-Za više unosa i slučajeva upotrebe [pogledajte dokumente docs](https://gitlab.com/explore/catalog/nagyv/gitlab-opencode) za ovu komponentu.
-
----
 
 ## GitLab Duo
 
-Hena Agent se integriše sa vašim GitLab tokovom rada.
-Spomenite `@hena-agent` u komentaru i Hena Agent će izvršiti zadatke unutar vašeg GitLab CI cevovoda.
+Hena se integriše sa vašim GitLab tokovom rada.
+Spomenite `@hena` u komentaru i Hena će izvršiti zadatke unutar vašeg GitLab CI cevovoda.
 
 ---
 
 ### Funkcije
 
-- **Problemi trijaže**: Zamolite Hena Agent da ispita problem i objasni vam ga.
-- **Popravi i implementiraj**: Zamolite Hena Agent da popravi problem ili implementira funkciju.
+- **Problemi trijaže**: Zamolite Hena da ispita problem i objasni vam ga.
+- **Popravi i implementiraj**: Zamolite Hena da popravi problem ili implementira funkciju.
   To će kreirati novu granu i pokrenuti zahtjev za spajanje s promjenama.
-- **Secure**: Hena Agent radi na vašim GitLab pokretačima.
+- **Secure**: Hena radi na vašim GitLab pokretačima.
 
 ---
 
 ### Podešavanje
 
-Hena Agent radi u vašem GitLab CI/CD cevovodu, evo šta će vam trebati da ga postavite:
+Hena radi u vašem GitLab CI/CD cevovodu, evo šta će vam trebati da ga postavite:
 :::tip
 Pogledajte [**GitLab dokumente**](https://docs.gitlab.com/user/duo_agent_platform/agent_assistant/) za ažurirane upute.
 :::
@@ -79,19 +46,19 @@ Pogledajte [**GitLab dokumente**](https://docs.gitlab.com/user/duo_agent_platfor
     ```yaml
     image: node:22-slim
     commands:
-      - echo "Installing hena-agent"
-      - npm install --global hena-agent
+      - echo "Installing hena"
+      - npm install --global hena
       - echo "Installing glab"
-      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA_AGENT
+      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA
       - apt-get update --quiet && apt-get install --yes curl wget gpg git && rm --recursive --force /var/lib/apt/lists/*
       - curl --silent --show-error --location "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash
       - apt-get install --yes glab
       - echo "Configuring glab"
       - echo $GITLAB_HOST
-      - echo "Creating Hena Agent auth configuration"
-      - mkdir --parents ~/.local/share/hena-agent
+      - echo "Creating Hena auth configuration"
+      - mkdir --parents ~/.local/share/hena
       - |
-        cat > ~/.local/share/hena-agent/auth.json << EOF
+        cat > ~/.local/share/hena/auth.json << EOF
         {
           "anthropic": {
             "type": "api",
@@ -100,13 +67,13 @@ Pogledajte [**GitLab dokumente**](https://docs.gitlab.com/user/duo_agent_platfor
         }
         EOF
       - echo "Configuring git"
-      - git config --global user.email "hena-agent@gitlab.com"
-      - git config --global user.name "Hena Agent"
+      - git config --global user.email "hena@gitlab.com"
+      - git config --global user.name "Hena"
       - echo "Testing glab"
       - glab issue list
-      - echo "Running Hena Agent"
+      - echo "Running Hena"
       - |
-        hena-agent run "
+        hena run "
         You are an AI assistant helping with GitLab operations.
 
         Context: $AI_FLOW_CONTEXT
@@ -143,7 +110,7 @@ Pogledajte [**GitLab dokumente**](https://docs.gitlab.com/user/duo_agent_platfor
         fi
     variables:
       - ANTHROPIC_API_KEY
-      - GITLAB_TOKEN_HENA_AGENT
+      - GITLAB_TOKEN_HENA
       - GITLAB_HOST
     ```
 
@@ -155,34 +122,34 @@ Možete vidjeti [GitLab CLI agenti docs](https://docs.gitlab.com/user/duo_agent_
 
 ### Primjeri
 
-Evo nekoliko primjera kako možete koristiti Hena Agent u GitLab.
+Evo nekoliko primjera kako možete koristiti Hena u GitLab.
 :::tip
-Možete konfigurirati da koristite drugu frazu okidača od `@hena-agent`.
+Možete konfigurirati da koristite drugu frazu okidača od `@hena`.
 :::
 
 - **Objasnite problem**
   Dodajte ovaj komentar u izdanje GitLaba.
 
 ```
-  @hena-agent explain this issue
+  @hena explain this issue
 ```
 
-Hena Agent će pročitati problem i odgovoriti jasnim objašnjenjem.
+Hena će pročitati problem i odgovoriti jasnim objašnjenjem.
 
 - **Reši problem**
   U izdanju GitLaba recite:
 
 ```
-  @hena-agent fix this
+  @hena fix this
 ```
 
-Hena Agent će kreirati novu granu, implementirati promjene i otvoriti zahtjev za spajanje s promjenama.
+Hena će kreirati novu granu, implementirati promjene i otvoriti zahtjev za spajanje s promjenama.
 
 - **Pregledajte zahtjeve za pridruživanje**
   Ostavite sljedeći komentar na zahtjev za spajanje GitLab-a.
 
 ```
-  @hena-agent review this merge request
+  @hena review this merge request
 ```
 
-Hena Agent će pregledati zahtjev za spajanje i dati povratne informacije.
+Hena će pregledati zahtjev za spajanje i dati povratne informacije.

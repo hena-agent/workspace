@@ -1,15 +1,15 @@
 ---
 title: Formateri
-description: Hena Agent koristi formatere specifične za jezik.
+description: Hena koristi formatere specifične za jezik.
 ---
 
-Hena Agent automatski formatira datoteke nakon što su napisane ili uređene pomoću formatera specifičnih za jezik. Ovo osigurava da kod koji se generira prati stilove koda vašeg projekta.
+Hena automatski formatira datoteke nakon što su napisane ili uređene pomoću formatera specifičnih za jezik. Ovo osigurava da kod koji se generira prati stilove koda vašeg projekta.
 
 ---
 
 ## Ugrađeni
 
-Hena Agent dolazi sa nekoliko ugrađenih formatera za popularne jezike i okvire. Ispod je lista formatera, podržanih ekstenzija datoteka i naredbi ili opcija konfiguracije koje su mu potrebne.
+Hena dolazi sa nekoliko ugrađenih formatera za popularne jezike i okvire. Ispod je lista formatera, podržanih ekstenzija datoteka i naredbi ili opcija konfiguracije koje su mu potrebne.
 | Formatter | Ekstenzije | Zahtjevi
 |-------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | gofmt | .go | `gofmt` komanda dostupna |
@@ -35,13 +35,13 @@ Hena Agent dolazi sa nekoliko ugrađenih formatera za popularne jezike i okvire.
 | shfmt | .sh, .bash | `shfmt` komanda dostupna |
 | pint | .php | `laravel/pint` zavisnost u `composer.json` || oxfmt (Eksperimentalno) | .js, .jsx, .ts, .tsx | `oxfmt` zavisnost u `package.json` i [eksperimentalna env varijabla flag](/docs/cli/#experimental) |
 | ormolu | .hs | `ormolu` komanda dostupna |
-Dakle, ako vaš projekat ima `prettier` u vašem `package.json`, Hena Agent će ga automatski koristiti.
+Dakle, ako vaš projekat ima `prettier` u vašem `package.json`, Hena će ga automatski koristiti.
 
 ---
 
 ## Kako radi
 
-Kada Hena Agent piše ili uređuje datoteku, on:
+Kada Hena piše ili uređuje datoteku, on:
 
 1. Provjerava ekstenziju datoteke prema svim omogućenim formaterima.
 2. Pokreće odgovarajuću naredbu za formatiranje na datoteci.
@@ -52,9 +52,9 @@ Kada Hena Agent piše ili uređuje datoteku, on:
 
 ## Konfiguracija
 
-Možete prilagoditi formatere kroz `formatter` odjeljak u vašoj Hena Agent konfiguraciji.
+Možete prilagoditi formatere kroz `formatter` odjeljak u vašoj Hena konfiguraciji.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {}
@@ -76,7 +76,7 @@ Pogledajmo neke primjere.
 
 Da onemogućite **sve** formatere globalno, postavite `formatter` na `false`:
 
-```json title="hena-agent.json" {3}
+```json title="hena.json" {3}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": false
@@ -85,7 +85,7 @@ Da onemogućite **sve** formatere globalno, postavite `formatter` na `false`:
 
 Da onemogućite **specifični** formater, postavite `disabled` na `true`:
 
-```json title="hena-agent.json" {5}
+```json title="hena.json" {5}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {
@@ -102,7 +102,7 @@ Da onemogućite **specifični** formater, postavite `disabled` na `true`:
 
 Možete nadjačati ugrađene formatere ili dodati nove navođenjem naredbe, varijabli okruženja i ekstenzija datoteke:
 
-```json title="hena-agent.json" {4-14}
+```json title="hena.json" {4-14}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {

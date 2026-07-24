@@ -22,15 +22,15 @@ beforeAll(async () => {
       },
     }),
   }))
-  mock.module("@hena-agent/ui/collapsible", () => ({
+  mock.module("@hena/ui/collapsible", () => ({
     Collapsible: {
       Trigger: (props: { children?: unknown }) => props.children,
       Content: (props: { children?: unknown }) => props.children,
     },
   }))
-  mock.module("@hena-agent/ui/file-icon", () => ({ FileIcon: () => null }))
-  mock.module("@hena-agent/ui/icon", () => ({ Icon: () => null }))
-  mock.module("@hena-agent/ui/tooltip", () => ({ Tooltip: (props: { children?: unknown }) => props.children }))
+  mock.module("@hena/ui/file-icon", () => ({ FileIcon: () => null }))
+  mock.module("@hena/ui/icon", () => ({ Icon: () => null }))
+  mock.module("@hena/ui/tooltip", () => ({ Tooltip: (props: { children?: unknown }) => props.children }))
   const mod = await import("./file-tree")
   shouldListRoot = mod.shouldListRoot
   shouldListExpanded = mod.shouldListExpanded

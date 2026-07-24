@@ -1,10 +1,10 @@
 import { test } from "@playwright/test"
 import { fixture, pageMessages } from "../smoke/session-timeline.fixture"
-import { mockHenaAgentServer } from "../utils/mock-server"
+import { mockHenaServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
 
 test("shows loaded sessions before the directory path request resolves", async ({ page }) => {
-  await mockHenaAgentServer(page, {
+  await mockHenaServer(page, {
     sessions: fixture.sessions,
     provider: fixture.provider,
     directory: fixture.directory,
@@ -24,7 +24,7 @@ test("shows loaded sessions before the directory path request resolves", async (
 
   await page.addInitScript((directory) => {
     localStorage.setItem(
-      "hena-agent.global.dat:server",
+      "hena.global.dat:server",
       JSON.stringify({
         projects: { local: [{ worktree: directory, expanded: true }] },
         lastProject: { local: directory },

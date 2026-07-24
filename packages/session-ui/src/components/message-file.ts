@@ -1,6 +1,6 @@
 import { bundledLanguagesInfo } from "shiki"
-import { getFilename } from "@hena-agent/core/util/path"
-import type { FilePart } from "@hena-agent/sdk/v2"
+import { getFilename } from "@hena/core/util/path"
+import type { FilePart } from "@hena/sdk/v2"
 
 export function attached(part: FilePart) {
   return part.url.startsWith("data:")

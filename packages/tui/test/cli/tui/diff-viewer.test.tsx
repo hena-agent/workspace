@@ -3,13 +3,13 @@ import { expect, test } from "bun:test"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { DiffRenderable, type Renderable, ScrollBoxRenderable } from "@opentui/core"
 import { testRender, useRenderer } from "@opentui/solid"
-import type { TuiPluginApi, TuiPluginMeta, TuiRouteCurrent, TuiRouteDefinition } from "@hena-agent/plugin/tui"
-import type { Session } from "@hena-agent/sdk/v2"
+import type { TuiPluginApi, TuiPluginMeta, TuiRouteCurrent, TuiRouteDefinition } from "@hena/plugin/tui"
+import type { Session } from "@hena/sdk/v2"
 import { KVProvider } from "../../../src/context/kv"
 import { ThemeProvider } from "../../../src/context/theme"
 import { TuiConfigProvider } from "../../../src/config"
 import { TuiKeybind } from "../../../src/config/keybind"
-import { HenaAgentKeymapProvider } from "../../../src/keymap"
+import { HenaKeymapProvider } from "../../../src/keymap"
 import diffViewerPlugin from "../../../src/feature-plugins/system/diff-viewer"
 import { createTuiPluginApi } from "../../fixture/tui-plugin"
 import { createTuiResolvedConfig } from "../../fixture/tui-runtime"
@@ -159,7 +159,7 @@ async function renderDiffViewer(vcsDiff: unknown[], height = 20, initialRoute?: 
 
     return (
       <TestTuiContexts>
-        <HenaAgentKeymapProvider keymap={keymap}>
+        <HenaKeymapProvider keymap={keymap}>
           <TuiConfigProvider config={config}>
             <KVProvider>
               <ThemeProvider mode="dark">
@@ -167,7 +167,7 @@ async function renderDiffViewer(vcsDiff: unknown[], height = 20, initialRoute?: 
               </ThemeProvider>
             </KVProvider>
           </TuiConfigProvider>
-        </HenaAgentKeymapProvider>
+        </HenaKeymapProvider>
       </TestTuiContexts>
     )
   }

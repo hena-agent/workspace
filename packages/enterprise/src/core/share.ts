@@ -1,5 +1,5 @@
-import { Message, Model, Part, Session, SnapshotFileDiff } from "@hena-agent/sdk/v2"
-import { iife } from "@hena-agent/core/util/iife"
+import { Message, Model, Part, Session, SnapshotFileDiff } from "@hena/sdk/v2"
+import { iife } from "@hena/core/util/iife"
 import z from "zod"
 import { Storage } from "./storage"
 

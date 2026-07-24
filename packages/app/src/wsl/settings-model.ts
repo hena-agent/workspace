@@ -2,7 +2,7 @@ import fuzzysort from "fuzzysort"
 import type {
   WslInstalledDistro,
   WslOnlineDistro,
-  WslHenaAgentCheck,
+  WslHenaCheck,
   WslServersPlatform,
   WslServerRuntime,
   WslServersState,
@@ -24,7 +24,7 @@ export type AddServerPrimaryButton = {
   variant: "neutral" | "contrast"
   label: AddServerText
   disabled: boolean
-  action: "install-hena-agent" | "add" | null
+  action: "install-hena" | "add" | null
   loading: boolean
   width: string | null
 }
@@ -51,10 +51,10 @@ function isHiddenDistro(name: string) {
 export const wslRuntimeRetryable = (runtime: WslServerRuntime) =>
   runtime.kind === "failed" || runtime.kind === "stopped"
 
-export function wslHenaAgentAction(check?: WslHenaAgentCheck) {
+export function wslHenaAction(check?: WslHenaCheck) {
   if (!check) return
-  if (!check.resolvedPath) return "Install Hena Agent"
-  if (check.matchesDesktop === false) return "Update Hena Agent"
+  if (!check.resolvedPath) return "Install Hena"
+  if (check.matchesDesktop === false) return "Update Hena"
 }
 
 export function wslDistroReady(state: WslServersState | undefined, name: string) {
@@ -80,7 +80,7 @@ export function addServerViewModel(input: {
   const existingServerDistros = new Set((state?.servers ?? []).map((item) => item.config.distro))
   const addableInstalledDistros = visibleInstalledDistros.filter((item) => !existingServerDistros.has(item.name))
   const selectedDistro = addServerSelectedDistro(input.selectedDistro, visibleInstalledDistros, addableInstalledDistros)
-  const henaAgentCheck = selectedDistro ? (state?.henaAgentChecks[selectedDistro] ?? null) : null
+  const henaCheck = selectedDistro ? (state?.henaChecks[selectedDistro] ?? null) : null
   const installableDistros = addServerInstallableDistros(visibleInstalledDistros, visibleOnlineDistros)
   const filteredInstallableDistros = addServerFilteredInstallableDistros(installableDistros, input.catalogSearch)
   const catalogTarget = addServerCatalogTarget(input.catalogTarget, filteredInstallableDistros)
@@ -93,7 +93,7 @@ export function addServerViewModel(input: {
     visibleOnlineDistros,
     addableInstalledDistros,
     selectedDistro,
-    henaAgentCheck,
+    henaCheck,
     wslReady: !!state?.runtime?.available && !state?.pendingRestart,
     distroStatuses: Object.fromEntries(
       addableInstalledDistros.flatMap((item) => {
@@ -105,7 +105,7 @@ export function addServerViewModel(input: {
     primaryButton: addServerPrimaryButton({
       state,
       selectedDistro,
-      henaAgentCheck,
+      henaCheck,
       adding: input.adding,
       probingAddable: input.probingAddable,
     }),
@@ -165,16 +165,16 @@ function addServerDistroStatus(input: {
   if (!probe.hasBash || !probe.hasCurl) {
     return { label: { key: "wsl.onboarding.distroStatus.missingTools" }, tone: "warning" }
   }
-  const check = input.state?.henaAgentChecks[input.name]
+  const check = input.state?.henaChecks[input.name]
   if (!check) {
     if (input.probingAddable || (job?.kind === "probe-addable" && job.distros.includes(input.name))) {
       return checkingStatus()
     }
     return
   }
-  if (check.matchesDesktop === false) return { label: { key: "wsl.onboarding.updateHenaAgent" }, tone: "warning" }
-  if (!check.resolvedPath) return { label: { key: "wsl.onboarding.distroStatus.henaAgentMissing" }, tone: "warning" }
-  if (check.error) return { label: { key: "wsl.onboarding.installHenaAgent" }, tone: "warning" }
+  if (check.matchesDesktop === false) return { label: { key: "wsl.onboarding.updateHena" }, tone: "warning" }
+  if (!check.resolvedPath) return { label: { key: "wsl.onboarding.distroStatus.henaMissing" }, tone: "warning" }
+  if (check.error) return { label: { key: "wsl.onboarding.installHena" }, tone: "warning" }
   return { label: { key: "wsl.onboarding.distroStatus.ready" }, tone: "success" }
 }
 
@@ -185,22 +185,22 @@ function checkingStatus(): DistroStatus {
 function addServerPrimaryButton(input: {
   state: WslServersState | undefined
   selectedDistro: string | null
-  henaAgentCheck: WslHenaAgentCheck | null
+  henaCheck: WslHenaCheck | null
   adding: boolean
   probingAddable: boolean
 }): AddServerPrimaryButton {
   const ready = !!input.selectedDistro && wslDistroReady(input.state, input.selectedDistro)
   const probingSelected = input.probingAddable && !addServerSelectedDistroSettled(input.state, input.selectedDistro)
-  const probingHenaAgent =
+  const probingHena =
     probingSelected ||
     (ready &&
-      (!input.henaAgentCheck ||
+      (!input.henaCheck ||
         (!!input.selectedDistro &&
           input.state?.job?.kind === "probe-addable" &&
           input.state.job.distros.includes(input.selectedDistro))))
-  const installingHenaAgent =
-    input.state?.job?.kind === "install-hena-agent" && input.state.job.distro === input.selectedDistro
-  if (!ready || probingHenaAgent) {
+  const installingHena =
+    input.state?.job?.kind === "install-hena" && input.state.job.distro === input.selectedDistro
+  if (!ready || probingHena) {
     return {
       variant: "contrast",
       label: probingSelected ? { key: "wsl.onboarding.distroStatus.checking" } : { key: "wsl.server.add" },
@@ -210,18 +210,18 @@ function addServerPrimaryButton(input: {
       width: null,
     }
   }
-  if (!addServerHenaAgentReady(input.henaAgentCheck)) {
-    const update = !!input.henaAgentCheck?.resolvedPath && input.henaAgentCheck.matchesDesktop === false
+  if (!addServerHenaReady(input.henaCheck)) {
+    const update = !!input.henaCheck?.resolvedPath && input.henaCheck.matchesDesktop === false
     return {
       variant: "neutral",
-      label: installingHenaAgent
-        ? { key: "wsl.onboarding.updatingHenaAgent" }
+      label: installingHena
+        ? { key: "wsl.onboarding.updatingHena" }
         : update
-          ? { key: "wsl.onboarding.updateHenaAgent" }
-          : { key: "wsl.onboarding.installHenaAgent" },
+          ? { key: "wsl.onboarding.updateHena" }
+          : { key: "wsl.onboarding.installHena" },
       disabled: !!input.state?.job || input.adding,
-      action: "install-hena-agent",
-      loading: installingHenaAgent,
+      action: "install-hena",
+      loading: installingHena,
       width: update ? "138px" : "129px",
     }
   }
@@ -235,7 +235,7 @@ function addServerPrimaryButton(input: {
   }
 }
 
-function addServerHenaAgentReady(check: WslHenaAgentCheck | null) {
+function addServerHenaReady(check: WslHenaCheck | null) {
   return !!check?.resolvedPath && check.matchesDesktop !== false && !check.error
 }
 
@@ -245,7 +245,7 @@ function addServerSelectedDistroSettled(state: WslServersState | undefined, sele
   if (installed?.version === 1) return false
   if (!state?.distroProbes[selectedDistro]) return false
   if (!wslDistroReady(state, selectedDistro)) return true
-  return !!state.henaAgentChecks[selectedDistro]
+  return !!state.henaChecks[selectedDistro]
 }
 
 function addServerInstallableDistros(installedDistros: WslInstalledDistro[], onlineDistros: WslOnlineDistro[]) {
@@ -286,7 +286,7 @@ export function addableProbePlan(input: {
   const pending = ordered.flatMap((item) => {
     if (item.version === 1) return []
     if (!state.distroProbes[item.name]) return [`distro:${item.name}`]
-    if (wslDistroReady(state, item.name) && !state.henaAgentChecks[item.name]) return [`"hena-agent":${item.name}`]
+    if (wslDistroReady(state, item.name) && !state.henaChecks[item.name]) return [`"hena":${item.name}`]
     return []
   })
   if (!pending.length) return

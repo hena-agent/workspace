@@ -1,5 +1,5 @@
-import { Session } from "@hena-agent/schema/session"
-import { SessionMessage } from "@hena-agent/schema/session-message"
+import { Session } from "@hena/schema/session"
+import { SessionMessage } from "@hena/schema/session-message"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { InvalidCursorError, SessionNotFoundError, UnknownError } from "../errors"

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { LLM, LLMClient, Provider } from "@hena-agent/llm"
-import { Route, Protocol } from "@hena-agent/llm/route"
-import { Provider as ProviderSubpath } from "@hena-agent/llm/provider"
+import { LLM, LLMClient, Provider } from "@hena/llm"
+import { Route, Protocol } from "@hena/llm/route"
+import { Provider as ProviderSubpath } from "@hena/llm/provider"
 import {
   CloudflareAIGateway,
   CloudflareWorkersAI,
@@ -9,10 +9,10 @@ import {
   OpenAICompatible,
   OpenRouter,
   XAI,
-} from "@hena-agent/llm/providers"
-import * as GitHubCopilot from "@hena-agent/llm/providers/github-copilot"
-import { OpenAIChat, OpenAICompatibleChat, OpenAIResponses } from "@hena-agent/llm/protocols"
-import * as AnthropicMessages from "@hena-agent/llm/protocols/anthropic-messages"
+} from "@hena/llm/providers"
+import * as GitHubCopilot from "@hena/llm/providers/github-copilot"
+import { OpenAIChat, OpenAICompatibleChat, OpenAIResponses } from "@hena/llm/protocols"
+import * as AnthropicMessages from "@hena/llm/protocols/anthropic-messages"
 
 describe("public exports", () => {
   test("root exposes app-facing runtime APIs", () => {

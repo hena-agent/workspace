@@ -1,4 +1,4 @@
-import type { TuiPluginApi, TuiRouteDefinition } from "@hena-agent/plugin/tui"
+import type { TuiPluginApi, TuiRouteDefinition } from "@hena/plugin/tui"
 import { createSignal } from "solid-js"
 
 type RouteEntry = {

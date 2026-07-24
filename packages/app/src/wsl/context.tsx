@@ -1,4 +1,4 @@
-import { createSimpleContext } from "@hena-agent/ui/context"
+import { createSimpleContext } from "@hena/ui/context"
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/solid-query"
 import { createEffect, onCleanup } from "solid-js"
 import type { WslServersState } from "./types"

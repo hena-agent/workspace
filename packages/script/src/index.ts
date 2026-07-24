@@ -18,36 +18,36 @@ if (!semver.satisfies(process.versions.bun, expectedBunVersionRange)) {
 }
 
 const env = {
-  HENA_AGENT_CHANNEL: process.env["HENA_AGENT_CHANNEL"],
-  HENA_AGENT_BUMP: process.env["HENA_AGENT_BUMP"],
-  HENA_AGENT_VERSION: process.env["HENA_AGENT_VERSION"],
-  HENA_AGENT_RELEASE: process.env["HENA_AGENT_RELEASE"],
+  HENA_CHANNEL: process.env["HENA_CHANNEL"],
+  HENA_BUMP: process.env["HENA_BUMP"],
+  HENA_VERSION: process.env["HENA_VERSION"],
+  HENA_RELEASE: process.env["HENA_RELEASE"],
 }
 const CHANNEL = await (async () => {
-  if (env.HENA_AGENT_CHANNEL) return env.HENA_AGENT_CHANNEL
-  if (env.HENA_AGENT_BUMP) return "latest"
-  if (env.HENA_AGENT_VERSION && !env.HENA_AGENT_VERSION.startsWith("0.0.0-")) return "latest"
+  if (env.HENA_CHANNEL) return env.HENA_CHANNEL
+  if (env.HENA_BUMP) return "latest"
+  if (env.HENA_VERSION && !env.HENA_VERSION.startsWith("0.0.0-")) return "latest"
   return await $`git branch --show-current`.text().then((x) => x.trim())
 })()
 const IS_PREVIEW = CHANNEL !== "latest"
 
 const VERSION = await (async () => {
-  if (env.HENA_AGENT_VERSION) return env.HENA_AGENT_VERSION
+  if (env.HENA_VERSION) return env.HENA_VERSION
   if (IS_PREVIEW) return `0.0.0-${CHANNEL}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`
-  const version = await fetch("https://registry.npmjs.org/hena-agent/latest")
+  const version = await fetch("https://registry.npmjs.org/hena/latest")
     .then((res) => {
       if (!res.ok) throw new Error(res.statusText)
       return res.json()
     })
     .then((data: any) => data.version)
   const [major, minor, patch] = version.split(".").map((x: string) => Number(x) || 0)
-  const t = env.HENA_AGENT_BUMP?.toLowerCase()
+  const t = env.HENA_BUMP?.toLowerCase()
   if (t === "major") return `${major + 1}.0.0`
   if (t === "minor") return `${major}.${minor + 1}.0`
   return `${major}.${minor}.${patch + 1}`
 })()
 
-const bot = ["actions-user", "hena-agent", "hena-agent[bot]"]
+const bot = ["actions-user", "hena", "hena[bot]"]
 const teamPath = path.resolve(import.meta.dir, "../../../.github/TEAM_MEMBERS")
 const team = [
   ...(await Bun.file(teamPath)
@@ -68,10 +68,10 @@ export const Script = {
     return IS_PREVIEW
   },
   get release(): boolean {
-    return !!env.HENA_AGENT_RELEASE
+    return !!env.HENA_RELEASE
   },
   get team() {
     return team
   },
 }
-console.log(`hena-agent script`, JSON.stringify(Script, null, 2))
+console.log(`hena script`, JSON.stringify(Script, null, 2))

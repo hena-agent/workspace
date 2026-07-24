@@ -1,19 +1,19 @@
 ---
 title: 伺服器
-description: 透過 HTTP 與 hena-agent 伺服器互動。
+description: 透過 HTTP 與 hena 伺服器互動。
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-`hena-agent serve` 指令執行一個無介面的 HTTP 伺服器，暴露一個 OpenAPI 端點供 hena-agent 客戶端使用。
+`hena serve` 指令執行一個無介面的 HTTP 伺服器，暴露一個 OpenAPI 端點供 hena 客戶端使用。
 
 ---
 
 ### 用法
 
 ```bash
-hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
+hena serve [--port <number>] [--hostname <string>] [--cors <origin>]
 ```
 
 #### 選項
@@ -23,38 +23,38 @@ hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
 | `--port`        | 監聽連接埠              | `4096`           |
 | `--hostname`    | 監聽的主機名稱          | `127.0.0.1`      |
 | `--mdns`        | 啟用 mDNS 探索          | `false`          |
-| `--mdns-domain` | mDNS 服務的自訂網域名稱 | `hena-agent.local` |
+| `--mdns-domain` | mDNS 服務的自訂網域名稱 | `hena.local` |
 | `--cors`        | 額外允許的瀏覽器來源    | `[]`             |
 
 `--cors` 可以多次傳遞：
 
 ```bash
-hena-agent serve --cors http://localhost:5173 --cors https://app.example.com
+hena serve --cors http://localhost:5173 --cors https://app.example.com
 ```
 
 ---
 
 ### 認證
 
-設定 `HENA_AGENT_SERVER_PASSWORD` 以使用 HTTP 基本認證保護伺服器。使用者名稱預設為 `hena-agent`，也可以設定 `HENA_AGENT_SERVER_USERNAME` 來覆蓋它。這適用於 `hena-agent serve` 和 `hena-agent web`。
+設定 `HENA_SERVER_PASSWORD` 以使用 HTTP 基本認證保護伺服器。使用者名稱預設為 `hena`，也可以設定 `HENA_SERVER_USERNAME` 來覆蓋它。這適用於 `hena serve` 和 `hena web`。
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve
+HENA_SERVER_PASSWORD=your-password hena serve
 ```
 
 ---
 
 ### 工作原理
 
-當你執行 `hena-agent` 時，它會啟動一個 TUI 和一個伺服器。TUI 是與伺服器通訊的客戶端。伺服器暴露一個 OpenAPI 3.1 規範端點。該端點也用於產生 [SDK](/docs/sdk)。
+當你執行 `hena` 時，它會啟動一個 TUI 和一個伺服器。TUI 是與伺服器通訊的客戶端。伺服器暴露一個 OpenAPI 3.1 規範端點。該端點也用於產生 [SDK](/docs/sdk)。
 
 :::tip
-使用 hena-agent 伺服器以程式化方式與 hena-agent 互動。
+使用 hena 伺服器以程式化方式與 hena 互動。
 :::
 
-這種架構讓 hena-agent 支援多個客戶端，並允許你以程式化方式與 hena-agent 互動。
+這種架構讓 hena 支援多個客戶端，並允許你以程式化方式與 hena 互動。
 
-你可以執行 `hena-agent serve` 來啟動一個獨立的伺服器。如果你已經在執行 hena-agent TUI，`hena-agent serve` 會啟動一個新的伺服器。
+你可以執行 `hena serve` 來啟動一個獨立的伺服器。如果你已經在執行 hena TUI，`hena serve` 會啟動一個新的伺服器。
 
 ---
 
@@ -62,7 +62,7 @@ HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve
 
 當你啟動 TUI 時，它會隨機分配連接埠和主機名稱。你也可以傳入 `--hostname` 和 `--port` [旗標](/docs/cli)，然後用它來連接對應的伺服器。
 
-[`/tui`](#tui) 端點可用於透過伺服器驅動 TUI。例如，你可以預填充或執行一個提示詞。此方式被 Hena Agent [IDE](/docs/ide) 外掛所使用。
+[`/tui`](#tui) 端點可用於透過伺服器驅動 TUI。例如，你可以預填充或執行一個提示詞。此方式被 Hena [IDE](/docs/ide) 外掛所使用。
 
 ---
 
@@ -80,7 +80,7 @@ http://<hostname>:<port>/doc
 
 ## API
 
-hena-agent 伺服器暴露以下 API。
+hena 伺服器暴露以下 API。
 
 ---
 

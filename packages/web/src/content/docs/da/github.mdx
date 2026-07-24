@@ -1,17 +1,17 @@
 ---
 title: GitHub
-description: Brug Hena Agent i GitHub-problemer og Pull Requests.
+description: Brug Hena i GitHub-problemer og Pull Requests.
 ---
 
-Hena Agent integreres med din GitHub arbejdsgang. Nævn `/hena-agent` eller `/oc` i din kommentar, og Hena Agent vil udføre opgaver i din GitHub Actions-løber.
+Hena integreres med din GitHub arbejdsgang. Nævn `/hena` eller `/oc` i din kommentar, og Hena vil udføre opgaver i din GitHub Actions-løber.
 
 ---
 
 ## Funktioner
 
-- **Triageproblemer**: Bed Hena Agent om at undersøge et problem og forklare dig det.
-- **Ret og implementer**: Bed Hena Agent om at løse et problem eller implementere en funktion. Og det vil fungere i en ny branch og indsende en PR med alle ændringerne.
-- **Sikker**: Hena Agent løber inde i din GitHubs løbere.
+- **Triageproblemer**: Bed Hena om at undersøge et problem og forklare dig det.
+- **Ret og implementer**: Bed Hena om at løse et problem eller implementere en funktion. Og det vil fungere i en ny branch og indsende en PR med alle ændringerne.
+- **Sikker**: Hena løber inde i din GitHubs løbere.
 
 ---
 
@@ -20,7 +20,7 @@ Hena Agent integreres med din GitHub arbejdsgang. Nævn `/hena-agent` eller `/oc
 Kør følgende kommando i et projekt, der er i en GitHub repo:
 
 ```bash
-hena-agent github install
+hena github install
 ```
 
 Dette vil lede dig gennem installation af GitHub-appen, oprettelse af arbejdsgangen og opsætning af hemmeligheder.
@@ -33,14 +33,14 @@ Eller du kan indstille det manuelt.
 
 1. **Installationsprogrammet GitHub-appen**
 
-   Gå over til [**github.com/apps/hena-agent-agent**](https://github.com/apps/hena-agent-agent). Sørg for, at det er installeret på mållageret.
+   Gå over til [**github.com/apps/hena**](https://github.com/apps/hena). Sørg for, at det er installeret på mållageret.
 
 2. **Tilføj arbejdsgangen**
 
-   Tilføj følgende workflow-fil til `.github/workflows/hena-agent.yml` i din repo. Sørg for at indstille de relevante `model` og nødvendige API-nøgler i `env`.
+   Tilføj følgende workflow-fil til `.github/workflows/hena.yml` i din repo. Sørg for at indstille de relevante `model` og nødvendige API-nøgler i `env`.
 
-   ```yml title=".github/workflows/hena-agent.yml" {24,26}
-   name: hena-agent
+   ```yml title=".github/workflows/hena.yml" {24,26}
+   name: hena
 
    on:
      issue_comment:
@@ -49,10 +49,10 @@ Eller du kan indstille det manuelt.
        types: [created]
 
    jobs:
-     hena-agent:
+     hena:
        if: |
          contains(github.event.comment.body, '/oc') ||
-         contains(github.event.comment.body, '/hena-agent')
+         contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:
          id-token: write
@@ -63,7 +63,7 @@ Eller du kan indstille det manuelt.
               fetch-depth: 1
               persist-credentials: false
 
-          - name: Run Hena Agent
+          - name: Run Hena
            uses: hena-agent/hena/github@latest
            env:
              ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -81,13 +81,13 @@ Eller du kan indstille det manuelt.
 
 ## Konfiguration
 
-- `model`: Den model, der skal bruges med Hena Agent. Antager formatet `provider/model`. Dette er **påkrævet**.
+- `model`: Den model, der skal bruges med Hena. Antager formatet `provider/model`. Dette er **påkrævet**.
 - `agent`: Agenten, der skal bruges. Skal være en primær agent. Falder tilbage til `default_agent` fra config eller `"build"`, hvis den ikke findes.
-- `share`: Om Hena Agent-sessionen skal dele. Standard er **true** for offentlige arkiver.
-- `prompt`: Valgfri brugerdefineret prompt for at tilsidesætte standardadfærden. Brug dette til at tilpasse, hvordan Hena Agent behandler anmodninger.
-- `token`: Valgfrit GitHub adgangstoken til at udføre operationer såsom oprettelse af kommentarer, begå ændringer og åbning af Pull Requests. Som standard bruger Hena Agent installationsadgangstokenet fra Hena Agent GitHub-appen, så commits, kommentarer og Pull Requests ser ud til at komme fra appen.
+- `share`: Om Hena-sessionen skal dele. Standard er **true** for offentlige arkiver.
+- `prompt`: Valgfri brugerdefineret prompt for at tilsidesætte standardadfærden. Brug dette til at tilpasse, hvordan Hena behandler anmodninger.
+- `token`: Valgfrit GitHub adgangstoken til at udføre operationer såsom oprettelse af kommentarer, begå ændringer og åbning af Pull Requests. Som standard bruger Hena installationsadgangstokenet fra Hena GitHub-appen, så commits, kommentarer og Pull Requests ser ud til at komme fra appen.
 
-  Alternativt kan du bruge GitHub Action runners [built-in `GITHUB_TOKEN`](Hena Agent) uden at installere Hena Agent GitHub appen. Bare sørg for at give de nødvendige tilladelser i dit workflow:
+  Alternativt kan du bruge GitHub Action runners [built-in `GITHUB_TOKEN`](Hena) uden at installere Hena GitHub appen. Bare sørg for at give de nødvendige tilladelser i dit workflow:
 
   ```yaml
   permissions:
@@ -103,30 +103,30 @@ Eller du kan indstille det manuelt.
 
 ## Understøttede begivenheder
 
-Hena Agent kan udløses af følgende GitHub hændelser:
+Hena kan udløses af følgende GitHub hændelser:
 
 | Begivenhedstype               | Udløst af                               | Detaljer                                                                                                                |
 | ----------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | Kommentarer og problemer eller PR       | Nævn `/hena-agent` eller `/oc` i din kommentar. Hena Agent læser kontekst og kan oprette brancher, åbne PR'er eller svare.  |
-| `pull_request_review_comment` | Kommenter specifikke kodelinjer i en PR | Nævn `/hena-agent` eller `/oc`, mens du gennemgår koden. Hena Agent modtager filsti, linjenumre og diff-kontekst.           |
-| `issues`                      | Udgave åbnet eller redigeret            | Udløs automatisk Hena Agent, når problemer oprettes eller ændres. Kræver `prompt` input.                                  |
-| `pull_request`                | PR åbnet eller opdateret                | Udløs automatisk Hena Agent, når PR'er åbnes, synkroniseres eller genåbnes. Nyttigt til automatiserede kodegennemgange.   |
-| `schedule`                    | Cron-baseret tidsplan                   | Kør Hena Agent efter en tidsplan. Kræver `prompt` input. Output går til logfiler og PR'er (intet problem ved kommentere). |
-| `workflow_dispatch`           | Manuel trigger fra GitHub UI            | Udløs Hena Agent efter behov via fanen Handlinger. Kræver `prompt` input. Output går til logfiler og PR'er.               |
+| `issue_comment`               | Kommentarer og problemer eller PR       | Nævn `/hena` eller `/oc` i din kommentar. Hena læser kontekst og kan oprette brancher, åbne PR'er eller svare.  |
+| `pull_request_review_comment` | Kommenter specifikke kodelinjer i en PR | Nævn `/hena` eller `/oc`, mens du gennemgår koden. Hena modtager filsti, linjenumre og diff-kontekst.           |
+| `issues`                      | Udgave åbnet eller redigeret            | Udløs automatisk Hena, når problemer oprettes eller ændres. Kræver `prompt` input.                                  |
+| `pull_request`                | PR åbnet eller opdateret                | Udløs automatisk Hena, når PR'er åbnes, synkroniseres eller genåbnes. Nyttigt til automatiserede kodegennemgange.   |
+| `schedule`                    | Cron-baseret tidsplan                   | Kør Hena efter en tidsplan. Kræver `prompt` input. Output går til logfiler og PR'er (intet problem ved kommentere). |
+| `workflow_dispatch`           | Manuel trigger fra GitHub UI            | Udløs Hena efter behov via fanen Handlinger. Kræver `prompt` input. Output går til logfiler og PR'er.               |
 
 ### Tidsplan eksempel
 
-Kør Hena Agent efter en tidsplan for at udføre automatiske opgaver:
+Kør Hena efter en tidsplan for at udføre automatiske opgaver:
 
-```yaml title=".github/workflows/hena-agent-scheduled.yml"
-name: Scheduled Hena Agent Task
+```yaml title=".github/workflows/hena-scheduled.yml"
+name: Scheduled Hena Task
 
 on:
   schedule:
     - cron: "0 9 * * 1" # Every Monday at 9am UTC
 
 jobs:
-  hena-agent:
+  hena:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -139,7 +139,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run Hena Agent
+      - name: Run Hena
         uses: hena-agent/hena/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -150,7 +150,7 @@ jobs:
             If you find issues worth addressing, open an issue to track them.
 ```
 
-For planlagte begivenheder er `prompt` input **påkrævet**, da der ikke er nogen kommentarer at udtrække instruktioner fra. Planlagte arbejdsgange kører uden en brugerkontekst til kontrol af tilladelser, så arbejdsgangen skal give `contents: write` og `pull-requests: write`, hvis du forventer, at Hena Agent skal oprette brancher eller PR'er.
+For planlagte begivenheder er `prompt` input **påkrævet**, da der ikke er nogen kommentarer at udtrække instruktioner fra. Planlagte arbejdsgange kører uden en brugerkontekst til kontrol af tilladelser, så arbejdsgangen skal give `contents: write` og `pull-requests: write`, hvis du forventer, at Hena skal oprette brancher eller PR'er.
 
 ---
 
@@ -158,8 +158,8 @@ For planlagte begivenheder er `prompt` input **påkrævet**, da der ikke er noge
 
 Gennemgå automatisk PR'er, når de åbnes eller opdateres:
 
-```yaml title=".github/workflows/hena-agent-review.yml"
-name: hena-agent-review
+```yaml title=".github/workflows/hena-review.yml"
+name: hena-review
 
 on:
   pull_request:
@@ -191,7 +191,7 @@ jobs:
             - Suggest improvements
 ```
 
-For `pull_request` hændelser, hvis der ikke er angivet nogen `prompt`, vil Hena Agent som standard gennemgå Pull Requesten.
+For `pull_request` hændelser, hvis der ikke er angivet nogen `prompt`, vil Hena som standard gennemgå Pull Requesten.
 
 ---
 
@@ -199,7 +199,7 @@ For `pull_request` hændelser, hvis der ikke er angivet nogen `prompt`, vil Hena
 
 Triage automatisk nye problemer. Dette eksempel filtrerer til konti ældre end 30 dage for at reducere spam:
 
-```yaml title=".github/workflows/hena-agent-triage.yml"
+```yaml title=".github/workflows/hena-triage.yml"
 name: Issue Triage
 
 on:
@@ -252,9 +252,9 @@ For `issues` begivenheder er `prompt` input **påkrævet**, da der ikke er nogen
 
 ## Brugerdefinerede prompter
 
-Tilsidesæt standardprompten for at tilpasse Hena Agents adfærd til din arbejdsgang.
+Tilsidesæt standardprompten for at tilpasse Henas adfærd til din arbejdsgang.
 
-```yaml title=".github/workflows/hena-agent.yml"
+```yaml title=".github/workflows/hena.yml"
 - uses: hena-agent/hena/github@latest
   with:
     model: anthropic/claude-sonnet-4-5
@@ -271,27 +271,27 @@ Dette er nyttigt til at håndhæve specifikke gennemgangskriterier, kodningsstan
 
 ## Eksempler
 
-Her er nogle eksempler på, hvordan du kan bruge Hena Agent i GitHub.
+Her er nogle eksempler på, hvordan du kan bruge Hena i GitHub.
 
 - **Forklar et problem**
 
   Tilføj denne kommentar i et GitHub-nummer.
 
   ```
-  /hena-agent explain this issue
+  /hena explain this issue
   ```
 
-  Hena Agent vil læse hele tråden, inklusive alle kommentarer, og svare med en klar forklaring.
+  Hena vil læse hele tråden, inklusive alle kommentarer, og svare med en klar forklaring.
 
 - **Løs et problem**
 
   I et GitHub-problem skal du sige:
 
   ```
-  /hena-agent fix this
+  /hena fix this
   ```
 
-  Og Hena Agent vil oprette en ny branch, implementere ændringer og åbne en PR med ændringer.
+  Og Hena vil oprette en ny branch, implementere ændringer og åbne en PR med ændringer.
 
 - **Gennemgå PR'er og foretag ændringer**
 
@@ -301,18 +301,18 @@ Her er nogle eksempler på, hvordan du kan bruge Hena Agent i GitHub.
   Delete the attachment from S3 when the note is removed /oc
   ```
 
-  Hena Agent vil implementere den ønskede ændring og forpligtelse til den samme PR.
+  Hena vil implementere den ønskede ændring og forpligtelse til den samme PR.
 
 - **Gennemgå specifikke kodelinjer**
 
-  Efterlad en kommentar direkte på kodelinjer i PR's faneblad "Filer". Hena Agent detekterer automatisk filer, linjenumrene og diff-konteksten for at give præcise svar.
+  Efterlad en kommentar direkte på kodelinjer i PR's faneblad "Filer". Hena detekterer automatisk filer, linjenumrene og diff-konteksten for at give præcise svar.
 
   ```
   [Comment on specific lines in Files tab]
   /oc add error handling here
   ```
 
-  Når du kommenterer på specifikke linjer, modtager Hena Agent:
+  Når du kommenterer på specifikke linjer, modtager Hena:
   - Den nøjagtige fil bliver gennemgået
   - De specifikke kodelinjer
   - Den omgivende forskellig kontekst

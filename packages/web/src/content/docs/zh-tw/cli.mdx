@@ -1,30 +1,30 @@
 ---
 title: CLI
-description: Hena Agent CLI 選項和指令。
+description: Hena CLI 選項和指令。
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 
-Hena Agent CLI 在不帶任何參數執行時，預設啟動 [TUI](/docs/tui)。
+Hena CLI 在不帶任何參數執行時，預設啟動 [TUI](/docs/tui)。
 
 ```bash
-hena-agent
+hena
 ```
 
-但它也接受本頁面中記錄的指令，使您可以透過程式方式與 Hena Agent 進行互動。
+但它也接受本頁面中記錄的指令，使您可以透過程式方式與 Hena 進行互動。
 
 ```bash
-hena-agent run "Explain how closures work in JavaScript"
+hena run "Explain how closures work in JavaScript"
 ```
 
 ---
 
 ### tui
 
-啟動 Hena Agent 終端機使用者介面。
+啟動 Hena 終端機使用者介面。
 
 ```bash
-hena-agent [project]
+hena [project]
 ```
 
 #### 旗標
@@ -44,36 +44,36 @@ hena-agent [project]
 
 ## 指令
 
-Hena Agent CLI 還提供以下指令。
+Hena CLI 還提供以下指令。
 
 ---
 
 ### agent
 
-管理 Hena Agent 的代理。
+管理 Hena 的代理。
 
 ```bash
-hena-agent agent [command]
+hena agent [command]
 ```
 
 ---
 
 ### attach
 
-將終端機連接到已透過 `serve` 或 `web` 指令啟動的 Hena Agent 後端伺服器。
+將終端機連接到已透過 `serve` 或 `web` 指令啟動的 Hena 後端伺服器。
 
 ```bash
-hena-agent attach [url]
+hena attach [url]
 ```
 
-這允許將 TUI 與遠端 Hena Agent 後端搭配使用。例如：
+這允許將 TUI 與遠端 Hena 後端搭配使用。例如：
 
 ```bash
 # Start the backend server for web/mobile access
-hena-agent web --port 4096 --hostname 0.0.0.0
+hena web --port 4096 --hostname 0.0.0.0
 
 # In another terminal, attach the TUI to the running backend
-hena-agent attach http://10.20.30.40:4096
+hena attach http://10.20.30.40:4096
 ```
 
 #### 旗標
@@ -84,8 +84,8 @@ hena-agent attach http://10.20.30.40:4096
 | <nobr><code>{"--continue"}</code></nobr> | `-c` | 繼續上一個工作階段                                                      |
 | <nobr><code>{"--session"}</code></nobr>  | `-s` | 要繼續的工作階段 ID                                                     |
 | <nobr><code>{"--fork"}</code></nobr>     |      | 繼續時分支工作階段（與 `--continue` 或 `--session` 一起使用）           |
-| <nobr><code>{"--password"}</code></nobr> | `-p` | 基本驗證密碼（預設使用 `HENA_AGENT_SERVER_PASSWORD`）                     |
-| <nobr><code>{"--username"}</code></nobr> | `-u` | 基本驗證使用者名稱（預設使用 `HENA_AGENT_SERVER_USERNAME` 或 `hena-agent`） |
+| <nobr><code>{"--password"}</code></nobr> | `-p` | 基本驗證密碼（預設使用 `HENA_SERVER_PASSWORD`）                     |
+| <nobr><code>{"--username"}</code></nobr> | `-u` | 基本驗證使用者名稱（預設使用 `HENA_SERVER_USERNAME` 或 `hena`） |
 
 ---
 
@@ -94,7 +94,7 @@ hena-agent attach http://10.20.30.40:4096
 使用自訂設定建立新的代理。
 
 ```bash
-hena-agent agent create
+hena agent create
 ```
 
 此指令將引導您使用自訂系統提示詞和工具設定來建立新的代理。
@@ -106,7 +106,7 @@ hena-agent agent create
 列出所有可用的代理。
 
 ```bash
-hena-agent agent list
+hena agent list
 ```
 
 ---
@@ -116,20 +116,20 @@ hena-agent agent list
 管理供應商的憑證和登入資訊的指令。
 
 ```bash
-hena-agent auth [command]
+hena auth [command]
 ```
 
 ---
 
 #### login
 
-Hena Agent 基於 [Models.dev](https://models.dev) 的供應商列表運作，因此您可以使用 `hena-agent auth login` 為任何想要使用的供應商設定 API 金鑰。金鑰儲存在 `~/.local/share/hena-agent/auth.json` 中。
+Hena 基於 [Models.dev](https://models.dev) 的供應商列表運作，因此您可以使用 `hena auth login` 為任何想要使用的供應商設定 API 金鑰。金鑰儲存在 `~/.local/share/hena/auth.json` 中。
 
 ```bash
-hena-agent auth login
+hena auth login
 ```
 
-Hena Agent 啟動時會從憑證檔案載入供應商資訊，同時也會載入環境變數或專案中 `.env` 檔案中定義的金鑰。
+Hena 啟動時會從憑證檔案載入供應商資訊，同時也會載入環境變數或專案中 `.env` 檔案中定義的金鑰。
 
 ---
 
@@ -138,13 +138,13 @@ Hena Agent 啟動時會從憑證檔案載入供應商資訊，同時也會載入
 列出憑證檔案中儲存的所有已認證供應商。
 
 ```bash
-hena-agent auth list
+hena auth list
 ```
 
 或使用簡寫版本。
 
 ```bash
-hena-agent auth ls
+hena auth ls
 ```
 
 ---
@@ -154,7 +154,7 @@ hena-agent auth ls
 從憑證檔案中清除供應商資訊以完成登出。
 
 ```bash
-hena-agent auth logout
+hena auth logout
 ```
 
 ---
@@ -164,7 +164,7 @@ hena-agent auth logout
 管理用於儲存庫自動化的 GitHub 代理。
 
 ```bash
-hena-agent github [command]
+hena github [command]
 ```
 
 ---
@@ -174,7 +174,7 @@ hena-agent github [command]
 在您的儲存庫中安裝 GitHub 代理。
 
 ```bash
-hena-agent github install
+hena github install
 ```
 
 此指令會設定必要的 GitHub Actions 工作流程並引導您完成設定過程。[了解更多](/docs/github)。
@@ -186,7 +186,7 @@ hena-agent github install
 執行 GitHub 代理。通常在 GitHub Actions 中使用。
 
 ```bash
-hena-agent github run
+hena github run
 ```
 
 ##### 旗標
@@ -203,7 +203,7 @@ hena-agent github run
 管理 Model Context Protocol 伺服器。
 
 ```bash
-hena-agent mcp [command]
+hena mcp [command]
 ```
 
 ---
@@ -213,7 +213,7 @@ hena-agent mcp [command]
 將 MCP 伺服器新增到您的設定中。
 
 ```bash
-hena-agent mcp add
+hena mcp add
 ```
 
 此指令將引導您新增本地或遠端 MCP 伺服器。
@@ -225,13 +225,13 @@ hena-agent mcp add
 列出所有已設定的 MCP 伺服器及其連線狀態。
 
 ```bash
-hena-agent mcp list
+hena mcp list
 ```
 
 或使用簡寫版本。
 
 ```bash
-hena-agent mcp ls
+hena mcp ls
 ```
 
 ---
@@ -241,7 +241,7 @@ hena-agent mcp ls
 對支援 OAuth 的 MCP 伺服器進行認證。
 
 ```bash
-hena-agent mcp auth [name]
+hena mcp auth [name]
 ```
 
 如果您不提供伺服器名稱，系統將提示您從可用的支援 OAuth 的伺服器中進行選擇。
@@ -249,13 +249,13 @@ hena-agent mcp auth [name]
 您還可以列出支援 OAuth 的伺服器及其認證狀態。
 
 ```bash
-hena-agent mcp auth list
+hena mcp auth list
 ```
 
 或使用簡寫版本。
 
 ```bash
-hena-agent mcp auth ls
+hena mcp auth ls
 ```
 
 ---
@@ -265,7 +265,7 @@ hena-agent mcp auth ls
 移除 MCP 伺服器的 OAuth 憑證。
 
 ```bash
-hena-agent mcp logout [name]
+hena mcp logout [name]
 ```
 
 ---
@@ -275,7 +275,7 @@ hena-agent mcp logout [name]
 偵錯 MCP 伺服器的 OAuth 連線問題。
 
 ```bash
-hena-agent mcp debug <name>
+hena mcp debug <name>
 ```
 
 ---
@@ -285,7 +285,7 @@ hena-agent mcp debug <name>
 列出已設定供應商的所有可用模型。
 
 ```bash
-hena-agent models [provider]
+hena models [provider]
 ```
 
 此指令以 `provider/model` 的格式顯示所有已設定供應商中可用的模型。
@@ -295,7 +295,7 @@ hena-agent models [provider]
 您可以選擇傳入供應商 ID 來按供應商篩選模型。
 
 ```bash
-hena-agent models anthropic
+hena models anthropic
 ```
 
 #### 旗標
@@ -305,36 +305,36 @@ hena-agent models anthropic
 | <nobr><code>{"--refresh"}</code></nobr> | 從 models.dev 重新整理模型快取             |
 | <nobr><code>{"--verbose"}</code></nobr> | 使用更詳細的模型輸出（包含費用等中繼資料） |
 
-使用 `--refresh` 旗標可以更新快取的模型列表。當供應商新增了模型並且您希望在 Hena Agent 中看到它們時，此功能非常有用。
+使用 `--refresh` 旗標可以更新快取的模型列表。當供應商新增了模型並且您希望在 Hena 中看到它們時，此功能非常有用。
 
 ```bash
-hena-agent models --refresh
+hena models --refresh
 ```
 
 ---
 
 ### run
 
-以非互動模式執行 Hena Agent，直接傳入提示詞。
+以非互動模式執行 Hena，直接傳入提示詞。
 
 ```bash
-hena-agent run [message..]
+hena run [message..]
 ```
 
 這對於指令碼編寫、自動化或無需啟動完整 TUI 即可快速取得答案的情境非常有用。例如：
 
-```bash "hena-agent run"
-hena-agent run Explain the use of context in Go
+```bash "hena run"
+hena run Explain the use of context in Go
 ```
 
-您還可以連接到正在執行的 `hena-agent serve` 實例，以避免每次執行時 MCP 伺服器的冷啟動時間：
+您還可以連接到正在執行的 `hena serve` 實例，以避免每次執行時 MCP 伺服器的冷啟動時間：
 
 ```bash
 # Start a headless server in one terminal
-hena-agent serve
+hena serve
 
 # In another terminal, run commands that attach to it
-hena-agent run --attach http://localhost:4096 "Explain async/await in JavaScript"
+hena run --attach http://localhost:4096 "Explain async/await in JavaScript"
 ```
 
 #### 旗標
@@ -351,9 +351,9 @@ hena-agent run --attach http://localhost:4096 "Explain async/await in JavaScript
 | <nobr><code>{"--file"}</code></nobr>     | `-f` | 附加到訊息的檔案                                                        |
 | <nobr><code>{"--format"}</code></nobr>   |      | 格式：default（格式化輸出）或 json（原始 JSON 事件）                    |
 | <nobr><code>{"--title"}</code></nobr>    |      | 工作階段標題（未提供值時使用截斷的提示詞）                              |
-| <nobr><code>{"--attach"}</code></nobr>   |      | 連接到正在執行的 hena-agent 伺服器（例如 http://localhost:4096）          |
-| <nobr><code>{"--password"}</code></nobr> | `-p` | 基本驗證密碼（預設使用 `HENA_AGENT_SERVER_PASSWORD`）                     |
-| <nobr><code>{"--username"}</code></nobr> | `-u` | 基本驗證使用者名稱（預設使用 `HENA_AGENT_SERVER_USERNAME` 或 `hena-agent`） |
+| <nobr><code>{"--attach"}</code></nobr>   |      | 連接到正在執行的 hena 伺服器（例如 http://localhost:4096）          |
+| <nobr><code>{"--password"}</code></nobr> | `-p` | 基本驗證密碼（預設使用 `HENA_SERVER_PASSWORD`）                     |
+| <nobr><code>{"--username"}</code></nobr> | `-u` | 基本驗證使用者名稱（預設使用 `HENA_SERVER_USERNAME` 或 `hena`） |
 | <nobr><code>{"--dir"}</code></nobr>      |      | 執行目錄，或附加時遠端伺服器上的路徑                                    |
 | <nobr><code>{"--variant"}</code></nobr>  |      | 模型變體（特定於提供者的推理級別）                                      |
 | <nobr><code>{"--thinking"}</code></nobr> |      | 顯示思考區塊                                                            |
@@ -363,13 +363,13 @@ hena-agent run --attach http://localhost:4096 "Explain async/await in JavaScript
 
 ### serve
 
-啟動無介面的 Hena Agent 伺服器以提供 API 存取。查看[伺服器文件](/docs/server)了解完整的 HTTP 介面。
+啟動無介面的 Hena 伺服器以提供 API 存取。查看[伺服器文件](/docs/server)了解完整的 HTTP 介面。
 
 ```bash
-hena-agent serve
+hena serve
 ```
 
-此指令啟動一個 HTTP 伺服器，提供對 Hena Agent 功能的 API 存取，無需 TUI 介面。設定 `HENA_AGENT_SERVER_PASSWORD` 可啟用 HTTP 基本認證（使用者名稱預設為 `hena-agent`）。
+此指令啟動一個 HTTP 伺服器，提供對 Hena 功能的 API 存取，無需 TUI 介面。設定 `HENA_SERVER_PASSWORD` 可啟用 HTTP 基本認證（使用者名稱預設為 `hena`）。
 
 #### 旗標
 
@@ -384,20 +384,20 @@ hena-agent serve
 
 ### session
 
-管理 Hena Agent 工作階段。
+管理 Hena 工作階段。
 
 ```bash
-hena-agent session [command]
+hena session [command]
 ```
 
 ---
 
 #### list
 
-列出所有 Hena Agent 工作階段。
+列出所有 Hena 工作階段。
 
 ```bash
-hena-agent session list
+hena session list
 ```
 
 ##### 旗標
@@ -411,10 +411,10 @@ hena-agent session list
 
 ### stats
 
-顯示 Hena Agent 工作階段的 Token 用量和費用統計資訊。
+顯示 Hena 工作階段的 Token 用量和費用統計資訊。
 
 ```bash
-hena-agent stats
+hena stats
 ```
 
 #### 旗標
@@ -433,7 +433,7 @@ hena-agent stats
 將工作階段資料匯出為 JSON。
 
 ```bash
-hena-agent export [sessionID]
+hena export [sessionID]
 ```
 
 如果您不提供工作階段 ID，系統將提示您從可用的工作階段中進行選擇。
@@ -442,30 +442,30 @@ hena-agent export [sessionID]
 
 ### import
 
-從 JSON 檔案或 Hena Agent 分享連結匯入工作階段資料。
+從 JSON 檔案或 Hena 分享連結匯入工作階段資料。
 
 ```bash
-hena-agent import <file>
+hena import <file>
 ```
 
-您可以從本地檔案或 Hena Agent 分享連結匯入。
+您可以從本地檔案或 Hena 分享連結匯入。
 
 ```bash
-hena-agent import session.json
-hena-agent import https://hena.dev/s/abc123
+hena import session.json
+hena import https://hena.dev/s/abc123
 ```
 
 ---
 
 ### web
 
-啟動帶有 Web 介面的無介面 Hena Agent 伺服器。
+啟動帶有 Web 介面的無介面 Hena 伺服器。
 
 ```bash
-hena-agent web
+hena web
 ```
 
-此指令啟動一個 HTTP 伺服器並開啟瀏覽器，透過 Web 介面存取 Hena Agent。設定 `HENA_AGENT_SERVER_PASSWORD` 可啟用 HTTP 基本認證（使用者名稱預設為 `hena-agent`）。
+此指令啟動一個 HTTP 伺服器並開啟瀏覽器，透過 Web 介面存取 Hena。設定 `HENA_SERVER_PASSWORD` 可啟用 HTTP 基本認證（使用者名稱預設為 `hena`）。
 
 #### 旗標
 
@@ -483,7 +483,7 @@ hena-agent web
 啟動 ACP（Agent Client Protocol）伺服器。
 
 ```bash
-hena-agent acp
+hena acp
 ```
 
 此指令啟動一個透過 stdin/stdout 使用 nd-JSON 進行通訊的 ACP 伺服器。
@@ -500,10 +500,10 @@ hena-agent acp
 
 ### uninstall
 
-解除安裝 Hena Agent 並刪除所有相關檔案。
+解除安裝 Hena 並刪除所有相關檔案。
 
 ```bash
-hena-agent uninstall
+hena uninstall
 ```
 
 #### 旗標
@@ -519,22 +519,22 @@ hena-agent uninstall
 
 ### upgrade
 
-將 Hena Agent 更新到最新版本或指定版本。
+將 Hena 更新到最新版本或指定版本。
 
 ```bash
-hena-agent upgrade [target]
+hena upgrade [target]
 ```
 
 更新到最新版本。
 
 ```bash
-hena-agent upgrade
+hena upgrade
 ```
 
 更新到指定版本。
 
 ```bash
-hena-agent upgrade v0.1.48
+hena upgrade v0.1.48
 ```
 
 #### 旗標
@@ -547,7 +547,7 @@ hena-agent upgrade v0.1.48
 
 ## 全域旗標
 
-Hena Agent CLI 接受以下全域旗標。
+Hena CLI 接受以下全域旗標。
 
 | 旗標                                       | 簡寫 | 說明                                 |
 | ------------------------------------------ | ---- | ------------------------------------ |
@@ -560,34 +560,34 @@ Hena Agent CLI 接受以下全域旗標。
 
 ## 環境變數
 
-Hena Agent 可以透過環境變數進行設定。
+Hena 可以透過環境變數進行設定。
 
 | 變數                                  | 類型    | 說明                                        |
 | ------------------------------------- | ------- | ------------------------------------------- |
-| `HENA_AGENT_AUTO_SHARE`                 | boolean | 自動分享工作階段                            |
-| `HENA_AGENT_GIT_BASH_PATH`              | string  | Windows 上 Git Bash 可執行檔的路徑          |
-| `HENA_AGENT_CONFIG`                     | string  | 設定檔路徑                                  |
-| `HENA_AGENT_TUI_CONFIG`                 | string  | TUI 設定檔路徑                              |
-| `HENA_AGENT_CONFIG_DIR`                 | string  | 設定目錄路徑                                |
-| `HENA_AGENT_CONFIG_CONTENT`             | string  | 內嵌 JSON 設定內容                          |
-| `HENA_AGENT_DISABLE_AUTOUPDATE`         | boolean | 停用自動更新檢查                            |
-| `HENA_AGENT_DISABLE_PRUNE`              | boolean | 停用舊資料清理                              |
-| `HENA_AGENT_DISABLE_TERMINAL_TITLE`     | boolean | 停用自動終端機標題更新                      |
-| `HENA_AGENT_PERMISSION`                 | string  | 內嵌 JSON 權限設定                          |
-| `HENA_AGENT_DISABLE_DEFAULT_PLUGINS`    | boolean | 停用預設外掛程式                            |
-| `HENA_AGENT_DISABLE_LSP_DOWNLOAD`       | boolean | 停用 LSP 伺服器自動下載                     |
-| `HENA_AGENT_ENABLE_EXPERIMENTAL_MODELS` | boolean | 啟用實驗性模型                              |
-| `HENA_AGENT_DISABLE_AUTOCOMPACT`        | boolean | 停用自動上下文壓縮                          |
-| `HENA_AGENT_DISABLE_CLAUDE_CODE`        | boolean | 停用讀取 `.claude`（提示詞 + 技能）         |
-| `HENA_AGENT_DISABLE_CLAUDE_CODE_PROMPT` | boolean | 停用讀取 `~/.claude/CLAUDE.md`              |
-| `HENA_AGENT_DISABLE_CLAUDE_CODE_SKILLS` | boolean | 停用載入 `.claude/skills`                   |
-| `HENA_AGENT_DISABLE_MODELS_FETCH`       | boolean | 停用從遠端來源擷取模型                      |
-| `HENA_AGENT_FAKE_VCS`                   | string  | 用於測試目的的模擬 VCS 供應商               |
-| `HENA_AGENT_CLIENT`                     | string  | 用戶端識別碼（預設為 `cli`）                |
-| `HENA_AGENT_ENABLE_EXA`                 | boolean | 啟用 Exa 網路搜尋工具                       |
-| `HENA_AGENT_SERVER_PASSWORD`            | string  | 為 `serve`/`web` 啟用基本認證               |
-| `HENA_AGENT_SERVER_USERNAME`            | string  | 覆寫基本認證使用者名稱（預設為 `hena-agent`） |
-| `HENA_AGENT_MODELS_URL`                 | string  | 自訂模型設定擷取 URL                        |
+| `HENA_AUTO_SHARE`                 | boolean | 自動分享工作階段                            |
+| `HENA_GIT_BASH_PATH`              | string  | Windows 上 Git Bash 可執行檔的路徑          |
+| `HENA_CONFIG`                     | string  | 設定檔路徑                                  |
+| `HENA_TUI_CONFIG`                 | string  | TUI 設定檔路徑                              |
+| `HENA_CONFIG_DIR`                 | string  | 設定目錄路徑                                |
+| `HENA_CONFIG_CONTENT`             | string  | 內嵌 JSON 設定內容                          |
+| `HENA_DISABLE_AUTOUPDATE`         | boolean | 停用自動更新檢查                            |
+| `HENA_DISABLE_PRUNE`              | boolean | 停用舊資料清理                              |
+| `HENA_DISABLE_TERMINAL_TITLE`     | boolean | 停用自動終端機標題更新                      |
+| `HENA_PERMISSION`                 | string  | 內嵌 JSON 權限設定                          |
+| `HENA_DISABLE_DEFAULT_PLUGINS`    | boolean | 停用預設外掛程式                            |
+| `HENA_DISABLE_LSP_DOWNLOAD`       | boolean | 停用 LSP 伺服器自動下載                     |
+| `HENA_ENABLE_EXPERIMENTAL_MODELS` | boolean | 啟用實驗性模型                              |
+| `HENA_DISABLE_AUTOCOMPACT`        | boolean | 停用自動上下文壓縮                          |
+| `HENA_DISABLE_CLAUDE_CODE`        | boolean | 停用讀取 `.claude`（提示詞 + 技能）         |
+| `HENA_DISABLE_CLAUDE_CODE_PROMPT` | boolean | 停用讀取 `~/.claude/CLAUDE.md`              |
+| `HENA_DISABLE_CLAUDE_CODE_SKILLS` | boolean | 停用載入 `.claude/skills`                   |
+| `HENA_DISABLE_MODELS_FETCH`       | boolean | 停用從遠端來源擷取模型                      |
+| `HENA_FAKE_VCS`                   | string  | 用於測試目的的模擬 VCS 供應商               |
+| `HENA_CLIENT`                     | string  | 用戶端識別碼（預設為 `cli`）                |
+| `HENA_ENABLE_EXA`                 | boolean | 啟用 Exa 網路搜尋工具                       |
+| `HENA_SERVER_PASSWORD`            | string  | 為 `serve`/`web` 啟用基本認證               |
+| `HENA_SERVER_USERNAME`            | string  | 覆寫基本認證使用者名稱（預設為 `hena`） |
+| `HENA_MODELS_URL`                 | string  | 自訂模型設定擷取 URL                        |
 
 ---
 
@@ -597,21 +597,21 @@ Hena Agent 可以透過環境變數進行設定。
 
 | 變數                                            | 類型    | 說明                            |
 | ----------------------------------------------- | ------- | ------------------------------- |
-| `HENA_AGENT_EXPERIMENTAL`                         | boolean | 啟用受總開關控制的實驗性功能    |
-| `HENA_AGENT_EXPERIMENTAL_ICON_DISCOVERY`          | boolean | 啟用圖示探索                    |
-| `HENA_AGENT_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | boolean | 停用 TUI 中的選取即複製         |
-| `HENA_AGENT_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | number  | bash 指令的預設逾時時間（毫秒） |
-| `HENA_AGENT_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | number  | LLM 回應的最大輸出 Token 數     |
-| `HENA_AGENT_EXPERIMENTAL_FILEWATCHER`             | boolean | 啟用整個目錄的檔案監看器        |
-| `HENA_AGENT_EXPERIMENTAL_OXFMT`                   | boolean | 啟用 oxfmt 格式化器             |
-| `HENA_AGENT_EXPERIMENTAL_LSP_TOOL`                | boolean | 啟用實驗性 LSP 工具             |
-| `HENA_AGENT_EXPERIMENTAL_DISABLE_FILEWATCHER`     | boolean | 停用檔案監看器                  |
-| `HENA_AGENT_EXPERIMENTAL_EXA`                     | boolean | 啟用實驗性 Exa 功能             |
-| `HENA_AGENT_EXPERIMENTAL_LSP_TY`                  | boolean | 為 python 檔案啟用 TY LSP       |
-| `HENA_AGENT_EXPERIMENTAL_PLAN_MODE`               | boolean | 啟用計畫模式                    |
-| `HENA_AGENT_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | boolean | 啟用背景子代理任務              |
-| `HENA_AGENT_EXPERIMENTAL_EVENT_SYSTEM`            | boolean | 啟用實驗性事件系統              |
-| `HENA_AGENT_EXPERIMENTAL_NATIVE_LLM`              | boolean | 啟用原生 LLM 請求路徑           |
-| `HENA_AGENT_EXPERIMENTAL_PARALLEL`                | boolean | 啟用平行 Web 搜尋執行           |
-| `HENA_AGENT_EXPERIMENTAL_SCOUT`                   | boolean | 啟用 Scout 子代理               |
-| `HENA_AGENT_EXPERIMENTAL_WORKSPACES`              | boolean | 啟用工作區支援                  |
+| `HENA_EXPERIMENTAL`                         | boolean | 啟用受總開關控制的實驗性功能    |
+| `HENA_EXPERIMENTAL_ICON_DISCOVERY`          | boolean | 啟用圖示探索                    |
+| `HENA_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | boolean | 停用 TUI 中的選取即複製         |
+| `HENA_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | number  | bash 指令的預設逾時時間（毫秒） |
+| `HENA_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | number  | LLM 回應的最大輸出 Token 數     |
+| `HENA_EXPERIMENTAL_FILEWATCHER`             | boolean | 啟用整個目錄的檔案監看器        |
+| `HENA_EXPERIMENTAL_OXFMT`                   | boolean | 啟用 oxfmt 格式化器             |
+| `HENA_EXPERIMENTAL_LSP_TOOL`                | boolean | 啟用實驗性 LSP 工具             |
+| `HENA_EXPERIMENTAL_DISABLE_FILEWATCHER`     | boolean | 停用檔案監看器                  |
+| `HENA_EXPERIMENTAL_EXA`                     | boolean | 啟用實驗性 Exa 功能             |
+| `HENA_EXPERIMENTAL_LSP_TY`                  | boolean | 為 python 檔案啟用 TY LSP       |
+| `HENA_EXPERIMENTAL_PLAN_MODE`               | boolean | 啟用計畫模式                    |
+| `HENA_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | boolean | 啟用背景子代理任務              |
+| `HENA_EXPERIMENTAL_EVENT_SYSTEM`            | boolean | 啟用實驗性事件系統              |
+| `HENA_EXPERIMENTAL_NATIVE_LLM`              | boolean | 啟用原生 LLM 請求路徑           |
+| `HENA_EXPERIMENTAL_PARALLEL`                | boolean | 啟用平行 Web 搜尋執行           |
+| `HENA_EXPERIMENTAL_SCOUT`                   | boolean | 啟用 Scout 子代理               |
+| `HENA_EXPERIMENTAL_WORKSPACES`              | boolean | 啟用工作區支援                  |

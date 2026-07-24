@@ -72,7 +72,7 @@ export type DesktopMenu = {
 export const DESKTOP_MENU: DesktopMenu[] = [
   {
     id: "app",
-    label: "Hena Agent",
+    label: "Hena",
     platforms: ["macos"],
     items: [
       { type: "item", role: "about" },
@@ -200,8 +200,8 @@ export const DESKTOP_MENU: DesktopMenu[] = [
     id: "help",
     label: "Help",
     items: [
-      { type: "item", label: "Hena Agent Documentation", href: "https://hena.dev/docs" },
-      { type: "item", label: "Support Forum", href: "https://discord.com/invite/hena-agent" },
+      { type: "item", label: "Hena Documentation", href: "https://hena.dev/docs" },
+      { type: "item", label: "Support Forum", href: "https://discord.com/invite/hena" },
       { type: "item", label: "Export Logs...", command: "logs.export" },
       { type: "separator" },
       {

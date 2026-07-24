@@ -1,9 +1,9 @@
-import { base64Encode } from "@hena-agent/core/util/encode"
+import { base64Encode } from "@hena/core/util/encode"
 import { expect, test, type Page } from "@playwright/test"
-import { mockHenaAgentServer } from "../utils/mock-server"
+import { mockHenaServer } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
 
-const directory = "C:/Hena Agent/TerminalComposerFocus"
+const directory = "C:/Hena/TerminalComposerFocus"
 const projectID = "proj_terminal_composer_focus"
 const sessionID = "ses_terminal_composer_focus"
 const ptyID = "pty_terminal_composer_focus"
@@ -12,7 +12,7 @@ const newPtyID = "pty_terminal_composer_focus_new"
 test.use({ viewport: { width: 1440, height: 900 } })
 
 test.beforeEach(async ({ page }) => {
-  await mockHenaAgentServer(page, {
+  await mockHenaServer(page, {
     directory,
     project: {
       id: projectID,
@@ -25,13 +25,13 @@ test.beforeEach(async ({ page }) => {
     provider: {
       all: [
         {
-          id: "hena-agent",
-          name: "Hena Agent",
+          id: "hena",
+          name: "Hena",
           models: { test: { id: "test", name: "Test", limit: { context: 200_000 } } },
         },
       ],
-      connected: ["hena-agent"],
-      default: { providerID: "hena-agent", modelID: "test" },
+      connected: ["hena"],
+      default: { providerID: "hena", modelID: "test" },
     },
     sessions: [
       {
@@ -195,7 +195,7 @@ test("focuses a terminal created from the new-terminal button", async ({ page })
 function seedCachedTerminal(page: Page) {
   return page.addInitScript(
     ({ terminalKey, ptyID }) => {
-      localStorage.setItem("hena-agent.global.dat:layout", JSON.stringify({ terminal: { height: 320, opened: true } }))
+      localStorage.setItem("hena.global.dat:layout", JSON.stringify({ terminal: { height: 320, opened: true } }))
       localStorage.setItem(
         terminalKey,
         JSON.stringify({

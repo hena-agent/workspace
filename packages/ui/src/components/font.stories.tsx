@@ -41,8 +41,8 @@ export const Basic = {
   render: () => (
     <div style={{ display: "grid", gap: "8px" }}>
       <mod.Font />
-      <div style={{ "font-family": "var(--font-family-sans)" }}>Hena Agent Sans Sample</div>
-      <div style={{ "font-family": "var(--font-family-mono)" }}>Hena Agent Mono Sample</div>
+      <div style={{ "font-family": "var(--font-family-sans)" }}>Hena Sans Sample</div>
+      <div style={{ "font-family": "var(--font-family-mono)" }}>Hena Mono Sample</div>
     </div>
   ),
 }

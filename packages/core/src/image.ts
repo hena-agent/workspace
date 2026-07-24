@@ -42,7 +42,7 @@ export interface Interface {
   >
 }
 
-export class Service extends Context.Service<Service, Interface>()("@hena-agent/Image") {}
+export class Service extends Context.Service<Service, Interface>()("@hena/Image") {}
 
 const layer = Layer.effect(
   Service,

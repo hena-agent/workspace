@@ -3,7 +3,7 @@ import { dict as en } from "./en"
 
 export const dict = {
   ...en,
-  "app.meta.description": "Hena Agent - L'agent de code open source.",
+  "app.meta.description": "Hena - L'agent de code open source.",
   "nav.github": "GitHub",
   "nav.docs": "Documentation",
   "nav.changelog": "Changelog",
@@ -16,7 +16,7 @@ export const dict = {
   "nav.home": "Accueil",
   "nav.openMenu": "Ouvrir le menu",
   "nav.getStartedFree": "Commencer gratuitement",
-  "nav.logoAlt": "Hena Agent",
+  "nav.logoAlt": "Hena",
 
   "nav.context.copyLogo": "Copier le logo en SVG",
   "nav.context.copyWordmark": "Copier le logotype en SVG",
@@ -38,14 +38,14 @@ export const dict = {
   "email.subscribe": "S'abonner",
   "email.success": "Presque terminé - vérifiez votre boîte de réception et confirmez votre adresse e-mail",
 
-  "notFound.title": "Introuvable | Hena Agent",
+  "notFound.title": "Introuvable | Hena",
   "notFound.heading": "404 - Page introuvable",
   "notFound.home": "Accueil",
   "notFound.docs": "Documentation",
   "notFound.github": "GitHub",
   "notFound.discord": "Discord",
-  "notFound.logoLightAlt": "hena-agent logo light",
-  "notFound.logoDarkAlt": "hena-agent logo dark",
+  "notFound.logoLightAlt": "hena logo light",
+  "notFound.logoDarkAlt": "hena logo dark",
 
   "user.logout": "Se déconnecter",
 
@@ -81,9 +81,9 @@ export const dict = {
   "error.reloadTriggerMin": "Le seuil de déclenchement doit être d'au moins {{amount}} $",
   "auth.callback.error.codeMissing": "Aucun code d'autorisation trouvé.",
 
-  "home.title": "Hena Agent | L'agent de code IA open source",
+  "home.title": "Hena | L'agent de code IA open source",
 
-  "temp.title": "Hena Agent | Agent de code IA conçu pour le terminal",
+  "temp.title": "Hena | Agent de code IA conçu pour le terminal",
   "temp.hero.title": "L'agent de code IA conçu pour le terminal",
   "temp.zen": "Hena Zen",
   "temp.getStarted": "Commencer",
@@ -91,13 +91,13 @@ export const dict = {
   "temp.feature.native.body": "Une interface terminal native, réactive et thémable",
   "temp.feature.zen.beforeLink": "Une",
   "temp.feature.zen.link": "liste organisée de modèles",
-  "temp.feature.zen.afterLink": "fournie par Hena Agent",
+  "temp.feature.zen.afterLink": "fournie par Hena",
   "temp.feature.models.beforeLink": "Prend en charge plus de 75 fournisseurs LLM via",
   "temp.feature.models.afterLink": ", y compris les modèles locaux",
-  "temp.screenshot.caption": "Hena Agent TUI avec le thème tokyonight",
-  "temp.screenshot.alt": "Hena Agent TUI avec le thème tokyonight",
-  "temp.logoLightAlt": "hena-agent logo light",
-  "temp.logoDarkAlt": "hena-agent logo dark",
+  "temp.screenshot.caption": "Hena TUI avec le thème tokyonight",
+  "temp.screenshot.alt": "Hena TUI avec le thème tokyonight",
+  "temp.logoLightAlt": "hena logo light",
+  "temp.logoDarkAlt": "hena logo dark",
 
   "home.banner.badge": "Nouveau",
   "home.banner.text": "Découvrez Tabs pour Desktop.",
@@ -116,9 +116,9 @@ export const dict = {
 
   "home.install.ariaLabel": "Options d'installation",
 
-  "home.what.title": "Qu'est-ce que Hena Agent ?",
+  "home.what.title": "Qu'est-ce que Hena ?",
   "home.what.body":
-    "Hena Agent est un agent open source qui vous aide à écrire du code dans votre terminal, IDE ou desktop.",
+    "Hena est un agent open source qui vous aide à écrire du code dans votre terminal, IDE ou desktop.",
   "home.what.lsp.title": "LSP activé",
   "home.what.lsp.body": "Charge automatiquement les bons LSP pour le LLM",
   "home.what.multiSession.title": "Multi-session",
@@ -137,43 +137,43 @@ export const dict = {
 
   "home.growth.title": "L'agent de code IA open source",
   "home.growth.body":
-    "Avec plus de <strong>{{stars}}</strong> étoiles sur GitHub, <strong>{{contributors}}</strong> contributeurs et plus de <strong>{{commits}}</strong> commits, Hena Agent est utilisé et approuvé par plus de <strong>{{monthlyUsers}}</strong> développeurs chaque mois.",
+    "Avec plus de <strong>{{stars}}</strong> étoiles sur GitHub, <strong>{{contributors}}</strong> contributeurs et plus de <strong>{{commits}}</strong> commits, Hena est utilisé et approuvé par plus de <strong>{{monthlyUsers}}</strong> développeurs chaque mois.",
   "home.growth.githubStars": "Étoiles GitHub",
   "home.growth.contributors": "Contributeurs",
   "home.growth.monthlyDevs": "Devs mensuels",
 
   "home.privacy.title": "Conçu pour la confidentialité",
   "home.privacy.body":
-    "Hena Agent ne stocke ni votre code ni vos données de contexte, afin de pouvoir fonctionner dans des environnements sensibles à la confidentialité.",
+    "Hena ne stocke ni votre code ni vos données de contexte, afin de pouvoir fonctionner dans des environnements sensibles à la confidentialité.",
   "home.privacy.learnMore": "En savoir plus sur",
   "home.privacy.link": "la confidentialité",
 
-  "home.faq.q1": "Qu'est-ce que Hena Agent ?",
+  "home.faq.q1": "Qu'est-ce que Hena ?",
   "home.faq.a1":
-    "Hena Agent est un agent open source qui vous aide à écrire et exécuter du code avec n'importe quel modèle d'IA. Il est disponible en interface terminal, application desktop ou extension IDE.",
-  "home.faq.q2": "Comment utiliser Hena Agent ?",
+    "Hena est un agent open source qui vous aide à écrire et exécuter du code avec n'importe quel modèle d'IA. Il est disponible en interface terminal, application desktop ou extension IDE.",
+  "home.faq.q2": "Comment utiliser Hena ?",
   "home.faq.a2.before": "Le moyen le plus simple de commencer est de lire l'",
   "home.faq.a2.link": "intro",
-  "home.faq.q3": "Ai-je besoin d'abonnements IA supplémentaires pour utiliser Hena Agent ?",
+  "home.faq.q3": "Ai-je besoin d'abonnements IA supplémentaires pour utiliser Hena ?",
   "home.faq.a3.p1":
-    "Pas forcément : Hena Agent propose des modèles gratuits que vous pouvez utiliser sans créer de compte.",
+    "Pas forcément : Hena propose des modèles gratuits que vous pouvez utiliser sans créer de compte.",
   "home.faq.a3.p2.beforeZen": "En plus, vous pouvez utiliser des modèles populaires pour le code en créant un compte",
   "home.faq.a3.p2.afterZen": ".",
   "home.faq.a3.p3":
-    "Nous encourageons l'utilisation de Zen, mais Hena Agent fonctionne aussi avec les fournisseurs populaires comme OpenAI, Anthropic, xAI, etc.",
+    "Nous encourageons l'utilisation de Zen, mais Hena fonctionne aussi avec les fournisseurs populaires comme OpenAI, Anthropic, xAI, etc.",
   "home.faq.a3.p4.beforeLocal": "Vous pouvez même connecter vos",
   "home.faq.a3.p4.localLink": "modèles locaux",
-  "home.faq.q4": "Puis-je utiliser mes abonnements IA existants avec Hena Agent ?",
+  "home.faq.q4": "Puis-je utiliser mes abonnements IA existants avec Hena ?",
   "home.faq.a4.p1":
-    "Oui, Hena Agent prend en charge les abonnements des principaux fournisseurs. Vous pouvez utiliser Claude Pro/Max, ChatGPT Plus/Pro ou GitHub Copilot.",
-  "home.faq.q5": "Puis-je utiliser Hena Agent uniquement dans le terminal ?",
-  "home.faq.a5.beforeDesktop": "Plus maintenant ! Hena Agent est désormais disponible en application pour",
+    "Oui, Hena prend en charge les abonnements des principaux fournisseurs. Vous pouvez utiliser Claude Pro/Max, ChatGPT Plus/Pro ou GitHub Copilot.",
+  "home.faq.q5": "Puis-je utiliser Hena uniquement dans le terminal ?",
+  "home.faq.a5.beforeDesktop": "Plus maintenant ! Hena est désormais disponible en application pour",
   "home.faq.a5.desktop": "desktop",
   "home.faq.a5.and": "et",
   "home.faq.a5.web": "web",
-  "home.faq.q6": "Combien coûte Hena Agent ?",
+  "home.faq.q6": "Combien coûte Hena ?",
   "home.faq.a6":
-    "Hena Agent est 100% gratuit. Il inclut aussi des modèles gratuits. Des coûts supplémentaires peuvent s'appliquer si vous connectez un autre fournisseur.",
+    "Hena est 100% gratuit. Il inclut aussi des modèles gratuits. Des coûts supplémentaires peuvent s'appliquer si vous connectez un autre fournisseur.",
   "home.faq.q7": "Qu'en est-il des données et de la confidentialité ?",
   "home.faq.a7.p1":
     "Vos données ne sont stockées que lorsque vous utilisez nos modèles gratuits ou créez des liens partageables.",
@@ -181,8 +181,8 @@ export const dict = {
   "home.faq.a7.p2.modelsLink": "nos modèles",
   "home.faq.a7.p2.and": "et",
   "home.faq.a7.p2.shareLink": "les pages de partage",
-  "home.faq.q8": "Hena Agent est-il open source ?",
-  "home.faq.a8.p1": "Oui, Hena Agent est entièrement open source. Le code source est public sur",
+  "home.faq.q8": "Hena est-il open source ?",
+  "home.faq.a8.p1": "Oui, Hena est entièrement open source. Le code source est public sur",
   "home.faq.a8.p2": "sous la",
   "home.faq.a8.mitLicense": "Licence MIT",
   "home.faq.a8.p3":
@@ -190,23 +190,23 @@ export const dict = {
 
   "home.zenCta.title": "Accédez à des modèles fiables et optimisés pour les agents de code",
   "home.zenCta.body":
-    "Zen vous donne accès à un ensemble sélectionné de modèles d'IA que Hena Agent a testés et benchmarkés spécifiquement pour les agents de code. Plus besoin de vous soucier des variations de performance et de qualité selon les fournisseurs : utilisez des modèles validés qui fonctionnent.",
+    "Zen vous donne accès à un ensemble sélectionné de modèles d'IA que Hena a testés et benchmarkés spécifiquement pour les agents de code. Plus besoin de vous soucier des variations de performance et de qualité selon les fournisseurs : utilisez des modèles validés qui fonctionnent.",
   "home.zenCta.link": "En savoir plus sur Zen",
 
   "zen.title": "Hena Zen | Un ensemble sélectionné de modèles fiables et optimisés pour les agents de code",
   "zen.hero.title": "Modèles fiables et optimisés pour les agents de code",
   "zen.hero.body":
-    "Zen vous donne accès à un ensemble sélectionné de modèles d'IA que Hena Agent a testés et benchmarkés spécifiquement pour les agents de code. Plus besoin de vous soucier des variations de performance et de qualité selon les fournisseurs : utilisez des modèles validés qui fonctionnent.",
+    "Zen vous donne accès à un ensemble sélectionné de modèles d'IA que Hena a testés et benchmarkés spécifiquement pour les agents de code. Plus besoin de vous soucier des variations de performance et de qualité selon les fournisseurs : utilisez des modèles validés qui fonctionnent.",
 
   "zen.faq.q1": "Qu'est-ce que Hena Zen ?",
   "zen.faq.a1":
-    "Zen est un ensemble sélectionné de modèles d'IA testés et benchmarkés pour les agents de code, créé par l'équipe derrière Hena Agent.",
+    "Zen est un ensemble sélectionné de modèles d'IA testés et benchmarkés pour les agents de code, créé par l'équipe derrière Hena.",
   "zen.faq.q2": "Qu'est-ce qui rend Zen plus précis ?",
   "zen.faq.a2":
     "Zen ne propose que des modèles testés et benchmarkés spécifiquement pour les agents de code. Vous n'utiliseriez pas un couteau à beurre pour couper un steak ; n'utilisez pas de mauvais modèles pour coder.",
   "zen.faq.q3": "Zen est-il moins cher ?",
   "zen.faq.a3":
-    "Zen n'est pas à but lucratif. Zen vous facture au prix coûtant des fournisseurs de modèles. Plus Zen est utilisé, plus Hena Agent peut négocier de meilleurs tarifs et vous les répercuter.",
+    "Zen n'est pas à but lucratif. Zen vous facture au prix coûtant des fournisseurs de modèles. Plus Zen est utilisé, plus Hena peut négocier de meilleurs tarifs et vous les répercuter.",
   "zen.faq.q4": "Combien coûte Zen ?",
   "zen.faq.a4.p1.beforePricing": "Zen",
   "zen.faq.a4.p1.pricingLink": "facture par requête",
@@ -215,7 +215,7 @@ export const dict = {
     "Votre coût total dépend de l'usage, et vous pouvez définir des limites de dépense mensuelles dans votre",
   "zen.faq.a4.p2.accountLink": "compte",
   "zen.faq.a4.p3":
-    "Pour couvrir les coûts, Hena Agent ajoute uniquement de petits frais de traitement de paiement de 1,23 $ par recharge de 20 $.",
+    "Pour couvrir les coûts, Hena ajoute uniquement de petits frais de traitement de paiement de 1,23 $ par recharge de 20 $.",
   "zen.faq.q5": "Et pour les données et la confidentialité ?",
   "zen.faq.a5.beforeExceptions":
     "Tous les modèles Zen sont hébergés aux États-Unis. Les fournisseurs appliquent une politique de rétention zéro et n'utilisent pas vos données pour l'entraînement des modèles, avec les",
@@ -226,7 +226,7 @@ export const dict = {
   "zen.faq.a7": "Oui, vous pouvez désactiver la facturation à tout moment et utiliser votre solde restant.",
   "zen.faq.q8": "Puis-je utiliser Zen avec d'autres agents de code ?",
   "zen.faq.a8":
-    "Zen fonctionne très bien avec Hena Agent, mais vous pouvez utiliser Zen avec n'importe quel agent. Suivez les instructions de configuration dans votre agent préféré.",
+    "Zen fonctionne très bien avec Hena, mais vous pouvez utiliser Zen avec n'importe quel agent. Suivez les instructions de configuration dans votre agent préféré.",
 
   "zen.cta.start": "Commencez avec Zen",
   "zen.pricing.title": "Ajoutez 20 $ de solde Pay as you go",
@@ -237,13 +237,13 @@ export const dict = {
   "zen.problem.body":
     "Il existe de nombreux modèles disponibles, mais seuls quelques-uns fonctionnent bien avec les agents de code. La plupart des fournisseurs les configurent différemment avec des résultats variables.",
   "zen.problem.subtitle":
-    "Nous résolvons ce problème pour tout le monde, pas seulement pour les utilisateurs de Hena Agent.",
+    "Nous résolvons ce problème pour tout le monde, pas seulement pour les utilisateurs de Hena.",
   "zen.problem.item1": "Test des modèles sélectionnés et consultation de leurs équipes",
   "zen.problem.item2": "Collaboration avec les fournisseurs pour garantir une livraison correcte",
   "zen.problem.item3": "Benchmark de toutes les combinaisons modèle-fournisseur que nous recommandons",
   "zen.how.title": "Comment fonctionne Zen",
   "zen.how.body":
-    "Bien que nous vous suggérions d'utiliser Zen avec Hena Agent, vous pouvez utiliser Zen avec n'importe quel agent.",
+    "Bien que nous vous suggérions d'utiliser Zen avec Hena, vous pouvez utiliser Zen avec n'importe quel agent.",
   "zen.how.step1.title": "Inscrivez-vous et ajoutez un solde de 20 $",
   "zen.how.step1.beforeLink": "suivez les",
   "zen.how.step1.link": "instructions de configuration",
@@ -281,7 +281,7 @@ export const dict = {
 
   "go.testimonials.brand.zen": "Zen",
   "go.testimonials.brand.go": "Go",
-  "go.testimonials.handle": "@Hena Agent",
+  "go.testimonials.handle": "@Hena",
   "go.testimonials.dax.name": "Dax Raad",
   "go.testimonials.dax.title": "ex-PDG, Terminal Products",
   "go.testimonials.dax.quoteAfter": "a changé ma vie, c'est vraiment une évidence.",
@@ -302,7 +302,7 @@ export const dict = {
   "go.testimonials.frank.quote": "J'aimerais être encore chez Nvidia.",
   "go.problem.title": "Quel problème Go résout-il ?",
   "go.problem.body":
-    "Nous nous efforçons d'apporter l'expérience Hena Agent au plus grand nombre. Hena Go est un abonnement à faible coût : $5 pour le premier mois, puis 10 $/mois. Il offre des limites généreuses et un accès fiable aux modèles open source les plus performants.",
+    "Nous nous efforçons d'apporter l'expérience Hena au plus grand nombre. Hena Go est un abonnement à faible coût : $5 pour le premier mois, puis 10 $/mois. Il offre des limites généreuses et un accès fiable aux modèles open source les plus performants.",
   "go.problem.subtitle": " ",
   "go.problem.item1": "Prix d'abonnement bas",
   "go.problem.item2": "Limites généreuses et accès fiable",
@@ -311,7 +311,7 @@ export const dict = {
     "Inclut Grok 4.5, GLM-5.2, GLM-5.1, Kimi K3, Kimi K2.7 Code, Kimi K2.6, MiMo-V2.5-Pro, MiMo-V2.5, Qwen3.7 Max, Qwen3.7 Plus, Qwen3.6 Plus, MiniMax M2.7, MiniMax M3, DeepSeek V4 Pro, DeepSeek V4 Flash et Hy3",
   "go.how.title": "Comment fonctionne Go",
   "go.how.body":
-    "Go commence à $5 pour le premier mois, puis 10 $/mois. Vous pouvez l'utiliser avec Hena Agent ou n'importe quel agent.",
+    "Go commence à $5 pour le premier mois, puis 10 $/mois. Vous pouvez l'utiliser avec Hena ou n'importe quel agent.",
   "go.how.step1.title": "Créez un compte",
   "go.how.step1.beforeLink": "suivez les",
   "go.how.step1.link": "instructions de configuration",
@@ -456,15 +456,15 @@ export const dict = {
     "Accédez à des modèles configurés pour des performances optimales - pas de rétrogradation ni de routage vers des fournisseurs moins chers.",
   "workspace.newUser.feature.lockin.title": "Pas de verrouillage",
   "workspace.newUser.feature.lockin.body":
-    "Utilisez Zen avec n'importe quel agent de code et continuez à utiliser d'autres fournisseurs avec Hena Agent quand vous le souhaitez.",
+    "Utilisez Zen avec n'importe quel agent de code et continuez à utiliser d'autres fournisseurs avec Hena quand vous le souhaitez.",
   "workspace.newUser.copyApiKey": "Copier la clé API",
   "workspace.newUser.copyKey": "Copier la clé",
   "workspace.newUser.copied": "Copié !",
   "workspace.newUser.step.enableBilling": "Activer la facturation",
   "workspace.newUser.step.login.before": "Exécuter",
-  "workspace.newUser.step.login.after": "et sélectionnez Hena Agent",
+  "workspace.newUser.step.login.after": "et sélectionnez Hena",
   "workspace.newUser.step.pasteKey": "Collez votre clé API",
-  "workspace.newUser.step.models.before": "Démarrez Hena Agent et exécutez",
+  "workspace.newUser.step.models.before": "Démarrez Hena et exécutez",
   "workspace.newUser.step.models.after": "pour sélectionner un modèle",
 
   "workspace.models.title": "Modèles",
@@ -511,10 +511,10 @@ export const dict = {
   "workspace.cost.subscriptionShort": "abo",
 
   "workspace.keys.title": "Clés API",
-  "workspace.keys.subtitle": "Gérez vos clés API pour accéder aux services Hena Agent.",
+  "workspace.keys.subtitle": "Gérez vos clés API pour accéder aux services Hena.",
   "workspace.keys.create": "Créer une clé API",
   "workspace.keys.placeholder": "Entrez le nom de la clé",
-  "workspace.keys.empty": "Créer une clé API Hena Agent Gateway",
+  "workspace.keys.empty": "Créer une clé API Hena Gateway",
   "workspace.keys.table.name": "Nom",
   "workspace.keys.table.key": "Clé",
   "workspace.keys.table.createdBy": "Créé par",
@@ -667,7 +667,7 @@ export const dict = {
   "workspace.lite.subscription.useBalance":
     "Utilisez votre solde disponible après avoir atteint les limites d'utilisation",
   "workspace.lite.subscription.selectProvider":
-    'Sélectionnez "Hena Go" comme fournisseur dans votre configuration hena-agent pour utiliser les modèles Go.',
+    'Sélectionnez "Hena Go" comme fournisseur dans votre configuration hena pour utiliser les modèles Go.',
   "workspace.lite.providers.title": "Fournisseurs",
   "workspace.lite.providers.description": "Contrôlez les fournisseurs utilisés pour le routage.",
   "workspace.lite.providers.useChina": "Activer les modèles hébergés en Chine",
@@ -721,15 +721,15 @@ export const dict = {
   "workspace.referral.apply.confirmBody": "Utilisez {{amount}} pour réduire l'utilisation actuelle de ce workspace.",
   "workspace.referral.apply.confirmAction": "Utiliser",
 
-  "download.title": "Hena Agent | Téléchargement",
-  "download.meta.description": "Téléchargez Hena Agent pour macOS, Windows et Linux",
-  "download.hero.title": "Télécharger Hena Agent Desktop",
+  "download.title": "Hena | Téléchargement",
+  "download.meta.description": "Téléchargez Hena pour macOS, Windows et Linux",
+  "download.hero.title": "Télécharger Hena Desktop",
   "download.hero.subtitle": "Disponible en bêta pour macOS, Windows et Linux",
   "download.hero.button": "Télécharger pour {{os}}",
-  "download.section.terminal": "Hena Agent Terminal",
-  "download.section.desktop": "Hena Agent Desktop",
-  "download.section.extensions": "Extensions Hena Agent",
-  "download.section.integrations": "Intégrations Hena Agent",
+  "download.section.terminal": "Hena Terminal",
+  "download.section.desktop": "Hena Desktop",
+  "download.section.extensions": "Extensions Hena",
+  "download.section.integrations": "Intégrations Hena",
   "download.action.download": "Télécharger",
   "download.action.install": "Installer",
 
@@ -740,27 +740,27 @@ export const dict = {
   "download.platform.linuxRpm": "Linux (.rpm)",
 
   "download.faq.a3.beforeLocal":
-    "Pas forcément, mais probablement. Vous aurez besoin d'un abonnement IA si vous voulez connecter Hena Agent à un fournisseur payant, mais vous pouvez travailler avec des",
+    "Pas forcément, mais probablement. Vous aurez besoin d'un abonnement IA si vous voulez connecter Hena à un fournisseur payant, mais vous pouvez travailler avec des",
   "download.faq.a3.localLink": "modèles locaux",
   "download.faq.a3.afterLocal.beforeZen": "gratuitement. Même si nous encourageons les utilisateurs à utiliser",
   "download.faq.a3.afterZen":
-    ", Hena Agent fonctionne avec tous les fournisseurs populaires comme OpenAI, Anthropic, xAI, etc.",
+    ", Hena fonctionne avec tous les fournisseurs populaires comme OpenAI, Anthropic, xAI, etc.",
 
-  "download.faq.a5.p1": "Hena Agent est 100% gratuit à utiliser.",
+  "download.faq.a5.p1": "Hena est 100% gratuit à utiliser.",
   "download.faq.a5.p2.beforeZen":
-    "Les coûts supplémentaires viendront de votre abonnement à un fournisseur de modèle. Même si Hena Agent fonctionne avec n'importe quel fournisseur, nous recommandons d'utiliser",
+    "Les coûts supplémentaires viendront de votre abonnement à un fournisseur de modèle. Même si Hena fonctionne avec n'importe quel fournisseur, nous recommandons d'utiliser",
   "download.faq.a5.p2.afterZen": ".",
 
   "download.faq.a6.p1":
-    "Vos données et informations ne sont stockées que lorsque vous créez des liens partageables dans Hena Agent.",
+    "Vos données et informations ne sont stockées que lorsque vous créez des liens partageables dans Hena.",
   "download.faq.a6.p2.beforeShare": "En savoir plus sur",
   "download.faq.a6.shareLink": "les pages de partage",
 
-  "enterprise.title": "Hena Agent | Solutions entreprise pour votre organisation",
-  "enterprise.meta.description": "Contactez Hena Agent pour des solutions entreprise",
+  "enterprise.title": "Hena | Solutions entreprise pour votre organisation",
+  "enterprise.meta.description": "Contactez Hena pour des solutions entreprise",
   "enterprise.hero.title": "Votre code vous appartient",
   "enterprise.hero.body1":
-    "Hena Agent fonctionne de manière sécurisée au sein de votre organisation, sans stocker de données ni de contexte, et sans restrictions de licence ni revendications de propriété. Démarrez un essai avec votre équipe, puis déployez-le dans votre organisation en l'intégrant à votre SSO et à votre passerelle IA interne.",
+    "Hena fonctionne de manière sécurisée au sein de votre organisation, sans stocker de données ni de contexte, et sans restrictions de licence ni revendications de propriété. Démarrez un essai avec votre équipe, puis déployez-le dans votre organisation en l'intégrant à votre SSO et à votre passerelle IA interne.",
   "enterprise.hero.body2": "Dites-nous comment nous pouvons vous aider.",
   "enterprise.form.name.label": "Nom complet",
   "enterprise.form.name.placeholder": "Jeff Bezos",
@@ -782,29 +782,29 @@ export const dict = {
   "enterprise.form.error.invalidEmailFormat": "Format d'e-mail invalide.",
   "enterprise.form.error.internalServer": "Erreur interne du serveur.",
   "enterprise.faq.title": "FAQ",
-  "enterprise.faq.q1": "Qu'est-ce que Hena Agent Enterprise ?",
+  "enterprise.faq.q1": "Qu'est-ce que Hena Enterprise ?",
   "enterprise.faq.a1":
-    "Hena Agent Enterprise s'adresse aux organisations qui veulent s'assurer que leur code et leurs données ne quittent jamais leur infrastructure. Cela est possible grâce à une configuration centralisée qui s'intègre à votre SSO et à votre passerelle IA interne.",
-  "enterprise.faq.q2": "Comment démarrer avec Hena Agent Enterprise ?",
+    "Hena Enterprise s'adresse aux organisations qui veulent s'assurer que leur code et leurs données ne quittent jamais leur infrastructure. Cela est possible grâce à une configuration centralisée qui s'intègre à votre SSO et à votre passerelle IA interne.",
+  "enterprise.faq.q2": "Comment démarrer avec Hena Enterprise ?",
   "enterprise.faq.a2":
-    "Commencez simplement par un essai interne avec votre équipe. Par défaut, Hena Agent ne stocke pas votre code ni vos données de contexte, ce qui facilite la prise en main. Ensuite, contactez-nous pour discuter des tarifs et des options de mise en œuvre.",
+    "Commencez simplement par un essai interne avec votre équipe. Par défaut, Hena ne stocke pas votre code ni vos données de contexte, ce qui facilite la prise en main. Ensuite, contactez-nous pour discuter des tarifs et des options de mise en œuvre.",
   "enterprise.faq.q3": "Comment fonctionne la tarification entreprise ?",
   "enterprise.faq.a3":
     "Nous proposons une tarification entreprise par siège. Si vous avez votre propre passerelle LLM, nous ne facturons pas les tokens utilisés. Pour plus de détails, contactez-nous pour un devis sur mesure en fonction des besoins de votre organisation.",
-  "enterprise.faq.q4": "Mes données sont-elles sécurisées avec Hena Agent Enterprise ?",
+  "enterprise.faq.q4": "Mes données sont-elles sécurisées avec Hena Enterprise ?",
   "enterprise.faq.a4":
-    "Oui. Hena Agent ne stocke pas votre code ni vos données de contexte. Tout le traitement se fait localement ou via des appels API directs vers votre fournisseur d'IA. Avec une configuration centralisée et une intégration SSO, vos données restent sécurisées au sein de l'infrastructure de votre organisation.",
+    "Oui. Hena ne stocke pas votre code ni vos données de contexte. Tout le traitement se fait localement ou via des appels API directs vers votre fournisseur d'IA. Avec une configuration centralisée et une intégration SSO, vos données restent sécurisées au sein de l'infrastructure de votre organisation.",
 
-  "brand.title": "Hena Agent | Marque",
-  "brand.meta.description": "Guide de marque Hena Agent",
+  "brand.title": "Hena | Marque",
+  "brand.meta.description": "Guide de marque Hena",
   "brand.heading": "Guide de marque",
-  "brand.subtitle": "Ressources et éléments pour vous aider à travailler avec la marque Hena Agent.",
+  "brand.subtitle": "Ressources et éléments pour vous aider à travailler avec la marque Hena.",
   "brand.downloadAll": "Télécharger tous les assets",
 
-  "changelog.title": "Hena Agent | Changelog",
-  "changelog.meta.description": "Notes de version et changelog d'Hena Agent",
+  "changelog.title": "Hena | Changelog",
+  "changelog.meta.description": "Notes de version et changelog d'Hena",
   "changelog.hero.title": "Changelog",
-  "changelog.hero.subtitle": "Nouvelles mises à jour et améliorations pour Hena Agent",
+  "changelog.hero.subtitle": "Nouvelles mises à jour et améliorations pour Hena",
   "changelog.empty": "Aucune entrée de changelog trouvée.",
   "changelog.viewJson": "Voir le JSON",
 

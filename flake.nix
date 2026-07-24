@@ -1,5 +1,5 @@
 {
-  description = "Hena Agent development flake";
+  description = "Hena development flake";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -39,11 +39,11 @@
             };
           in
           rec {
-            hena-agent = final.callPackage ./nix/hena-agent.nix {
+            hena = final.callPackage ./nix/hena.nix {
               inherit node_modules;
             };
-            hena-agent-desktop = final.callPackage ./nix/desktop.nix {
-              inherit hena-agent;
+            hena-desktop = final.callPackage ./nix/desktop.nix {
+              inherit hena;
             };
           };
       };
@@ -56,12 +56,12 @@
           };
         in
         rec {
-          default = hena-agent;
-          hena-agent = pkgs.callPackage ./nix/hena-agent.nix {
+          default = hena;
+          hena = pkgs.callPackage ./nix/hena.nix {
             inherit node_modules;
           };
-          hena-agent-desktop = pkgs.callPackage ./nix/desktop.nix {
-            inherit hena-agent;
+          hena-desktop = pkgs.callPackage ./nix/desktop.nix {
+            inherit hena;
           };
           # Updater derivation with fakeHash - build fails and reveals correct hash
           node_modules_updater = node_modules.override {

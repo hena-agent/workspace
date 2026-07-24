@@ -1,7 +1,7 @@
 import { createEffect } from "solid-js"
 import { getRequestEvent } from "solid-js/web"
 import { createStore } from "solid-js/store"
-import { createSimpleContext } from "@hena-agent/ui/context"
+import { createSimpleContext } from "@hena/ui/context"
 import {
   LOCALES,
   cookie,

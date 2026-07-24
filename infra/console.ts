@@ -9,7 +9,7 @@ const lake = deployAws ? await import("./lake") : undefined
 ////////////////
 
 const cluster = planetscale.getDatabaseOutput({
-  name: "hena-agent",
+  name: "hena",
   organization: "hena-agent",
 })
 

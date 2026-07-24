@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@hena-agent/client",
+  "name": "@hena/client",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -15,8 +15,8 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@hena-agent/schema": "workspace:*",
-    "@hena-agent/protocol": "workspace:*"
+    "@hena/schema": "workspace:*",
+    "@hena/protocol": "workspace:*"
   },
   "peerDependencies": {
     "effect": "4.0.0-beta.83"
@@ -28,9 +28,9 @@
   },
   "devDependencies": {
     "@effect/platform-node": "catalog:",
-    "@hena-agent/core": "workspace:*",
-    "@hena-agent/httpapi-codegen": "workspace:*",
-    "@hena-agent/server": "workspace:*",
+    "@hena/core": "workspace:*",
+    "@hena/httpapi-codegen": "workspace:*",
+    "@hena/server": "workspace:*",
     "@tsconfig/bun": "catalog:",
     "@types/bun": "catalog:",
     "@typescript/native-preview": "catalog:",

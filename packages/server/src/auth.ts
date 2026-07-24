@@ -1,6 +1,6 @@
 export * as ServerAuth from "./auth"
 
-import { Flag } from "@hena-agent/core/flag/flag"
+import { Flag } from "@hena/core/flag/flag"
 import { Context, Layer, Option, Redacted } from "effect"
 
 export type Credentials = {
@@ -18,7 +18,7 @@ export type Info = {
   readonly username: string
 }
 
-export class Config extends Context.Service<Config, Info>()("@hena-agent/ServerAuthConfig") {
+export class Config extends Context.Service<Config, Info>()("@hena/ServerAuthConfig") {
   static configLayer(input: Info) {
     return Layer.succeed(this, this.of(input))
   }
@@ -27,8 +27,8 @@ export class Config extends Context.Service<Config, Info>()("@hena-agent/ServerA
     return Layer.succeed(
       this,
       Config.of({
-        password: Option.fromNullishOr(Flag.HENA_AGENT_SERVER_PASSWORD),
-        username: Flag.HENA_AGENT_SERVER_USERNAME ?? "hena-agent",
+        password: Option.fromNullishOr(Flag.HENA_SERVER_PASSWORD),
+        username: Flag.HENA_SERVER_USERNAME ?? "hena",
       }),
     )
   }
@@ -47,10 +47,10 @@ export function authorized(credentials: DecodedCredentials, config: Info) {
 }
 
 export function header(credentials?: Credentials) {
-  const password = credentials?.password ?? Flag.HENA_AGENT_SERVER_PASSWORD
+  const password = credentials?.password ?? Flag.HENA_SERVER_PASSWORD
   if (!password) return undefined
 
-  return `Basic ${Buffer.from(`${credentials?.username ?? Flag.HENA_AGENT_SERVER_USERNAME ?? "hena-agent"}:${password}`).toString("base64")}`
+  return `Basic ${Buffer.from(`${credentials?.username ?? Flag.HENA_SERVER_USERNAME ?? "hena"}:${password}`).toString("base64")}`
 }
 
 export function headers(credentials?: Credentials) {

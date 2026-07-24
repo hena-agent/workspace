@@ -1,15 +1,15 @@
 ---
 title: Zen
-description: Kuratierte Modellliste direkt von Hena Agent.
+description: Kuratierte Modellliste direkt von Hena.
 ---
 
 import config from "../../../../config.mjs"
 export const console = config.console
 export const email = `mailto:${config.email}`
 
-Hena Zen ist eine Liste von getesteten und verifizierten Modellen, die vom Hena Agent-Team bereitgestellt wird.
+Hena Zen ist eine Liste von getesteten und verifizierten Modellen, die vom Hena-Team bereitgestellt wird.
 
-Zen funktioniert wie jeder andere Provider in Hena Agent. Du meldest dich bei Hena Zen an und erhältst deinen API-Key. Es ist **vollständig optional** und du musst es nicht verwenden, um Hena Agent zu nutzen.
+Zen funktioniert wie jeder andere Provider in Hena. Du meldest dich bei Hena Zen an und erhältst deinen API-Key. Es ist **vollständig optional** und du musst es nicht verwenden, um Hena zu nutzen.
 
 ---
 
@@ -18,7 +18,7 @@ Zen funktioniert wie jeder andere Provider in Hena Agent. Du meldest dich bei He
 Es gibt eine große Anzahl an Modellen, aber nur wenige davon eignen sich gut als Coding-Agenten. Außerdem sind die meisten Provider sehr unterschiedlich konfiguriert, sodass du sehr unterschiedliche Leistung und Qualität erhältst.
 
 :::tip
-Wir haben eine ausgewählte Gruppe von Modellen und Providern getestet, die gut mit Hena Agent funktionieren.
+Wir haben eine ausgewählte Gruppe von Modellen und Providern getestet, die gut mit Hena funktionieren.
 :::
 
 Wenn du also ein Modell über etwas wie OpenRouter nutzt, kannst du nie sicher sein, ob du die beste Version des gewünschten Modells bekommst.
@@ -35,7 +35,7 @@ Hena Zen ist ein AI-Gateway, das dir Zugriff auf diese Modelle gibt.
 
 ## So funktioniert es
 
-Hena Zen funktioniert wie jeder andere Provider in Hena Agent.
+Hena Zen funktioniert wie jeder andere Provider in Hena.
 
 1. Du meldest dich bei **<a href={console}>Hena Zen</a>** an, hinterlegst deine Zahlungsdaten und kopierst deinen API-Key.
 2. Du führst den Befehl `/connect` in der TUI aus, wählst Hena Zen aus und fügst deinen API-Key ein.
@@ -109,7 +109,7 @@ Du kannst auch über die folgenden API-Endpunkte auf unsere Modelle zugreifen.
 | Nemotron 3 Ultra Free  | nemotron-3-ultra-free  | `https://hena.dev/zen/v1/chat/completions`             | `@ai-sdk/openai-compatible` |
 | DeepSeek V4 Flash Free | deepseek-v4-flash-free | `https://hena.dev/zen/v1/chat/completions`             | `@ai-sdk/openai-compatible` |
 
-Die [Model-ID](/docs/config/#models) in deiner Hena Agent-Konfiguration verwendet das Format `hena-agent/<model-id>`. Für GPT 5.5 würdest du zum Beispiel `hena-agent/gpt-5.5` in deiner Konfiguration verwenden.
+Die [Model-ID](/docs/config/#models) in deiner Hena-Konfiguration verwendet das Format `hena/<model-id>`. Für GPT 5.5 würdest du zum Beispiel `hena/gpt-5.5` in deiner Konfiguration verwenden.
 
 ---
 
@@ -195,7 +195,7 @@ Wir unterstützen ein Pay-as-you-go-Modell. Unten findest du die Preise **pro 1M
 | GPT 5 Codex                       | $1.07  | $8.50   | $0.107      | -            |
 | GPT 5 Nano                        | $0.05  | $0.40   | $0.005      | -            |
 
-Möglicherweise siehst du [kostengünstige Modelle](/docs/config/#models) wie Haiku, Nano oder Flash in deinem Nutzungsverlauf. Hena Agent verwendet diese Modelle, um Session-Titel zu generieren.
+Möglicherweise siehst du [kostengünstige Modelle](/docs/config/#models) wie Haiku, Nano oder Flash in deinem Nutzungsverlauf. Hena verwendet diese Modelle, um Session-Titel zu generieren.
 
 :::note
 Kreditkartengebühren werden zum Selbstkostenpreis weitergegeben (4.4% + $0.30 pro Transaktion); wir berechnen darüber hinaus nichts.
@@ -203,12 +203,12 @@ Kreditkartengebühren werden zum Selbstkostenpreis weitergegeben (4.4% + $0.30 p
 
 Die kostenlosen Modelle:
 
-- DeepSeek V4 Flash Free ist für begrenzte Zeit auf Hena Agent verfügbar. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
-- MiMo-V2.5 Free ist für begrenzte Zeit auf Hena Agent verfügbar. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
-- Laguna S 2.1 Free ist für begrenzte Zeit auf Hena Agent verfügbar. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
-- North Mini Code Free ist für begrenzte Zeit auf Hena Agent verfügbar. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
-- Nemotron 3 Ultra Free ist für begrenzte Zeit auf Hena Agent verfügbar. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
-- Big Pickle ist ein Stealth-Modell, das für begrenzte Zeit kostenlos auf Hena Agent verfügbar ist. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
+- DeepSeek V4 Flash Free ist für begrenzte Zeit auf Hena verfügbar. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
+- MiMo-V2.5 Free ist für begrenzte Zeit auf Hena verfügbar. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
+- Laguna S 2.1 Free ist für begrenzte Zeit auf Hena verfügbar. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
+- North Mini Code Free ist für begrenzte Zeit auf Hena verfügbar. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
+- Nemotron 3 Ultra Free ist für begrenzte Zeit auf Hena verfügbar. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
+- Big Pickle ist ein Stealth-Modell, das für begrenzte Zeit kostenlos auf Hena verfügbar ist. Das Team nutzt diese Zeit, um Feedback zu sammeln und das Modell zu verbessern.
 
 <a href={email}>Kontaktiere uns</a>, wenn du Fragen hast.
 
@@ -318,4 +318,4 @@ Wir haben Hena Zen geschaffen, um:
 1. die besten Modelle/Provider für Coding-Agenten zu **benchmarken**.
 2. Zugriff auf die **höchste Qualität** zu haben und die Leistung nicht zu verschlechtern oder an günstigere Provider weiterzuleiten.
 3. **Preissenkungen** weiterzugeben, indem wir zum Selbstkostenpreis verkaufen; der einzige Aufschlag dient also dazu, unsere Bearbeitungsgebühren abzudecken.
-4. **keinen Lock-in** zu haben, indem du es mit jedem anderen Coding-Agenten verwenden kannst. Und dir außerdem immer zu erlauben, mit Hena Agent auch jeden anderen Provider zu verwenden.
+4. **keinen Lock-in** zu haben, indem du es mit jedem anderen Coding-Agenten verwenden kannst. Und dir außerdem immer zu erlauben, mit Hena auch jeden anderen Provider zu verwenden.

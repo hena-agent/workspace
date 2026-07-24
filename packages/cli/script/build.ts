@@ -3,13 +3,13 @@
 import { $ } from "bun"
 import { rm } from "fs/promises"
 import path from "path"
-import { Script } from "@hena-agent/script"
+import { Script } from "@hena/script"
 import { createSolidTransformPlugin } from "@opentui/solid/bun-plugin"
 import pkg from "../package.json"
 import { modelsData } from "./generate"
 
 const dir = path.resolve(import.meta.dirname, "..")
-const binary = "hena-agent"
+const binary = "hena"
 process.chdir(dir)
 
 await rm("dist", { recursive: true, force: true })
@@ -82,11 +82,11 @@ for (const item of targets) {
       windows: {},
     },
     define: {
-      HENA_AGENT_VERSION: `'${Script.version}'`,
-      HENA_AGENT_CLI_NAME: `'${binary}'`,
-      HENA_AGENT_MODELS_DEV: modelsData,
-      HENA_AGENT_CHANNEL: `'${Script.channel}'`,
-      HENA_AGENT_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "undefined",
+      HENA_VERSION: `'${Script.version}'`,
+      HENA_CLI_NAME: `'${binary}'`,
+      HENA_MODELS_DEV: modelsData,
+      HENA_CHANNEL: `'${Script.channel}'`,
+      HENA_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "undefined",
       // FFF_LIBC selects the fff native lib variant: "musl" or "gnu".
       FFF_LIBC: item.os === "linux" ? `'${item.abi ?? "gnu"}'` : "undefined",
       ...(item.os === "linux" ? { "process.env.OPENTUI_LIBC": JSON.stringify(item.abi ?? "glibc") } : {}),
@@ -102,7 +102,7 @@ for (const item of targets) {
     `./dist/${name}/package.json`,
     JSON.stringify(
       {
-        name: `@hena-agent/${name}`,
+        name: `@hena/${name}`,
         version: Script.version,
         license: "MIT",
         repository: { type: "git", url: "git+https://github.com/hena-agent/hena.git" },

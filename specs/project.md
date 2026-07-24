@@ -1,6 +1,6 @@
 ## project
 
-The goal is to let a single Hena Agent instance run sessions for multiple projects and different worktrees per project.
+The goal is to let a single Hena instance run sessions for multiple projects and different worktrees per project.
 
 ### api
 

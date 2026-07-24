@@ -1,5 +1,5 @@
 import type { APIEvent } from "@solidjs/start/server"
-import { ZenData } from "@hena-agent/console-core/model.js"
+import { ZenData } from "@hena/console-core/model.js"
 import { buildModelsResponse, buildOptionsResponse } from "../../util/modelsHandler"
 
 export async function OPTIONS(_input: APIEvent) {

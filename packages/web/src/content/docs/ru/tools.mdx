@@ -3,7 +3,7 @@ title: Инструменты
 description: Управляйте инструментами, которые может использовать LLM.
 ---
 
-Инструменты позволяют LLM выполнять действия в вашей кодовой базе. hena-agent поставляется с набором встроенных инструментов, но вы можете расширить его с помощью [пользовательских инструментов](/docs/custom-tools) или [MCP-серверов](/docs/mcp-servers).
+Инструменты позволяют LLM выполнять действия в вашей кодовой базе. hena поставляется с набором встроенных инструментов, но вы можете расширить его с помощью [пользовательских инструментов](/docs/custom-tools) или [MCP-серверов](/docs/mcp-servers).
 
 По умолчанию все инструменты **включены** и не требуют разрешения для запуска. Вы можете контролировать поведение инструмента через [permissions](/docs/permissions).
 
@@ -13,7 +13,7 @@ description: Управляйте инструментами, которые м�
 
 Используйте поле `permission` для управления поведением инструмента. Вы можете разрешить, запретить или потребовать одобрения для каждого инструмента.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -26,7 +26,7 @@ description: Управляйте инструментами, которые м�
 
 Вы также можете использовать подстановочные знаки для одновременного управления несколькими инструментами. Например, чтобы потребовать одобрения всех инструментов с сервера MCP:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -41,7 +41,7 @@ description: Управляйте инструментами, которые м�
 
 ## Встроенный
 
-Вот все встроенные инструменты, доступные в Hena Agent.
+Вот все встроенные инструменты, доступные в Hena.
 
 ---
 
@@ -49,7 +49,7 @@ description: Управляйте инструментами, которые м�
 
 Выполняйте shell-команды в среде вашего проекта.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -66,7 +66,7 @@ description: Управляйте инструментами, которые м�
 
 Измените существующие файлы, используя точную замену строк.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -83,7 +83,7 @@ description: Управляйте инструментами, которые м�
 
 Создавайте новые файлы или перезаписывайте существующие.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -104,7 +104,7 @@ description: Управляйте инструментами, которые м�
 
 Прочитайте содержимое файла из вашей кодовой базы.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -121,7 +121,7 @@ description: Управляйте инструментами, которые м�
 
 Поиск содержимого файла с помощью регулярных выражений.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -138,7 +138,7 @@ description: Управляйте инструментами, которые м�
 
 Найдите файлы по шаблону.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -156,10 +156,10 @@ description: Управляйте инструментами, которые м�
 Взаимодействуйте с настроенными серверами LSP, чтобы получить функции анализа кода, такие как определения, ссылки, информация о наведении и иерархия вызовов.
 
 :::note
-Этот инструмент доступен только при `HENA_AGENT_EXPERIMENTAL_LSP_TOOL=true` (или `HENA_AGENT_EXPERIMENTAL=true`).
+Этот инструмент доступен только при `HENA_EXPERIMENTAL_LSP_TOOL=true` (или `HENA_EXPERIMENTAL=true`).
 :::
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -178,7 +178,7 @@ description: Управляйте инструментами, которые м�
 
 Применяйте патчи к файлам.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -199,7 +199,7 @@ description: Управляйте инструментами, которые м�
 
 Загрузите [skill](/docs/skills) (файл `SKILL.md`) и верните его содержимое в диалог.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -214,7 +214,7 @@ description: Управляйте инструментами, которые м�
 
 Управляйте списками дел во время сеансов кодирования.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -235,7 +235,7 @@ description: Управляйте инструментами, которые м�
 
 Получить веб-контент.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -253,17 +253,17 @@ description: Управляйте инструментами, которые м�
 Найдите информацию в Интернете.
 
 :::note
-Этот инструмент доступен только при использовании поставщика hena-agent или когда для переменной среды `HENA_AGENT_ENABLE_EXA` установлено любое истинное значение (например, `true` или `1`).
+Этот инструмент доступен только при использовании поставщика hena или когда для переменной среды `HENA_ENABLE_EXA` установлено любое истинное значение (например, `true` или `1`).
 
-Чтобы включить при запуске hena-agent:
+Чтобы включить при запуске hena:
 
 ```bash
-HENA_AGENT_ENABLE_EXA=1 hena-agent
+HENA_ENABLE_EXA=1 hena
 ```
 
 :::
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {
@@ -286,7 +286,7 @@ HENA_AGENT_ENABLE_EXA=1 hena-agent
 
 Задавайте вопросы пользователю во время выполнения.
 
-```json title="hena-agent.json" {4}
+```json title="hena.json" {4}
 {
   "$schema": "https://hena.dev/config.json",
   "permission": {

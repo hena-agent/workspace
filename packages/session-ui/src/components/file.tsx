@@ -1,4 +1,4 @@
-import { sampledChecksum } from "@hena-agent/core/util/encode"
+import { sampledChecksum } from "@hena/core/util/encode"
 import {
   areFilesEqual,
   areOptionsEqual,

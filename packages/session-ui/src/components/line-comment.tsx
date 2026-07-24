@@ -1,11 +1,11 @@
-import { useFilteredList } from "@hena-agent/ui/hooks"
-import { getDirectory, getFilename } from "@hena-agent/core/util/path"
+import { useFilteredList } from "@hena/ui/hooks"
+import { getDirectory, getFilename } from "@hena/core/util/path"
 import { createSignal, For, onMount, Show, splitProps, type JSX } from "solid-js"
-import { Button } from "@hena-agent/ui/button"
-import { FileIcon } from "@hena-agent/ui/file-icon"
-import { Icon } from "@hena-agent/ui/icon"
+import { Button } from "@hena/ui/button"
+import { FileIcon } from "@hena/ui/file-icon"
+import { Icon } from "@hena/ui/icon"
 import { installLineCommentStyles } from "./line-comment-styles"
-import { useI18n } from "@hena-agent/ui/context/i18n"
+import { useI18n } from "@hena/ui/context/i18n"
 
 installLineCommentStyles()
 

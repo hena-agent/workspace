@@ -1,7 +1,7 @@
 export * as ProjectSchema from "./schema"
 
 import { Schema } from "effect"
-import { Project } from "@hena-agent/schema/project"
+import { Project } from "@hena/schema/project"
 import { AbsolutePath } from "../schema"
 
 export const ID = Project.ID

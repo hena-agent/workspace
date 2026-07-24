@@ -1,28 +1,28 @@
 ---
 title: الويب
-description: استخدام Hena Agent في متصفحك.
+description: استخدام Hena في متصفحك.
 ---
 
-يمكن تشغيل Hena Agent كتطبيق ويب داخل متصفحك، ليمنحك تجربة البرمجة القوية بالذكاء الاصطناعي نفسها دون الحاجة إلى terminal.
+يمكن تشغيل Hena كتطبيق ويب داخل متصفحك، ليمنحك تجربة البرمجة القوية بالذكاء الاصطناعي نفسها دون الحاجة إلى terminal.
 
-![Hena Agent Web - جلسة جديدة](../../../assets/web/web-homepage-new-session.png)
+![Hena Web - جلسة جديدة](../../../assets/web/web-homepage-new-session.png)
 
 ## البدء
 
 ابدأ تشغيل واجهة الويب عبر تنفيذ:
 
 ```bash
-hena-agent web
+hena web
 ```
 
-يؤدي ذلك إلى تشغيل خادم محلي على `127.0.0.1` بمنفذ عشوائي متاح، ويفتح Hena Agent تلقائيا في المتصفح الافتراضي لديك.
+يؤدي ذلك إلى تشغيل خادم محلي على `127.0.0.1` بمنفذ عشوائي متاح، ويفتح Hena تلقائيا في المتصفح الافتراضي لديك.
 
 :::caution
-إذا لم يتم تعيين `HENA_AGENT_SERVER_PASSWORD` فسيكون الخادم دون حماية. هذا مناسب للاستخدام المحلي، لكنه يجب أن يكون مُعينا عند إتاحة الوصول عبر الشبكة.
+إذا لم يتم تعيين `HENA_SERVER_PASSWORD` فسيكون الخادم دون حماية. هذا مناسب للاستخدام المحلي، لكنه يجب أن يكون مُعينا عند إتاحة الوصول عبر الشبكة.
 :::
 
 :::tip[مستخدمو Windows]
-لأفضل تجربة، شغّل `hena-agent web` من [WSL](/docs/windows-wsl) بدلا من PowerShell. يضمن ذلك وصولا صحيحا إلى نظام الملفات وتكاملا أفضل مع terminal.
+لأفضل تجربة، شغّل `hena web` من [WSL](/docs/windows-wsl) بدلا من PowerShell. يضمن ذلك وصولا صحيحا إلى نظام الملفات وتكاملا أفضل مع terminal.
 :::
 
 ---
@@ -33,21 +33,21 @@ hena-agent web
 
 ### المنفذ
 
-افتراضيا، يختار Hena Agent منفذا متاحا. يمكنك تحديد منفذ:
+افتراضيا، يختار Hena منفذا متاحا. يمكنك تحديد منفذ:
 
 ```bash
-hena-agent web --port 4096
+hena web --port 4096
 ```
 
 ### اسم المضيف
 
-افتراضيا، يرتبط الخادم بـ `127.0.0.1` (للاستخدام المحلي فقط). لجعل Hena Agent متاحا على شبكتك:
+افتراضيا، يرتبط الخادم بـ `127.0.0.1` (للاستخدام المحلي فقط). لجعل Hena متاحا على شبكتك:
 
 ```bash
-hena-agent web --hostname 0.0.0.0
+hena web --hostname 0.0.0.0
 ```
 
-عند استخدام `0.0.0.0` سيعرض Hena Agent كلا من عناوين الوصول المحلي وعناوين الشبكة:
+عند استخدام `0.0.0.0` سيعرض Hena كلا من عناوين الوصول المحلي وعناوين الشبكة:
 
 ```
   Local access:       http://localhost:4096
@@ -59,15 +59,15 @@ hena-agent web --hostname 0.0.0.0
 فعّل mDNS لجعل خادمك قابلا للاكتشاف على الشبكة المحلية:
 
 ```bash
-hena-agent web --mdns
+hena web --mdns
 ```
 
-يضبط ذلك تلقائيا اسم المضيف إلى `0.0.0.0` ويعلن عن الخادم باسم `hena-agent.local`.
+يضبط ذلك تلقائيا اسم المضيف إلى `0.0.0.0` ويعلن عن الخادم باسم `hena.local`.
 
 يمكنك تخصيص اسم نطاق mDNS لتشغيل عدة نسخ على الشبكة نفسها:
 
 ```bash
-hena-agent web --mdns --mdns-domain myproject.local
+hena web --mdns --mdns-domain myproject.local
 ```
 
 ### CORS
@@ -75,36 +75,36 @@ hena-agent web --mdns --mdns-domain myproject.local
 للسماح بنطاقات إضافية عبر CORS (مفيد للواجهات الأمامية المخصصة):
 
 ```bash
-hena-agent web --cors https://example.com
+hena web --cors https://example.com
 ```
 
 ### المصادقة
 
-لحماية الوصول، عيّن كلمة مرور عبر متغير البيئة `HENA_AGENT_SERVER_PASSWORD`:
+لحماية الوصول، عيّن كلمة مرور عبر متغير البيئة `HENA_SERVER_PASSWORD`:
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=secret hena-agent web
+HENA_SERVER_PASSWORD=secret hena web
 ```
 
-اسم المستخدم الافتراضي هو `hena-agent`، ويمكن تغييره عبر `HENA_AGENT_SERVER_USERNAME`.
+اسم المستخدم الافتراضي هو `hena`، ويمكن تغييره عبر `HENA_SERVER_USERNAME`.
 
 ---
 
 ## استخدام واجهة الويب
 
-بعد التشغيل، تتيح لك واجهة الويب الوصول إلى جلسات Hena Agent الخاصة بك.
+بعد التشغيل، تتيح لك واجهة الويب الوصول إلى جلسات Hena الخاصة بك.
 
 ### الجلسات
 
 اعرض جلساتك وأدرها من الصفحة الرئيسية. يمكنك رؤية الجلسات النشطة وبدء جلسات جديدة.
 
-![Hena Agent Web - جلسة نشطة](../../../assets/web/web-homepage-active-session.png)
+![Hena Web - جلسة نشطة](../../../assets/web/web-homepage-active-session.png)
 
 ### حالة الخادم
 
 انقر على "See Servers" لعرض الخوادم المتصلة وحالتها.
 
-![Hena Agent Web - See Servers (عرض الخوادم)](../../../assets/web/web-homepage-see-servers.png)
+![Hena Web - See Servers (عرض الخوادم)](../../../assets/web/web-homepage-see-servers.png)
 
 ---
 
@@ -114,10 +114,10 @@ HENA_AGENT_SERVER_PASSWORD=secret hena-agent web
 
 ```bash
 # ابدأ خادم الويب
-hena-agent web --port 4096
+hena web --port 4096
 
 # في محطة طرفية أخرى، اربط TUI
-hena-agent attach http://localhost:4096
+hena attach http://localhost:4096
 ```
 
 يتيح لك ذلك استخدام واجهة الويب وterminal في الوقت نفسه، مع مشاركة الجلسات والحالة نفسها.
@@ -126,7 +126,7 @@ hena-agent attach http://localhost:4096
 
 ## ملف الإعدادات
 
-يمكنك أيضا ضبط إعدادات الخادم داخل ملف الإعدادات `hena-agent.json`:
+يمكنك أيضا ضبط إعدادات الخادم داخل ملف الإعدادات `hena.json`:
 
 ```json
 {

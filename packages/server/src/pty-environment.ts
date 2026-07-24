@@ -1,13 +1,13 @@
 export * as PtyEnvironment from "./pty-environment"
 
 import { Context, Effect, Layer } from "effect"
-import { makeGlobalNode } from "@hena-agent/core/effect/app-node"
+import { makeGlobalNode } from "@hena/core/effect/app-node"
 
 export interface Interface {
   readonly get: (input: { directory: string; cwd: string }) => Effect.Effect<Record<string, string>>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@hena-agent/ServerPtyEnvironment") {}
+export class Service extends Context.Service<Service, Interface>()("@hena/ServerPtyEnvironment") {}
 
 export const layer = Layer.succeed(
   Service,

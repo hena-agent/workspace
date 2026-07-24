@@ -30,25 +30,25 @@ const tools: readonly ToolFixture[] = [
   {
     icon: "✱",
     label:
-      'Grep "HENA_AGENT.*DB|database|sqlite|drizzle|dev.*db|data.*dir|xdg|APPDATA" in packages/hena-agent/src (151 matches)',
+      'Grep "HENA.*DB|database|sqlite|drizzle|dev.*db|data.*dir|xdg|APPDATA" in packages/hena/src (151 matches)',
   },
   {
     icon: "✱",
-    label: 'Glob "**/*db*" in packages/hena-agent (6 matches)',
+    label: 'Glob "**/*db*" in packages/hena (6 matches)',
   },
   {
     icon: "→",
-    label: "Read packages/hena-agent/src/storage/db.ts [offset=1, limit=130]",
+    label: "Read packages/hena/src/storage/db.ts [offset=1, limit=130]",
   },
   {
     icon: "→",
-    label: "Read packages/hena-agent/src/index.ts [offset=1, limit=100]",
+    label: "Read packages/hena/src/index.ts [offset=1, limit=100]",
     error: "No LSP server available for this file type.",
   },
   {
     icon: "✱",
     label:
-      'Grep "export const HENA_AGENT_DB|HENA_AGENT_DB|HENA_AGENT_DEV|Global\\.Path\\.data|data =" in packages/hena-agent/src (115 matches)',
+      'Grep "export const HENA_DB|HENA_DB|HENA_DEV|Global\\.Path\\.data|data =" in packages/hena/src (115 matches)',
   },
 ] as const
 

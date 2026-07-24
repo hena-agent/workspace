@@ -23,7 +23,7 @@ beforeAll(async () => {
     useLocation: () => ({ pathname: "", query: {} }),
     useNavigate: () => () => undefined,
   }))
-  mock.module("@hena-agent/ui/context", () => ({
+  mock.module("@hena/ui/context", () => ({
     createSimpleContext: () => ({
       use: () => undefined,
       provider: () => undefined,

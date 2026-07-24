@@ -1,13 +1,13 @@
 ---
 title: SDK
-description: Type-safe JS klijent za hena-agent server.
+description: Type-safe JS klijent za hena server.
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-hena-agent JS/TS SDK pruza type-safe klijent za interakciju sa serverom.
-Koristite ga za izradu integracija i programsko upravljanje hena-agent-om.
+hena JS/TS SDK pruza type-safe klijent za interakciju sa serverom.
+Koristite ga za izradu integracija i programsko upravljanje hena-om.
 
 [Saznajte vise](/docs/server) kako server radi. Za primjere pogledajte [projects](/docs/ecosystem#projects) koje je napravila zajednica.
 
@@ -18,19 +18,19 @@ Koristite ga za izradu integracija i programsko upravljanje hena-agent-om.
 Instalirajte SDK sa npm-a:
 
 ```bash
-npm install @hena-agent/sdk
+npm install @hena/sdk
 ```
 
 ---
 
 ## Kreiranje klijenta
 
-Kreirajte instancu hena-agent:
+Kreirajte instancu hena:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const { client } = await createHenaAgent()
+const { client } = await createHena()
 ```
 
 Ovo pokrece i server i klijent
@@ -49,12 +49,12 @@ Ovo pokrece i server i klijent
 
 ## Konfiguracija
 
-Mozete proslijediti konfiguracijski objekat za prilagodavanje ponasanja. Instanca i dalje ucitava `hena-agent.json`, ali konfiguraciju mozete nadjacati ili dodati inline:
+Mozete proslijediti konfiguracijski objekat za prilagodavanje ponasanja. Instanca i dalje ucitava `hena.json`, ali konfiguraciju mozete nadjacati ili dodati inline:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const agent = await createHenaAgent({
+const agent = await createHena({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -69,12 +69,12 @@ agent.server.close()
 
 ## Samo klijent
 
-Ako vec imate pokrenutu hena-agent instancu, mozete napraviti klijentsku instancu i povezati se na nju:
+Ako vec imate pokrenutu hena instancu, mozete napraviti klijentsku instancu i povezati se na nju:
 
 ```javascript
-import { createHenaAgentClient } from "@hena-agent/sdk"
+import { createHenaClient } from "@hena/sdk"
 
-const client = createHenaAgentClient({
+const client = createHenaClient({
   baseUrl: "http://localhost:4096",
 })
 ```
@@ -96,7 +96,7 @@ const client = createHenaAgentClient({
 SDK ukljucuje TypeScript definicije za sve API tipove. Uvezite ih direktno:
 
 ```typescript
-import type { Session, Message, Part } from "@hena-agent/sdk"
+import type { Session, Message, Part } from "@hena/sdk"
 ```
 
 Svi tipovi su generisani iz OpenAPI specifikacije servera i dostupni u <a href={typesUrl}>types datoteci</a>.
@@ -376,7 +376,7 @@ await client.session.prompt({
 ```javascript
 // Search and read files
 const textResults = await client.find.text({
-  query: { pattern: "function.*hena-agent" },
+  query: { pattern: "function.*hena" },
 })
 
 const files = await client.find.files({

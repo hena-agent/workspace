@@ -1,5 +1,5 @@
 import { NodeFileSystem } from "@effect/platform-node"
-import { compile, emitEffectImported, emitPromise, write } from "@hena-agent/httpapi-codegen"
+import { compile, emitEffectImported, emitPromise, write } from "@hena/httpapi-codegen"
 import { ClientApi, endpointNames, groupNames, omitEndpoints } from "../src/contract"
 import { Effect } from "effect"
 import { fileURLToPath } from "url"
@@ -13,8 +13,8 @@ await Effect.runPromise(
         emitPromise(contract, {
           outputTypes: {
             "events.subscribe": {
-              name: "HenaAgentEventEncoded",
-              import: 'import type { HenaAgentEventEncoded } from "@hena-agent/protocol/groups/event"',
+              name: "HenaEventEncoded",
+              import: 'import type { HenaEventEncoded } from "@hena/protocol/groups/event"',
             },
           },
         }),

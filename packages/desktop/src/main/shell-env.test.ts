@@ -25,13 +25,13 @@ describe("shell env", () => {
       },
       {
         PATH: "/desktop/path",
-        HENA_AGENT_CLIENT: "desktop",
+        HENA_CLIENT: "desktop",
       },
     )
 
     expect(env.PATH).toBe("/desktop/path")
     expect(env.HOME).toBe("/tmp/home")
-    expect(env.HENA_AGENT_CLIENT).toBe("desktop")
+    expect(env.HENA_CLIENT).toBe("desktop")
   })
 
   test("resolveUserShell falls back to the login shell before /bin/sh", () => {

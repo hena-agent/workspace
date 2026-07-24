@@ -54,7 +54,7 @@ export async function exportDebugLogs() {
     await netLog.stopLogging().catch((error) => write("network", "failed to stop net log", { error }))
   }
 
-  const output = join(app.getPath("downloads"), `hena-agent-debug-${stamp()}.zip`)
+  const output = join(app.getPath("downloads"), `hena-debug-${stamp()}.zip`)
   try {
     write("main", "exporting debug logs", { output })
     await writeZip(output, [
@@ -153,8 +153,8 @@ function serverLogRoots() {
   const xdgData = process.env.XDG_DATA_HOME || join(homedir(), ".local", "share")
   return [
     ...new Set([
-      join(xdgData, "hena-agent", "log"),
-      join(app.getPath("userData"), "hena-agent", "log"),
+      join(xdgData, "hena", "log"),
+      join(app.getPath("userData"), "hena", "log"),
     ]),
   ]
 }

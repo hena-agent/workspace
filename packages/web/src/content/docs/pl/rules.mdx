@@ -1,9 +1,9 @@
 ---
 title: Zasady
-description: Ustaw niestandardowe instrukcje dla Hena Agent.
+description: Ustaw niestandardowe instrukcje dla Hena.
 ---
 
-Możesz dostarczyć niestandardowe instrukcje do hena-agent, tworząc plik `AGENTS.md`. Jest to podobne do zasad Cursora. Zawiera instrukcje, które zostaną uwzględnione w kontekście LLM, aby dostosować jego zachowanie do konkretnego projektu.
+Możesz dostarczyć niestandardowe instrukcje do hena, tworząc plik `AGENTS.md`. Jest to podobne do zasad Cursora. Zawiera instrukcje, które zostaną uwzględnione w kontekście LLM, aby dostosować jego zachowanie do konkretnego projektu.
 
 ---
 
@@ -54,7 +54,7 @@ Dodajemy tutaj instrukcje dotyczące konkretnego projektu, które zostaną udost
 
 ## Typy
 
-hena-agent obsługuje także odczytywanie pliku `AGENTS.md` z wielu lokalizacji. A to służy różnym celom.
+hena obsługuje także odczytywanie pliku `AGENTS.md` z wielu lokalizacji. A to służy różnym celom.
 
 ### Projekt
 
@@ -62,47 +62,47 @@ Umieść `AGENTS.md` w katalogu głównym projektu, aby uzyskać reguły specyfi
 
 ### Globalne
 
-Możesz także mieć reguły globalne w pliku `~/.config/hena-agent/AGENTS.md`. Jest to stosowane we wszystkich sesjach Hena Agent.
+Możesz także mieć reguły globalne w pliku `~/.config/hena/AGENTS.md`. Jest to stosowane we wszystkich sesjach Hena.
 
 Ponieważ nie jest to wymagane dla Git ani udostępniane Twojemu zespołowi, zalecamy użycie tego do określenia wszelkich osobistych zasad, których powinien przestrzegać LLM.
 
 ### Kompatybilność z Claude Code
 
-W przypadku użytkowników migrujących z Claude Code hena-agent obsługuje konwencje plików Claude Code jako rozwiązania awaryjne:
+W przypadku użytkowników migrujących z Claude Code hena obsługuje konwencje plików Claude Code jako rozwiązania awaryjne:
 
 - **Zasady projektu**: `CLAUDE.md` w katalogu projektu (używane, jeśli nie istnieje `AGENTS.md`)
-- **Zasady globalne**: `~/.claude/CLAUDE.md` (używane, jeśli nie istnieje `~/.config/hena-agent/AGENTS.md`)
+- **Zasady globalne**: `~/.claude/CLAUDE.md` (używane, jeśli nie istnieje `~/.config/hena/AGENTS.md`)
 - **Umiejętności**: `~/.claude/skills/` — szczegóły znajdziesz w [Umiejętnościach agenta](/docs/skills/)
 
 Aby wyłączyć kompatybilność z Claude Code, ustaw jedną z tych zmiennych środowiskowych:
 
 ```bash
-export HENA_AGENT_DISABLE_CLAUDE_CODE=1        # Disable all .claude support
-export HENA_AGENT_DISABLE_CLAUDE_CODE_PROMPT=1 # Disable only ~/.claude/CLAUDE.md
-export HENA_AGENT_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
+export HENA_DISABLE_CLAUDE_CODE=1        # Disable all .claude support
+export HENA_DISABLE_CLAUDE_CODE_PROMPT=1 # Disable only ~/.claude/CLAUDE.md
+export HENA_DISABLE_CLAUDE_CODE_SKILLS=1 # Disable only .claude/skills
 ```
 
 ---
 
 ## Priorytet
 
-Po uruchomieniu hena-agent szuka plików reguł w następującej kolejności:
+Po uruchomieniu hena szuka plików reguł w następującej kolejności:
 
 1. **Pliki lokalne** poprzez przejście z bieżącego katalogu (`AGENTS.md`, `CLAUDE.md`)
-2. **Plik globalny** w `~/.config/hena-agent/AGENTS.md`
+2. **Plik globalny** w `~/.config/hena/AGENTS.md`
 3. **Plik Claude Code** w `~/.claude/CLAUDE.md` (chyba że wyłączony)
 
-Pierwszy pasujący plik wygrywa w każdej kategorii. Na przykład, jeśli masz zarówno `AGENTS.md`, jak i `CLAUDE.md`, używany jest tylko `AGENTS.md`. Podobnie `~/.config/hena-agent/AGENTS.md` ma pierwszeństwo przed `~/.claude/CLAUDE.md`.
+Pierwszy pasujący plik wygrywa w każdej kategorii. Na przykład, jeśli masz zarówno `AGENTS.md`, jak i `CLAUDE.md`, używany jest tylko `AGENTS.md`. Podobnie `~/.config/hena/AGENTS.md` ma pierwszeństwo przed `~/.claude/CLAUDE.md`.
 
 ---
 
 ## Instrukcje niestandardowe
 
-Możesz określić niestandardowe pliki instrukcji w swoim `hena-agent.json` lub globalnym `~/.config/hena-agent/hena.json`. Dzięki temu Ty i Twój zespół możecie ponownie wykorzystać istniejące reguły, zamiast duplikować je w pliku AGENTS.md.
+Możesz określić niestandardowe pliki instrukcji w swoim `hena.json` lub globalnym `~/.config/hena/hena.json`. Dzięki temu Ty i Twój zespół możecie ponownie wykorzystać istniejące reguły, zamiast duplikować je w pliku AGENTS.md.
 
 Przykład:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
@@ -111,7 +111,7 @@ Przykład:
 
 Możesz także użyć zdalnych adresów URL, aby załadować instrukcje z Internetu.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "instructions": ["https://raw.githubusercontent.com/my-org/shared-rules/main/style.md"]
@@ -126,13 +126,13 @@ Wszystkie pliki instrukcji są łączone z plikami `AGENTS.md`.
 
 ## Odwoływanie się do plików zewnętrznych
 
-Chociaż hena-agent nie analizuje automatycznie odniesień do plików w `AGENTS.md`, możesz osiągnąć podobną funkcjonalność na dwa sposoby:
+Chociaż hena nie analizuje automatycznie odniesień do plików w `AGENTS.md`, możesz osiągnąć podobną funkcjonalność na dwa sposoby:
 
-### Używanie hena-agent.json
+### Używanie hena.json
 
-Zalecanym podejściem jest użycie pola `instructions` w `hena-agent.json`:
+Zalecanym podejściem jest użycie pola `instructions` w `hena.json`:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "instructions": ["docs/development-standards.md", "test/testing-guidelines.md", "packages/*/AGENTS.md"]
@@ -141,7 +141,7 @@ Zalecanym podejściem jest użycie pola `instructions` w `hena-agent.json`:
 
 ### Ręczne instrukcje w AGENTS.md
 
-Możesz nauczyć hena-agent czytać pliki zewnętrzne, podając wyraźne instrukcje w swoim `AGENTS.md`. Oto praktyczny przykład:
+Możesz nauczyć hena czytać pliki zewnętrzne, podając wyraźne instrukcje w swoim `AGENTS.md`. Oto praktyczny przykład:
 
 ```markdown title="AGENTS.md"
 # TypeScript Project Rules
@@ -173,8 +173,8 @@ Takie podejście pozwala:
 - Twórz modułowe pliki reguł wielokrotnego użytku
 - Share rules across projects via symlinks or git submodules
 - Keep AGENTS.md concise while referencing detailed guidelines
-- Upewnij się, że hena-agent ładuje pliki tylko wtedy, gdy są potrzebne do konkretnego zadania
+- Upewnij się, że hena ładuje pliki tylko wtedy, gdy są potrzebne do konkretnego zadania
 
 :::tip
-W przypadku monorepo lub projektów ze wspólnymi standardami użycie `hena-agent.json` ze wzorami globalnymi (takimi jak `packages/*/AGENTS.md`) jest łatwiejsze w utrzymaniu niż instrukcje ręczne.
+W przypadku monorepo lub projektów ze wspólnymi standardami użycie `hena.json` ze wzorami globalnymi (takimi jak `packages/*/AGENTS.md`) jest łatwiejsze w utrzymaniu niż instrukcje ręczne.
 :::

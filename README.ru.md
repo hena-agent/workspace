@@ -3,14 +3,14 @@
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena Agent logo">
+      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena logo">
     </picture>
   </a>
 </p>
 <p align="center">Открытый AI-агент для программирования.</p>
 <p align="center">
   <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/hena"><img alt="npm" src="https://img.shields.io/npm/v/hena?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
 
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
+[![Hena Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -50,14 +50,14 @@
 curl -fsSL https://hena.dev/install | bash
 
 # Менеджеры пакетов
-npm i -g hena-agent@latest        # или bun/pnpm/yarn
-scoop install hena-agent             # Windows
-choco install hena-agent             # Windows
-brew install hena-agent/tap/hena-agent # macOS и Linux (рекомендуем, всегда актуально)
-brew install hena-agent              # macOS и Linux (официальная формула brew, обновляется реже)
-sudo pacman -S hena-agent            # Arch Linux (Stable)
-paru -S hena-agent-bin               # Arch Linux (Latest from AUR)
-mise use -g hena-agent               # любая ОС
+npm i -g hena@latest        # или bun/pnpm/yarn
+scoop install hena             # Windows
+choco install hena             # Windows
+brew install hena-agent/tap/hena # macOS и Linux (рекомендуем, всегда актуально)
+brew install hena              # macOS и Linux (официальная формула brew, обновляется реже)
+sudo pacman -S hena            # Arch Linux (Stable)
+paru -S hena-bin               # Arch Linux (Latest from AUR)
+mise use -g hena               # любая ОС
 nix run github:hena-agent/hena           # или github:hena-agent/hena для самой свежей ветки dev
 ```
 
@@ -66,40 +66,40 @@ nix run github:hena-agent/hena           # или github:hena-agent/hena для 
 
 ### Десктопное приложение (BETA)
 
-Hena Agent также доступен как десктопное приложение. Скачайте его со [страницы релизов](https://github.com/hena-agent/hena/releases) или с [hena.dev/download](https://hena.dev/download).
+Hena также доступен как десктопное приложение. Скачайте его со [страницы релизов](https://github.com/hena-agent/hena/releases) или с [hena.dev/download](https://hena.dev/download).
 
 | Платформа             | Загрузка                           |
 | --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `hena-agent-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `hena-agent-desktop-mac-x64.dmg`     |
-| Windows               | `hena-agent-desktop-windows-x64.exe` |
+| macOS (Apple Silicon) | `hena-desktop-mac-arm64.dmg`   |
+| macOS (Intel)         | `hena-desktop-mac-x64.dmg`     |
+| Windows               | `hena-desktop-windows-x64.exe` |
 | Linux                 | `.deb`, `.rpm` или AppImage        |
 
 ```bash
 # macOS (Homebrew)
-brew install --cask hena-agent
+brew install --cask hena
 # Windows (Scoop)
-scoop bucket add extras; scoop install hena-agent
+scoop bucket add extras; scoop install hena
 ```
 
 #### Каталог установки
 
 Скрипт установки выбирает путь установки в следующем порядке приоритета:
 
-1. `$HENA_AGENT_INSTALL_DIR` - Пользовательский каталог установки
+1. `$HENA_INSTALL_DIR` - Пользовательский каталог установки
 2. `$XDG_BIN_DIR` - Путь, совместимый со спецификацией XDG Base Directory
 3. `$HOME/bin` - Стандартный каталог пользовательских бинарников (если существует или можно создать)
-4. `$HOME/.hena-agent/bin` - Fallback по умолчанию
+4. `$HOME/.hena/bin` - Fallback по умолчанию
 
 ```bash
 # Примеры
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+HENA_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
 XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agents
 
-В Hena Agent есть два встроенных агента, между которыми можно переключаться клавишей `Tab`.
+В Hena есть два встроенных агента, между которыми можно переключаться клавишей `Tab`.
 
 - **build** - По умолчанию, агент с полным доступом для разработки
 - **plan** - Агент только для чтения для анализа и изучения кода
@@ -114,15 +114,15 @@ XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 
 ### Документация
 
-Больше информации о том, как настроить Hena Agent: [**наши docs**](https://hena.dev/docs).
+Больше информации о том, как настроить Hena: [**наши docs**](https://hena.dev/docs).
 
 ### Вклад
 
-Если вы хотите внести вклад в Hena Agent, прочитайте [contributing docs](./CONTRIBUTING.md) перед тем, как отправлять pull request.
+Если вы хотите внести вклад в Hena, прочитайте [contributing docs](./CONTRIBUTING.md) перед тем, как отправлять pull request.
 
-### Разработка на базе Hena Agent
+### Разработка на базе Hena
 
-Если вы делаете проект, связанный с Hena Agent, и используете "hena-agent" как часть имени (например, "hena-agent-dashboard" или "hena-agent-mobile"), добавьте примечание в README, чтобы уточнить, что проект не создан командой Hena Agent и не аффилирован с нами.
+Если вы делаете проект, связанный с Hena, и используете "hena" как часть имени (например, "hena-dashboard" или "hena-mobile"), добавьте примечание в README, чтобы уточнить, что проект не создан командой Hena и не аффилирован с нами.
 
 ---
 

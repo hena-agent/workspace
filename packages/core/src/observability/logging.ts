@@ -47,7 +47,7 @@ function format(input: unknown) {
   return /^[^\s="\\]+$/.test(value) ? value : JSON.stringify(value)
 }
 
-export function fileLogger(file = path.join(Global.Path.log, "hena-agent.log"), id: string = runID) {
+export function fileLogger(file = path.join(Global.Path.log, "hena.log"), id: string = runID) {
   // Do not set batchWindow to 0; it causes high idle CPU usage.
   return Logger.toFile(formatter(id), file, { flag: "a" })
 }
@@ -55,7 +55,7 @@ export function fileLogger(file = path.join(Global.Path.log, "hena-agent.log"), 
 const stderrLogger = Logger.make((options) => process.stderr.write(formatter().log(options) + "\n"))
 
 export function minimumLogLevel() {
-  const value = Flag.HENA_AGENT_LOG_LEVEL?.toUpperCase()
+  const value = Flag.HENA_LOG_LEVEL?.toUpperCase()
   const levels = {
     DEBUG: "Debug",
     INFO: "Info",
@@ -66,7 +66,7 @@ export function minimumLogLevel() {
 }
 
 export function loggers() {
-  return Flag.HENA_AGENT_PRINT_LOGS ? [fileLogger(), stderrLogger] : [fileLogger()]
+  return Flag.HENA_PRINT_LOGS ? [fileLogger(), stderrLogger] : [fileLogger()]
 }
 
 export * as Logging from "./logging"

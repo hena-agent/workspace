@@ -5,11 +5,11 @@ import path from "path"
 import os from "os"
 import { Cause, Effect, Exit } from "effect"
 import { testEffect } from "../lib/effect"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { EffectFlock } from "@hena-agent/core/util/effect-flock"
-import { Global } from "@hena-agent/core/global"
-import { Hash } from "@hena-agent/core/util/hash"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { EffectFlock } from "@hena/core/util/effect-flock"
+import { Global } from "@hena/core/global"
+import { Hash } from "@hena/core/util/hash"
 
 function lock(dir: string, key: string) {
   return path.join(dir, Hash.fast(key) + ".lock")

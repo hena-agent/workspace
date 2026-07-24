@@ -73,7 +73,7 @@ export function FlashShare() {
         {/* headline (static) */}
         <div style={{ marginTop: 50 }}>
           <div style={{ fontSize: 23, fontWeight: 600, color: c.muted, letterSpacing: 2 }}>
-            HENA AGENT GO · SHARE OF TOKENS
+            HENA GO · SHARE OF TOKENS
           </div>
           <div
             style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 24, marginTop: 14 }}

@@ -9,7 +9,7 @@ export const email = `mailto:${config.email}`
 
 Hena Go, popüler açık kodlama modellerine güvenilir erişim sağlayan düşük maliyetli bir aboneliktir — **ilk ayınız için 5$**, sonrasında **aylık 10$**.
 
-Go, Hena Agent'daki diğer sağlayıcılar gibi çalışır. Hena Go'ya abone olur ve API anahtarınızı alırsınız. Bu **tamamen isteğe bağlıdır** ve Hena Agent'u kullanmak için bunu kullanmanıza gerek yoktur.
+Go, Hena'daki diğer sağlayıcılar gibi çalışır. Hena Go'ya abone olur ve API anahtarınızı alırsınız. Bu **tamamen isteğe bağlıdır** ve Hena'u kullanmak için bunu kullanmanıza gerek yoktur.
 
 Dünya çapında istikrarlı erişim için ABD, AB ve Singapur'da barındırılan modellerle temel olarak uluslararası kullanıcılar için tasarlanmıştır.
 
@@ -22,7 +22,7 @@ Açık modeller gerçekten çok iyi hale geldi. Artık kodlama görevleri için 
 Ancak, bu modellere güvenilir, düşük gecikmeli erişim sağlamak zor olabilir. Sağlayıcılar kalite ve erişilebilirlik açısından farklılık gösterir.
 
 :::tip
-Hena Agent ile iyi çalışan seçili bir model ve sağlayıcı grubunu test ettik.
+Hena ile iyi çalışan seçili bir model ve sağlayıcı grubunu test ettik.
 :::
 
 Bunu çözmek için birkaç şey yaptık:
@@ -37,7 +37,7 @@ Hena Go, bu modellere **ilk ayınız için 5$**, ardından **aylık 10$** karş�
 
 ## Nasıl çalışır?
 
-Hena Go, Hena Agent'daki diğer sağlayıcılar gibi çalışır.
+Hena Go, Hena'daki diğer sağlayıcılar gibi çalışır.
 
 1. **<a href={console}>Hena Zen</a>**'e giriş yapın, Go'ya abone olun ve API anahtarınızı kopyalayın.
 2. TUI'de `/connect` komutunu çalıştırın, `Hena Go`yu seçin ve API anahtarınızı yapıştırın.
@@ -194,7 +194,7 @@ Go modellerine aşağıdaki API uç noktaları aracılığıyla da erişebilirsi
 | Qwen3.6 Plus      | qwen3.6-plus      | `https://hena.dev/zen/go/v1/messages`         | `@ai-sdk/anthropic`         |
 | Hy3               | hy3               | `https://hena.dev/zen/go/v1/chat/completions` | `@ai-sdk/openai-compatible` |
 
-Hena Agent yapılandırmanızdaki [model id](/docs/config/#models) formatı `hena-agent-go/<model-id>` şeklindedir. Örneğin, Kimi K3 için yapılandırmanızda `hena-agent-go/kimi-k3` kullanmalısınız.
+Hena yapılandırmanızdaki [model id](/docs/config/#models) formatı `hena-go/<model-id>` şeklindedir. Örneğin, Kimi K3 için yapılandırmanızda `hena-go/kimi-k3` kullanmalısınız.
 
 ---
 
@@ -221,4 +221,4 @@ Hena Go'yu şu amaçlarla oluşturduk:
 1. Düşük maliyetli bir abonelik ile yapay zeka destekli kodlamayı daha fazla kişi için **erişilebilir** kılmak.
 2. En iyi açık kodlama modellerine **güvenilir** erişim sağlamak.
 3. Kodlama aracısı (agent) kullanımı için **test edilmiş ve kıyaslanmış** modelleri bir araya getirmek.
-4. Hena Agent ile diğer sağlayıcıları da kullanmanıza olanak tanıyarak **kilitlenme (vendor lock-in) olmamasını** sağlamak.
+4. Hena ile diğer sağlayıcıları da kullanmanıza olanak tanıyarak **kilitlenme (vendor lock-in) olmamasını** sağlamak.

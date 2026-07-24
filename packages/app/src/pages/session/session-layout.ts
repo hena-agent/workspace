@@ -4,7 +4,7 @@ import { useLayout } from "@/context/layout"
 import { SessionRouteKey, SessionStateKey } from "@/utils/server-scope"
 import { useSDK } from "@/context/sdk"
 import { useServerSDK } from "@/context/server-sdk"
-import { base64Encode } from "@hena-agent/core/util/encode"
+import { base64Encode } from "@hena/core/util/encode"
 
 export const useSessionKey = () => {
   const params = useParams()

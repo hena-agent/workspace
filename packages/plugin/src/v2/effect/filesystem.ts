@@ -1,4 +1,4 @@
-import type { FileSystemEntry } from "@hena-agent/sdk/v2/types"
+import type { FileSystemEntry } from "@hena/sdk/v2/types"
 import type { Effect } from "effect"
 
 export interface FileSystem {

@@ -54,12 +54,12 @@ async function start(command: StartCommand) {
     ensureLoopbackNoProxy()
     useSystemCertificates()
     useEnvProxy()
-    const { Server } = await import("virtual:hena-agent-server")
+    const { Server } = await import("virtual:hena-server")
 
     listener = await Server.listen({
       port: command.port,
       hostname: command.hostname,
-      username: "hena-agent",
+      username: "hena",
       password: command.password,
       cors: ["oc://renderer"],
     })
@@ -82,8 +82,8 @@ async function stop() {
 
 function prepareSidecarEnv(password: string, userDataPath: string) {
   Object.assign(process.env, {
-    HENA_AGENT_SERVER_USERNAME: "hena-agent",
-    HENA_AGENT_SERVER_PASSWORD: password,
+    HENA_SERVER_USERNAME: "hena",
+    HENA_SERVER_PASSWORD: password,
     XDG_STATE_HOME: process.env.XDG_STATE_HOME ?? userDataPath,
   })
 }

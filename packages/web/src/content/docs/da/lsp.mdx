@@ -1,15 +1,15 @@
 ---
 title: LSP-servere
-description: Hena Agent integreres med dine LSP-servere.
+description: Hena integreres med dine LSP-servere.
 ---
 
-Hena Agent kan integreres med Language Server Protocol (LSP)-servere for at bruge diagnostik som feedback til agenten.
+Hena kan integreres med Language Server Protocol (LSP)-servere for at bruge diagnostik som feedback til agenten.
 
 ---
 
 ## Indbyggede
 
-Hena Agent leveres med flere indbyggede LSP-servere til populære sprog:
+Hena leveres med flere indbyggede LSP-servere til populære sprog:
 
 | LSP Server         | Udvidelser                                                | Krav                                                            |
 | ------------------ | --------------------------------------------------------- | --------------------------------------------------------------- |
@@ -50,14 +50,14 @@ Hena Agent leveres med flere indbyggede LSP-servere til populære sprog:
 LSP er deaktiveret som standard. Når det er aktiveret, starter servere, når en af ovenstående filtypenavne opdages, og kravene er opfyldt.
 
 :::note
-Du kan deaktivere automatisk LSP-serverdownloads ved at indstille miljøvariablen `HENA_AGENT_DISABLE_LSP_DOWNLOAD` til `true`.
+Du kan deaktivere automatisk LSP-serverdownloads ved at indstille miljøvariablen `HENA_DISABLE_LSP_DOWNLOAD` til `true`.
 :::
 
 ---
 
 ## Sådan fungerer det
 
-Når LSP er aktiveret, og hena-agent åbner en fil, vil den:
+Når LSP er aktiveret, og hena åbner en fil, vil den:
 
 1. Kontrollerer filtypenavnet mod alle aktiverede LSP-servere.
 2. Starter den relevante LSP-server, hvis den ikke allerede kører.
@@ -74,11 +74,11 @@ Sprogservere kan komme ud af sync, bruge meget hukommelse, variere efter version
 
 ## Konfiguration
 
-Du kan aktivere og tilpasse LSP-servere gennem sektionen `lsp` i din hena-agent-konfiguration.
+Du kan aktivere og tilpasse LSP-servere gennem sektionen `lsp` i din hena-konfiguration.
 
 For at aktivere alle indbyggede LSP-servere skal du indstille `lsp` til `true`.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": true
@@ -87,7 +87,7 @@ For at aktivere alle indbyggede LSP-servere skal du indstille `lsp` til `true`.
 
 Brug et objekt til at holde indbyggede servere aktiveret, mens du konfigurerer tilsidesættelser eller brugerdefinerede servere.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": {}
@@ -112,7 +112,7 @@ Lad os se på nogle eksempler.
 
 Brug egenskaben `env` til at indstille miljøvariabler, når du starter LSP-serveren:
 
-```json title="hena-agent.json" {5-7}
+```json title="hena.json" {5-7}
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": {
@@ -131,7 +131,7 @@ Brug egenskaben `env` til at indstille miljøvariabler, når du starter LSP-serv
 
 Brug egenskaben `initialization` til at videregive initialiseringsindstillinger til LSP-serveren. Disse er serverspecifikke indstillinger sendt under LSP `initialize` anmodningen:
 
-```json title="hena-agent.json" {5-9}
+```json title="hena.json" {5-9}
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": {
@@ -156,7 +156,7 @@ Initialiseringsmuligheder forskellige afhængige af LSP-serveren. Se din LSP-ser
 
 Hvis `lsp` udelades, er alle LSP-servere deaktiveret. For at deaktivere alle LSP-servere efter at en anden konfiguration har aktiveret dem, skal du indstille `lsp` til `false`:
 
-```json title="hena-agent.json" {3}
+```json title="hena.json" {3}
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": false
@@ -165,7 +165,7 @@ Hvis `lsp` udelades, er alle LSP-servere deaktiveret. For at deaktivere alle LSP
 
 For at deaktivere en **specifik** LSP-server skal du indstille `disabled` til `true`:
 
-```json title="hena-agent.json" {5}
+```json title="hena.json" {5}
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": {
@@ -182,7 +182,7 @@ For at deaktivere en **specifik** LSP-server skal du indstille `disabled` til `t
 
 Du kan tilføje brugerdefinerede LSP-servere ved at angive kommandoen og filtypenavne:
 
-```json title="hena-agent.json" {4-7}
+```json title="hena.json" {4-7}
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": {

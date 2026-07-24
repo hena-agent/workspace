@@ -7,7 +7,7 @@ import { makeGlobalNode } from "../effect/app-node"
 import { AbsolutePath, optional } from "../schema"
 import { ProjectSchema } from "./schema"
 import { ProjectDirectoryTable } from "./sql"
-import type { EffectDrizzleSqlite } from "@hena-agent/effect-drizzle-sqlite"
+import type { EffectDrizzleSqlite } from "@hena/effect-drizzle-sqlite"
 
 export interface Directory {
   readonly directory: AbsolutePath
@@ -55,7 +55,7 @@ export interface Interface {
   readonly remove: (input: RemoveInput, tx?: Transaction) => Effect.Effect<boolean>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@hena-agent/ProjectDirectories") {}
+export class Service extends Context.Service<Service, Interface>()("@hena/ProjectDirectories") {}
 
 const layer = Layer.effect(
   Service,

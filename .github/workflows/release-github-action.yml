@@ -25,5 +25,5 @@ jobs:
       - name: Release
         run: |
           git config --global user.email "github@hena.dev"
-          git config --global user.name "hena-agent"
+          git config --global user.name "hena"
           ./github/script/release

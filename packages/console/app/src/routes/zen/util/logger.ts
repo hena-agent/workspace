@@ -1,4 +1,4 @@
-import { Resource } from "@hena-agent/console-resource"
+import { Resource } from "@hena/console-resource"
 
 export const logger = {
   metric: (values: Record<string, any>) => {

@@ -40,8 +40,8 @@ describe("buildRequestParts", () => {
         (part) =>
           part.type === "text" &&
           part.synthetic &&
-          part.metadata?.henaAgentComment &&
-          (part.metadata.henaAgentComment as { comment?: string }).comment === "check this",
+          part.metadata?.henaComment &&
+          (part.metadata.henaComment as { comment?: string }).comment === "check this",
       ),
     ).toBe(true)
 
@@ -83,8 +83,8 @@ describe("buildRequestParts", () => {
         {
           type: "image",
           id: "img_external",
-          filename: "hena-agent.global.dat",
-          sourcePath: "C:\\Users\\Luke\\AppData\\Roaming\\ai.hena-agent.desktop.beta\\hena-agent.global.dat",
+          filename: "hena.global.dat",
+          sourcePath: "C:\\Users\\Luke\\AppData\\Roaming\\dev.hena.desktop.beta\\hena.global.dat",
           mime: "text/plain",
           dataUrl: "data:text/plain;base64,AAA",
         },
@@ -92,11 +92,11 @@ describe("buildRequestParts", () => {
       text: "inspect this",
       messageID: "msg_external",
       sessionID: "ses_external",
-      sessionDirectory: "C:\\Repos\\sst\\hena-agent",
+      sessionDirectory: "C:\\Repos\\sst\\hena",
     })
 
     expect(result.requestParts.find((part) => part.type === "file")?.filename).toBe(
-      "C:\\Users\\Luke\\AppData\\Roaming\\ai.hena-agent.desktop.beta\\hena-agent.global.dat",
+      "C:\\Users\\Luke\\AppData\\Roaming\\dev.hena.desktop.beta\\hena.global.dat",
     )
   })
 
@@ -268,7 +268,7 @@ describe("buildRequestParts", () => {
       text: "@README.md",
       messageID: "msg_mac_1",
       sessionID: "ses_mac_1",
-      sessionDirectory: "/Users/kelvin/Projects/hena-agent",
+      sessionDirectory: "/Users/kelvin/Projects/hena",
     })
 
     const filePart = result.requestParts.find((part) => part.type === "file")
@@ -277,7 +277,7 @@ describe("buildRequestParts", () => {
       // URL should be parseable
       expect(() => new URL(filePart.url)).not.toThrow()
       // Should be a normal Unix path
-      expect(filePart.url).toBe("file:///Users/kelvin/Projects/hena-agent/README.md")
+      expect(filePart.url).toBe("file:///Users/kelvin/Projects/hena/README.md")
     }
   })
 

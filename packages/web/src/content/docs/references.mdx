@@ -3,11 +3,11 @@ title: References
 description: Add local directories and Git repositories as project references.
 ---
 
-References give Hena Agent access to directories outside the current project. Use them to make documentation, shared libraries, examples, or another repository available while you work.
+References give Hena access to directories outside the current project. Use them to make documentation, shared libraries, examples, or another repository available while you work.
 
-References are configured by alias in `hena-agent.json` or `hena-agent.jsonc`.
+References are configured by alias in `hena.json` or `hena.jsonc`.
 
-```jsonc title="hena-agent.jsonc"
+```jsonc title="hena.jsonc"
 {
   "$schema": "https://hena.dev/config.json",
   "references": {
@@ -30,7 +30,7 @@ References are configured by alias in `hena-agent.json` or `hena-agent.jsonc`.
 
 Use `path` to reference a local directory.
 
-```jsonc title="hena-agent.jsonc"
+```jsonc title="hena.jsonc"
 {
   "references": {
     "docs": {
@@ -48,7 +48,7 @@ Paths can be:
 
 You can also use a string shorthand:
 
-```jsonc title="hena-agent.jsonc"
+```jsonc title="hena.jsonc"
 {
   "references": {
     "docs": "../docs",
@@ -60,9 +60,9 @@ You can also use a string shorthand:
 
 ## Git repositories
 
-Use `repository` to reference a Git repository. Hena Agent materializes the repository in its local repository cache and makes the checked-out source available as a reference directory.
+Use `repository` to reference a Git repository. Hena materializes the repository in its local repository cache and makes the checked-out source available as a reference directory.
 
-```jsonc title="hena-agent.jsonc"
+```jsonc title="hena.jsonc"
 {
   "references": {
     "effect": {
@@ -73,11 +73,11 @@ Use `repository` to reference a Git repository. Hena Agent materializes the repo
 }
 ```
 
-`repository` accepts Git URLs, host/path references, and GitHub `owner/repo` shorthand. The optional `branch` field selects a branch or ref. Without `branch`, Hena Agent uses the repository's default branch.
+`repository` accepts Git URLs, host/path references, and GitHub `owner/repo` shorthand. The optional `branch` field selects a branch or ref. Without `branch`, Hena uses the repository's default branch.
 
 You can use string shorthand when you do not need a branch, description, or other options:
 
-```jsonc title="hena-agent.jsonc"
+```jsonc title="hena.jsonc"
 {
   "references": {
     "effect": "Effect-TS/effect",
@@ -95,7 +95,7 @@ Git references are refreshed asynchronously. A newly configured repository may t
 
 Add `description` to explain when an agent should use a reference.
 
-```jsonc title="hena-agent.jsonc"
+```jsonc title="hena.jsonc"
 {
   "references": {
     "design-system": {
@@ -106,7 +106,7 @@ Add `description` to explain when an agent should use a reference.
 }
 ```
 
-Hena Agent includes references with descriptions in agent context. Descriptions should be short and specific enough to distinguish references with similar content. References without descriptions remain available through autocomplete and direct use, but are not advertised to agents.
+Hena includes references with descriptions in agent context. Descriptions should be short and specific enough to distinguish references with similar content. References without descriptions remain available through autocomplete and direct use, but are not advertised to agents.
 
 ---
 
@@ -114,7 +114,7 @@ Hena Agent includes references with descriptions in agent context. Descriptions 
 
 Set `hidden` to `true` to omit a reference from `@` autocomplete in the TUI.
 
-```jsonc title="hena-agent.jsonc"
+```jsonc title="hena.jsonc"
 {
   "references": {
     "internal": {
@@ -140,7 +140,7 @@ Compare this implementation with @sdk/src/client.ts
 
 Agents also receive the resolved paths and descriptions of configured references that have descriptions in their system context, so they can inspect a reference when it is relevant without you attaching it manually.
 
-Hena Agent automatically allows reference directories through its external-directory permission boundary. Normal tool permissions still apply; for example, an agent that cannot edit files does not gain edit access because a directory is configured as a reference.
+Hena automatically allows reference directories through its external-directory permission boundary. Normal tool permissions still apply; for example, an agent that cannot edit files does not gain edit access because a directory is configured as a reference.
 
 ---
 

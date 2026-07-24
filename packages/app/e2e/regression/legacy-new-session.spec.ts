@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test"
-import { base64Encode } from "@hena-agent/core/util/encode"
-import { mockHenaAgentServer } from "../utils/mock-server"
+import { base64Encode } from "@hena/core/util/encode"
+import { mockHenaServer } from "../utils/mock-server"
 
 const draftID = "draft_legacy_new_session"
-const directory = "C:/Hena Agent/LegacyNewSession"
+const directory = "C:/Hena/LegacyNewSession"
 const server = `http://${process.env.PLAYWRIGHT_SERVER_HOST ?? "127.0.0.1"}:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`
 
 test("redirects a draft to the legacy new-session route", async ({ page }) => {
-  await mockHenaAgentServer(page, {
+  await mockHenaServer(page, {
     directory,
     project: {
       id: "proj_legacy_new_session",
@@ -26,7 +26,7 @@ test("redirects a draft to the legacy new-session route", async ({ page }) => {
       localStorage.setItem("settings.v3", JSON.stringify({ general: { newLayoutDesigns: false } }))
       localStorage.setItem("app-version.v1", JSON.stringify({ version: "1.17.20" }))
       localStorage.setItem(
-        "hena-agent.window.browser.dat:tabs",
+        "hena.window.browser.dat:tabs",
         JSON.stringify([{ type: "draft", draftID, server, directory }]),
       )
     },

@@ -1,8 +1,8 @@
 const model_id = "claude-3-7-sonnet"
 
 export const popularProviders = [
-  "hena-agent",
-  "hena-agent-go",
+  "hena",
+  "hena-go",
   "anthropic",
   "github-copilot",
   "openai",
@@ -25,8 +25,8 @@ const provider = {
 }
 
 const popular = [
-  { id: "hena-agent", name: "Hena Zen", models: {} },
-  { id: "hena-agent-go", name: "Hena Go", models: {} },
+  { id: "hena", name: "Hena Zen", models: {} },
+  { id: "hena-go", name: "Hena Go", models: {} },
   { id: "openai", name: "OpenAI", models: {} },
   provider,
   { id: "google", name: "Google", models: {} },

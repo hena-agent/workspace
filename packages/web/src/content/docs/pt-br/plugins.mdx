@@ -1,9 +1,9 @@
 ---
 title: Plugins
-description: Escreva seus próprios plugins para estender o Hena Agent.
+description: Escreva seus próprios plugins para estender o Hena.
 ---
 
-Plugins permitem que você estenda o hena-agent conectando-se a vários eventos e personalizando o comportamento. Você pode criar plugins para adicionar novos recursos, integrar-se a serviços externos ou modificar o comportamento padrão do Hena Agent.
+Plugins permitem que você estenda o hena conectando-se a vários eventos e personalizando o comportamento. Você pode criar plugins para adicionar novos recursos, integrar-se a serviços externos ou modificar o comportamento padrão do Hena.
 
 Para exemplos, confira os [plugins](/docs/ecosystem#plugins) criados pela comunidade.
 
@@ -19,8 +19,8 @@ Existem duas maneiras de carregar plugins.
 
 Coloque arquivos JavaScript ou TypeScript no diretório de plugins.
 
-- `.hena-agent/plugins/` - Plugins em nível de projeto
-- `~/.config/hena-agent/plugins/` - Plugins globais
+- `.hena/plugins/` - Plugins em nível de projeto
+- `~/.config/hena/plugins/` - Plugins globais
 
 Os arquivos nesses diretórios são carregados automaticamente na inicialização.
 
@@ -30,7 +30,7 @@ Os arquivos nesses diretórios são carregados automaticamente na inicializaçã
 
 Especifique pacotes npm no seu arquivo de configuração.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "plugin": ["opencode-helicone-session", "opencode-wakatime", "@my-org/custom-plugin"]
@@ -45,7 +45,7 @@ Navegue pelos plugins disponíveis no [ecossistema](/docs/ecosystem#plugins).
 
 ### Como os plugins são instalados
 
-**Plugins npm** são instalados automaticamente usando Bun na inicialização. Pacotes e suas dependências são armazenados em cache em `~/.cache/hena-agent/node_modules/`.
+**Plugins npm** são instalados automaticamente usando Bun na inicialização. Pacotes e suas dependências são armazenados em cache em `~/.cache/hena/node_modules/`.
 
 **Plugins locais** são carregados diretamente do diretório de plugins. Para usar pacotes externos, você deve criar um `package.json` dentro do seu diretório de configuração (veja [Dependências](#dependencies)), ou publicar o plugin no npm e [adicioná-lo à sua configuração](/docs/config#plugins).
 
@@ -55,10 +55,10 @@ Navegue pelos plugins disponíveis no [ecossistema](/docs/ecosystem#plugins).
 
 Os plugins são carregados de todas as fontes e todos os hooks são executados em sequência. A ordem de carregamento é:
 
-1. Configuração global (`~/.config/hena-agent/hena.json`)
-2. Configuração do projeto (`hena-agent.json`)
-3. Diretório de plugins global (`~/.config/hena-agent/plugins/`)
-4. Diretório de plugins do projeto (`.hena-agent/plugins/`)
+1. Configuração global (`~/.config/hena/hena.json`)
+2. Configuração do projeto (`hena.json`)
+3. Diretório de plugins global (`~/.config/hena/plugins/`)
+4. Diretório de plugins do projeto (`.hena/plugins/`)
 
 Pacotes npm duplicados com o mesmo nome e versão são carregados uma vez. No entanto, um plugin local e um plugin npm com nomes semelhantes são carregados separadamente.
 
@@ -74,7 +74,7 @@ Um plugin é um **módulo JavaScript/TypeScript** que exporta uma ou mais funç�
 
 Plugins locais e ferramentas personalizadas podem usar pacotes npm externos. Adicione um `package.json` ao seu diretório de configuração com as dependências necessárias.
 
-```json title=".hena-agent/package.json"
+```json title=".hena/package.json"
 {
   "dependencies": {
     "shescape": "^2.1.0"
@@ -82,9 +82,9 @@ Plugins locais e ferramentas personalizadas podem usar pacotes npm externos. Adi
 }
 ```
 
-O hena-agent executa `bun install` na inicialização para instalar esses pacotes. Seus plugins e ferramentas podem então importá-los.
+O hena executa `bun install` na inicialização para instalar esses pacotes. Seus plugins e ferramentas podem então importá-los.
 
-```ts title=".hena-agent/plugins/my-plugin.ts"
+```ts title=".hena/plugins/my-plugin.ts"
 import { escape } from "shescape"
 
 export const MyPlugin = async (ctx) => {
@@ -102,7 +102,7 @@ export const MyPlugin = async (ctx) => {
 
 ### Estrutura básica
 
-```js title=".hena-agent/plugins/example.js"
+```js title=".hena/plugins/example.js"
 export const MyPlugin = async ({ project, client, $, directory, worktree }) => {
   console.log("Plugin initialized!")
 
@@ -117,7 +117,7 @@ A função do plugin recebe:
 - `project`: As informações do projeto atual.
 - `directory`: O diretório de trabalho atual.
 - `worktree`: O caminho do worktree do git.
-- `client`: Um cliente SDK do hena-agent para interagir com a AI.
+- `client`: Um cliente SDK do hena para interagir com a AI.
 - `$`: A [API shell](https://bun.com/docs/runtime/shell) do Bun para executar comandos.
 
 ---
@@ -127,7 +127,7 @@ A função do plugin recebe:
 Para plugins TypeScript, você pode importar tipos do pacote de plugin:
 
 ```ts title="my-plugin.ts" {1}
-import type { Plugin } from "@hena-agent/plugin"
+import type { Plugin } from "@hena/plugin"
 
 export const MyPlugin: Plugin = async ({ project, client, $, directory, worktree }) => {
   return {
@@ -210,7 +210,7 @@ Plugins podem se inscrever em eventos como visto abaixo na seção Exemplos. Aqu
 
 ## Exemplos
 
-Aqui estão alguns exemplos de plugins que você pode usar para estender o Hena Agent.
+Aqui estão alguns exemplos de plugins que você pode usar para estender o Hena.
 
 ---
 
@@ -218,13 +218,13 @@ Aqui estão alguns exemplos de plugins que você pode usar para estender o Hena 
 
 Envie notificações quando certos eventos ocorrerem:
 
-```js title=".hena-agent/plugins/notification.js"
+```js title=".hena/plugins/notification.js"
 export const NotificationPlugin = async ({ project, client, $, directory, worktree }) => {
   return {
     event: async ({ event }) => {
       // Send notification on session completion
       if (event.type === "session.idle") {
-        await $`osascript -e 'display notification "Session completed!" with title "hena-agent"'`
+        await $`osascript -e 'display notification "Session completed!" with title "hena"'`
       }
     },
   }
@@ -234,16 +234,16 @@ export const NotificationPlugin = async ({ project, client, $, directory, worktr
 Estamos usando `osascript` para executar AppleScript no macOS. Aqui estamos usando para enviar notificações.
 
 :::note
-Se você estiver usando o aplicativo desktop hena-agent, ele pode enviar notificações do sistema automaticamente quando uma resposta estiver pronta ou quando ocorrer um erro na sessão.
+Se você estiver usando o aplicativo desktop hena, ele pode enviar notificações do sistema automaticamente quando uma resposta estiver pronta ou quando ocorrer um erro na sessão.
 :::
 
 ---
 
 ### Proteção .env
 
-Impeça o hena-agent de ler arquivos `.env`:
+Impeça o hena de ler arquivos `.env`:
 
-```javascript title=".hena-agent/plugins/env-protection.js"
+```javascript title=".hena/plugins/env-protection.js"
 export const EnvProtection = async ({ project, client, $, directory, worktree }) => {
   return {
     "tool.execute.before": async (input, output) => {
@@ -261,7 +261,7 @@ export const EnvProtection = async ({ project, client, $, directory, worktree })
 
 Injete variáveis de ambiente em todas as execuções de shell (ferramentas de AI e terminais de usuário):
 
-```javascript title=".hena-agent/plugins/inject-env.js"
+```javascript title=".hena/plugins/inject-env.js"
 export const InjectEnvPlugin = async () => {
   return {
     "shell.env": async (input, output) => {
@@ -276,10 +276,10 @@ export const InjectEnvPlugin = async () => {
 
 ### Ferramentas personalizadas
 
-Plugins também podem adicionar ferramentas personalizadas ao hena-agent:
+Plugins também podem adicionar ferramentas personalizadas ao hena:
 
-```ts title=".hena-agent/plugins/custom-tools.ts"
-import { type Plugin, tool } from "@hena-agent/plugin"
+```ts title=".hena/plugins/custom-tools.ts"
+import { type Plugin, tool } from "@hena/plugin"
 
 export const CustomToolsPlugin: Plugin = async (ctx) => {
   return {
@@ -299,13 +299,13 @@ export const CustomToolsPlugin: Plugin = async (ctx) => {
 }
 ```
 
-O helper `tool` cria uma ferramenta personalizada que o hena-agent pode chamar. Ele aceita uma função de esquema Zod e retorna uma definição de ferramenta com:
+O helper `tool` cria uma ferramenta personalizada que o hena pode chamar. Ele aceita uma função de esquema Zod e retorna uma definição de ferramenta com:
 
 - `description`: O que a ferramenta faz
 - `args`: Esquema Zod para os argumentos da ferramenta
 - `execute`: Função que é executada quando a ferramenta é chamada
 
-Suas ferramentas personalizadas estarão disponíveis para o hena-agent junto com as ferramentas integradas.
+Suas ferramentas personalizadas estarão disponíveis para o hena junto com as ferramentas integradas.
 
 :::note
 Se uma ferramenta de plugin usar o mesmo nome que uma ferramenta integrada, a ferramenta de plugin tem precedência.
@@ -317,7 +317,7 @@ Se uma ferramenta de plugin usar o mesmo nome que uma ferramenta integrada, a fe
 
 Use `client.app.log()` em vez de `console.log` para registro estruturado:
 
-```ts title=".hena-agent/plugins/my-plugin.ts"
+```ts title=".hena/plugins/my-plugin.ts"
 export const MyPlugin = async ({ client }) => {
   await client.app.log({
     body: {
@@ -338,8 +338,8 @@ Níveis: `debug`, `info`, `warn`, `error`. Veja a [documentação do SDK](https:
 
 Personalize o contexto incluído quando uma sessão é compactada:
 
-```ts title=".hena-agent/plugins/compaction.ts"
-import type { Plugin } from "@hena-agent/plugin"
+```ts title=".hena/plugins/compaction.ts"
+import type { Plugin } from "@hena/plugin"
 
 export const CompactionPlugin: Plugin = async (ctx) => {
   return {
@@ -362,8 +362,8 @@ O hook `experimental.session.compacting` é acionado antes que o LLM gere um res
 
 Você também pode substituir o prompt de compactação completamente definindo `output.prompt`:
 
-```ts title=".hena-agent/plugins/custom-compaction.ts"
-import type { Plugin } from "@hena-agent/plugin"
+```ts title=".hena/plugins/custom-compaction.ts"
+import type { Plugin } from "@hena/plugin"
 
 export const CustomCompactionPlugin: Plugin = async (ctx) => {
   return {

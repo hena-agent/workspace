@@ -17,7 +17,7 @@ import type {
   SessionV2Info,
   SkillV2Info,
   V2Event,
-} from "@hena-agent/sdk/v2"
+} from "@hena/sdk/v2"
 import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import { useSDK } from "./sdk"

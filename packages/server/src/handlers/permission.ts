@@ -1,10 +1,10 @@
-import { Location } from "@hena-agent/core/location"
-import { PermissionV2 } from "@hena-agent/core/permission"
-import { PermissionSaved } from "@hena-agent/core/permission/saved"
+import { Location } from "@hena/core/location"
+import { PermissionV2 } from "@hena/core/permission"
+import { PermissionSaved } from "@hena/core/permission/saved"
 import { Effect } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
 import { Api } from "../api"
-import { PermissionNotFoundError, SessionNotFoundError } from "@hena-agent/protocol/errors"
+import { PermissionNotFoundError, SessionNotFoundError } from "@hena/protocol/errors"
 import { response } from "../location"
 
 function missingRequest(id: PermissionV2.ID) {

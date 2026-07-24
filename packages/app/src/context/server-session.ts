@@ -1,8 +1,8 @@
-import { Binary } from "@hena-agent/core/util/binary"
-import { retry } from "@hena-agent/core/util/retry"
+import { Binary } from "@hena/core/util/binary"
+import { retry } from "@hena/core/util/retry"
 import type {
   Message,
-  HenaAgentClient,
+  HenaClient,
   Part,
   PermissionRequest,
   QuestionRequest,
@@ -10,7 +10,7 @@ import type {
   SessionStatus,
   SnapshotFileDiff,
   Todo,
-} from "@hena-agent/sdk/v2/client"
+} from "@hena/sdk/v2/client"
 import { batch } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { diffs as cleanDiffs, message as cleanMessage } from "@/utils/diffs"
@@ -137,7 +137,7 @@ function reconcileFetched<T extends { id: string }>(
   return [...result.values()].sort((a, b) => cmp(a.id, b.id))
 }
 
-export function createServerSession(client: HenaAgentClient, options?: { retry?: typeof retry }) {
+export function createServerSession(client: HenaClient, options?: { retry?: typeof retry }) {
   const [data, setData] = createStore({
     info: {} as Record<string, Session | undefined>,
     session_status: {} as Record<string, SessionStatus>,

@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { WorkspaceV2 } from "@hena-agent/core/workspace"
+import { AbsolutePath } from "@hena/core/schema"
+import { WorkspaceV2 } from "@hena/core/workspace"
 import { ref } from "../src/location"
 
 describe("location headers", () => {
-  test("reads Hena Agent headers", () => {
+  test("reads Hena headers", () => {
     const location = ref({
       url: "/",
       headers: {
-        "x-hena-agent-directory": encodeURIComponent("/project path"),
-        "x-hena-agent-workspace": "wrk_test",
+        "x-hena-directory": encodeURIComponent("/project path"),
+        "x-hena-workspace": "wrk_test",
       },
     })
 

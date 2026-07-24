@@ -45,7 +45,7 @@ const layer = Layer.effectDiscard(
         fromProject === "" || (fromProject !== ".." && !fromProject.startsWith(`..${sep}`) && !isAbsolute(fromProject))
       const discovered = new Set(
         yield* Effect.forEach(
-          Flag.HENA_AGENT_DISABLE_PROJECT_CONFIG || !insideProject
+          Flag.HENA_DISABLE_PROJECT_CONFIG || !insideProject
             ? []
             : yield* fs.up({
                 targets: ["AGENTS.md"],

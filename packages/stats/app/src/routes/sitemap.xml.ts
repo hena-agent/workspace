@@ -1,5 +1,5 @@
-import { getStatsHomeData } from "@hena-agent/stats-core/domain/home"
-import { runtime } from "@hena-agent/stats-core/runtime"
+import { getStatsHomeData } from "@hena/stats-core/domain/home"
+import { runtime } from "@hena/stats-core/runtime"
 import {
   canonicalFamilyComparisonPath,
   canonicalModelComparisonPath,

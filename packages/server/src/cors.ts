@@ -1,10 +1,10 @@
 import { Context } from "effect"
 
-const henaAgentOrigin = /^https:\/\/([a-z0-9-]+\.)*hena\.ai$/
+const henaOrigin = /^https:\/\/([a-z0-9-]+\.)*hena\.ai$/
 
 export type CorsOptions = { readonly cors?: ReadonlyArray<string> }
 
-export const CorsConfig = Context.Reference<CorsOptions | undefined>("@hena-agent/ServerCorsConfig", {
+export const CorsConfig = Context.Reference<CorsOptions | undefined>("@hena/ServerCorsConfig", {
   defaultValue: () => undefined,
 })
 
@@ -15,7 +15,7 @@ export function isAllowedCorsOrigin(input: string | undefined, opts?: CorsOption
   if (input.startsWith("oc://renderer")) return true
   if (input === "tauri://localhost" || input === "http://tauri.localhost" || input === "https://tauri.localhost")
     return true
-  if (henaAgentOrigin.test(input)) return true
+  if (henaOrigin.test(input)) return true
   return opts?.cors?.includes(input) ?? false
 }
 

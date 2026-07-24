@@ -1,8 +1,8 @@
-# Hena Agent V2 Promise Plugin API
+# Hena V2 Promise Plugin API
 
-The Promise plugin API is the async/await equivalent of `@hena-agent/plugin/v2/effect`. It grants plugins the same two in-process capabilities:
+The Promise plugin API is the async/await equivalent of `@hena/plugin/v2/effect`. It grants plugins the same two in-process capabilities:
 
-- `hook` installs behavior at a Hena Agent extension point.
+- `hook` installs behavior at a Hena extension point.
 - `reload` reruns every transform hook for a stateful domain.
 
 The only difference from the Effect API is the async boundary: hook callbacks, hook registration, `reload`, and `Registration.dispose` use Promises instead of Effects.
@@ -10,7 +10,7 @@ The only difference from the Effect API is the async boundary: hook callbacks, h
 ## Defining A Plugin
 
 ```ts
-import { define } from "@hena-agent/plugin/v2/promise"
+import { define } from "@hena/plugin/v2/promise"
 
 export const Plugin = define({
   id: "example",

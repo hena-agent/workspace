@@ -1,6 +1,6 @@
 export * as ReadTool from "./read"
 
-import { ToolFailure } from "@hena-agent/llm"
+import { ToolFailure } from "@hena/llm"
 import { Effect, Layer, Schema } from "effect"
 import { makeLocationNode } from "../effect/app-node"
 import { FileSystem } from "../filesystem"

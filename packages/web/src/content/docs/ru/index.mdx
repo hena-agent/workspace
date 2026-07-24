@@ -1,15 +1,15 @@
 ---
 title: Введение
-description: Начните работу с Hena Agent.
+description: Начните работу с Hena.
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 import config from "../../../../config.mjs"
 export const console = config.console
 
-[**hena-agent**](/) — это агент кодирования искусственного интеллекта с открытым исходным кодом. Он доступен в виде интерфейса на базе терминала, настольного приложения или расширения IDE.
+[**hena**](/) — это агент кодирования искусственного интеллекта с открытым исходным кодом. Он доступен в виде интерфейса на базе терминала, настольного приложения или расширения IDE.
 
-![hena-agent TUI с темой hena-agent](../../../assets/lander/screenshot.png)
+![hena TUI с темой hena](../../../assets/lander/screenshot.png)
 
 Давайте начнем.
 
@@ -17,7 +17,7 @@ export const console = config.console
 
 #### Системные требования
 
-Чтобы использовать hena-agent в вашем терминале, вам понадобится:
+Чтобы использовать hena в вашем терминале, вам понадобится:
 
 1. Современный эмулятор терминала, например:
    - [WezTerm](https://wezterm.org), кроссплатформенный
@@ -31,7 +31,7 @@ export const console = config.console
 
 ## Установка
 
-Самый простой способ установить hena-agent — через сценарий установки.
+Самый простой способ установить hena — через сценарий установки.
 
 ```bash
 curl -fsSL https://hena.dev/install | bash
@@ -45,28 +45,28 @@ curl -fsSL https://hena.dev/install | bash
 
       <TabItem label="npm">
       ```bash
-      npm install -g hena-agent
+      npm install -g hena
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g hena-agent
+        bun install -g hena
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g hena-agent
+        pnpm install -g hena
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add hena-agent
+        yarn global add hena
         ```
 
       </TabItem>
@@ -76,40 +76,40 @@ curl -fsSL https://hena.dev/install | bash
 - **Использование Homebrew в macOS и Linux**
 
   ```bash
-  brew install anomalyco/tap/hena-agent
+  brew install hena-agent/tap/hena
   ```
 
-  > Мы рекомендуем использовать tap hena-agent для получения самых последних версий. Официальная формула `brew install hena-agent` поддерживается командой Homebrew и обновляется реже.
+  > Мы рекомендуем использовать tap hena для получения самых последних версий. Официальная формула `brew install hena` поддерживается командой Homebrew и обновляется реже.
 
 - **Использование Paru в Arch Linux**
 
   ```bash
-  sudo pacman -S hena-agent           # Arch Linux (Stable)
-  paru -S hena-agent-bin              # Arch Linux (Latest from AUR)
+  sudo pacman -S hena           # Arch Linux (Stable)
+  paru -S hena-bin              # Arch Linux (Latest from AUR)
   ```
 
 #### Windows
 
 :::tip[Рекомендуется: используйте WSL]
-Для наилучшей работы в Windows мы рекомендуем использовать [Подсистема Windows для Linux (WSL)](/docs/windows-wsl). Он обеспечивает лучшую производительность и полную совместимость с функциями Hena Agent.
+Для наилучшей работы в Windows мы рекомендуем использовать [Подсистема Windows для Linux (WSL)](/docs/windows-wsl). Он обеспечивает лучшую производительность и полную совместимость с функциями Hena.
 :::
 
 - **Используя Chocolatey**
 
   ```bash
-  choco install hena-agent
+  choco install hena
   ```
 
 - **Использование Scoop**
 
   ```bash
-  scoop install hena-agent
+  scoop install hena
   ```
 
 - **Использование NPM**
 
   ```bash
-  npm install -g hena-agent
+  npm install -g hena
   ```
 
 - **Использование Mise**
@@ -124,7 +124,7 @@ curl -fsSL https://hena.dev/install | bash
   docker run -it --rm ghcr.io/hena-agent/hena
   ```
 
-В настоящее время добавляется поддержка установки hena-agent в Windows с помощью Bun.
+В настоящее время добавляется поддержка установки hena в Windows с помощью Bun.
 
 Вы также можете получить бинарный файл в разделе [Releases](https://github.com/hena-agent/hena/releases).
 
@@ -132,12 +132,12 @@ curl -fsSL https://hena.dev/install | bash
 
 ## Настроить
 
-С hena-agent вы можете использовать любого поставщика LLM, настроив его ключи API.
+С hena вы можете использовать любого поставщика LLM, настроив его ключи API.
 
 Если вы новичок в использовании поставщиков LLM, мы рекомендуем использовать [Hena Zen](/docs/zen).
-Это тщательно подобранный список моделей, протестированных и проверенных Hena Agent.
+Это тщательно подобранный список моделей, протестированных и проверенных Hena.
 
-1. Запустите команду `/connect` в TUI, выберите hena-agent и перейдите по адресу [hena.dev/auth](https://hena.dev/auth).
+1. Запустите команду `/connect` в TUI, выберите hena и перейдите по адресу [hena.dev/auth](https://hena.dev/auth).
 
    ```txt
    /connect
@@ -167,33 +167,33 @@ curl -fsSL https://hena.dev/install | bash
 cd /path/to/project
 ```
 
-И запустите Hena Agent.
+И запустите Hena.
 
 ```bash
-hena-agent
+hena
 ```
 
-Затем инициализируйте hena-agent для проекта, выполнив следующую команду.
+Затем инициализируйте hena для проекта, выполнив следующую команду.
 
 ```bash frame="none"
 /init
 ```
 
-Это позволит hena-agent проанализировать ваш проект и создать файл `AGENTS.md` в
+Это позволит hena проанализировать ваш проект и создать файл `AGENTS.md` в
 корень проекта.
 
 :::tip
 Вам следует зафиксировать файл `AGENTS.md` вашего проекта в Git.
 :::
 
-Это помогает hena-agent понять структуру проекта и шаблоны кодирования.
+Это помогает hena понять структуру проекта и шаблоны кодирования.
 использовал.
 
 ---
 
 ## Использование
 
-Теперь вы готовы использовать hena-agent для работы над своим проектом. Не стесняйтесь спрашивать о чем угодно!
+Теперь вы готовы использовать hena для работы над своим проектом. Не стесняйтесь спрашивать о чем угодно!
 
 Если вы новичок в использовании агента кодирования ИИ, вот несколько примеров, которые могут вам помочь.
 
@@ -201,7 +201,7 @@ hena-agent
 
 ### Задавайте вопросы
 
-Вы можете попросить hena-agent объяснить вам кодовую базу.
+Вы можете попросить hena объяснить вам кодовую базу.
 
 :::tip
 Используйте ключ `@` для нечеткого поиска файлов в проекте.
@@ -217,11 +217,11 @@ How is authentication handled in @packages/functions/src/api/index.ts
 
 ### Добавление функций
 
-Вы можете попросить hena-agent добавить новые функции в ваш проект. Хотя мы сначала рекомендуем попросить его создать план.
+Вы можете попросить hena добавить новые функции в ваш проект. Хотя мы сначала рекомендуем попросить его создать план.
 
 1. **Составьте план**
 
-   hena-agent имеет _режим планирования_, который отключает возможность вносить изменения и
+   hena имеет _режим планирования_, который отключает возможность вносить изменения и
    вместо этого предложите _как_ реализовать эту функцию.
 
    Переключитесь на него с помощью клавиши **Tab**. Вы увидите индикатор этого в правом нижнем углу.
@@ -238,11 +238,11 @@ How is authentication handled in @packages/functions/src/api/index.ts
    From this screen, the user can undelete a note or permanently delete it.
    ```
 
-   Нужно предоставить hena-agent достаточно подробностей, чтобы ему понять, чего вы хотите. Это помогает
+   Нужно предоставить hena достаточно подробностей, чтобы ему понять, чего вы хотите. Это помогает
    поговорить с ним так, как будто вы разговариваете с младшим разработчиком в своей команде.
 
    :::tip
-   Дайте hena-agent много контекста и примеров, чтобы помочь ему понять, что вы
+   Дайте hena много контекста и примеров, чтобы помочь ему понять, что вы
    хотеть.
    :::
 
@@ -259,7 +259,7 @@ How is authentication handled in @packages/functions/src/api/index.ts
    Перетащите изображения в терминал, чтобы добавить их в подсказку.
    :::
 
-   hena-agent может сканировать любые изображения, которые вы ему предоставляете, и добавлять их в командную строку. Вы можете
+   hena может сканировать любые изображения, которые вы ему предоставляете, и добавлять их в командную строку. Вы можете
    сделать это, перетащив изображение в терминал.
 
 3. **Создайте функцию**
@@ -281,7 +281,7 @@ How is authentication handled in @packages/functions/src/api/index.ts
 
 ### Внесение изменений
 
-Для более простых изменений вы можете попросить hena-agent создать их напрямую.
+Для более простых изменений вы можете попросить hena создать их напрямую.
 без необходимости предварительного рассмотрения плана.
 
 ```txt frame="none" "@packages/functions/src/settings.ts" "@packages/functions/src/notes.ts"
@@ -290,13 +290,13 @@ handled in the /notes route in @packages/functions/src/notes.ts and implement
 the same logic in @packages/functions/src/settings.ts
 ```
 
-Убедитесь, что предоставили достаточно деталей, чтобы hena-agent внес корректные изменения.
+Убедитесь, что предоставили достаточно деталей, чтобы hena внес корректные изменения.
 
 ---
 
 ### Отмена изменений
 
-Допустим, вы просите hena-agent внести некоторые изменения.
+Допустим, вы просите hena внести некоторые изменения.
 
 ```txt frame="none" "@packages/functions/src/api/index.ts"
 Can you refactor the function in @packages/functions/src/api/index.ts?
@@ -309,14 +309,14 @@ Can you refactor the function in @packages/functions/src/api/index.ts?
 /undo
 ```
 
-hena-agent отменит внесенные вами изменения и покажет исходное сообщение.
+hena отменит внесенные вами изменения и покажет исходное сообщение.
 снова.
 
 ```txt frame="none" "@packages/functions/src/api/index.ts"
 Can you refactor the function in @packages/functions/src/api/index.ts?
 ```
 
-Отсюда вы можете настроить подсказку и попросить hena-agent повторить попытку.
+Отсюда вы можете настроить подсказку и попросить hena повторить попытку.
 
 :::tip
 Вы можете запустить `/undo` несколько раз, чтобы отменить несколько изменений.
@@ -332,7 +332,7 @@ Can you refactor the function in @packages/functions/src/api/index.ts?
 
 ## Общий доступ
 
-Разговорами, которые вы ведете с hena-agent, можно [поделиться с вашей
+Разговорами, которые вы ведете с hena, можно [поделиться с вашей
 командой](/docs/share).
 
 ```bash frame="none"
@@ -345,12 +345,12 @@ Can you refactor the function in @packages/functions/src/api/index.ts?
 По умолчанию общий доступ к беседам не предоставляется.
 :::
 
-Вот [пример диалога](https://hena.dev/s/4XP1fce5) с Hena Agent.
+Вот [пример диалога](https://hena.dev/s/4XP1fce5) с Hena.
 
 ---
 
 ## Настроить
 
-И все! Теперь вы профессионал в использовании Hena Agent.
+И все! Теперь вы профессионал в использовании Hena.
 
-Чтобы создать свою собственную, мы рекомендуем [выбрать тему](/docs/themes), [настроить привязки клавиш](/docs/keybinds), [настроить средства форматирования кода](/docs/formatters), [создать собственные команды](/docs/commands) или поиграться с файлом [hena-agent config](/docs/config).
+Чтобы создать свою собственную, мы рекомендуем [выбрать тему](/docs/themes), [настроить привязки клавиш](/docs/keybinds), [настроить средства форматирования кода](/docs/formatters), [создать собственные команды](/docs/commands) или поиграться с файлом [hena config](/docs/config).

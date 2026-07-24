@@ -1,7 +1,7 @@
 export * as PluginPromise from "./promise"
 
-import { define } from "@hena-agent/plugin/v2/effect"
-import type { Plugin, PluginContext, Registration } from "@hena-agent/plugin/v2/promise"
+import { define } from "@hena/plugin/v2/effect"
+import type { Plugin, PluginContext, Registration } from "@hena/plugin/v2/promise"
 import { Effect, Scope } from "effect"
 
 // The Effect host hands back this registration shape; mirror it structurally so

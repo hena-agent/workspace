@@ -1,4 +1,4 @@
-import type { HenaAgentEventEncoded } from "@hena-agent/protocol/groups/event"
+import type { HenaEventEncoded } from "@hena/protocol/groups/event"
 
 export type JsonValue =
   | null
@@ -2538,7 +2538,7 @@ export type SkillsListOutput = {
   }>
 }
 
-export type EventsSubscribeOutput = HenaAgentEventEncoded
+export type EventsSubscribeOutput = HenaEventEncoded
 
 export type PtysListInput = {
   readonly location?: {

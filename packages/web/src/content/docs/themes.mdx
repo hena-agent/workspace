@@ -3,9 +3,9 @@ title: Themes
 description: Select a built-in theme or define your own.
 ---
 
-With Hena Agent you can select from one of several built-in themes, use a theme that adapts to your terminal theme, or define your own custom theme.
+With Hena you can select from one of several built-in themes, use a theme that adapts to your terminal theme, or define your own custom theme.
 
-By default, Hena Agent uses our own `hena-agent` theme.
+By default, Hena uses our own `hena` theme.
 
 ---
 
@@ -23,7 +23,7 @@ Without truecolor support, themes may appear with reduced color accuracy or fall
 
 ## Built-in themes
 
-Hena Agent comes with several built-in themes.
+Hena comes with several built-in themes.
 
 | Name                   | Description                                                                  |
 | ---------------------- | ---------------------------------------------------------------------------- |
@@ -53,7 +53,7 @@ The `system` theme is designed to automatically adapt to your terminal's color s
 
 The system theme is for users who:
 
-- Want Hena Agent to match their terminal's appearance
+- Want Hena to match their terminal's appearance
 - Use custom terminal color schemes
 - Prefer a consistent look across all terminal applications
 
@@ -74,7 +74,7 @@ You can select a theme by bringing up the theme select with the `/theme` command
 
 ## Custom themes
 
-Hena Agent supports a flexible JSON-based theme system that allows users to create and customize themes easily.
+Hena supports a flexible JSON-based theme system that allows users to create and customize themes easily.
 
 ---
 
@@ -83,9 +83,9 @@ Hena Agent supports a flexible JSON-based theme system that allows users to crea
 Themes are loaded from multiple directories in the following order where later directories override earlier ones:
 
 1. **Built-in themes** - These are embedded in the binary
-2. **User config directory** - Defined in `~/.config/hena-agent/themes/*.json` or `$XDG_CONFIG_HOME/hena-agent/themes/*.json`
-3. **Project root directory** - Defined in the `<project-root>/.hena-agent/themes/*.json`
-4. **Current working directory** - Defined in `./.hena-agent/themes/*.json`
+2. **User config directory** - Defined in `~/.config/hena/themes/*.json` or `$XDG_CONFIG_HOME/hena/themes/*.json`
+3. **Project root directory** - Defined in the `<project-root>/.hena/themes/*.json`
+4. **Current working directory** - Defined in `./.hena/themes/*.json`
 
 If multiple directories contain a theme with the same name, the theme from the directory with higher priority will be used.
 
@@ -98,15 +98,15 @@ To create a custom theme, create a JSON file in one of the theme directories.
 For user-wide themes:
 
 ```bash no-frame
-mkdir -p ~/.config/hena-agent/themes
-vim ~/.config/hena-agent/themes/my-theme.json
+mkdir -p ~/.config/hena/themes
+vim ~/.config/hena/themes/my-theme.json
 ```
 
 And for project-specific themes.
 
 ```bash no-frame
-mkdir -p .hena-agent/themes
-vim .hena-agent/themes/my-theme.json
+mkdir -p .hena/themes
+vim .hena/themes/my-theme.json
 ```
 
 ---

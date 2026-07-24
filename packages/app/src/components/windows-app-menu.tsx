@@ -1,9 +1,9 @@
 import { Show, type JSX } from "solid-js"
-import { DropdownMenu } from "@hena-agent/ui/dropdown-menu"
-import { Icon } from "@hena-agent/ui/icon"
-import { IconButton } from "@hena-agent/ui/icon-button"
-import { IconButtonV2 } from "@hena-agent/ui/v2/icon-button-v2"
-import { Icon as IconV2 } from "@hena-agent/ui/v2/icon"
+import { DropdownMenu } from "@hena/ui/dropdown-menu"
+import { Icon } from "@hena/ui/icon"
+import { IconButton } from "@hena/ui/icon-button"
+import { IconButtonV2 } from "@hena/ui/v2/icon-button-v2"
+import { Icon as IconV2 } from "@hena/ui/v2/icon"
 
 import { useCommand } from "@/context/command"
 import { DESKTOP_MENU, desktopMenuVisible, type DesktopMenuAction, type DesktopMenuEntry } from "@/desktop-menu"
@@ -58,7 +58,7 @@ export function WindowsAppMenu(props: {
             variant="ghost-muted"
             size="large"
             icon={<IconV2 name="menu" />}
-            aria-label="Hena Agent menu"
+            aria-label="Hena menu"
             onPointerDown={rememberFocus}
             onKeyDown={rememberFocus}
           />
@@ -69,7 +69,7 @@ export function WindowsAppMenu(props: {
           icon="menu"
           variant="ghost"
           class="titlebar-icon rounded-md shrink-0"
-          aria-label="Hena Agent menu"
+          aria-label="Hena menu"
           onPointerDown={rememberFocus}
           onKeyDown={rememberFocus}
         />
@@ -77,7 +77,7 @@ export function WindowsAppMenu(props: {
       <DropdownMenu.Portal>
         <DropdownMenu.Content class="desktop-app-menu">
           <DropdownMenu.Group>
-            <DropdownMenu.GroupLabel class="desktop-app-menu-heading">Hena Agent</DropdownMenu.GroupLabel>
+            <DropdownMenu.GroupLabel class="desktop-app-menu-heading">Hena</DropdownMenu.GroupLabel>
             {DESKTOP_MENU.filter((menu) => desktopMenuVisible(menu, "windows")).map((menu) => (
               <DesktopMenuSubmenu label={menu.label}>
                 {menu.items

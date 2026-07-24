@@ -1,15 +1,15 @@
 ---
 title: フォーマッタ
-description: Hena Agent は言語固有のフォーマッタを使用します。
+description: Hena は言語固有のフォーマッタを使用します。
 ---
 
-Hena Agent は、言語固有のフォーマッタを使用してファイルを作成または編集した後、ファイルを自動的にフォーマットします。これにより、生成されるコードがプロジェクトのコードスタイルに従っていることが保証されます。
+Hena は、言語固有のフォーマッタを使用してファイルを作成または編集した後、ファイルを自動的にフォーマットします。これにより、生成されるコードがプロジェクトのコードスタイルに従っていることが保証されます。
 
 ---
 
 ## 組み込み
 
-Hena Agent には、一般的な言語およびフレームワーク用のいくつかの組み込みフォーマッタが付属しています。以下は、フォーマッタ、サポートされているファイル拡張子、および必要なコマンドまたは構成オプションのリストです。
+Hena には、一般的な言語およびフレームワーク用のいくつかの組み込みフォーマッタが付属しています。以下は、フォーマッタ、サポートされているファイル拡張子、および必要なコマンドまたは構成オプションのリストです。
 
 | Formatter            | Extensions                                                                                               | Requirements                                                                                          |
 | -------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
@@ -40,13 +40,13 @@ Hena Agent には、一般的な言語およびフレームワーク用のいく
 | uv                   | .py, .pyi                                                                                                | `uv` command available                                                                                |
 | zig                  | .zig, .zon                                                                                               | `zig` command available                                                                               |
 
-したがって、プロジェクトの `prettier` に `package.json` が含まれている場合、Hena Agent は自動的にそれを使用します。
+したがって、プロジェクトの `prettier` に `package.json` が含まれている場合、Hena は自動的にそれを使用します。
 
 ---
 
 ## 仕組み
 
-Hena Agent がファイルを書き込んだり編集したりすると、次のことが行われます。
+Hena がファイルを書き込んだり編集したりすると、次のことが行われます。
 
 1. 有効なすべてのフォーマッタに対してファイル拡張子をチェックします。
 2. ファイルに対して適切なフォーマッタコマンドを実行します。
@@ -58,9 +58,9 @@ Hena Agent がファイルを書き込んだり編集したりすると、次の
 
 ## 設定
 
-Hena Agent 設定の `formatter` セクションを通じてフォーマッタをカスタマイズできます。
+Hena 設定の `formatter` セクションを通じてフォーマッタをカスタマイズできます。
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {}
@@ -84,7 +84,7 @@ Hena Agent 設定の `formatter` セクションを通じてフォーマッタ�
 
 **すべて**のフォーマッタをグローバルに無効にするには、`formatter` を `false` に設定します。
 
-```json title="hena-agent.json" {3}
+```json title="hena.json" {3}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": false
@@ -93,7 +93,7 @@ Hena Agent 設定の `formatter` セクションを通じてフォーマッタ�
 
 **特定**のフォーマッタを無効にするには、`disabled` を `true` に設定します。
 
-```json title="hena-agent.json" {5}
+```json title="hena.json" {5}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {
@@ -110,7 +110,7 @@ Hena Agent 設定の `formatter` セクションを通じてフォーマッタ�
 
 コマンド、環境変数、ファイル拡張子を指定することで、組み込みフォーマッタをオーバーライドしたり、新しいフォーマッタを追加したりできます。
 
-```json title="hena-agent.json" {4-14}
+```json title="hena.json" {4-14}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {

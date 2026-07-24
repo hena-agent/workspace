@@ -3,7 +3,7 @@ import fs from "fs/promises"
 import path from "path"
 import { promisify } from "util"
 import { pathToFileURL } from "url"
-import { Repository } from "@hena-agent/core/repository"
+import { Repository } from "@hena/core/repository"
 
 const exec = promisify(execFile)
 

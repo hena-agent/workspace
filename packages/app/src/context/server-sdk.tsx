@@ -1,5 +1,5 @@
-import type { Event } from "@hena-agent/sdk/v2/client"
-import { createSimpleContext } from "@hena-agent/ui/context"
+import type { Event } from "@hena/sdk/v2/client"
+import { createSimpleContext } from "@hena/ui/context"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { type Accessor, batch, createMemo, onCleanup, onMount } from "solid-js"

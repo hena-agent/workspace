@@ -19,10 +19,10 @@ body:
       required: false
 
   - type: input
-    id: hena-agent-version
+    id: hena-version
     attributes:
-      label: Hena Agent version
-      description: What version of Hena Agent are you using?
+      label: Hena version
+      description: What version of Hena are you using?
     validations:
       required: false
 

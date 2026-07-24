@@ -3,9 +3,9 @@ import { $ } from "bun"
 import fs from "fs/promises"
 import path from "path"
 import { Effect } from "effect"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { Git } from "@hena-agent/core/git"
-import { AbsolutePath, RelativePath } from "@hena-agent/core/schema"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { Git } from "@hena/core/git"
+import { AbsolutePath, RelativePath } from "@hena/core/schema"
 import { branch, commit, gitRemote } from "./fixture/git"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
@@ -74,7 +74,7 @@ async function initRepo(directory: string) {
   await $`git init`.cwd(directory).quiet()
   await $`git config core.fsmonitor false`.cwd(directory).quiet()
   await $`git config commit.gpgsign false`.cwd(directory).quiet()
-  await $`git config user.email test@hena-agent.test`.cwd(directory).quiet()
+  await $`git config user.email test@hena.test`.cwd(directory).quiet()
   await $`git config user.name Test`.cwd(directory).quiet()
   await $`git commit --allow-empty -m root`.cwd(directory).quiet()
 }

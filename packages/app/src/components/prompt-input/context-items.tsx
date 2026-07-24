@@ -1,10 +1,10 @@
 import { Component, For, Show } from "solid-js"
 import { Dynamic } from "solid-js/web"
-import { FileIcon } from "@hena-agent/ui/file-icon"
-import { IconButton } from "@hena-agent/ui/icon-button"
-import { Tooltip } from "@hena-agent/ui/tooltip"
-import { TooltipV2 } from "@hena-agent/ui/v2/tooltip-v2"
-import { getDirectory, getFilename, getFilenameTruncated } from "@hena-agent/core/util/path"
+import { FileIcon } from "@hena/ui/file-icon"
+import { IconButton } from "@hena/ui/icon-button"
+import { Tooltip } from "@hena/ui/tooltip"
+import { TooltipV2 } from "@hena/ui/v2/tooltip-v2"
+import { getDirectory, getFilename, getFilenameTruncated } from "@hena/core/util/path"
 import type { ContextItem } from "@/context/prompt"
 
 type PromptContextItem = ContextItem & { key: string }

@@ -6,7 +6,7 @@ import * as core from "@actions/core"
 import * as github from "@actions/github"
 import type { Context as GitHubContext } from "@actions/github/lib/context"
 import type { IssueCommentEvent, PullRequestReviewCommentEvent } from "@octokit/webhooks-types"
-import { createHenaAgentClient } from "@hena-agent/sdk"
+import { createHenaClient } from "@hena/sdk"
 import { spawn } from "node:child_process"
 import { setTimeout as sleep } from "node:timers/promises"
 
@@ -113,7 +113,7 @@ type IssueQueryResponse = {
   }
 }
 
-const { client, server } = createHenaAgent()
+const { client, server } = createHena()
 let accessToken: string
 let octoRest: Octokit
 let octoGraph: typeof graphql
@@ -127,7 +127,7 @@ type PromptFiles = Awaited<ReturnType<typeof getUserPrompt>>["promptFiles"]
 try {
   assertContextEvent("issue_comment", "pull_request_review_comment")
   assertPayloadKeyword()
-  await assertHenaAgentConnected()
+  await assertHenaConnected()
 
   accessToken = await getAccessToken()
   octoRest = new Octokit({ auth: accessToken })
@@ -142,7 +142,7 @@ try {
   const comment = await createComment()
   commentId = comment.data.id
 
-  // Setup Hena Agent session
+  // Setup Hena session
   const repoData = await fetchRepo()
   session = await client.session.create<true>().then((r) => r.data)
   await subscribeSessionEvents()
@@ -152,7 +152,7 @@ try {
     await client.session.share<true>({ path: session })
     return session.id.slice(-8)
   })()
-  console.log("Hena Agent session", session.id)
+  console.log("Hena session", session.id)
   if (shareId) {
     console.log("Share link:", `${useShareUrl()}/s/${shareId}`)
   }
@@ -228,12 +228,12 @@ try {
 }
 process.exit(exitCode)
 
-function createHenaAgent() {
+function createHena() {
   const host = "127.0.0.1"
   const port = 4096
   const url = `http://${host}:${port}`
-  const proc = spawn(`hena-agent`, [`serve`, `--hostname=${host}`, `--port=${port}`])
-  const client = createHenaAgentClient({ baseUrl: url })
+  const proc = spawn(`hena`, [`serve`, `--hostname=${host}`, `--port=${port}`])
+  const client = createHenaClient({ baseUrl: url })
 
   return {
     server: { url, close: () => proc.kill() },
@@ -244,8 +244,8 @@ function createHenaAgent() {
 function assertPayloadKeyword() {
   const payload = useContext().payload as IssueCommentEvent | PullRequestReviewCommentEvent
   const body = payload.comment.body.trim()
-  if (!body.match(/(?:^|\s)(?:\/hena-agent|\/hena)(?=$|\s)/)) {
-    throw new Error("Comments must mention `/hena-agent` or `/hena`")
+  if (!body.match(/(?:^|\s)(?:\/oc|\/hena)(?=$|\s)/)) {
+    throw new Error("Comments must mention `/oc` or `/hena`")
   }
 }
 
@@ -267,7 +267,7 @@ function getReviewCommentContext() {
   }
 }
 
-async function assertHenaAgentConnected() {
+async function assertHenaConnected() {
   let retry = 0
   let connected = false
   do {
@@ -286,7 +286,7 @@ async function assertHenaAgentConnected() {
   } while (retry++ < 30)
 
   if (!connected) {
-    throw new Error("Failed to connect to Hena Agent server")
+    throw new Error("Failed to connect to Hena server")
   }
 }
 
@@ -382,7 +382,7 @@ async function getAccessToken() {
       body: JSON.stringify({ owner: repo.owner, repo: repo.repo }),
     })
   } else {
-    const oidcToken = await core.getIDToken("hena-agent-github-action")
+    const oidcToken = await core.getIDToken("hena-github-action")
     response = await fetch("https://api.hena.dev/exchange_github_app_token", {
       method: "POST",
       headers: {
@@ -418,19 +418,19 @@ async function getUserPrompt() {
 
   let prompt = (() => {
     const body = payload.comment.body.trim()
-    if (["/hena-agent", "/hena"].includes(body)) {
+    if (["/oc", "/hena"].includes(body)) {
       if (reviewContext) {
         return `Review this code change and suggest improvements for the commented lines:\n\nFile: ${reviewContext.file}\nLines: ${reviewContext.line}\n\n${reviewContext.diffHunk}`
       }
       return "Summarize this thread"
     }
-    if (["/hena-agent", "/hena"].some((mention) => body.includes(mention))) {
+    if (["/oc", "/hena"].some((mention) => body.includes(mention))) {
       if (reviewContext) {
         return `${body}\n\nContext: You are reviewing a comment on file "${reviewContext.file}" at line ${reviewContext.line}.\n\nDiff context:\n${reviewContext.diffHunk}`
       }
       return body
     }
-    throw new Error("Comments must mention `/hena-agent` or `/hena`")
+    throw new Error("Comments must mention `/oc` or `/hena`")
   })()
 
   // Handle images
@@ -607,7 +607,7 @@ async function resolveAgent(): Promise<string | undefined> {
 }
 
 async function chat(text: string, files: PromptFiles = []) {
-  console.log("Sending message to Hena Agent...")
+  console.log("Sending message to Hena...")
   const { providerID, modelID } = useEnvModel()
   const agent = await resolveAgent()
 
@@ -717,7 +717,7 @@ function generateBranchName(type: "issue" | "pr") {
     .replace(/\.\d{3}Z/, "")
     .split("T")
     .join("")
-  return `hena-agent/${type}${useIssueId()}-${timestamp}`
+  return `hena/${type}${useIssueId()}-${timestamp}`
 }
 
 async function pushToNewBranch(summary: string, branch: string) {
@@ -831,9 +831,9 @@ function footer(opts?: { image?: boolean }) {
     const titleAlt = encodeURIComponent(session.title.substring(0, 50))
     const title64 = Buffer.from(session.title.substring(0, 700), "utf8").toString("base64")
 
-    return `<a href="${useShareUrl()}/s/${shareId}"><img width="200" alt="${titleAlt}" src="https://social-cards.sst.dev/hena-agent-share/${title64}.png?model=${providerID}/${modelID}&version=${session.version}&id=${shareId}" /></a>\n`
+    return `<a href="${useShareUrl()}/s/${shareId}"><img width="200" alt="${titleAlt}" src="https://social-cards.sst.dev/hena-share/${title64}.png?model=${providerID}/${modelID}&version=${session.version}&id=${shareId}" /></a>\n`
   })()
-  const shareUrl = shareId ? `[Hena Agent session](${useShareUrl()}/s/${shareId})&nbsp;&nbsp;|&nbsp;&nbsp;` : ""
+  const shareUrl = shareId ? `[Hena session](${useShareUrl()}/s/${shareId})&nbsp;&nbsp;|&nbsp;&nbsp;` : ""
   return `\n\n${image}${shareUrl}[github run](${useEnvRunUrl()})`
 }
 

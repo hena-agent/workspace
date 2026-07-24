@@ -49,7 +49,7 @@ export interface Interface {
   readonly commit: (input: { store: AbsolutePath; id: ID }) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@hena-agent/ProjectV2") {}
+export class Service extends Context.Service<Service, Interface>()("@hena/ProjectV2") {}
 
 const layer = Layer.effect(
   Service,
@@ -63,7 +63,7 @@ const layer = Layer.effect(
     })
 
     const cached = Effect.fnUntraced(function* (dir: string) {
-      return yield* fs.readFileString(path.join(dir, "hena-agent")).pipe(
+      return yield* fs.readFileString(path.join(dir, "hena")).pipe(
         Effect.map((value) => value.trim()),
         Effect.map((value) => (value ? ID.make(value) : undefined)),
         Effect.catch(() => Effect.succeed(undefined)),
@@ -122,7 +122,7 @@ const layer = Layer.effect(
     })
 
     const commit = Effect.fn("Project.commit")(function* (input: { store: AbsolutePath; id: ID }) {
-      yield* fs.writeFileString(path.join(input.store, "hena-agent"), input.id).pipe(Effect.ignore)
+      yield* fs.writeFileString(path.join(input.store, "hena"), input.id).pipe(Effect.ignore)
     })
 
     return Service.of({ directories, resolve, commit })

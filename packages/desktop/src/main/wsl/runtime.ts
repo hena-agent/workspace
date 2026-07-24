@@ -259,7 +259,7 @@ export async function installWslDistro(name: string, opts?: RunWslOptions) {
   )
 }
 
-export async function installWslHenaAgent(version: string, distro: string, opts?: RunWslOptions) {
+export async function installWslHena(version: string, distro: string, opts?: RunWslOptions) {
   return runInteractiveCommand(
     resolveSystem32Command("wsl.exe"),
     wslArgs(
@@ -302,11 +302,11 @@ export async function probeWslDistro(name: string, opts?: RunWslOptions): Promis
   }
 }
 
-export async function resolveWslHenaAgent(distro: string, opts?: RunWslOptions) {
+export async function resolveWslHena(distro: string, opts?: RunWslOptions) {
   return firstLine(
     (
       await runWslSh(
-        'if [ -x "$HOME/.hena-agent/bin/hena-agent" ]; then printf "%s\\n" "$HOME/.hena-agent/bin/hena-agent"; fi',
+        'if [ -x "$HOME/.hena/bin/hena" ]; then printf "%s\\n" "$HOME/.hena/bin/hena"; fi',
         distro,
         opts,
       )

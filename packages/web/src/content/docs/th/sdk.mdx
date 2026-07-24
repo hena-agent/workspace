@@ -1,13 +1,13 @@
 ---
 title: SDK
-description: ไคลเอนต์ JS ประเภทที่ปลอดภัยสำหรับเซิร์ฟเวอร์ hena-agent
+description: ไคลเอนต์ JS ประเภทที่ปลอดภัยสำหรับเซิร์ฟเวอร์ hena
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-hena-agent JS/TS SDK จัดเตรียมไคลเอ็นต์ประเภทที่ปลอดภัยสำหรับการโต้ตอบกับเซิร์ฟเวอร์
-ใช้เพื่อสร้างการบูรณาการและควบคุม hena-agent โดยทางโปรแกรม
+hena JS/TS SDK จัดเตรียมไคลเอ็นต์ประเภทที่ปลอดภัยสำหรับการโต้ตอบกับเซิร์ฟเวอร์
+ใช้เพื่อสร้างการบูรณาการและควบคุม hena โดยทางโปรแกรม
 
 [เรียนรู้เพิ่มเติม](/docs/server) เกี่ยวกับวิธีการทำงานของเซิร์ฟเวอร์ ตัวอย่างเช่น ลองดู [โครงการ](/docs/ecosystem#โครงการ) ที่สร้างโดยชุมชน
 
@@ -18,19 +18,19 @@ hena-agent JS/TS SDK จัดเตรียมไคลเอ็นต์ป�
 ติดตั้ง SDK จาก npm:
 
 ```bash
-npm install @hena-agent/sdk
+npm install @hena/sdk
 ```
 
 ---
 
 ## สร้างไคลเอนต์
 
-สร้างอินสแตนซ์ของ hena-agent:
+สร้างอินสแตนซ์ของ hena:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const { client } = await createHenaAgent()
+const { client } = await createHena()
 ```
 
 สิ่งนี้จะเริ่มต้นทั้งเซิร์ฟเวอร์และไคลเอนต์
@@ -49,12 +49,12 @@ const { client } = await createHenaAgent()
 
 ## การกำหนดค่า
 
-คุณสามารถส่งผ่านออบเจ็กต์การกำหนดค่าเพื่อปรับแต่งลักษณะการทำงานได้ อินสแตนซ์ยังคงรับ `hena-agent.json` ของคุณ แต่คุณสามารถแทนที่หรือเพิ่มการกำหนดค่าแบบอินไลน์ได้:
+คุณสามารถส่งผ่านออบเจ็กต์การกำหนดค่าเพื่อปรับแต่งลักษณะการทำงานได้ อินสแตนซ์ยังคงรับ `hena.json` ของคุณ แต่คุณสามารถแทนที่หรือเพิ่มการกำหนดค่าแบบอินไลน์ได้:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const agent = await createHenaAgent({
+const agent = await createHena({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -69,12 +69,12 @@ agent.server.close()
 
 ## ลูกค้าเท่านั้น
 
-หากคุณมีอินสแตนซ์ hena-agent ที่ทำงานอยู่แล้ว คุณสามารถสร้างอินสแตนซ์ไคลเอ็นต์เพื่อเชื่อมต่อได้:
+หากคุณมีอินสแตนซ์ hena ที่ทำงานอยู่แล้ว คุณสามารถสร้างอินสแตนซ์ไคลเอ็นต์เพื่อเชื่อมต่อได้:
 
 ```javascript
-import { createHenaAgentClient } from "@hena-agent/sdk"
+import { createHenaClient } from "@hena/sdk"
 
-const client = createHenaAgentClient({
+const client = createHenaClient({
   baseUrl: "http://localhost:4096",
 })
 ```
@@ -96,7 +96,7 @@ const client = createHenaAgentClient({
 SDK มีคำจำกัดความ TypeScript สำหรับ API ประเภททั้งหมด นำเข้าโดยตรง:
 
 ```typescript
-import type { Session, Message, Part } from "@hena-agent/sdk"
+import type { Session, Message, Part } from "@hena/sdk"
 ```
 
 ทุกประเภทสร้างขึ้นจากข้อกำหนด OpenAPI ของเซิร์ฟเวอร์และมีอยู่ใน <a href={typesUrl}>ไฟล์ประเภท</a>
@@ -376,7 +376,7 @@ await client.session.prompt({
 ```javascript
 // Search and read files
 const textResults = await client.find.text({
-  query: { pattern: "function.*hena-agent" },
+  query: { pattern: "function.*hena" },
 })
 
 const files = await client.find.files({

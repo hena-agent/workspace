@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Patch } from "@hena-agent/core/patch"
+import { Patch } from "@hena/core/patch"
 
 describe("Patch", () => {
   test("parses add, update, and delete hunks", () => {

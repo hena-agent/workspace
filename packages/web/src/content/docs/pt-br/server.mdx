@@ -1,19 +1,19 @@
 ---
 title: Servidor
-description: Interaja com o servidor hena-agent via HTTP.
+description: Interaja com o servidor hena via HTTP.
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-O comando `hena-agent serve` executa um servidor HTTP sem cabeça que expõe um endpoint OpenAPI que um cliente hena-agent pode usar.
+O comando `hena serve` executa um servidor HTTP sem cabeça que expõe um endpoint OpenAPI que um cliente hena pode usar.
 
 ---
 
 ### Uso
 
 ```bash
-hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
+hena serve [--port <number>] [--hostname <string>] [--cors <origin>]
 ```
 
 #### Opções
@@ -23,38 +23,38 @@ hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
 | `--port`        | Porta para escutar                                | `4096`           |
 | `--hostname`    | Nome do host para escutar                         | `127.0.0.1`      |
 | `--mdns`        | Habilitar descoberta mDNS                         | `false`          |
-| `--mdns-domain` | Nome de domínio personalizado para o serviço mDNS | `hena-agent.local` |
+| `--mdns-domain` | Nome de domínio personalizado para o serviço mDNS | `hena.local` |
 | `--cors`        | Origens adicionais de navegador a permitir        | `[]`             |
 
 `--cors` pode ser passado várias vezes:
 
 ```bash
-hena-agent serve --cors http://localhost:5173 --cors https://app.example.com
+hena serve --cors http://localhost:5173 --cors https://app.example.com
 ```
 
 ---
 
 ### Autenticação
 
-Defina `HENA_AGENT_SERVER_PASSWORD` para proteger o servidor com autenticação básica HTTP. O nome de usuário padrão é `hena-agent`, ou defina `HENA_AGENT_SERVER_USERNAME` para substituí-lo. Isso se aplica tanto ao `hena-agent serve` quanto ao `hena-agent web`.
+Defina `HENA_SERVER_PASSWORD` para proteger o servidor com autenticação básica HTTP. O nome de usuário padrão é `hena`, ou defina `HENA_SERVER_USERNAME` para substituí-lo. Isso se aplica tanto ao `hena serve` quanto ao `hena web`.
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve
+HENA_SERVER_PASSWORD=your-password hena serve
 ```
 
 ---
 
 ### Como funciona
 
-Quando você executa `hena-agent`, ele inicia um TUI e um servidor. Onde o TUI é o cliente que se comunica com o servidor. O servidor expõe um endpoint de especificação OpenAPI 3.1. Este endpoint também é usado para gerar um [SDK](/docs/sdk).
+Quando você executa `hena`, ele inicia um TUI e um servidor. Onde o TUI é o cliente que se comunica com o servidor. O servidor expõe um endpoint de especificação OpenAPI 3.1. Este endpoint também é usado para gerar um [SDK](/docs/sdk).
 
 :::tip
-Use o servidor hena-agent para interagir com o hena-agent programaticamente.
+Use o servidor hena para interagir com o hena programaticamente.
 :::
 
-Essa arquitetura permite que o hena-agent suporte múltiplos clientes e permite que você interaja com o hena-agent programaticamente.
+Essa arquitetura permite que o hena suporte múltiplos clientes e permite que você interaja com o hena programaticamente.
 
-Você pode executar `hena-agent serve` para iniciar um servidor autônomo. Se você tiver o TUI do hena-agent em execução, `hena-agent serve` iniciará um novo servidor.
+Você pode executar `hena serve` para iniciar um servidor autônomo. Se você tiver o TUI do hena em execução, `hena serve` iniciará um novo servidor.
 
 ---
 
@@ -62,7 +62,7 @@ Você pode executar `hena-agent serve` para iniciar um servidor autônomo. Se vo
 
 Quando você inicia o TUI, ele atribui aleatoriamente uma porta e um nome de host. Você pode passar os [flags](/docs/cli) `--hostname` e `--port`. Em seguida, use isso para se conectar ao seu servidor.
 
-O endpoint [`/tui`](#tui) pode ser usado para controlar o TUI através do servidor. Por exemplo, você pode preencher ou executar um prompt. Essa configuração é usada pelos plugins do hena-agent [IDE](/docs/ide).
+O endpoint [`/tui`](#tui) pode ser usado para controlar o TUI através do servidor. Por exemplo, você pode preencher ou executar um prompt. Essa configuração é usada pelos plugins do hena [IDE](/docs/ide).
 
 ---
 
@@ -80,7 +80,7 @@ Por exemplo, `http://localhost:4096/doc`. Use a especificação para gerar clien
 
 ## APIs
 
-O servidor hena-agent expõe as seguintes APIs.
+O servidor hena expõe as seguintes APIs.
 
 ---
 

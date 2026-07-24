@@ -1,2 +1,2 @@
 export * from "./generated/index"
-export type { EventsSubscribeOutput as HenaAgentEvent } from "./generated/types"
+export type { EventsSubscribeOutput as HenaEvent } from "./generated/types"

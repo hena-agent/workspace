@@ -1,6 +1,6 @@
 export * as IntegrationConnection from "./connection"
 
-import { Connection } from "@hena-agent/schema/connection"
+import { Connection } from "@hena/schema/connection"
 
 export const CredentialInfo = Connection.CredentialInfo
 export type CredentialInfo = Connection.CredentialInfo

@@ -1,7 +1,7 @@
 import { action, useParams, useAction, createAsync, useSubmission, json } from "@solidjs/router"
 import { createMemo, Match, Show, Switch, createEffect } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Billing } from "@hena-agent/console-core/billing.js"
+import { Billing } from "@hena/console-core/billing.js"
 import { withActor } from "~/context/auth.withActor"
 import { IconAlipay, IconCreditCard, IconStripe, IconUpi, IconWechat } from "~/component/icon"
 import styles from "./billing-section.module.css"

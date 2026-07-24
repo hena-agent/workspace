@@ -15,7 +15,7 @@ export const dict = {
   "nav.home": "หน้าหลัก",
   "nav.openMenu": "เปิดเมนู",
   "nav.getStartedFree": "เริ่มต้นฟรี",
-  "nav.logoAlt": "Hena Agent",
+  "nav.logoAlt": "Hena",
 
   "nav.context.copyLogo": "คัดลอกโลโก้เป็น SVG",
   "nav.context.copyWordmark": "คัดลอกตัวอักษรแบรนด์เป็น SVG",
@@ -37,14 +37,14 @@ export const dict = {
   "email.subscribe": "สมัครรับข่าวสาร",
   "email.success": "เกือบเสร็จแล้ว ตรวจสอบกล่องจดหมายและยืนยันที่อยู่อีเมลของคุณ",
 
-  "notFound.title": "ไม่พบหน้า | Hena Agent",
+  "notFound.title": "ไม่พบหน้า | Hena",
   "notFound.heading": "404 - ไม่พบหน้าที่ค้นหา",
   "notFound.home": "หน้าหลัก",
   "notFound.docs": "เอกสาร",
   "notFound.github": "GitHub",
   "notFound.discord": "Discord",
-  "notFound.logoLightAlt": "โลโก้ hena-agent แบบสว่าง",
-  "notFound.logoDarkAlt": "โลโก้ hena-agent แบบมืด",
+  "notFound.logoLightAlt": "โลโก้ hena แบบสว่าง",
+  "notFound.logoDarkAlt": "โลโก้ hena แบบมืด",
 
   "user.logout": "ออกจากระบบ",
 
@@ -81,11 +81,11 @@ export const dict = {
   "error.reloadAmountMin": "จำนวนเงินที่โหลดซ้ำต้องมีอย่างน้อย ${{amount}}",
   "error.reloadTriggerMin": "ยอดคงเหลือที่กระตุ้นต้องมีอย่างน้อย ${{amount}}",
 
-  "app.meta.description": "Hena Agent - เอเจนต์เขียนโค้ดแบบโอเพนซอร์ส",
+  "app.meta.description": "Hena - เอเจนต์เขียนโค้ดแบบโอเพนซอร์ส",
 
-  "home.title": "Hena Agent | เอเจนต์เขียนโค้ดด้วย AI แบบโอเพนซอร์ส",
+  "home.title": "Hena | เอเจนต์เขียนโค้ดด้วย AI แบบโอเพนซอร์ส",
 
-  "temp.title": "Hena Agent | เอเจนต์เขียนโค้ด AI ที่สร้างมาเพื่อเทอร์มินัล",
+  "temp.title": "Hena | เอเจนต์เขียนโค้ด AI ที่สร้างมาเพื่อเทอร์มินัล",
   "temp.hero.title": "เอเจนต์เขียนโค้ด AI ที่สร้างมาเพื่อเทอร์มินัล",
   "temp.zen": "Hena Zen",
   "temp.getStarted": "เริ่มต้นใช้งาน",
@@ -93,13 +93,13 @@ export const dict = {
   "temp.feature.native.body": "UI เทอร์มินัลแบบเนทีฟที่ตอบสนองไวและปรับแต่งธีมได้",
   "temp.feature.zen.beforeLink": "",
   "temp.feature.zen.link": "รายการโมเดลที่คัดสรรแล้ว",
-  "temp.feature.zen.afterLink": "โดย Hena Agent",
+  "temp.feature.zen.afterLink": "โดย Hena",
   "temp.feature.models.beforeLink": "รองรับผู้ให้บริการ LLM กว่า 75 รายผ่าน",
   "temp.feature.models.afterLink": "รวมถึงโมเดล Local",
-  "temp.screenshot.caption": "Hena Agent TUI พร้อมธีม tokyonight",
-  "temp.screenshot.alt": "Hena Agent TUI พร้อมธีม tokyonight",
-  "temp.logoLightAlt": "โลโก้ hena-agent แบบสว่าง",
-  "temp.logoDarkAlt": "โลโก้ hena-agent แบบมืด",
+  "temp.screenshot.caption": "Hena TUI พร้อมธีม tokyonight",
+  "temp.screenshot.alt": "Hena TUI พร้อมธีม tokyonight",
+  "temp.logoLightAlt": "โลโก้ hena แบบสว่าง",
+  "temp.logoDarkAlt": "โลโก้ hena แบบมืด",
 
   "home.banner.badge": "ใหม่",
   "home.banner.text": "ขอแนะนำแท็บสำหรับเดสก์ท็อป.",
@@ -117,8 +117,8 @@ export const dict = {
 
   "home.install.ariaLabel": "ตัวเลือกการติดตั้ง",
 
-  "home.what.title": "Hena Agent คืออะไร?",
-  "home.what.body": "Hena Agent คือเอเจนต์โอเพนซอร์สที่ช่วยคุณเขียนโค้ดในเทอร์มินัล, IDE หรือเดสก์ท็อป",
+  "home.what.title": "Hena คืออะไร?",
+  "home.what.body": "Hena คือเอเจนต์โอเพนซอร์สที่ช่วยคุณเขียนโค้ดในเทอร์มินัล, IDE หรือเดสก์ท็อป",
   "home.what.lsp.title": "รองรับ LSP",
   "home.what.lsp.body": "โหลด LSP ที่เหมาะสมสำหรับ LLM โดยอัตโนมัติ",
   "home.what.multiSession.title": "หลายเซสชัน",
@@ -137,50 +137,50 @@ export const dict = {
 
   "home.growth.title": "เอเจนต์เขียนโค้ดด้วย AI แบบโอเพนซอร์ส",
   "home.growth.body":
-    "ด้วยยอดดาวบน GitHub กว่า <strong>{{stars}}</strong> ดวง, ผู้ร่วมพัฒนา <strong>{{contributors}}</strong> คน, และการคอมมิตกว่า <strong>{{commits}}</strong> ครั้ง, Hena Agent ได้รับความไว้วางใจจากนักพัฒนากว่า <strong>{{monthlyUsers}}</strong> คนในทุกเดือน",
+    "ด้วยยอดดาวบน GitHub กว่า <strong>{{stars}}</strong> ดวง, ผู้ร่วมพัฒนา <strong>{{contributors}}</strong> คน, และการคอมมิตกว่า <strong>{{commits}}</strong> ครั้ง, Hena ได้รับความไว้วางใจจากนักพัฒนากว่า <strong>{{monthlyUsers}}</strong> คนในทุกเดือน",
   "home.growth.githubStars": "GitHub Stars",
   "home.growth.contributors": "ผู้ร่วมพัฒนา",
   "home.growth.monthlyDevs": "นักพัฒนารายเดือน",
 
   "home.privacy.title": "สร้างโดยคำนึงถึงความเป็นส่วนตัวเป็นหลัก",
   "home.privacy.body":
-    "Hena Agent ไม่จัดเก็บโค้ดหรือข้อมูลบริบทของคุณ เพื่อให้สามารถทำงานในสภาพแวดล้อมที่ให้ความสำคัญกับความเป็นส่วนตัวได้",
+    "Hena ไม่จัดเก็บโค้ดหรือข้อมูลบริบทของคุณ เพื่อให้สามารถทำงานในสภาพแวดล้อมที่ให้ความสำคัญกับความเป็นส่วนตัวได้",
   "home.privacy.learnMore": "เรียนรู้เพิ่มเติมเกี่ยวกับ",
   "home.privacy.link": "ความเป็นส่วนตัว",
 
-  "home.faq.q1": "Hena Agent คืออะไร?",
+  "home.faq.q1": "Hena คืออะไร?",
   "home.faq.a1":
-    "Hena Agent เป็นเอเจนต์โอเพนซอร์สที่ช่วยให้คุณเขียนและรันโค้ดด้วยโมเดล AI ใดก็ได้ มีให้เลือกใช้ทั้งแบบอินเทอร์เฟซเทอร์มินัล, แอปเดสก์ท็อป หรือส่วนขยาย IDE",
-  "home.faq.q2": "ฉันจะเริ่มใช้ Hena Agent ได้อย่างไร?",
+    "Hena เป็นเอเจนต์โอเพนซอร์สที่ช่วยให้คุณเขียนและรันโค้ดด้วยโมเดล AI ใดก็ได้ มีให้เลือกใช้ทั้งแบบอินเทอร์เฟซเทอร์มินัล, แอปเดสก์ท็อป หรือส่วนขยาย IDE",
+  "home.faq.q2": "ฉันจะเริ่มใช้ Hena ได้อย่างไร?",
   "home.faq.a2.before": "วิธีเริ่มต้นที่ง่ายที่สุดคืออ่าน",
   "home.faq.a2.link": "บทนำ",
-  "home.faq.q3": "ต้องสมัครสมาชิก AI เพิ่มเติมเพื่อใช้ Hena Agent หรือไม่?",
-  "home.faq.a3.p1": "ไม่จำเป็นเสมอไป Hena Agent มาพร้อมกับชุดโมเดลฟรีที่คุณสามารถใช้ได้โดยไม่ต้องสร้างบัญชี",
+  "home.faq.q3": "ต้องสมัครสมาชิก AI เพิ่มเติมเพื่อใช้ Hena หรือไม่?",
+  "home.faq.a3.p1": "ไม่จำเป็นเสมอไป Hena มาพร้อมกับชุดโมเดลฟรีที่คุณสามารถใช้ได้โดยไม่ต้องสร้างบัญชี",
   "home.faq.a3.p2.beforeZen": "นอกจากนี้ คุณสามารถใช้โมเดลยอดนิยมใดก็ได้โดยการสร้างบัญชี",
   "home.faq.a3.p2.afterZen": "",
   "home.faq.a3.p3":
-    "แม้เราจะแนะนำให้ใช้ Zen แต่ Hena Agent ก็ทำงานร่วมกับผู้ให้บริการยอดนิยมทั้งหมด เช่น OpenAI, Anthropic, xAI เป็นต้น",
+    "แม้เราจะแนะนำให้ใช้ Zen แต่ Hena ก็ทำงานร่วมกับผู้ให้บริการยอดนิยมทั้งหมด เช่น OpenAI, Anthropic, xAI เป็นต้น",
   "home.faq.a3.p4.beforeLocal": "คุณยังสามารถเชื่อมต่อกับ",
   "home.faq.a3.p4.localLink": "โมเดล Local ของคุณ",
-  "home.faq.q4": "ฉันสามารถใช้การสมัครสมาชิก AI ที่มีอยู่กับ Hena Agent ได้หรือไม่?",
+  "home.faq.q4": "ฉันสามารถใช้การสมัครสมาชิก AI ที่มีอยู่กับ Hena ได้หรือไม่?",
   "home.faq.a4.p1":
-    "ได้ Hena Agent รองรับแผนการสมัครสมาชิกจากผู้ให้บริการหลักทั้งหมด คุณสามารถใช้การสมัครสมาชิก Claude Pro/Max, ChatGPT Plus/Pro หรือ GitHub Copilot ของคุณได้",
-  "home.faq.q5": "ฉันใช้ Hena Agent ได้เฉพาะในเทอร์มินัลใช่หรือไม่?",
-  "home.faq.a5.beforeDesktop": "ไม่อีกต่อไป! Hena Agent มีแอปสำหรับ",
+    "ได้ Hena รองรับแผนการสมัครสมาชิกจากผู้ให้บริการหลักทั้งหมด คุณสามารถใช้การสมัครสมาชิก Claude Pro/Max, ChatGPT Plus/Pro หรือ GitHub Copilot ของคุณได้",
+  "home.faq.q5": "ฉันใช้ Hena ได้เฉพาะในเทอร์มินัลใช่หรือไม่?",
+  "home.faq.a5.beforeDesktop": "ไม่อีกต่อไป! Hena มีแอปสำหรับ",
   "home.faq.a5.desktop": "เดสก์ท็อป",
   "home.faq.a5.and": "และ",
   "home.faq.a5.web": "เว็บ",
-  "home.faq.q6": "Hena Agent ราคาเท่าไหร่?",
+  "home.faq.q6": "Hena ราคาเท่าไหร่?",
   "home.faq.a6":
-    "Hena Agent ใช้งานได้ฟรี 100% และมาพร้อมกับชุดโมเดลฟรี อาจมีค่าใช้จ่ายเพิ่มเติมหากคุณเชื่อมต่อกับผู้ให้บริการรายอื่น",
+    "Hena ใช้งานได้ฟรี 100% และมาพร้อมกับชุดโมเดลฟรี อาจมีค่าใช้จ่ายเพิ่มเติมหากคุณเชื่อมต่อกับผู้ให้บริการรายอื่น",
   "home.faq.q7": "แล้วเรื่องข้อมูลและความเป็นส่วนตัวล่ะ?",
   "home.faq.a7.p1": "ข้อมูลของคุณจะถูกจัดเก็บเฉพาะเมื่อคุณใช้โมเดลฟรีของเราหรือสร้างลิงก์ที่แชร์ได้",
   "home.faq.a7.p2.beforeModels": "เรียนรู้เพิ่มเติมเกี่ยวกับ",
   "home.faq.a7.p2.modelsLink": "โมเดลของเรา",
   "home.faq.a7.p2.and": "และ",
   "home.faq.a7.p2.shareLink": "หน้าแชร์",
-  "home.faq.q8": "Hena Agent เป็นโอเพนซอร์สหรือไม่?",
-  "home.faq.a8.p1": "ใช่ Hena Agent เป็นโอเพนซอร์สเต็มรูปแบบ ซอร์สโค้ดเปิดเผยต่อสาธารณะบน",
+  "home.faq.q8": "Hena เป็นโอเพนซอร์สหรือไม่?",
+  "home.faq.a8.p1": "ใช่ Hena เป็นโอเพนซอร์สเต็มรูปแบบ ซอร์สโค้ดเปิดเผยต่อสาธารณะบน",
   "home.faq.a8.p2": "ภายใต้",
   "home.faq.a8.mitLicense": "MIT License",
   "home.faq.a8.p3":
@@ -188,23 +188,23 @@ export const dict = {
 
   "home.zenCta.title": "เข้าถึงโมเดลที่เชื่อถือได้และปรับแต่งมาแล้วสำหรับเอเจนต์เขียนโค้ด",
   "home.zenCta.body":
-    "Zen ให้คุณเข้าถึงชุดโมเดล AI ที่คัดสรรมาแล้ว ซึ่ง Hena Agent ได้ทดสอบและทำเบนช์มาร์กโดยเฉพาะสำหรับเอเจนต์เขียนโค้ด ไม่ต้องกังวลเรื่องประสิทธิภาพและคุณภาพที่ไม่สม่ำเสมอจากผู้ให้บริการ ใช้โมเดลที่ผ่านการตรวจสอบแล้วว่าใช้งานได้จริง",
+    "Zen ให้คุณเข้าถึงชุดโมเดล AI ที่คัดสรรมาแล้ว ซึ่ง Hena ได้ทดสอบและทำเบนช์มาร์กโดยเฉพาะสำหรับเอเจนต์เขียนโค้ด ไม่ต้องกังวลเรื่องประสิทธิภาพและคุณภาพที่ไม่สม่ำเสมอจากผู้ให้บริการ ใช้โมเดลที่ผ่านการตรวจสอบแล้วว่าใช้งานได้จริง",
   "home.zenCta.link": "เรียนรู้เกี่ยวกับ Zen",
 
   "zen.title": "Hena Zen | ชุดโมเดลที่คัดสรรมาอย่างดี เชื่อถือได้ และปรับแต่งแล้วสำหรับเอเจนต์เขียนโค้ด",
   "zen.hero.title": "โมเดลที่ปรับแต่งมาอย่างดีและเชื่อถือได้สำหรับเอเจนต์เขียนโค้ด",
   "zen.hero.body":
-    "Zen ให้คุณเข้าถึงชุดโมเดล AI ที่คัดสรรมาแล้ว ซึ่ง Hena Agent ได้ทดสอบและทำเบนช์มาร์กโดยเฉพาะสำหรับเอเจนต์เขียนโค้ด ไม่ต้องกังวลเรื่องประสิทธิภาพและคุณภาพที่ไม่สม่ำเสมอ ใช้โมเดลที่ผ่านการตรวจสอบแล้วว่าใช้งานได้จริง",
+    "Zen ให้คุณเข้าถึงชุดโมเดล AI ที่คัดสรรมาแล้ว ซึ่ง Hena ได้ทดสอบและทำเบนช์มาร์กโดยเฉพาะสำหรับเอเจนต์เขียนโค้ด ไม่ต้องกังวลเรื่องประสิทธิภาพและคุณภาพที่ไม่สม่ำเสมอ ใช้โมเดลที่ผ่านการตรวจสอบแล้วว่าใช้งานได้จริง",
 
   "zen.faq.q1": "Hena Zen คืออะไร?",
   "zen.faq.a1":
-    "Zen คือชุดโมเดล AI ที่คัดสรรมาอย่างดี ผ่านการทดสอบและทำเบนช์มาร์กสำหรับเอเจนต์เขียนโค้ด สร้างโดยทีมงานผู้อยู่เบื้องหลัง Hena Agent",
+    "Zen คือชุดโมเดล AI ที่คัดสรรมาอย่างดี ผ่านการทดสอบและทำเบนช์มาร์กสำหรับเอเจนต์เขียนโค้ด สร้างโดยทีมงานผู้อยู่เบื้องหลัง Hena",
   "zen.faq.q2": "อะไรทำให้ Zen แม่นยำกว่า?",
   "zen.faq.a2":
     "Zen ให้บริการเฉพาะโมเดลที่ได้รับการทดสอบและทำเบนช์มาร์กสำหรับเอเจนต์เขียนโค้ดโดยเฉพาะ คุณคงไม่ใช้มีดทาเนยมาหั่นสเต็ก ดังนั้นอย่าใช้โมเดลคุณภาพต่ำสำหรับการเขียนโค้ด",
   "zen.faq.q3": "Zen ราคาถูกกว่าหรือไม่?",
   "zen.faq.a3":
-    "Zen ไม่ได้แสวงหากำไร Zen ส่งผ่านต้นทุนจากผู้ให้บริการโมเดลมาถึงคุณ ยิ่งมีการใช้งาน Zen มากเท่าไหร่ Hena Agent ก็ยิ่งสามารถต่อรองเรตราคาที่ดีกว่าและส่งต่อให้คุณได้มากขึ้นเท่านั้น",
+    "Zen ไม่ได้แสวงหากำไร Zen ส่งผ่านต้นทุนจากผู้ให้บริการโมเดลมาถึงคุณ ยิ่งมีการใช้งาน Zen มากเท่าไหร่ Hena ก็ยิ่งสามารถต่อรองเรตราคาที่ดีกว่าและส่งต่อให้คุณได้มากขึ้นเท่านั้น",
   "zen.faq.q4": "Zen ราคาเท่าไหร่?",
   "zen.faq.a4.p1.beforePricing": "Zen",
   "zen.faq.a4.p1.pricingLink": "คิดค่าบริการต่อคำขอ",
@@ -213,7 +213,7 @@ export const dict = {
     "ค่าใช้จ่ายรวมของคุณขึ้นอยู่กับการใช้งาน และคุณสามารถตั้งวงเงินการใช้จ่ายรายเดือนได้ใน",
   "zen.faq.a4.p2.accountLink": "บัญชีของคุณ",
   "zen.faq.a4.p3":
-    "เพื่อครอบคลุมต้นทุน Hena Agent คิดค่าธรรมเนียมการประมวลผลการชำระเงินเพียงเล็กน้อย $1.23 ต่อการเติมเงิน $20",
+    "เพื่อครอบคลุมต้นทุน Hena คิดค่าธรรมเนียมการประมวลผลการชำระเงินเพียงเล็กน้อย $1.23 ต่อการเติมเงิน $20",
   "zen.faq.q5": "แล้วเรื่องข้อมูลและความเป็นส่วนตัวล่ะ?",
   "zen.faq.a5.beforeExceptions":
     "โมเดล Zen ทั้งหมดโฮสต์ในสหรัฐอเมริกา ผู้ให้บริการปฏิบัติตามนโยบายไม่เก็บรักษาข้อมูล (zero-retention policy) และไม่ใช้ข้อมูลของคุณสำหรับการฝึกโมเดล โดยมี",
@@ -224,7 +224,7 @@ export const dict = {
   "zen.faq.a7": "ได้ คุณสามารถปิดการเรียกเก็บเงินได้ตลอดเวลาและใช้ยอดเงินคงเหลือของคุณจนหมด",
   "zen.faq.q8": "ฉันสามารถใช้ Zen กับเอเจนต์เขียนโค้ดอื่นได้หรือไม่?",
   "zen.faq.a8":
-    "แม้ว่า Zen จะทำงานได้ดีเยี่ยมกับ Hena Agent แต่คุณสามารถใช้ Zen กับเอเจนต์ใดก็ได้ เพียงทำตามคำแนะนำการตั้งค่าในเอเจนต์เขียนโค้ดที่คุณต้องการ",
+    "แม้ว่า Zen จะทำงานได้ดีเยี่ยมกับ Hena แต่คุณสามารถใช้ Zen กับเอเจนต์ใดก็ได้ เพียงทำตามคำแนะนำการตั้งค่าในเอเจนต์เขียนโค้ดที่คุณต้องการ",
 
   "zen.cta.start": "เริ่มต้นใช้งาน Zen",
   "zen.pricing.title": "เติมเงิน $20 แบบ Pay as you go",
@@ -233,12 +233,12 @@ export const dict = {
   "zen.problem.title": "Zen กำลังแก้ปัญหาอะไร?",
   "zen.problem.body":
     "มีโมเดลมากมายให้เลือก แต่มีเพียงไม่กี่ตัวที่ทำงานได้ดีกับเอเจนต์เขียนโค้ด ผู้ให้บริการส่วนใหญ่กำหนดค่าแตกต่างกันไปซึ่งให้ผลลัพธ์ที่หลากหลาย",
-  "zen.problem.subtitle": "เรากำลังแก้ไขปัญหานี้สำหรับทุกคน ไม่ใช่แค่ผู้ใช้ Hena Agent เท่านั้น",
+  "zen.problem.subtitle": "เรากำลังแก้ไขปัญหานี้สำหรับทุกคน ไม่ใช่แค่ผู้ใช้ Hena เท่านั้น",
   "zen.problem.item1": "ทดสอบโมเดลที่คัดเลือกมาและปรึกษากับทีมของโมเดลนั้นๆ",
   "zen.problem.item2": "ทำงานร่วมกับผู้ให้บริการเพื่อให้มั่นใจว่าโมเดลถูกส่งมอบอย่างถูกต้อง",
   "zen.problem.item3": "ทำเบนช์มาร์กทุกการจับคู่ระหว่างโมเดลและผู้ให้บริการที่เราแนะนำ",
   "zen.how.title": "Zen ทำงานอย่างไร",
-  "zen.how.body": "แม้เราจะแนะนำให้คุณใช้ Zen กับ Hena Agent แต่คุณสามารถใช้ Zen กับเอเจนต์ใดก็ได้",
+  "zen.how.body": "แม้เราจะแนะนำให้คุณใช้ Zen กับ Hena แต่คุณสามารถใช้ Zen กับเอเจนต์ใดก็ได้",
   "zen.how.step1.title": "ลงทะเบียนและเติมเงิน $20",
   "zen.how.step1.beforeLink": "ทำตาม",
   "zen.how.step1.link": "คำแนะนำการตั้งค่า",
@@ -275,7 +275,7 @@ export const dict = {
 
   "go.testimonials.brand.zen": "Zen",
   "go.testimonials.brand.go": "Go",
-  "go.testimonials.handle": "@Hena Agent",
+  "go.testimonials.handle": "@Hena",
   "go.testimonials.dax.name": "Dax Raad",
   "go.testimonials.dax.title": "อดีต CEO, Terminal Products",
   "go.testimonials.dax.quoteAfter": "เปลี่ยนชีวิตไปเลย มันเป็นสิ่งที่ต้องมีจริงๆ",
@@ -296,7 +296,7 @@ export const dict = {
   "go.testimonials.frank.quote": "ผมหวังว่าผมจะยังอยู่ที่ Nvidia",
   "go.problem.title": "Go แก้ปัญหาอะไร?",
   "go.problem.body":
-    "เรามุ่งมั่นที่จะนำประสบการณ์ Hena Agent ไปสู่ผู้คนให้ได้มากที่สุด Hena Go เป็นการสมัครสมาชิกราคาประหยัด: $5 สำหรับเดือนแรก จากนั้น $10/เดือน โดยมอบขีดจำกัดที่เอื้อเฟื้อและการเข้าถึงโมเดลโอเพนซอร์สที่มีความสามารถสูงสุดอย่างเชื่อถือได้",
+    "เรามุ่งมั่นที่จะนำประสบการณ์ Hena ไปสู่ผู้คนให้ได้มากที่สุด Hena Go เป็นการสมัครสมาชิกราคาประหยัด: $5 สำหรับเดือนแรก จากนั้น $10/เดือน โดยมอบขีดจำกัดที่เอื้อเฟื้อและการเข้าถึงโมเดลโอเพนซอร์สที่มีความสามารถสูงสุดอย่างเชื่อถือได้",
   "go.problem.subtitle": " ",
   "go.problem.item1": "ราคาการสมัครสมาชิกที่ต่ำ",
   "go.problem.item2": "ขีดจำกัดที่กว้างขวางและการเข้าถึงที่เชื่อถือได้",
@@ -304,7 +304,7 @@ export const dict = {
   "go.problem.item4":
     "รวมถึง Grok 4.5, GLM-5.2, GLM-5.1, Kimi K3, Kimi K2.7 Code, Kimi K2.6, MiMo-V2.5-Pro, MiMo-V2.5, Qwen3.7 Max, Qwen3.7 Plus, Qwen3.6 Plus, MiniMax M2.7, MiniMax M3, DeepSeek V4 Pro, DeepSeek V4 Flash และ Hy3",
   "go.how.title": "Go ทำงานอย่างไร",
-  "go.how.body": "Go เริ่มต้นที่ $5 สำหรับเดือนแรก จากนั้น $10/เดือน คุณสามารถใช้กับ Hena Agent หรือเอเจนต์ใดก็ได้",
+  "go.how.body": "Go เริ่มต้นที่ $5 สำหรับเดือนแรก จากนั้น $10/เดือน คุณสามารถใช้กับ Hena หรือเอเจนต์ใดก็ได้",
   "go.how.step1.title": "สร้างบัญชี",
   "go.how.step1.beforeLink": "ทำตาม",
   "go.how.step1.link": "คำแนะนำการตั้งค่า",
@@ -448,15 +448,15 @@ export const dict = {
     "เข้าถึงโมเดลที่กำหนดค่าไว้เพื่อประสิทธิภาพสูงสุด - ไม่มีการลดเกรดหรือส่งงานไปยังผู้ให้บริการที่ราคาถูกกว่า",
   "workspace.newUser.feature.lockin.title": "ไม่มีการผูกมัด (Lock-in)",
   "workspace.newUser.feature.lockin.body":
-    "ใช้ Zen กับเอเจนต์เขียนโค้ดใดก็ได้ และกลับมาใช้ผู้ให้บริการรายอื่นด้วย Hena Agent ได้ทุกเมื่อที่คุณต้องการ",
+    "ใช้ Zen กับเอเจนต์เขียนโค้ดใดก็ได้ และกลับมาใช้ผู้ให้บริการรายอื่นด้วย Hena ได้ทุกเมื่อที่คุณต้องการ",
   "workspace.newUser.copyApiKey": "คัดลอก API key",
   "workspace.newUser.copyKey": "คัดลอก Key",
   "workspace.newUser.copied": "คัดลอกแล้ว!",
   "workspace.newUser.step.enableBilling": "เปิดใช้งานการเรียกเก็บเงิน",
   "workspace.newUser.step.login.before": "รัน",
-  "workspace.newUser.step.login.after": "และเลือก Hena Agent",
+  "workspace.newUser.step.login.after": "และเลือก Hena",
   "workspace.newUser.step.pasteKey": "วาง API key ของคุณ",
-  "workspace.newUser.step.models.before": "เริ่ม Hena Agent และรัน",
+  "workspace.newUser.step.models.before": "เริ่ม Hena และรัน",
   "workspace.newUser.step.models.after": "เพื่อเลือกโมเดล",
 
   "workspace.models.title": "โมเดล",
@@ -502,10 +502,10 @@ export const dict = {
   "workspace.cost.subscriptionShort": "sub",
 
   "workspace.keys.title": "API Keys",
-  "workspace.keys.subtitle": "จัดการ API keys ของคุณสำหรับการเข้าถึงบริการ Hena Agent",
+  "workspace.keys.subtitle": "จัดการ API keys ของคุณสำหรับการเข้าถึงบริการ Hena",
   "workspace.keys.create": "สร้าง API Key",
   "workspace.keys.placeholder": "ป้อนชื่อ Key",
-  "workspace.keys.empty": "สร้าง Hena Agent Gateway API key",
+  "workspace.keys.empty": "สร้าง Hena Gateway API key",
   "workspace.keys.table.name": "ชื่อ",
   "workspace.keys.table.key": "Key",
   "workspace.keys.table.createdBy": "สร้างโดย",
@@ -654,7 +654,7 @@ export const dict = {
   "workspace.lite.subscription.resetsIn": "รีเซ็ตใน",
   "workspace.lite.subscription.useBalance": "ใช้ยอดคงเหลือของคุณหลังจากถึงขีดจำกัดการใช้งาน",
   "workspace.lite.subscription.selectProvider":
-    'เลือก "Hena Go" เป็นผู้ให้บริการในการตั้งค่า hena-agent ของคุณเพื่อใช้โมเดล Go',
+    'เลือก "Hena Go" เป็นผู้ให้บริการในการตั้งค่า hena ของคุณเพื่อใช้โมเดล Go',
   "workspace.lite.providers.title": "ผู้ให้บริการ",
   "workspace.lite.providers.description": "ควบคุมผู้ให้บริการที่ใช้สำหรับการกำหนดเส้นทาง",
   "workspace.lite.providers.useChina": "เปิดใช้โมเดลที่โฮสต์ในจีน",
@@ -706,15 +706,15 @@ export const dict = {
   "workspace.referral.apply.confirmBody": "ใช้ {{amount}} เพื่อลดการใช้งานปัจจุบันของ workspace นี้",
   "workspace.referral.apply.confirmAction": "ใช้",
 
-  "download.title": "Hena Agent | ดาวน์โหลด",
-  "download.meta.description": "ดาวน์โหลด Hena Agent สำหรับ macOS, Windows และ Linux",
-  "download.hero.title": "ดาวน์โหลด Hena Agent สำหรับเดสก์ท็อป",
+  "download.title": "Hena | ดาวน์โหลด",
+  "download.meta.description": "ดาวน์โหลด Hena สำหรับ macOS, Windows และ Linux",
+  "download.hero.title": "ดาวน์โหลด Hena สำหรับเดสก์ท็อป",
   "download.hero.subtitle": "พร้อมใช้งานในเวอร์ชันเบต้าสำหรับ macOS, Windows และ Linux",
   "download.hero.button": "ดาวน์โหลดสำหรับ {{os}}",
-  "download.section.terminal": "Hena Agent Terminal",
-  "download.section.desktop": "Hena Agent Desktop",
-  "download.section.extensions": "ส่วนขยาย Hena Agent",
-  "download.section.integrations": "การเชื่อมต่อ Hena Agent",
+  "download.section.terminal": "Hena Terminal",
+  "download.section.desktop": "Hena Desktop",
+  "download.section.extensions": "ส่วนขยาย Hena",
+  "download.section.integrations": "การเชื่อมต่อ Hena",
   "download.action.download": "ดาวน์โหลด",
   "download.action.install": "ติดตั้ง",
 
@@ -725,25 +725,25 @@ export const dict = {
   "download.platform.linuxRpm": "Linux (.rpm)",
 
   "download.faq.a3.beforeLocal":
-    "ไม่จำเป็นเสมอไป แต่อาจจะต้องมี คุณจะต้องมีการสมัครสมาชิก AI หากต้องการเชื่อมต่อ Hena Agent กับผู้ให้บริการที่มีค่าใช้จ่าย แม้ว่าคุณจะสามารถทำงานกับ",
+    "ไม่จำเป็นเสมอไป แต่อาจจะต้องมี คุณจะต้องมีการสมัครสมาชิก AI หากต้องการเชื่อมต่อ Hena กับผู้ให้บริการที่มีค่าใช้จ่าย แม้ว่าคุณจะสามารถทำงานกับ",
   "download.faq.a3.localLink": "โมเดล Local",
   "download.faq.a3.afterLocal.beforeZen": "ได้ฟรี แม้ว่าเราจะแนะนำให้ผู้ใช้ใช้งาน",
-  "download.faq.a3.afterZen": ", Hena Agent ก็ทำงานร่วมกับผู้ให้บริการยอดนิยมทั้งหมด เช่น OpenAI, Anthropic, xAI เป็นต้น",
+  "download.faq.a3.afterZen": ", Hena ก็ทำงานร่วมกับผู้ให้บริการยอดนิยมทั้งหมด เช่น OpenAI, Anthropic, xAI เป็นต้น",
 
-  "download.faq.a5.p1": "Hena Agent ใช้งานได้ฟรี 100%",
+  "download.faq.a5.p1": "Hena ใช้งานได้ฟรี 100%",
   "download.faq.a5.p2.beforeZen":
-    "ค่าใช้จ่ายเพิ่มเติมใดๆ จะมาจากการสมัครสมาชิกของคุณกับผู้ให้บริการโมเดล แม้ว่า Hena Agent จะทำงานร่วมกับผู้ให้บริการโมเดลใดก็ได้ แต่เราแนะนำให้ใช้",
+    "ค่าใช้จ่ายเพิ่มเติมใดๆ จะมาจากการสมัครสมาชิกของคุณกับผู้ให้บริการโมเดล แม้ว่า Hena จะทำงานร่วมกับผู้ให้บริการโมเดลใดก็ได้ แต่เราแนะนำให้ใช้",
   "download.faq.a5.p2.afterZen": "",
 
-  "download.faq.a6.p1": "ข้อมูลของคุณจะถูกจัดเก็บเฉพาะเมื่อคุณสร้างลิงก์ที่แชร์ได้ใน Hena Agent เท่านั้น",
+  "download.faq.a6.p1": "ข้อมูลของคุณจะถูกจัดเก็บเฉพาะเมื่อคุณสร้างลิงก์ที่แชร์ได้ใน Hena เท่านั้น",
   "download.faq.a6.p2.beforeShare": "เรียนรู้เพิ่มเติมเกี่ยวกับ",
   "download.faq.a6.shareLink": "หน้าแชร์",
 
-  "enterprise.title": "Hena Agent | โซลูชันระดับองค์กรสำหรับองค์กรของคุณ",
-  "enterprise.meta.description": "ติดต่อ Hena Agent สำหรับโซลูชันระดับองค์กร",
+  "enterprise.title": "Hena | โซลูชันระดับองค์กรสำหรับองค์กรของคุณ",
+  "enterprise.meta.description": "ติดต่อ Hena สำหรับโซลูชันระดับองค์กร",
   "enterprise.hero.title": "โค้ดของคุณเป็นของคุณ",
   "enterprise.hero.body1":
-    "Hena Agent ทำงานอย่างปลอดภัยภายในองค์กรของคุณ โดยไม่มีการจัดเก็บข้อมูลหรือบริบท และไม่มีข้อจำกัดด้านไลเซนส์หรือการอ้างสิทธิ์ความเป็นเจ้าของ เริ่มทดลองใช้งานกับทีมของคุณ แล้วนำไปใช้งานทั่วทั้งองค์กรโดยการผสานรวมกับ SSO และ AI gateway ภายในของคุณ",
+    "Hena ทำงานอย่างปลอดภัยภายในองค์กรของคุณ โดยไม่มีการจัดเก็บข้อมูลหรือบริบท และไม่มีข้อจำกัดด้านไลเซนส์หรือการอ้างสิทธิ์ความเป็นเจ้าของ เริ่มทดลองใช้งานกับทีมของคุณ แล้วนำไปใช้งานทั่วทั้งองค์กรโดยการผสานรวมกับ SSO และ AI gateway ภายในของคุณ",
   "enterprise.hero.body2": "บอกเราว่าเราจะช่วยได้อย่างไร",
   "enterprise.form.name.label": "ชื่อ-นามสกุล",
   "enterprise.form.name.placeholder": "Jeff Bezos",
@@ -765,29 +765,29 @@ export const dict = {
   "enterprise.form.error.invalidEmailFormat": "รูปแบบอีเมลไม่ถูกต้อง",
   "enterprise.form.error.internalServer": "เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์",
   "enterprise.faq.title": "คำถามที่พบบ่อย",
-  "enterprise.faq.q1": "Hena Agent Enterprise คืออะไร?",
+  "enterprise.faq.q1": "Hena Enterprise คืออะไร?",
   "enterprise.faq.a1":
-    "Hena Agent Enterprise สำหรับองค์กรที่ต้องการให้มั่นใจว่าโค้ดและข้อมูลจะไม่ออกนอกโครงสร้างพื้นฐานของตน ทำได้โดยใช้การตั้งค่าแบบศูนย์กลางที่ผสานรวมกับ SSO และ AI gateway ภายในของคุณ",
-  "enterprise.faq.q2": "จะเริ่มต้นกับ Hena Agent Enterprise ได้อย่างไร?",
+    "Hena Enterprise สำหรับองค์กรที่ต้องการให้มั่นใจว่าโค้ดและข้อมูลจะไม่ออกนอกโครงสร้างพื้นฐานของตน ทำได้โดยใช้การตั้งค่าแบบศูนย์กลางที่ผสานรวมกับ SSO และ AI gateway ภายในของคุณ",
+  "enterprise.faq.q2": "จะเริ่มต้นกับ Hena Enterprise ได้อย่างไร?",
   "enterprise.faq.a2":
-    "เพียงเริ่มจากการทดลองใช้งานภายในกับทีมของคุณ โดยค่าเริ่มต้น Hena Agent ไม่จัดเก็บโค้ดหรือข้อมูลบริบทของคุณ ทำให้เริ่มต้นได้ง่าย จากนั้นติดต่อเราเพื่อพูดคุยเรื่องราคาและตัวเลือกการติดตั้งใช้งาน",
+    "เพียงเริ่มจากการทดลองใช้งานภายในกับทีมของคุณ โดยค่าเริ่มต้น Hena ไม่จัดเก็บโค้ดหรือข้อมูลบริบทของคุณ ทำให้เริ่มต้นได้ง่าย จากนั้นติดต่อเราเพื่อพูดคุยเรื่องราคาและตัวเลือกการติดตั้งใช้งาน",
   "enterprise.faq.q3": "ราคาสำหรับองค์กรคิดอย่างไร?",
   "enterprise.faq.a3":
     "เราเสนอราคาแบบต่อที่นั่ง (per-seat) หากคุณมี LLM gateway ของคุณเอง เราจะไม่คิดค่าบริการตามโทเค็นที่ใช้ สำหรับรายละเอียดเพิ่มเติม โปรดติดต่อเราเพื่อขอใบเสนอราคาตามความต้องการขององค์กรของคุณ",
-  "enterprise.faq.q4": "ข้อมูลของฉันปลอดภัยกับ Hena Agent Enterprise หรือไม่?",
+  "enterprise.faq.q4": "ข้อมูลของฉันปลอดภัยกับ Hena Enterprise หรือไม่?",
   "enterprise.faq.a4":
-    "ใช่ Hena Agent ไม่จัดเก็บโค้ดหรือข้อมูลบริบทของคุณ การประมวลผลทั้งหมดเกิดขึ้นในเครื่องหรือผ่านการเรียก API โดยตรงไปยังผู้ให้บริการ AI ของคุณ ด้วยการตั้งค่าแบบศูนย์กลางและการผสานรวม SSO ข้อมูลของคุณจะยังคงปลอดภัยอยู่ภายในโครงสร้างพื้นฐานขององค์กร",
+    "ใช่ Hena ไม่จัดเก็บโค้ดหรือข้อมูลบริบทของคุณ การประมวลผลทั้งหมดเกิดขึ้นในเครื่องหรือผ่านการเรียก API โดยตรงไปยังผู้ให้บริการ AI ของคุณ ด้วยการตั้งค่าแบบศูนย์กลางและการผสานรวม SSO ข้อมูลของคุณจะยังคงปลอดภัยอยู่ภายในโครงสร้างพื้นฐานขององค์กร",
 
-  "brand.title": "Hena Agent | แบรนด์",
-  "brand.meta.description": "แนวทางการใช้แบรนด์ Hena Agent",
+  "brand.title": "Hena | แบรนด์",
+  "brand.meta.description": "แนวทางการใช้แบรนด์ Hena",
   "brand.heading": "แนวทางการใช้แบรนด์",
-  "brand.subtitle": "ทรัพยากรและแอสเซทเพื่อช่วยให้คุณใช้งานแบรนด์ Hena Agent",
+  "brand.subtitle": "ทรัพยากรและแอสเซทเพื่อช่วยให้คุณใช้งานแบรนด์ Hena",
   "brand.downloadAll": "ดาวน์โหลดแอสเซททั้งหมด",
 
-  "changelog.title": "Hena Agent | บันทึกการเปลี่ยนแปลง",
-  "changelog.meta.description": "บันทึกการออกรุ่นและบันทึกการเปลี่ยนแปลง Hena Agent",
+  "changelog.title": "Hena | บันทึกการเปลี่ยนแปลง",
+  "changelog.meta.description": "บันทึกการออกรุ่นและบันทึกการเปลี่ยนแปลง Hena",
   "changelog.hero.title": "บันทึกการเปลี่ยนแปลง",
-  "changelog.hero.subtitle": "การอัปเดตและการปรับปรุงใหม่ใน Hena Agent",
+  "changelog.hero.subtitle": "การอัปเดตและการปรับปรุงใหม่ใน Hena",
   "changelog.empty": "ไม่พบรายการบันทึกการเปลี่ยนแปลง",
   "changelog.viewJson": "ดู JSON",
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@hena-agent/sdk-next",
+  "name": "@hena/sdk-next",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -12,9 +12,9 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@hena-agent/client": "workspace:*",
-    "@hena-agent/core": "workspace:*",
-    "@hena-agent/server": "workspace:*",
+    "@hena/client": "workspace:*",
+    "@hena/core": "workspace:*",
+    "@hena/server": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

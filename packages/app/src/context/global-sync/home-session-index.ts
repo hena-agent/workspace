@@ -1,4 +1,4 @@
-import type { Event, Session, SessionV2Info, V2SessionListResponse } from "@hena-agent/sdk/v2/client"
+import type { Event, Session, SessionV2Info, V2SessionListResponse } from "@hena/sdk/v2/client"
 import type { QueryClient } from "@tanstack/solid-query"
 import { trimSessions } from "./session-trim"
 import { pathKey } from "@/utils/path-key"

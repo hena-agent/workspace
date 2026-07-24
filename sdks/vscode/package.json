@@ -1,9 +1,9 @@
 {
-  "name": "hena-agent",
-  "displayName": "Hena Agent",
-  "description": "Hena Agent for VS Code",
+  "name": "hena",
+  "displayName": "Hena",
+  "description": "Hena for VS Code",
   "version": "1.18.4",
-  "publisher": "hena-agent",
+  "publisher": "hena",
   "repository": {
     "type": "git",
     "url": "https://github.com/hena-agent/hena"
@@ -25,54 +25,54 @@
   "contributes": {
     "commands": [
       {
-        "command": "hena-agent.openTerminal",
-        "title": "Open Hena Agent",
+        "command": "hena.openTerminal",
+        "title": "Open Hena",
         "icon": {
           "light": "images/button-dark.svg",
           "dark": "images/button-light.svg"
         }
       },
       {
-        "command": "hena-agent.openNewTerminal",
-        "title": "Open Hena Agent in new tab",
+        "command": "hena.openNewTerminal",
+        "title": "Open Hena in new tab",
         "icon": {
           "light": "images/button-dark.svg",
           "dark": "images/button-light.svg"
         }
       },
       {
-        "command": "hena-agent.addFilepathToTerminal",
+        "command": "hena.addFilepathToTerminal",
         "title": "Add Filepath to Terminal"
       }
     ],
     "menus": {
       "editor/title": [
         {
-          "command": "hena-agent.openNewTerminal",
+          "command": "hena.openNewTerminal",
           "group": "navigation"
         }
       ]
     },
     "keybindings": [
       {
-        "command": "hena-agent.openTerminal",
-        "title": "Run Hena Agent",
+        "command": "hena.openTerminal",
+        "title": "Run Hena",
         "key": "cmd+escape",
         "mac": "cmd+escape",
         "win": "ctrl+escape",
         "linux": "ctrl+escape"
       },
       {
-        "command": "hena-agent.openNewTerminal",
-        "title": "Run Hena Agent",
+        "command": "hena.openNewTerminal",
+        "title": "Run Hena",
         "key": "cmd+shift+escape",
         "mac": "cmd+shift+escape",
         "win": "ctrl+shift+escape",
         "linux": "ctrl+shift+escape"
       },
       {
-        "command": "hena-agent.addFilepathToTerminal",
-        "title": "Hena Agent: Insert At-Mentioned",
+        "command": "hena.addFilepathToTerminal",
+        "title": "Hena: Insert At-Mentioned",
         "key": "cmd+alt+k",
         "mac": "cmd+alt+k",
         "win": "ctrl+alt+K",

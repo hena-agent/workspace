@@ -1,5 +1,5 @@
-import { Model } from "@hena-agent/schema/model"
-import { Location } from "@hena-agent/schema/location"
+import { Model } from "@hena/schema/model"
+import { Location } from "@hena/schema/location"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { ServiceUnavailableError } from "../errors"

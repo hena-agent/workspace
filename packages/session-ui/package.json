@@ -1,5 +1,5 @@
 {
-  "name": "@hena-agent/session-ui",
+  "name": "@hena/session-ui",
   "version": "1.18.4",
   "private": true,
   "type": "module",
@@ -39,9 +39,9 @@
   },
   "dependencies": {
     "@kobalte/core": "catalog:",
-    "@hena-agent/core": "workspace:*",
-    "@hena-agent/sdk": "workspace:*",
-    "@hena-agent/ui": "workspace:*",
+    "@hena/core": "workspace:*",
+    "@hena/sdk": "workspace:*",
+    "@hena/ui": "workspace:*",
     "@pierre/diffs": "catalog:",
     "@shikijs/stream": "catalog:",
     "@shikijs/transformers": "3.9.2",

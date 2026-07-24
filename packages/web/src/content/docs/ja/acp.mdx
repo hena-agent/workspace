@@ -1,9 +1,9 @@
 ---
 title: ACP サポート
-description: ACP 互換エディターで Hena Agent を使用します。
+description: ACP 互換エディターで Hena を使用します。
 ---
 
-Hena Agent は [Agent Client Protocol](https://agentclientprotocol.com) または (ACP) をサポートしているため、互換性のあるエディターや IDE で直接使用できます。
+Hena は [Agent Client Protocol](https://agentclientprotocol.com) または (ACP) をサポートしているため、互換性のあるエディターや IDE で直接使用できます。
 
 :::tip
 ACP をサポートするエディターとツールのリストについては、[ACP progress report](https://zed.dev/blog/acp-progress-report#available-now) を参照してください。
@@ -14,9 +14,9 @@ ACP は、コードエディターと AI コーディングエージェント間
 
 ## 設定
 
-ACP 経由で Hena Agent を使用するには、`hena-agent acp` コマンドを実行するようにエディタを設定します。
+ACP 経由で Hena を使用するには、`hena acp` コマンドを実行するようにエディタを設定します。
 
-このコマンドは、stdio 経由で JSON-RPC 経由でエディターと通信する ACP 互換のサブプロセスとして Hena Agent を開始します。
+このコマンドは、stdio 経由で JSON-RPC 経由でエディターと通信する ACP 互換のサブプロセスとして Hena を開始します。
 
 以下は、ACP をサポートする一般的なエディタの例です。
 
@@ -29,8 +29,8 @@ ACP 経由で Hena Agent を使用するには、`hena-agent acp` コマンド�
 ```json title="~/.config/zed/settings.json"
 {
   "agent_servers": {
-    "Hena Agent": {
-      "command": "hena-agent",
+    "Hena": {
+      "command": "hena",
       "args": ["acp"]
     }
   }
@@ -50,9 +50,9 @@ ACP 経由で Hena Agent を使用するには、`hena-agent acp` コマンド�
         {
           "agent": {
             "custom": {
-              "name": "Hena Agent",
+              "name": "Hena",
               "command": {
-                "command": "hena-agent",
+                "command": "hena",
                 "args": ["acp"]
               }
             }
@@ -73,15 +73,15 @@ ACP 経由で Hena Agent を使用するには、`hena-agent acp` コマンド�
 ```json title="acp.json"
 {
   "agent_servers": {
-    "Hena Agent": {
-      "command": "/absolute/path/bin/hena-agent",
+    "Hena": {
+      "command": "/absolute/path/bin/hena",
       "args": ["acp"]
     }
   }
 }
 ```
 
-これを開くには、AI Chat エージェントセレクターで新しい「Hena Agent」エージェントを使用します。
+これを開くには、AI Chat エージェントセレクターで新しい「Hena」エージェントを使用します。
 
 ---
 
@@ -92,8 +92,8 @@ ACP 経由で Hena Agent を使用するには、`hena-agent acp` コマンド�
 ```lua
 {
   acp_providers = {
-    ["hena-agent"] = {
-      command = "hena-agent",
+    ["hena"] = {
+      command = "hena",
       args = { "acp" }
     }
   }
@@ -105,11 +105,11 @@ ACP 経由で Hena Agent を使用するには、`hena-agent acp` コマンド�
 ```lua {6-8}
 {
   acp_providers = {
-    ["hena-agent"] = {
-      command = "hena-agent",
+    ["hena"] = {
+      command = "hena",
       args = { "acp" },
       env = {
-        HENA_AGENT_API_KEY = os.getenv("HENA_AGENT_API_KEY")
+        HENA_API_KEY = os.getenv("HENA_API_KEY")
       }
     }
   }
@@ -120,14 +120,14 @@ ACP 経由で Hena Agent を使用するには、`hena-agent acp` コマンド�
 
 ### CodeCompanion.nvim
 
-[CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) で Hena Agent を ACP エージェントとして使用するには、以下を Neovim 構成に追加します。
+[CodeCompanion.nvim](https://github.com/olimorris/codecompanion.nvim) で Hena を ACP エージェントとして使用するには、以下を Neovim 構成に追加します。
 
 ```lua
 require("codecompanion").setup({
   interactions = {
     chat = {
       adapter = {
-        name = "hena-agent",
+        name = "hena",
         model = "claude-sonnet-4",
       },
     },
@@ -135,13 +135,13 @@ require("codecompanion").setup({
 })
 ```
 
-この構成は、Hena Agent をチャットの ACP エージェントとして使用するように CodeCompanion をセットアップします。
+この構成は、Hena をチャットの ACP エージェントとして使用するように CodeCompanion をセットアップします。
 
-環境変数 (`HENA_AGENT_API_KEY` など) を渡す必要がある場合、詳細については、CodeCompanion.nvim ドキュメントの「[アダプターの構成: 環境変数](https://codecompanion.olimorris.dev/getting-started#setting-an-api-key)」を参照してください。
+環境変数 (`HENA_API_KEY` など) を渡す必要がある場合、詳細については、CodeCompanion.nvim ドキュメントの「[アダプターの構成: 環境変数](https://codecompanion.olimorris.dev/getting-started#setting-an-api-key)」を参照してください。
 
 ## サポート
 
-Hena Agent は、ACP 経由でもターミナル内で動作するのと同じように動作します。すべての機能がサポートされています。
+Hena は、ACP 経由でもターミナル内で動作するのと同じように動作します。すべての機能がサポートされています。
 
 :::note
 `/undo` や `/redo` などの一部の組み込みスラッシュコマンドは現在サポートされていません。
@@ -149,7 +149,7 @@ Hena Agent は、ACP 経由でもターミナル内で動作するのと同じ�
 
 - 組み込みツール (ファイル操作、ターミナルコマンドなど)
 - カスタムツールとスラッシュコマンド
-- Hena Agent 設定で構成された MCP サーバー
+- Hena 設定で構成された MCP サーバー
 - `AGENTS.md` のプロジェクト固有のルール
 - カスタムフォーマッタとリンター
 - エージェントと権限システム

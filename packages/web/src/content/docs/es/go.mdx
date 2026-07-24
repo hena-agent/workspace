@@ -9,9 +9,9 @@ export const email = `mailto:${config.email}`
 
 Hena Go es una suscripción de bajo costo — **$5 por tu primer mes**, luego **$10/mes** — que te brinda acceso confiable a modelos abiertos de programación populares.
 
-Go funciona como cualquier otro proveedor en Hena Agent. Te suscribes a Hena Go y
+Go funciona como cualquier otro proveedor en Hena. Te suscribes a Hena Go y
 obtienes tu API key. Es **completamente opcional** y no necesitas usarlo para
-usar Hena Agent.
+usar Hena.
 
 Está diseñado principalmente para usuarios internacionales, con modelos alojados en EE. UU., la UE y Singapur para un acceso global estable.
 
@@ -27,7 +27,7 @@ Sin embargo, obtener un acceso confiable y de baja latencia a ellos puede ser di
 varían en calidad y disponibilidad.
 
 :::tip
-Probamos un grupo selecto de modelos y proveedores que funcionan bien con Hena Agent.
+Probamos un grupo selecto de modelos y proveedores que funcionan bien con Hena.
 :::
 
 Para solucionar esto, hicimos un par de cosas:
@@ -45,7 +45,7 @@ Hena Go te da acceso a estos modelos por **$5 por tu primer mes**, luego **$10/m
 
 ## Cómo funciona
 
-Hena Go funciona como cualquier otro proveedor en Hena Agent.
+Hena Go funciona como cualquier otro proveedor en Hena.
 
 1. Inicias sesión en **<a href={console}>Hena Zen</a>**, te suscribes a Go y
    copias tu API key.
@@ -206,9 +206,9 @@ También puedes acceder a los modelos de Go a través de los siguientes endpoint
 | Qwen3.6 Plus      | qwen3.6-plus      | `https://hena.dev/zen/go/v1/messages`         | `@ai-sdk/anthropic`         |
 | Hy3               | hy3               | `https://hena.dev/zen/go/v1/chat/completions` | `@ai-sdk/openai-compatible` |
 
-El [ID del modelo](/docs/config/#models) en tu configuración de Hena Agent
-usa el formato `hena-agent-go/<model-id>`. Por ejemplo, para Kimi K3, usarías
-`hena-agent-go/kimi-k3` en tu configuración.
+El [ID del modelo](/docs/config/#models) en tu configuración de Hena
+usa el formato `hena-go/<model-id>`. Por ejemplo, para Kimi K3, usarías
+`hena-go/kimi-k3` en tu configuración.
 
 ---
 
@@ -235,4 +235,4 @@ Creamos Hena Go para:
 1. Hacer que la programación con IA sea **accesible** para más personas con una suscripción de bajo costo.
 2. Proporcionar un acceso **confiable** a los mejores modelos abiertos de programación.
 3. Seleccionar modelos que estén **probados y evaluados** para su uso en agentes de programación.
-4. Evitar la **dependencia (lock-in)** al permitirte usar también cualquier otro proveedor con Hena Agent.
+4. Evitar la **dependencia (lock-in)** al permitirte usar también cualquier otro proveedor con Hena.

@@ -1,13 +1,13 @@
 import "@/index.css"
 import * as Sentry from "@sentry/solid"
-import { I18nProvider } from "@hena-agent/ui/context"
-import { DialogProvider } from "@hena-agent/ui/context/dialog"
-import { FileComponentProvider } from "@hena-agent/ui/context/file"
-import { MarkedProvider } from "@hena-agent/ui/context/marked"
-import { File } from "@hena-agent/session-ui/file"
-import { Font } from "@hena-agent/ui/font"
-import { Splash } from "@hena-agent/ui/logo"
-import { ThemeProvider } from "@hena-agent/ui/theme/context"
+import { I18nProvider } from "@hena/ui/context"
+import { DialogProvider } from "@hena/ui/context/dialog"
+import { FileComponentProvider } from "@hena/ui/context/file"
+import { MarkedProvider } from "@hena/ui/context/marked"
+import { File } from "@hena/session-ui/file"
+import { Font } from "@hena/ui/font"
+import { Splash } from "@hena/ui/logo"
+import { ThemeProvider } from "@hena/ui/theme/context"
 import { MetaProvider } from "@solidjs/meta"
 import {
   type BaseRouterProps,
@@ -21,7 +21,7 @@ import {
 } from "@solidjs/router"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { Effect } from "effect"
-import { base64Encode } from "@hena-agent/core/util/encode"
+import { base64Encode } from "@hena/core/util/encode"
 import {
   type Component,
   createEffect,
@@ -238,7 +238,7 @@ function UiI18nBridge(props: ParentProps) {
 
 declare global {
   interface Window {
-    __HENA_AGENT__?: {
+    __HENA__?: {
       deepLinks?: string[]
     }
     api?: {

@@ -1,5 +1,5 @@
 import { createMemo } from "solid-js"
-import { AnimatedNumber } from "@hena-agent/ui/animated-number"
+import { AnimatedNumber } from "@hena/ui/animated-number"
 
 function split(text: string) {
   const match = /{{\s*count\s*}}/.exec(text)

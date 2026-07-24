@@ -1,4 +1,4 @@
-import { createSimpleContext } from "@hena-agent/ui/context"
+import { createSimpleContext } from "@hena/ui/context"
 import { type Accessor, createMemo } from "solid-js"
 import { type ServerSDK, useServerSDK } from "./server-sdk"
 

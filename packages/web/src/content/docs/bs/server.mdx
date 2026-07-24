@@ -1,19 +1,19 @@
 ---
 title: Server
-description: Komunicirajte s hena-agent serverom preko HTTP-a.
+description: Komunicirajte s hena serverom preko HTTP-a.
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-Komanda `hena-agent serve` pokrece headless HTTP server koji izlaže OpenAPI endpoint koji hena-agent klijent moze koristiti.
+Komanda `hena serve` pokrece headless HTTP server koji izlaže OpenAPI endpoint koji hena klijent moze koristiti.
 
 ---
 
 ### Korištenje
 
 ```bash
-hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
+hena serve [--port <number>] [--hostname <string>] [--cors <origin>]
 ```
 
 #### Opcije
@@ -23,38 +23,38 @@ hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
 | `--port`        | Port na kojem slusa                 | `4096`           |
 | `--hostname`    | Hostname na kojem slusa             | `127.0.0.1`      |
 | `--mdns`        | Ukljuci mDNS otkrivanje             | `false`          |
-| `--mdns-domain` | Prilagodeni domen za mDNS servis    | `hena-agent.local` |
+| `--mdns-domain` | Prilagodeni domen za mDNS servis    | `hena.local` |
 | `--cors`        | Dodatni browser origin-i koje dozv. | `[]`             |
 
 `--cors` mozete navesti vise puta:
 
 ```bash
-hena-agent serve --cors http://localhost:5173 --cors https://app.example.com
+hena serve --cors http://localhost:5173 --cors https://app.example.com
 ```
 
 ---
 
 ### Autentifikacija
 
-Postavite `HENA_AGENT_SERVER_PASSWORD` da zastitite server HTTP basic auth mehanizmom. Korisnicko ime je po defaultu `hena-agent`, ili postavite `HENA_AGENT_SERVER_USERNAME` za nadjacavanje. Ovo vazi i za `hena-agent serve` i za `hena-agent web`.
+Postavite `HENA_SERVER_PASSWORD` da zastitite server HTTP basic auth mehanizmom. Korisnicko ime je po defaultu `hena`, ili postavite `HENA_SERVER_USERNAME` za nadjacavanje. Ovo vazi i za `hena serve` i za `hena web`.
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve
+HENA_SERVER_PASSWORD=your-password hena serve
 ```
 
 ---
 
 ### Kako radi
 
-Kada pokrenete `hena-agent`, pokrecu se TUI i server. TUI je klijent koji komunicira sa serverom. Server izlaže OpenAPI 3.1 spec endpoint koji se koristi i za generisanje [SDK-a](/docs/sdk).
+Kada pokrenete `hena`, pokrecu se TUI i server. TUI je klijent koji komunicira sa serverom. Server izlaže OpenAPI 3.1 spec endpoint koji se koristi i za generisanje [SDK-a](/docs/sdk).
 
 :::tip
-Koristite hena-agent server za programsku interakciju sa hena-agent-om.
+Koristite hena server za programsku interakciju sa hena-om.
 :::
 
-Ova arhitektura omogucava hena-agent podrsku za vise klijenata i programsku interakciju.
+Ova arhitektura omogucava hena podrsku za vise klijenata i programsku interakciju.
 
-Mozete pokrenuti `hena-agent serve` da startate standalone server. Ako je hena-agent TUI vec pokrenut, `hena-agent serve` ce pokrenuti novi server.
+Mozete pokrenuti `hena serve` da startate standalone server. Ako je hena TUI vec pokrenut, `hena serve` ce pokrenuti novi server.
 
 ---
 
@@ -62,7 +62,7 @@ Mozete pokrenuti `hena-agent serve` da startate standalone server. Ako je hena-a
 
 Kada pokrenete TUI, port i hostname se nasumicno dodijele. Umjesto toga, mozete zadati `--hostname` i `--port` [zastave](/docs/cli), pa se povezati na taj server.
 
-Endpoint [`/tui`](#tui) mozete koristiti za upravljanje TUI-jem kroz server. Na primjer, mozete unaprijed popuniti ili pokrenuti prompt. Ovaj setup koriste Hena Agent [IDE](/docs/ide) pluginovi.
+Endpoint [`/tui`](#tui) mozete koristiti za upravljanje TUI-jem kroz server. Na primjer, mozete unaprijed popuniti ili pokrenuti prompt. Ovaj setup koriste Hena [IDE](/docs/ide) pluginovi.
 
 ---
 
@@ -80,7 +80,7 @@ Na primjer, `http://localhost:4096/doc`. Koristite specifikaciju da generisete k
 
 ## API-ji
 
-hena-agent server izlaže sljedece API-je.
+hena server izlaže sljedece API-je.
 
 ---
 

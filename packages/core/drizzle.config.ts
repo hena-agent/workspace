@@ -5,6 +5,6 @@ export default defineConfig({
   schema: ["./src/**/*.sql.ts", "./src/**/sql.ts"],
   out: "./migration",
   dbCredentials: {
-    url: "/home/thdxr/.local/share/hena-agent/hena.db",
+    url: "/home/thdxr/.local/share/hena/hena.db",
   },
 })

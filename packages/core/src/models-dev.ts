@@ -1,7 +1,7 @@
 import path from "path"
 import { Context, Duration, Effect, Layer, Option, Schedule, Schema } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http"
-import { ModelsDev } from "@hena-agent/schema/models-dev"
+import { ModelsDev } from "@hena/schema/models-dev"
 import { Global } from "./global"
 import { Flag } from "./flag/flag"
 import { Flock } from "./util/flock"
@@ -15,7 +15,7 @@ import { httpClient } from "./effect/app-node-platform"
 export const CatalogModelStatus = Schema.Literals(["alpha", "beta", "deprecated"])
 export type CatalogModelStatus = typeof CatalogModelStatus.Type
 
-const USER_AGENT = `hena-agent/${InstallationChannel}/${InstallationVersion}/${Flag.HENA_AGENT_CLIENT}`
+const USER_AGENT = `hena/${InstallationChannel}/${InstallationVersion}/${Flag.HENA_CLIENT}`
 
 const CostTier = Schema.Struct({
   input: Schema.Finite,
@@ -127,14 +127,14 @@ export type Provider = Schema.Schema.Type<typeof Provider>
 
 export const Event = ModelsDev.Event
 
-declare const HENA_AGENT_MODELS_DEV: Record<string, Provider> | undefined
+declare const HENA_MODELS_DEV: Record<string, Provider> | undefined
 
 export interface Interface {
   readonly get: () => Effect.Effect<Record<string, Provider>>
   readonly refresh: (force?: boolean) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@hena-agent/ModelsDev") {}
+export class Service extends Context.Service<Service, Interface>()("@hena/ModelsDev") {}
 
 const layer = Layer.effect(
   Service,
@@ -151,7 +151,7 @@ const layer = Layer.effect(
       ),
     )
 
-    const source = Flag.HENA_AGENT_MODELS_URL || "https://models.dev"
+    const source = Flag.HENA_MODELS_URL || "https://models.dev"
     const filepath = path.join(
       Global.Path.cache,
       source === "https://models.dev" ? "models.json" : `models-${Hash.fast(source)}.json`,
@@ -175,10 +175,10 @@ const layer = Layer.effect(
       )
     })
 
-    const loadFromDisk = fs.readJson(Flag.HENA_AGENT_MODELS_PATH ?? filepath).pipe(
+    const loadFromDisk = fs.readJson(Flag.HENA_MODELS_PATH ?? filepath).pipe(
       Effect.catch((error) => {
         if (
-          Flag.HENA_AGENT_MODELS_PATH === undefined &&
+          Flag.HENA_MODELS_PATH === undefined &&
           error._tag === "FileSystemError" &&
           error.method === "readJson"
         ) {
@@ -190,7 +190,7 @@ const layer = Layer.effect(
     )
 
     const loadSnapshot = Effect.sync(() =>
-      typeof HENA_AGENT_MODELS_DEV === "undefined" ? undefined : HENA_AGENT_MODELS_DEV,
+      typeof HENA_MODELS_DEV === "undefined" ? undefined : HENA_MODELS_DEV,
     )
 
     const fetchAndWrite = Effect.fn("ModelsDev.fetchAndWrite")(function* () {
@@ -213,8 +213,8 @@ const layer = Layer.effect(
       if (fromDisk) return fromDisk
       const snapshot = yield* loadSnapshot
       if (snapshot) return snapshot
-      if (Flag.HENA_AGENT_DISABLE_MODELS_FETCH) return {}
-      // Flock is cross-process: concurrent Hena Agent CLIs can race on this cache file.
+      if (Flag.HENA_DISABLE_MODELS_FETCH) return {}
+      // Flock is cross-process: concurrent Hena CLIs can race on this cache file.
       const text = yield* Effect.scoped(
         Effect.gen(function* () {
           yield* Flock.effect(lockKey)
@@ -246,7 +246,7 @@ const layer = Layer.effect(
       )
     })
 
-    if (!Flag.HENA_AGENT_DISABLE_MODELS_FETCH && !process.argv.includes("--get-yargs-completions")) {
+    if (!Flag.HENA_DISABLE_MODELS_FETCH && !process.argv.includes("--get-yargs-completions")) {
       // Schedule.spaced runs the effect once, then waits between completions.
       yield* Effect.forkScoped(refresh().pipe(Effect.repeat(Schedule.spaced("60 minutes")), Effect.ignore))
     }

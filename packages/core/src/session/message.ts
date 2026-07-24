@@ -1,2 +1,2 @@
 export * as SessionMessage from "./message"
-export * from "@hena-agent/schema/session-message"
+export * from "@hena/schema/session-message"

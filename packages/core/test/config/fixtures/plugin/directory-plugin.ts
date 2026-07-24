@@ -1,4 +1,4 @@
-import { define } from "@hena-agent/plugin/v2/promise"
+import { define } from "@hena/plugin/v2/promise"
 
 export default define({
   id: "directory-plugin",

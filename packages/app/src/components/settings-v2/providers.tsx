@@ -1,7 +1,7 @@
-import { ButtonV2 } from "@hena-agent/ui/v2/button-v2"
-import { Tag } from "@hena-agent/ui/v2/badge-v2"
-import { useDialog } from "@hena-agent/ui/context/dialog"
-import { ProviderIcon } from "@hena-agent/ui/provider-icon"
+import { ButtonV2 } from "@hena/ui/v2/button-v2"
+import { Tag } from "@hena/ui/v2/badge-v2"
+import { useDialog } from "@hena/ui/context/dialog"
+import { ProviderIcon } from "@hena/ui/provider-icon"
 import { showToast } from "@/utils/toast"
 import { popularProviders, useProviders } from "@/hooks/use-providers"
 import { createMemo, type Component, For, Show } from "solid-js"
@@ -17,8 +17,8 @@ type ProviderSource = "env" | "api" | "config" | "custom"
 type ProviderItem = ReturnType<ReturnType<typeof useProviders>["connected"]>[number]
 
 const PROVIDER_NOTES = [
-  { match: (id: string) => id === "hena-agent", key: "dialog.provider.hena-agent.note" },
-  { match: (id: string) => id === "hena-agent-go", key: "dialog.provider.hena-agentGo.tagline" },
+  { match: (id: string) => id === "hena", key: "dialog.provider.hena.note" },
+  { match: (id: string) => id === "hena-go", key: "dialog.provider.henaGo.tagline" },
   { match: (id: string) => id === "anthropic", key: "dialog.provider.anthropic.note" },
   { match: (id: string) => id.startsWith("github-copilot"), key: "dialog.provider.copilot.note" },
   { match: (id: string) => id === "openai", key: "dialog.provider.openai.note" },
@@ -45,7 +45,7 @@ export const SettingsProvidersV2: Component<{ onBack?: () => void }> = (props) =
   const connected = createMemo(() => {
     return providers
       .connected()
-      .filter((p) => p.id !== "hena-agent" || Object.values(p.models).find((m) => m.cost?.input))
+      .filter((p) => p.id !== "hena" || Object.values(p.models).find((m) => m.cost?.input))
   })
 
   const popular = createMemo(() => {
@@ -202,7 +202,7 @@ export const SettingsProvidersV2: Component<{ onBack?: () => void }> = (props) =
                     <div class="settings-v2-provider-copy">
                       <div class="settings-v2-provider-main">
                         <span class="settings-v2-provider-name">{item.name}</span>
-                        <Show when={item.id === "hena-agent" || item.id === "hena-agent-go"}>
+                        <Show when={item.id === "hena" || item.id === "hena-go"}>
                           <Tag>{language.t("dialog.provider.tag.recommended")}</Tag>
                         </Show>
                       </div>

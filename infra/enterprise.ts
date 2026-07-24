@@ -9,10 +9,10 @@ new sst.cloudflare.x.SolidStart("Teams", {
   buildCommand: "bun run build:cloudflare",
   link: [SECRET.SupportApiKey],
   environment: {
-    HENA_AGENT_STORAGE_ADAPTER: "r2",
-    HENA_AGENT_STORAGE_ACCOUNT_ID: sst.cloudflare.DEFAULT_ACCOUNT_ID,
-    HENA_AGENT_STORAGE_ACCESS_KEY_ID: SECRET.R2AccessKey.value,
-    HENA_AGENT_STORAGE_SECRET_ACCESS_KEY: SECRET.R2SecretKey.value,
-    HENA_AGENT_STORAGE_BUCKET: storage.name,
+    HENA_STORAGE_ADAPTER: "r2",
+    HENA_STORAGE_ACCOUNT_ID: sst.cloudflare.DEFAULT_ACCOUNT_ID,
+    HENA_STORAGE_ACCESS_KEY_ID: SECRET.R2AccessKey.value,
+    HENA_STORAGE_SECRET_ACCESS_KEY: SECRET.R2SecretKey.value,
+    HENA_STORAGE_BUCKET: storage.name,
   },
 })

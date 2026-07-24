@@ -1,12 +1,12 @@
 import { Link, Meta, Title } from "@solidjs/meta"
-import { ProviderIcon } from "@hena-agent/ui/provider-icon"
+import { ProviderIcon } from "@hena/ui/provider-icon"
 import {
   getStatsModelsComparisonData,
   type ModelUsagePoint,
   type StatsModelComparisonInput,
   type StatsModelComparisonEntry,
-} from "@hena-agent/stats-core/domain/home"
-import { runtime } from "@hena-agent/stats-core/runtime"
+} from "@hena/stats-core/domain/home"
+import { runtime } from "@hena/stats-core/runtime"
 import { createAsync, query, useParams, useSearchParams } from "@solidjs/router"
 import { createEffect, createMemo, createSignal, For, onMount, Show } from "solid-js"
 import { getRequestEvent } from "solid-js/web"
@@ -232,7 +232,7 @@ export default function ModelCompareDetailPage(props: ModelCompareDetailPageProp
         <Meta name="robots" content={models().length > 2 ? "noindex,follow" : "index,follow"} />
         <Link rel="canonical" href={canonicalUrl()} />
         <Meta property="og:type" content="website" />
-        <Meta property="og:site_name" content="Hena Agent" />
+        <Meta property="og:site_name" content="Hena" />
         <Meta property="og:title" content={title()} />
         <Meta property="og:description" content={description()} />
         <Meta property="og:url" content={canonicalUrl()} />

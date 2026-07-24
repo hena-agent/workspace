@@ -2,31 +2,31 @@
 
 ## Goal
 
-Move the canonical Hena Agent terminal application from
-`packages/hena-agent/src/cli/cmd/tui` into a self-contained workspace package while
+Move the canonical Hena terminal application from
+`packages/hena/src/cli/cmd/tui` into a self-contained workspace package while
 the legacy CLI and the new CLI continue to use the same implementation.
 
 Target package:
 
 ```text
 packages/tui
-name: @hena-agent/tui
+name: @hena/tui
 ```
 
 Target dependency graph:
 
 ```text
-packages/hena-agent ---\
-                      > @hena-agent/tui -> @hena-agent/sdk
+packages/hena ---\
+                      > @hena/tui -> @hena/sdk
 packages/cli --------/
 ```
 
 The TUI may directly depend on terminal and UI infrastructure such as
 `@opentui/core`, `@opentui/solid`, `@opentui/keymap`, `solid-js`, Effect, and
-generic presentation libraries. It must not depend on `packages/hena-agent`,
-`packages/cli`, or `@hena-agent/core`.
+generic presentation libraries. It must not depend on `packages/hena`,
+`packages/cli`, or `@hena/core`.
 
-The SDK is the TUI's Hena Agent boundary. Missing backend data or operations must
+The SDK is the TUI's Hena boundary. Missing backend data or operations must
 be added to the server API and generated SDK rather than imported from backend
 implementation modules.
 
@@ -42,18 +42,18 @@ implementation modules.
 - Use temporary compatibility re-exports only when they materially reduce the
   size or conflict risk of a section. Mark them for removal in a later section.
 - Do not preserve private imports by creating aliases from `packages/tui` back
-  into `packages/hena-agent`.
-- Do not replace private `packages/hena-agent` imports with `@hena-agent/core`
+  into `packages/hena`.
+- Do not replace private `packages/hena` imports with `@hena/core`
   imports merely to make the package compile.
 - Keep tool rendering tolerant of unknown tools and wire-format changes. Local
   checks over `unknown` input and metadata are acceptable; importing backend
   tool implementations for type safety is not.
 - Keep legacy CLI command parsing, server startup, worker management,
-  authentication, and config discovery outside `@hena-agent/tui`.
+  authentication, and config discovery outside `@hena/tui`.
 
 ## Ownership Boundary
 
-### `@hena-agent/tui` Owns
+### `@hena/tui` Owns
 
 - OpenTUI renderer lifecycle shared by both CLI hosts
 - Solid application composition
@@ -82,7 +82,7 @@ implementation modules.
 
 ### Server And SDK Own
 
-- Hena Agent domain data displayed by the TUI
+- Hena domain data displayed by the TUI
 - Session, message, workspace, file, provider, model, agent, and permission
   operations
 - Retry, revert, fork, share, and other backend actions
@@ -94,11 +94,11 @@ implementation modules.
 The canonical implementation currently lives under:
 
 ```text
-packages/hena-agent/src/cli/cmd/tui
+packages/hena/src/cli/cmd/tui
 ```
 
-Its private dependency on `packages/hena-agent` is primarily expressed through
-the `@/*` TypeScript alias, which resolves to `packages/hena-agent/src/*`.
+Its private dependency on `packages/hena` is primarily expressed through
+the `@/*` TypeScript alias, which resolves to `packages/hena/src/*`.
 `@tui/*` imports are internal to the TUI and are not themselves a package
 boundary problem.
 
@@ -118,7 +118,7 @@ the application root.
 
 ## Section 1: Create The Package Skeleton
 
-Status: Completed. The private `@hena-agent/tui` workspace package now has an
+Status: Completed. The private `@hena/tui` workspace package now has an
 independent OpenTUI Solid JSX configuration, narrow root export, package-local
 alias, and in-memory render smoke test. Neither CLI consumes the package yet.
 
@@ -126,7 +126,7 @@ Create `packages/tui` without moving the application root yet.
 
 Tasks:
 
-- Add `packages/tui/package.json` with the name `@hena-agent/tui`.
+- Add `packages/tui/package.json` with the name `@hena/tui`.
 - Add a package `tsconfig.json` configured for OpenTUI Solid JSX.
 - Add `bunfig.toml` with the OpenTUI Solid preload for package-local development
   and tests.
@@ -144,8 +144,8 @@ Exit criteria:
 
 - `packages/tui` typechecks independently.
 - Its test command runs from `packages/tui`.
-- The package has no dependency on `hena-agent`, `@hena-agent/cli`, or
-  `@hena-agent/core`.
+- The package has no dependency on `hena`, `@hena/cli`, or
+  `@hena/core`.
 
 Checkpoint commit:
 
@@ -157,7 +157,7 @@ feat(tui): add standalone package skeleton
 
 Status: Completed. Presentation utilities, bundled themes and their pure theme
 engine, keybinding/keymap mechanics, and low-coupling border, link, and spinner
-primitives now live in `@hena-agent/tui`. The legacy host consumes explicit
+primitives now live in `@hena/tui`. The legacy host consumes explicit
 package exports and retains only integration wrappers or compatibility
 re-exports where backend and process concerns have not moved yet.
 
@@ -235,13 +235,13 @@ refactor(tui): decouple tool rendering from backend tools
 
 Status: Completed for the shared runtime contract and legacy host. The TUI now
 receives immutable launch-directory, path, capability, terminal/editor, startup,
-and build inputs through `@hena-agent/tui/runtime`. Movable app, component,
-route, and feature-plugin code no longer reads Hena Agent globals or process state;
+and build inputs through `@hena/tui/runtime`. Movable app, component,
+route, and feature-plugin code no longer reads Hena globals or process state;
 command, config, plugin-loading, custom-theme discovery, editor/clipboard, and
 Windows lifecycle adapters remain host-owned. `packages/cli` does not consume
 this contract yet; that integration remains deferred to Section 9.
 
-Replace process-global Hena Agent state with resolved TUI inputs.
+Replace process-global Hena state with resolved TUI inputs.
 
 Define narrow inputs rather than one unstructured host object. Expected groups
 include:
@@ -277,7 +277,7 @@ Tasks:
   contexts.
 - Pass build/version information explicitly.
 - Keep environment reads needed by legacy command or worker startup in
-  `packages/hena-agent` adapters.
+  `packages/hena` adapters.
 - Give `packages/tui` sensible host-neutral defaults only when behavior is truly
   local to a terminal client.
 - Move contexts and components after their global dependencies are removed.
@@ -298,7 +298,7 @@ refactor(tui): make runtime capabilities explicit
 ## Section 5: Separate Resolved TUI Config From Host Config Loading
 
 Status: Completed for the package config contract and legacy host adapter.
-`@hena-agent/tui/config` now owns schemas, defaults, keybind resolution, the
+`@hena/tui/config` now owns schemas, defaults, keybind resolution, the
 resolved config type, and the Solid config provider. The legacy host retains
 file discovery, precedence, JSONC parsing, substitutions, migration,
 source-relative sound paths, plugin origins, dependency installation, and
@@ -313,14 +313,14 @@ Tasks:
   `packages/tui`.
 - Define the resolved config accepted by the public TUI entrypoint.
 - Keep config path discovery, project/global precedence, migration, variable
-  expansion, and plugin package installation in `packages/hena-agent` initially.
+  expansion, and plugin package installation in `packages/hena` initially.
 - Make the legacy host produce the same resolved config shape.
 - Add a new CLI adapter that can initially provide defaults or its own resolved
   configuration.
 - Update schema-generation imports to use the package's explicit config export
   if schema generation still needs TUI schemas.
 - Move pure config tests; retain discovery and migration integration tests in
-  `packages/hena-agent`.
+  `packages/hena`.
 
 Exit criteria:
 
@@ -338,14 +338,14 @@ refactor(tui): separate config resolution from loading
 
 Status: Completed for the SDK/domain boundary. SDK, project, event, legacy sync,
 V2 sync, local model state, prompt persistence, and pure prompt helpers are now
-canonical in `@hena-agent/tui`. Configured references resolve through the new
+canonical in `@hena/tui`. Configured references resolve through the new
 generated `reference.list` SDK operation; prompt payloads rely on optional
 server-assigned IDs; local attachment reads use the package platform contract.
 Legacy route files remain in place until the plugin slot boundary and app-root
 move, but their only private dependencies are plugin presentation or local host
-adapters rather than Hena Agent domain implementations.
+adapters rather than Hena domain implementations.
 
-Make the SDK the only Hena Agent domain boundary used by the TUI.
+Make the SDK the only Hena domain boundary used by the TUI.
 
 Tasks:
 
@@ -367,8 +367,8 @@ Tasks:
 
 Exit criteria:
 
-- Domain-facing TUI code imports Hena Agent data and operations only from
-  `@hena-agent/sdk`.
+- Domain-facing TUI code imports Hena data and operations only from
+  `@hena/sdk`.
 - No TUI source imports private session, provider, reference, LSP, server, or
   core domain implementations.
 - SDK generation is clean after any API changes.
@@ -394,7 +394,7 @@ refactor(tui): move sdk state and routes into package
 
 Status: Completed. Plugin slots, route registration, TUI-facing APIs, runtime
 presentation state, and built-in feature plugins now live in
-`@hena-agent/tui`. The legacy host injects a narrow plugin host that retains
+`@hena/tui`. The legacy host injects a narrow plugin host that retains
 discovery, installation, manifest/config mutation, external module execution,
 pure-mode filtering, and cleanup ownership. Missing or failing plugin hosts
 degrade to the base TUI without blocking startup.
@@ -413,7 +413,7 @@ Tasks:
   remote server.
 - Make plugin absence or incompatibility degrade gracefully.
 - Move plugin rendering tests to `packages/tui`; retain installation/loading
-  integration tests in `packages/hena-agent`.
+  integration tests in `packages/hena`.
 
 Exit criteria:
 
@@ -471,8 +471,8 @@ export function createRenderer(config: TuiConfig.Resolved): Promise<CliRenderer>
 Exit criteria:
 
 - `packages/tui` contains the canonical application root.
-- The package has no imports from `packages/hena-agent`, `packages/cli`, or
-  `@hena-agent/core`.
+- The package has no imports from `packages/hena`, `packages/cli`, or
+  `@hena/core`.
 - The package public API is sufficient for both old and new CLI adapters.
 
 Checkpoint commit:
@@ -484,7 +484,7 @@ refactor(tui): move application root into package
 ## Section 9: Convert Both CLIs To Thin Adapters
 
 Status: Completed. The legacy thread and attach commands now lazily invoke the
-public `@hena-agent/tui` root while retaining worker/server/config/plugin and
+public `@hena/tui` root while retaining worker/server/config/plugin and
 process adapters. The new CLI default command launches the same package against
 its authenticated daemon transport with a minimal local platform/host. Missing
 legacy provider/config APIs currently degrade to the shared provider-connect
@@ -496,10 +496,10 @@ Make both executable packages consume the same TUI package.
 Tasks:
 
 - Keep the legacy yargs commands corresponding to current `thread.ts` and
-  `attach.ts` in `packages/hena-agent`.
-- Keep the legacy embedded worker and server startup in `packages/hena-agent`.
+  `attach.ts` in `packages/hena`.
+- Keep the legacy embedded worker and server startup in `packages/hena`.
 - Change those adapters to load config, create transport inputs, and call the
-  public `@hena-agent/tui` API.
+  public `@hena/tui` API.
 - Change `packages/cli`'s default command handler to call the same public API.
 - Remove the temporary `packages/cli/src/tui` shell after the shared package is
   integrated.
@@ -534,12 +534,12 @@ Delete migration scaffolding only after both hosts consume the package.
 Tasks:
 
 - Remove old TUI compatibility re-exports and the obsolete directory tree under
-  `packages/hena-agent/src/cli/cmd/tui`.
+  `packages/hena/src/cli/cmd/tui`.
 - Retain and relocate only true host adapters such as legacy commands, worker,
   transport setup, and config loading.
-- Remove obsolete `@tui/*` path mappings from `packages/hena-agent`.
+- Remove obsolete `@tui/*` path mappings from `packages/hena`.
 - Remove stale test fixtures and update all imports to package exports.
-- Narrow `@hena-agent/tui` exports to intentional public entrypoints.
+- Narrow `@hena/tui` exports to intentional public entrypoints.
 - Verify package manifests list every direct dependency and no accidental
   dependency is supplied only by workspace hoisting.
 - Update repository documentation describing TUI ownership and development.
@@ -547,7 +547,7 @@ Tasks:
 Exit criteria:
 
 - No production import references the old TUI source location.
-- No source under `packages/tui` imports `@/...`, `@hena-agent/core`, or either
+- No source under `packages/tui` imports `@/...`, `@hena/core`, or either
   executable package.
 - The old TUI directory contains no canonical implementation files.
 - The dependency graph has no cycle.
@@ -568,7 +568,7 @@ refactor(tui): complete standalone package extraction
   failure, and renderer destruction.
 - TUI package imports do not reach into executable or backend implementation
   packages.
-- SDK wire data is treated as the source of truth for Hena Agent domain state.
+- SDK wire data is treated as the source of truth for Hena domain state.
 - Unknown tools and plugin data render safely without backend type imports.
 - Remote-server use remains possible; the TUI must not require an in-process
   backend implementation.
@@ -587,7 +587,7 @@ Package checks:
 ```text
 cd packages/tui && bun typecheck
 cd packages/tui && bun test
-cd packages/hena-agent && bun typecheck
+cd packages/hena && bun typecheck
 cd packages/cli && bun typecheck
 ```
 
@@ -595,8 +595,8 @@ Dependency checks:
 
 ```text
 rg "from ['\"]@/" packages/tui/src
-rg '@hena-agent/core|packages/hena-agent|packages/cli' packages/tui
-rg 'src/cli/cmd/tui|@tui/' packages/hena-agent/src packages/hena-agent/test
+rg '@hena/core|packages/hena|packages/cli' packages/tui
+rg 'src/cli/cmd/tui|@tui/' packages/hena/src packages/hena/test
 ```
 
 SDK checks when server APIs change:
@@ -618,7 +618,7 @@ and cleaned up reliably:
 
 Compiled checks:
 
-- Build the current-platform `packages/hena-agent` binary.
+- Build the current-platform `packages/hena` binary.
 - Build the current-platform `packages/cli` binary.
 - Run TUI and non-TUI smoke checks against both compiled binaries.
 - Verify theme JSON, audio assets, OpenTUI parser worker, and retained backend

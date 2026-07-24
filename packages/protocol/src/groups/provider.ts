@@ -1,5 +1,5 @@
-import { Provider } from "@hena-agent/schema/provider"
-import { Location } from "@hena-agent/schema/location"
+import { Provider } from "@hena/schema/provider"
+import { Location } from "@hena/schema/location"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { ProviderNotFoundError, ServiceUnavailableError } from "../errors"

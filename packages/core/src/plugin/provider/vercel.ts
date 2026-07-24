@@ -11,7 +11,7 @@ export const VercelPlugin = define({
           if (item.provider.api.package !== "@ai-sdk/vercel") continue
           evt.provider.update(item.provider.id, (provider) => {
             provider.request.headers["http-referer"] = "https://hena.dev/"
-            provider.request.headers["x-title"] = "hena-agent"
+            provider.request.headers["x-title"] = "hena"
           })
         }
       }),

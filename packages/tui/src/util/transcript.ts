@@ -1,4 +1,4 @@
-import type { AssistantMessage, Part, Provider, UserMessage } from "@hena-agent/sdk/v2"
+import type { AssistantMessage, Part, Provider, UserMessage } from "@hena/sdk/v2"
 import { Locale } from "./locale"
 import * as Model from "./model"
 

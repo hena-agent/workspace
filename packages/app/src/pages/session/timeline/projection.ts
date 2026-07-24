@@ -1,5 +1,5 @@
-import { Binary } from "@hena-agent/core/util/binary"
-import type { AssistantMessage, Message, Part, SessionStatus, UserMessage } from "@hena-agent/sdk/v2"
+import { Binary } from "@hena/core/util/binary"
+import type { AssistantMessage, Message, Part, SessionStatus, UserMessage } from "@hena/sdk/v2"
 import { createMemo, mapArray, type Accessor } from "solid-js"
 import { reuseTimelineRows } from "./row-reconciliation"
 import { Timeline, TimelineRow } from "./rows"

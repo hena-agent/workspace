@@ -1,5 +1,5 @@
-import { checksum } from "@hena-agent/core/util/encode"
-import type { FilePartSource } from "@hena-agent/sdk/v2/client"
+import { checksum } from "@hena/core/util/encode"
+import type { FilePartSource } from "@hena/sdk/v2/client"
 import { batch, createMemo, type Accessor } from "solid-js"
 import { createStore, type SetStoreFunction } from "solid-js/store"
 import type { FileSelection } from "@/context/file"

@@ -1,10 +1,10 @@
 import { Argument, Flag } from "effect/unstable/cli"
 import { Spec } from "../framework/spec"
 
-declare const HENA_AGENT_CLI_NAME: string | undefined
+declare const HENA_CLI_NAME: string | undefined
 
-export const Commands = Spec.make(typeof HENA_AGENT_CLI_NAME === "string" ? HENA_AGENT_CLI_NAME : "hena-agent", {
-  description: "Hena Agent 2.0 preview command line interface",
+export const Commands = Spec.make(typeof HENA_CLI_NAME === "string" ? HENA_CLI_NAME : "hena", {
+  description: "Hena 2.0 preview command line interface",
   commands: [
     Spec.make("api", {
       description: "Make a request to the running server",

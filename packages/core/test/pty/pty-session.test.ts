@@ -1,13 +1,13 @@
 import { describe, expect } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Layer, Queue } from "effect"
-import { Config } from "@hena-agent/core/config"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { EventV2 } from "@hena-agent/core/event"
-import { Location } from "@hena-agent/core/location"
-import { Pty } from "@hena-agent/core/pty"
-import type { PtyID } from "@hena-agent/core/pty/schema"
-import { AbsolutePath } from "@hena-agent/core/schema"
+import { Config } from "@hena/core/config"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { EventV2 } from "@hena/core/event"
+import { Location } from "@hena/core/location"
+import { Pty } from "@hena/core/pty"
+import type { PtyID } from "@hena/core/pty/schema"
+import { AbsolutePath } from "@hena/core/schema"
 import { location } from "../fixture/location"
 import { testEffect } from "../lib/effect"
 
@@ -45,7 +45,7 @@ const subscribePtyEvents = Effect.fn("PtySessionTest.subscribePtyEvents")(functi
 const createPty = Effect.fn("PtySessionTest.createPty")(function* (command: string, args: string[] = []) {
   const pty = yield* Pty.Service
   return yield* Effect.acquireRelease(
-    pty.create({ command, args, cwd: "/tmp", env: { TERM: "xterm-256color", HENA_AGENT_TERMINAL: "1" } }),
+    pty.create({ command, args, cwd: "/tmp", env: { TERM: "xterm-256color", HENA_TERMINAL: "1" } }),
     (info) => pty.remove(info.id).pipe(Effect.ignore),
   )
 })

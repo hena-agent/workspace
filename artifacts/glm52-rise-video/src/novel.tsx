@@ -100,7 +100,7 @@ export function NovelTokens() {
         {/* bottom block */}
         <div>
           <div style={{ fontSize: 23, fontWeight: 600, color: c.dim, letterSpacing: 2, marginBottom: 8 }}>
-            HENA AGENT GO · LAST WEEK
+            HENA GO · LAST WEEK
           </div>
           <div
             style={{

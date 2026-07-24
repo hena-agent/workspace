@@ -1,17 +1,17 @@
 ---
 title: GitHub
-description: GitHub sorunlarında ve çekme isteklerinde hena-agent'u kullanın.
+description: GitHub sorunlarında ve çekme isteklerinde hena'u kullanın.
 ---
 
-hena-agent, GitHub iş akışınızla bütünleşir. Yorumunuzda `/hena-agent` veya `/oc`'den bahsedin; hena-agent, GitHub Actions çalıştırıcınızdaki görevleri yürütecektir.
+hena, GitHub iş akışınızla bütünleşir. Yorumunuzda `/hena` veya `/oc`'den bahsedin; hena, GitHub Actions çalıştırıcınızdaki görevleri yürütecektir.
 
 ---
 
 ## Özellikler
 
-- **Sorunları önceliklendirin**: hena-agent'dan bir sorunu araştırıp size açıklamasını isteyin.
-- **Düzelt ve uygula**: hena-agent'dan bir sorunu düzeltmesini veya bir özelliği uygulamasını isteyin. Ve yeni bir şubede çalışacak ve tüm değişiklikleri içeren bir PR gönderecek.
-- **Güvenli**: hena-agent, GitHub'ınızın çalıştırıcılarının içinde çalışır.
+- **Sorunları önceliklendirin**: hena'dan bir sorunu araştırıp size açıklamasını isteyin.
+- **Düzelt ve uygula**: hena'dan bir sorunu düzeltmesini veya bir özelliği uygulamasını isteyin. Ve yeni bir şubede çalışacak ve tüm değişiklikleri içeren bir PR gönderecek.
+- **Güvenli**: hena, GitHub'ınızın çalıştırıcılarının içinde çalışır.
 
 ---
 
@@ -20,7 +20,7 @@ hena-agent, GitHub iş akışınızla bütünleşir. Yorumunuzda `/hena-agent` v
 GitHub deposundaki bir projede aşağıdaki komutu çalıştırın:
 
 ```bash
-hena-agent github install
+hena github install
 ```
 
 Bu size GitHub uygulamasını yükleme, iş akışını oluşturma ve gizli dizileri ayarlama adımlarında yol gösterecektir.
@@ -33,14 +33,14 @@ Veya manuel olarak ayarlayabilirsiniz.
 
 1. **GitHub uygulamasını yükleyin**
 
-   [**github.com/apps/hena-agent-agent**](https://github.com/apps/hena-agent-agent)'a gidin. Hedef depoya kurulu olduğundan emin olun.
+   [**github.com/apps/hena**](https://github.com/apps/hena)'a gidin. Hedef depoya kurulu olduğundan emin olun.
 
 2. **İş akışını ekleyin**
 
-   Aşağıdaki iş akışı dosyasını deponuzdaki `.github/workflows/hena-agent.yml`'a ekleyin. `model`'de uygun `env` ve gerekli API anahtarlarını ayarladığınızdan emin olun.
+   Aşağıdaki iş akışı dosyasını deponuzdaki `.github/workflows/hena.yml`'a ekleyin. `model`'de uygun `env` ve gerekli API anahtarlarını ayarladığınızdan emin olun.
 
-   ```yml title=".github/workflows/hena-agent.yml" {24,26}
-   name: hena-agent
+   ```yml title=".github/workflows/hena.yml" {24,26}
+   name: hena
 
    on:
      issue_comment:
@@ -49,10 +49,10 @@ Veya manuel olarak ayarlayabilirsiniz.
        types: [created]
 
    jobs:
-     hena-agent:
+     hena:
        if: |
          contains(github.event.comment.body, '/oc') ||
-         contains(github.event.comment.body, '/hena-agent')
+         contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:
          id-token: write
@@ -63,7 +63,7 @@ Veya manuel olarak ayarlayabilirsiniz.
               fetch-depth: 1
               persist-credentials: false
 
-          - name: Run Hena Agent
+          - name: Run Hena
            uses: hena-agent/hena/github@latest
            env:
              ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -81,13 +81,13 @@ Veya manuel olarak ayarlayabilirsiniz.
 
 ## Yapılandırma
 
-- `model`: hena-agent ile kullanılacak model. `provider/model` biçimini alır. Bu **gerekli**.
+- `model`: hena ile kullanılacak model. `provider/model` biçimini alır. Bu **gerekli**.
 - `agent`: Kullanılacak aracı. Birincil ajan olmalı. Yapılandırmadan `default_agent`'ye veya bulunamazsa `"build"`'ye geri döner.
-- `share`: hena-agent hesabının paylaşılıp paylaşılmayacağı. Genel depolar için varsayılan olarak **true** olur.
-- `prompt`: Varsayılan çalışma geçersiz olduğundan dolayı özel istem. hena-agent'un işleme biçimini kişiselleştirmek için bunu kullanın.
-- `token`: Yorum oluşturma, değişiklik yapma ve çekme isteklerini açma gibi işlemleri gerçekleştirmek için isteğe bağlı GitHub erişim belirteci. Varsayılan olarak hena-agent, hena-agent GitHub Uygulamasındaki kurulum erişim belirtecini kullanır, bu nedenle taahhütler, yorumlar ve çekme istekleri uygulamadan geliyormuş gibi görünür.
+- `share`: hena hesabının paylaşılıp paylaşılmayacağı. Genel depolar için varsayılan olarak **true** olur.
+- `prompt`: Varsayılan çalışma geçersiz olduğundan dolayı özel istem. hena'un işleme biçimini kişiselleştirmek için bunu kullanın.
+- `token`: Yorum oluşturma, değişiklik yapma ve çekme isteklerini açma gibi işlemleri gerçekleştirmek için isteğe bağlı GitHub erişim belirteci. Varsayılan olarak hena, hena GitHub Uygulamasındaki kurulum erişim belirtecini kullanır, bu nedenle taahhütler, yorumlar ve çekme istekleri uygulamadan geliyormuş gibi görünür.
 
-  Alternatif olarak, hena-agent GitHub'u yüklemeden GitHub Eylem çalıştırıcısının [built-in `GITHUB_TOKEN`](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token) akışını kullanabilirsiniz. İşinizde gerekli izinlere sahip olduğunuzdan emin olun:
+  Alternatif olarak, hena GitHub'u yüklemeden GitHub Eylem çalıştırıcısının [built-in `GITHUB_TOKEN`](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token) akışını kullanabilirsiniz. İşinizde gerekli izinlere sahip olduğunuzdan emin olun:
 
   ```yaml
   permissions:
@@ -103,30 +103,30 @@ Veya manuel olarak ayarlayabilirsiniz.
 
 ## Desteklenen Olaylar
 
-hena-agent aşağıdaki GitHub olayları tarafından tetiklenebilir:
+hena aşağıdaki GitHub olayları tarafından tetiklenebilir:
 
 | Olay Tipi                     | Tetikleyen                                    | Detaylar                                                                                                                                            |
 | ----------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | Bir soruna veya halkla ilişkilere yorum yapın | Yorumunuzda `/hena-agent` veya `/oc`'den bahsedin. hena-agent bağlamı okur ve şubeler oluşturabilir, PR'leri açabilir veya yanıt verebilir.             |
-| `pull_request_review_comment` | PR'deki belirli kod satırlarına yorum yapın   | Kodu incelerken `/hena-agent` veya `/oc`'den bahsedin. hena-agent dosya yolunu, satır numaralarını ve fark içeriğini alır.                              |
-| `issues`                      | Sayı açıldı veya düzenlendi                   | Sorunlar oluşturulduğunda veya değiştirildiğinde hena-agent'u otomatik olarak tetikleyin. `prompt` girişi gerektirir.                                 |
-| `pull_request`                | PR açıldı veya güncellendi                    | PR'ler açıldığında, senkronize edildiğinde veya yeniden açıldığında hena-agent'u otomatik olarak tetikleyin. Otomatik incelemeler için kullanışlıdır. |
-| `schedule`                    | Cron tabanlı program                          | hena-agent'u bir programa göre çalıştırın. `prompt` girişi gerektirir. Çıktı, günlüklere ve PR'lere gider (yorum yapılacak bir sorun yoktur).         |
-| `workflow_dispatch`           | GitHub kullanıcı arayüzünden manuel tetikleme | Eylemler sekmesi aracılığıyla hena-agent'u isteğe bağlı olarak tetikleyin. `prompt` girişi gerektirir. Çıktı günlüklere ve PR'lere gider.             |
+| `issue_comment`               | Bir soruna veya halkla ilişkilere yorum yapın | Yorumunuzda `/hena` veya `/oc`'den bahsedin. hena bağlamı okur ve şubeler oluşturabilir, PR'leri açabilir veya yanıt verebilir.             |
+| `pull_request_review_comment` | PR'deki belirli kod satırlarına yorum yapın   | Kodu incelerken `/hena` veya `/oc`'den bahsedin. hena dosya yolunu, satır numaralarını ve fark içeriğini alır.                              |
+| `issues`                      | Sayı açıldı veya düzenlendi                   | Sorunlar oluşturulduğunda veya değiştirildiğinde hena'u otomatik olarak tetikleyin. `prompt` girişi gerektirir.                                 |
+| `pull_request`                | PR açıldı veya güncellendi                    | PR'ler açıldığında, senkronize edildiğinde veya yeniden açıldığında hena'u otomatik olarak tetikleyin. Otomatik incelemeler için kullanışlıdır. |
+| `schedule`                    | Cron tabanlı program                          | hena'u bir programa göre çalıştırın. `prompt` girişi gerektirir. Çıktı, günlüklere ve PR'lere gider (yorum yapılacak bir sorun yoktur).         |
+| `workflow_dispatch`           | GitHub kullanıcı arayüzünden manuel tetikleme | Eylemler sekmesi aracılığıyla hena'u isteğe bağlı olarak tetikleyin. `prompt` girişi gerektirir. Çıktı günlüklere ve PR'lere gider.             |
 
 ### Zamanlama Örneği
 
-Otomatik görevleri gerçekleştirmek için hena-agent'u bir zamanlamaya göre çalıştırın:
+Otomatik görevleri gerçekleştirmek için hena'u bir zamanlamaya göre çalıştırın:
 
-```yaml title=".github/workflows/hena-agent-scheduled.yml"
-name: Scheduled Hena Agent Task
+```yaml title=".github/workflows/hena-scheduled.yml"
+name: Scheduled Hena Task
 
 on:
   schedule:
     - cron: "0 9 * * 1" # Every Monday at 9am UTC
 
 jobs:
-  hena-agent:
+  hena:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -139,7 +139,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run Hena Agent
+      - name: Run Hena
         uses: hena-agent/hena/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -150,7 +150,7 @@ jobs:
             If you find issues worth addressing, open an issue to track them.
 ```
 
-Zamanlanmış etkinlikler için, talimatların alınabileceği bir yorum bulunmadığından `prompt` girişi **gereklidir**. Zamanlanmış iş akışları, izin kontrolü yapılacak bir kullanıcı bağlamı olmadan çalışır; bu nedenle, hena-agent'un şubeler veya PR'ler oluşturmasını bekliyorsanız iş akışının `contents: write` ve `pull-requests: write` vermesi gerekir.
+Zamanlanmış etkinlikler için, talimatların alınabileceği bir yorum bulunmadığından `prompt` girişi **gereklidir**. Zamanlanmış iş akışları, izin kontrolü yapılacak bir kullanıcı bağlamı olmadan çalışır; bu nedenle, hena'un şubeler veya PR'ler oluşturmasını bekliyorsanız iş akışının `contents: write` ve `pull-requests: write` vermesi gerekir.
 
 ---
 
@@ -158,8 +158,8 @@ Zamanlanmış etkinlikler için, talimatların alınabileceği bir yorum bulunma
 
 PR'leri açıldığında veya güncellendiğinde otomatik olarak inceleyin:
 
-```yaml title=".github/workflows/hena-agent-review.yml"
-name: hena-agent-review
+```yaml title=".github/workflows/hena-review.yml"
+name: hena-review
 
 on:
   pull_request:
@@ -191,7 +191,7 @@ jobs:
             - Suggest improvements
 ```
 
-`pull_request` olaylar için, `prompt` sağlanmazsa, hena-agent varsayılan olarak çekme isteklerini inceler.
+`pull_request` olaylar için, `prompt` sağlanmazsa, hena varsayılan olarak çekme isteklerini inceler.
 
 ---
 
@@ -199,7 +199,7 @@ jobs:
 
 Yeni sorunları otomatik olarak önceliklendirin. Bu örnek, spam'i azaltmak için 30 günden eski hesapları filtreler:
 
-```yaml title=".github/workflows/hena-agent-triage.yml"
+```yaml title=".github/workflows/hena-triage.yml"
 name: Issue Triage
 
 on:
@@ -252,9 +252,9 @@ jobs:
 
 ## Özel istemler
 
-hena-agent'un davranışını iş akışınız için özelleştirmek için varsayılan istemi geçersiz kılın.
+hena'un davranışını iş akışınız için özelleştirmek için varsayılan istemi geçersiz kılın.
 
-```yaml title=".github/workflows/hena-agent.yml"
+```yaml title=".github/workflows/hena.yml"
 - uses: hena-agent/hena/github@latest
   with:
     model: anthropic/claude-sonnet-4-5
@@ -271,27 +271,27 @@ Bu, projenizle ilgili spesifik inceleme kriterlerini, kodlama standartlarını v
 
 ## Örnekler
 
-GitHub'da hena-agent'u nasıl kullanabileceğinize dair bazı örnekleri burada bulabilirsiniz.
+GitHub'da hena'u nasıl kullanabileceğinize dair bazı örnekleri burada bulabilirsiniz.
 
 - **Bir sorunu açıklama**
 
   Bu yorumu GitHub sayısına ekleyin.
 
   ```
-  /hena-agent explain this issue
+  /hena explain this issue
   ```
 
-  hena-agent, tüm yorumlar da dahil olmak üzere ileti dizisinin tamamını okuyacak ve net bir açıklama ile yanıt verecektir.
+  hena, tüm yorumlar da dahil olmak üzere ileti dizisinin tamamını okuyacak ve net bir açıklama ile yanıt verecektir.
 
 - **Bir sorunu düzeltme**
 
   In a GitHub issue, say:
 
   ```
-  /hena-agent fix this
+  /hena fix this
   ```
 
-  Ve hena-agent yeni bir şube oluşturacak, değişiklikleri uygulayacak ve değişiklikleri içeren bir PR açacak.
+  Ve hena yeni bir şube oluşturacak, değişiklikleri uygulayacak ve değişiklikleri içeren bir PR açacak.
 
 - **PR'leri inceleyin ve değişiklik yapın**
 
@@ -301,18 +301,18 @@ GitHub'da hena-agent'u nasıl kullanabileceğinize dair bazı örnekleri burada 
   Delete the attachment from S3 when the note is removed /oc
   ```
 
-  hena-agent istenen değişikliği uygulayacak ve aynı PR'ye uygulayacaktır.
+  hena istenen değişikliği uygulayacak ve aynı PR'ye uygulayacaktır.
 
 - **Belirli kod satırlarını inceleme**
 
-  PR'nin "Dosyalar" sekmesindeki kod satırlarına doğrudan yorum bırakın. hena-agent, kesin yanıtlar sağlamak için dosyayı, satır numaralarını ve fark içeriğini otomatik olarak algılar.
+  PR'nin "Dosyalar" sekmesindeki kod satırlarına doğrudan yorum bırakın. hena, kesin yanıtlar sağlamak için dosyayı, satır numaralarını ve fark içeriğini otomatik olarak algılar.
 
   ```
   [Comment on specific lines in Files tab]
   /oc add error handling here
   ```
 
-  Belirli satırlara yorum yaparken hena-agent şunları alır:
+  Belirli satırlara yorum yaparken hena şunları alır:
   - İncelenmekte olan dosyanın tamamı
   - Belirli kod satırları
   - Çevreleyen fark bağlamı

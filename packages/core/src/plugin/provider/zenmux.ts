@@ -12,7 +12,7 @@ export const ZenmuxPlugin = define({
           if (item.provider.api.url !== "https://zenmux.ai/api/v1") continue
           evt.provider.update(item.provider.id, (provider) => {
             provider.request.headers["HTTP-Referer"] ??= "https://hena.dev/"
-            provider.request.headers["X-Title"] ??= "hena-agent"
+            provider.request.headers["X-Title"] ??= "hena"
           })
         }
       }),

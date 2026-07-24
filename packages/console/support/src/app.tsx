@@ -10,7 +10,7 @@ export default function App() {
       explicitLinks={true}
       root={(props) => (
         <MetaProvider>
-          <Title>hena-agent support</Title>
+          <Title>hena support</Title>
           <Suspense>{props.children}</Suspense>
         </MetaProvider>
       )}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { Script } from "@hena-agent/script"
+import { Script } from "@hena/script"
 import { $ } from "bun"
 import { fileURLToPath } from "url"
 
@@ -36,7 +36,7 @@ if (Script.release && !Script.preview) {
 await prepareReleaseFiles()
 
 console.log("\n=== cli ===\n")
-await $`bun ./packages/hena-agent/script/publish.ts`
+await $`bun ./packages/hena/script/publish.ts`
 
 console.log("\n=== preview cli ===\n")
 await $`bun ./packages/cli/script/publish.ts`

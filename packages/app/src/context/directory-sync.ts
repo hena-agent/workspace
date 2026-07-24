@@ -1,5 +1,5 @@
-import { Binary } from "@hena-agent/core/util/binary"
-import type { Message, Part, Session } from "@hena-agent/sdk/v2/client"
+import { Binary } from "@hena/core/util/binary"
+import type { Message, Part, Session } from "@hena/sdk/v2/client"
 import { createMemo } from "solid-js"
 import { produce, reconcile, type SetStoreFunction } from "solid-js/store"
 import type { createServerSdkContext } from "./server-sdk"

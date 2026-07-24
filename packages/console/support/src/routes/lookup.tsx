@@ -24,7 +24,7 @@ export default function LookupPage() {
 
   return (
     <main data-page="support">
-      <Title>hena-agent support — {identifier() || "lookup"}</Title>
+      <Title>hena support — {identifier() || "lookup"}</Title>
       <h1>Lookup: {identifier() || "(no identifier)"}</h1>
 
       <Show when={identifier()} fallback={<div data-empty>Provide an `identifier` query parameter.</div>}>

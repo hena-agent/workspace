@@ -1,15 +1,15 @@
 ---
 title: Zen
-description: hena-agent tarafından sağlanan seçilmiş modeller listesi.
+description: hena tarafından sağlanan seçilmiş modeller listesi.
 ---
 
 import config from "../../../../config.mjs"
 export const console = config.console
 export const email = `mailto:${config.email}`
 
-Hena Zen, Hena Agent ekibi tarafından test edilip doğrulanmış modellerin bir listesidir.
+Hena Zen, Hena ekibi tarafından test edilip doğrulanmış modellerin bir listesidir.
 
-Zen, Hena Agent'daki diğer sağlayıcılar gibi çalışır. Hena Zen'de oturum açıp API anahtarınızı alırsınız. Bu **tamamen isteğe bağlıdır** ve Hena Agent kullanmak için buna ihtiyacınız yoktur.
+Zen, Hena'daki diğer sağlayıcılar gibi çalışır. Hena Zen'de oturum açıp API anahtarınızı alırsınız. Bu **tamamen isteğe bağlıdır** ve Hena kullanmak için buna ihtiyacınız yoktur.
 
 ---
 
@@ -18,7 +18,7 @@ Zen, Hena Agent'daki diğer sağlayıcılar gibi çalışır. Hena Zen'de oturum
 Piyasada çok sayıda model var, ancak bunların yalnızca birkaçı kodlama ajanı olarak iyi çalışıyor. Ayrıca çoğu sağlayıcı çok farklı şekilde yapılandırılıyor; bu yüzden performans ve kalite de ciddi ölçüde değişiyor.
 
 :::tip
-Hena Agent ile iyi çalışan seçili bir model ve sağlayıcı grubunu test ettik.
+Hena ile iyi çalışan seçili bir model ve sağlayıcı grubunu test ettik.
 :::
 
 Bu yüzden, OpenRouter gibi bir şey üzerinden model kullanıyorsanız istediğiniz modelin en iyi sürümünü alıp almadığınızdan asla emin olamazsınız.
@@ -35,7 +35,7 @@ Hena Zen, bu modellere erişmenizi sağlayan bir AI ağ geçididir.
 
 ## Nasıl çalışır
 
-Hena Zen, Hena Agent'daki diğer sağlayıcılar gibi çalışır.
+Hena Zen, Hena'daki diğer sağlayıcılar gibi çalışır.
 
 1. **<a href={console}>Hena Zen</a>**'de oturum açın, faturalandırma bilgilerinizi ekleyin ve API anahtarınızı kopyalayın.
 2. TUI'de `/connect` komutunu çalıştırın, Hena Zen'i seçin ve API anahtarınızı yapıştırın.
@@ -109,7 +109,7 @@ Modellerimize aşağıdaki API uç noktaları aracılığıyla da erişebilirsin
 | Nemotron 3 Ultra Free  | nemotron-3-ultra-free  | `https://hena.dev/zen/v1/chat/completions`             | `@ai-sdk/openai-compatible` |
 | DeepSeek V4 Flash Free | deepseek-v4-flash-free | `https://hena.dev/zen/v1/chat/completions`             | `@ai-sdk/openai-compatible` |
 
-Hena Agent yapılandırmanızdaki [model id](/docs/config/#models) `hena-agent/<model-id>` biçimini kullanır. Örneğin, GPT 5.5 için yapılandırmanızda `hena-agent/gpt-5.5` kullanırsınız.
+Hena yapılandırmanızdaki [model id](/docs/config/#models) `hena/<model-id>` biçimini kullanır. Örneğin, GPT 5.5 için yapılandırmanızda `hena/gpt-5.5` kullanırsınız.
 
 ---
 
@@ -195,7 +195,7 @@ Kullandıkça öde modelini destekliyoruz. Aşağıda **1M token başına** fiya
 | GPT 5 Codex                       | $1.07  | $8.50   | $0.107      | -            |
 | GPT 5 Nano                        | $0.05  | $0.40   | $0.005      | -            |
 
-Kullanım geçmişinizde Haiku, Nano veya Flash gibi [düşük maliyetli modeller](/docs/config/#models) görebilirsiniz. Hena Agent, oturum başlıklarını oluşturmak için bu modelleri kullanır.
+Kullanım geçmişinizde Haiku, Nano veya Flash gibi [düşük maliyetli modeller](/docs/config/#models) görebilirsiniz. Hena, oturum başlıklarını oluşturmak için bu modelleri kullanır.
 
 :::note
 Kredi kartı ücretleri maliyet üzerinden yansıtılır (%4.4 + işlem başına $0.30); bunun dışında ekstra bir ücret almıyoruz.
@@ -203,12 +203,12 @@ Kredi kartı ücretleri maliyet üzerinden yansıtılır (%4.4 + işlem başına
 
 Ücretsiz modeller:
 
-- DeepSeek V4 Flash Free, sınırlı bir süre için Hena Agent'da ücretsizdir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
-- MiMo-V2.5 Free, sınırlı bir süre için Hena Agent'da ücretsizdir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
-- Laguna S 2.1 Free, sınırlı bir süre için Hena Agent'da ücretsizdir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
-- North Mini Code Free, sınırlı bir süre için Hena Agent'da ücretsizdir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
-- Nemotron 3 Ultra Free, sınırlı bir süre için Hena Agent'da ücretsizdir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
-- Big Pickle, sınırlı bir süre için Hena Agent'da ücretsiz olan gizli bir modeldir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
+- DeepSeek V4 Flash Free, sınırlı bir süre için Hena'da ücretsizdir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
+- MiMo-V2.5 Free, sınırlı bir süre için Hena'da ücretsizdir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
+- Laguna S 2.1 Free, sınırlı bir süre için Hena'da ücretsizdir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
+- North Mini Code Free, sınırlı bir süre için Hena'da ücretsizdir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
+- Nemotron 3 Ultra Free, sınırlı bir süre için Hena'da ücretsizdir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
+- Big Pickle, sınırlı bir süre için Hena'da ücretsiz olan gizli bir modeldir. Ekip bu süreyi geri bildirim toplamak ve modeli iyileştirmek için kullanıyor.
 
 Sorularınız varsa <a href={email}>bizimle iletişime geçin</a>.
 
@@ -318,4 +318,4 @@ Hena Zen'i şunlar için oluşturduk:
 1. Kodlama ajanları için en iyi modelleri/sağlayıcıları **kıyaslamak**.
 2. **En yüksek kaliteli** seçeneklere erişmek ve performansı düşürmemek ya da daha ucuz sağlayıcılara yönlendirmemek.
 3. Maliyetine satış yaparak tüm **fiyat düşüşlerini** yansıtmak; yani tek ek ücretimiz işlem ücretlerimizi karşılamak içindir.
-4. Başka herhangi bir kodlama ajanıyla kullanmanıza izin vererek **kilitlenme olmamasını** sağlamak. Ayrıca Hena Agent ile her zaman başka herhangi bir sağlayıcıyı da kullanabilmenizi sağlamak.
+4. Başka herhangi bir kodlama ajanıyla kullanmanıza izin vererek **kilitlenme olmamasını** sağlamak. Ayrıca Hena ile her zaman başka herhangi bir sağlayıcıyı da kullanabilmenizi sağlamak.

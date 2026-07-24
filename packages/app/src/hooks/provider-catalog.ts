@@ -1,4 +1,4 @@
-import type { NormalizedProviderListResponse } from "@hena-agent/session-ui/context"
+import type { NormalizedProviderListResponse } from "@hena/session-ui/context"
 
 const emptyProviderCatalog: NormalizedProviderListResponse = { all: new Map(), connected: [], default: {} }
 

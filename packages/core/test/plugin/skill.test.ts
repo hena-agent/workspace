@@ -1,23 +1,23 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { SkillPlugin } from "@hena-agent/core/plugin/skill"
-import { SkillV2 } from "@hena-agent/core/skill"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { SkillPlugin } from "@hena/core/plugin/skill"
+import { SkillV2 } from "@hena/core/skill"
 import { testEffect } from "../lib/effect"
 import { host } from "./host"
 
 const it = testEffect(AppNodeBuilder.build(SkillV2.node))
 
 describe("SkillPlugin.Plugin", () => {
-  it.effect("registers the built-in customize-hena-agent skill", () =>
+  it.effect("registers the built-in customize-hena skill", () =>
     Effect.gen(function* () {
       const skill = yield* SkillV2.Service
       yield* SkillPlugin.Plugin.effect(host({ skill: { ...skill, reload: skill.reload } }))
 
       expect(yield* skill.list()).toContainEqual(
         expect.objectContaining({
-          name: "customize-hena-agent",
-          description: expect.stringContaining("Hena Agent's own configuration"),
+          name: "customize-hena",
+          description: expect.stringContaining("Hena's own configuration"),
         }),
       )
     }),

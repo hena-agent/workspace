@@ -1,24 +1,24 @@
-# @hena-agent/client
+# @hena/client
 
-Private generation target for clients derived directly from Hena Agent's authoritative Effect `HttpApi`.
+Private generation target for clients derived directly from Hena's authoritative Effect `HttpApi`.
 
 ## Entrypoints
 
-- `@hena-agent/client`: zero-Effect Promise client using `fetch`.
-- `@hena-agent/client/effect`: rich Effect network client using an environment-provided `HttpClient`.
+- `@hena/client`: zero-Effect Promise client using `fetch`.
+- `@hena/client/effect`: rich Effect network client using an environment-provided `HttpClient`.
 
-The generated surface includes every standard HTTP group from Server's concrete API. The build compiler reads `@hena-agent/server/api`; the generated Effect runtime imports a client-local projection built from Protocol, with a generation-equivalence test preventing transport drift. Custom transports such as the PTY WebSocket connection remain outside the generic HTTP client. Run `bun run generate` after changing the contract and `bun run check:generated` to detect committed-output drift.
+The generated surface includes every standard HTTP group from Server's concrete API. The build compiler reads `@hena/server/api`; the generated Effect runtime imports a client-local projection built from Protocol, with a generation-equivalence test preventing transport drift. Custom transports such as the PTY WebSocket connection remain outside the generic HTTP client. Run `bun run generate` after changing the contract and `bun run check:generated` to detect committed-output drift.
 
-The Effect entrypoint uses canonical decoded values such as `Session.ID`, `Location.Ref`, and `Prompt`. These datatypes come from the lightweight `@hena-agent/schema` package and are re-exported so callers depend only on the client surface. Protocol owns endpoint construction and middleware placement; Server supplies the concrete middleware keys used by the build-time API.
+The Effect entrypoint uses canonical decoded values such as `Session.ID`, `Location.Ref`, and `Prompt`. These datatypes come from the lightweight `@hena/schema` package and are re-exported so callers depend only on the client surface. Protocol owns endpoint construction and middleware placement; Server supplies the concrete middleware keys used by the build-time API.
 
 The Promise root remains structural and has no Core or Effect runtime dependency. `/effect` depends only on Effect, Schema, and Protocol and is browser-bundle safe. Bundle-boundary tests enforce both import graphs.
 
 Effect consumers construct canonical decoded inputs:
 
 ```ts
-import { AbsolutePath, HenaAgent, Location, Prompt } from "@hena-agent/client/effect"
+import { AbsolutePath, Hena, Location, Prompt } from "@hena/client/effect"
 
-const client = yield * HenaAgent.make({ baseUrl: "https://hena-agent.example" })
+const client = yield * Hena.make({ baseUrl: "https://hena.example" })
 yield *
   client.sessions.create({
     location: Location.Ref.make({ directory: AbsolutePath.make("/workspace") }),

@@ -1,5 +1,5 @@
-name: "Hena Agent GitHub Action"
-description: "Run Hena Agent in GitHub Actions workflows"
+name: "Hena GitHub Action"
+description: "Run Hena in GitHub Actions workflows"
 branding:
   icon: "code"
   color: "orange"
@@ -14,7 +14,7 @@ inputs:
     required: false
 
   share:
-    description: "Share the Hena Agent session (defaults to true for public repos)"
+    description: "Share the Hena session (defaults to true for public repos)"
     required: false
 
   prompt:
@@ -22,12 +22,12 @@ inputs:
     required: false
 
   use_github_token:
-    description: "Use GITHUB_TOKEN directly instead of Hena Agent App token exchange. When true, skips OIDC and uses the GITHUB_TOKEN env var."
+    description: "Use GITHUB_TOKEN directly instead of Hena App token exchange. When true, skips OIDC and uses the GITHUB_TOKEN env var."
     required: false
     default: "false"
 
   mentions:
-    description: "Comma-separated trigger phrases. Defaults to '/hena-agent,/hena'."
+    description: "Comma-separated trigger phrases. Defaults to '/oc,/hena'."
     required: false
 
   variant:
@@ -41,33 +41,33 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Get Hena Agent version
+    - name: Get Hena version
       id: version
       shell: bash
       run: |
         VERSION=$(curl -sf https://api.github.com/repos/hena-agent/hena/releases/latest | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
         echo "version=${VERSION:-latest}" >> $GITHUB_OUTPUT
 
-    - name: Cache Hena Agent
+    - name: Cache Hena
       id: cache
       uses: actions/cache@v4
       with:
-        path: ~/.hena-agent/bin
-        key: hena-agent-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}
+        path: ~/.hena/bin
+        key: hena-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}
 
-    - name: Install Hena Agent
+    - name: Install Hena
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       run: curl -fsSL https://hena.dev/install | bash
 
-    - name: Add Hena Agent to PATH
+    - name: Add Hena to PATH
       shell: bash
-      run: echo "$HOME/.hena-agent/bin" >> $GITHUB_PATH
+      run: echo "$HOME/.hena/bin" >> $GITHUB_PATH
 
-    - name: Run Hena Agent
+    - name: Run Hena
       shell: bash
-      id: run_hena_agent
-      run: hena-agent github run
+      id: run_hena
+      run: hena github run
       env:
         MODEL: ${{ inputs.model }}
         AGENT: ${{ inputs.agent }}

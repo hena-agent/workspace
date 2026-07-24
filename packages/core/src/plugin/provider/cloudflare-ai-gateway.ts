@@ -71,7 +71,7 @@ function gatewayOptions(options: Record<string, unknown>, metadata: unknown) {
     skipCache: options.skipCache,
     collectLog: options.collectLog,
     headers: {
-      "User-Agent": `hena-agent/${InstallationVersion} cloudflare-ai-gateway (${os.platform()} ${os.release()}; ${os.arch()})`,
+      "User-Agent": `hena/${InstallationVersion} cloudflare-ai-gateway (${os.platform()} ${os.release()}; ${os.arch()})`,
     },
   }
 }

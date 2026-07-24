@@ -1,15 +1,15 @@
 ---
 title: Wstęp
-description: Zacznij pracę z Hena Agent.
+description: Zacznij pracę z Hena.
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 import config from "../../../../config.mjs"
 export const console = config.console
 
-[**hena-agent**](/) to agent kodujący AI typu open source. Jest dostępny jako interfejs terminalowy, aplikacja desktopowa i rozszerzenie IDE.
+[**hena**](/) to agent kodujący AI typu open source. Jest dostępny jako interfejs terminalowy, aplikacja desktopowa i rozszerzenie IDE.
 
-![hena-agent TUI z motywem hena-agent](../../../assets/lander/screenshot.png)
+![hena TUI z motywem hena](../../../assets/lander/screenshot.png)
 
 Zacznijmy.
 
@@ -17,7 +17,7 @@ Zacznijmy.
 
 #### Warunki wstępne
 
-Aby uzyskać dostęp do hena-agent w swoim terminalu, będziesz potrzebować:
+Aby uzyskać dostęp do hena w swoim terminalu, będziesz potrzebować:
 
 1. Nowoczesny emulator terminala, taki jak:
    - [WezTerm](https://wezterm.org), wieloplatformowy
@@ -31,7 +31,7 @@ Aby uzyskać dostęp do hena-agent w swoim terminalu, będziesz potrzebować:
 
 ## Instalacja
 
-Najłatwiej zainstalować hena-agent za pomocą skryptu instalacyjnego.
+Najłatwiej zainstalować hena za pomocą skryptu instalacyjnego.
 
 ```bash
 curl -fsSL https://hena.dev/install | bash
@@ -45,28 +45,28 @@ Możesz też użyć poniższych metod instalacji:
 
       <TabItem label="npm">
       ```bash
-      npm install -g hena-agent
+      npm install -g hena
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g hena-agent
+        bun install -g hena
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g hena-agent
+        pnpm install -g hena
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add hena-agent
+        yarn global add hena
         ```
 
       </TabItem>
@@ -76,40 +76,40 @@ Możesz też użyć poniższych metod instalacji:
 - **Korzystanie z Homebrew na macOS i Linux**
 
   ```bash
-  brew install anomalyco/tap/hena-agent
+  brew install hena-agent/tap/hena
   ```
 
-  > W celu uzyskania najbardziej aktualnej wersji zalecamy korzystanie z Hena Agent. Oficjalna formuła `brew install hena-agent` jest utrzymywana przez zespół Homebrew i jest aktualizowana.
+  > W celu uzyskania najbardziej aktualnej wersji zalecamy korzystanie z Hena. Oficjalna formuła `brew install hena` jest utrzymywana przez zespół Homebrew i jest aktualizowana.
 
 - **Korzystanie z Paru na Arch Linux**
 
   ```bash
-  sudo pacman -S hena-agent           # Arch Linux (Stable)
-  paru -S hena-agent-bin              # Arch Linux (Latest from AUR)
+  sudo pacman -S hena           # Arch Linux (Stable)
+  paru -S hena-bin              # Arch Linux (Latest from AUR)
   ```
 
 #### Windows
 
 :::tip[Zalecane: Uruchamianie w WSL]
-Aby najlepiej wykorzystać działanie w systemie Windows, zalecamy włączenie [Podsystemu Windows dla systemu Linux (WSL)](/docs/windows-wsl). Zapewnia to pełną kompatybilność z funkcjami Hena Agent.
+Aby najlepiej wykorzystać działanie w systemie Windows, zalecamy włączenie [Podsystemu Windows dla systemu Linux (WSL)](/docs/windows-wsl). Zapewnia to pełną kompatybilność z funkcjami Hena.
 :::
 
 - **Używając Chocolatey**
 
   ```bash
-  choco install hena-agent
+  choco install hena
   ```
 
 - **Korzystanie z Scoop**
 
   ```bash
-  scoop install hena-agent
+  scoop install hena
   ```
 
 - **Przy użyciu NPM**
 
   ```bash
-  npm install -g hena-agent
+  npm install -g hena
   ```
 
 - **Używając Mise’a**
@@ -124,7 +124,7 @@ Aby najlepiej wykorzystać działanie w systemie Windows, zalecamy włączenie [
   docker run -it --rm ghcr.io/hena-agent/hena
   ```
 
-Obecnie pracujemy nad instalacją hena-agent w systemie Windows za pomocą Bun.
+Obecnie pracujemy nad instalacją hena w systemie Windows za pomocą Bun.
 
 Możesz także pobrać plik binarny z [Releases](https://github.com/hena-agent/hena/releases).
 
@@ -132,12 +132,12 @@ Możesz także pobrać plik binarny z [Releases](https://github.com/hena-agent/h
 
 ## Konfiguracja
 
-Dzięki hena-agent możesz korzystać z dowolnego dostawcy LLM, konfigurując jego klucze API.
+Dzięki hena możesz korzystać z dowolnego dostawcy LLM, konfigurując jego klucze API.
 
 Jeśli będziesz korzystać z wielu dostawców LLM, zalecamy skorzystanie z [Hena Zen](/docs/zen).
-Aby uzyskać dostęp do wyselekcjonowanej listy modeli, które zostały zatwierdzone i zweryfikowane przez zespół Hena Agent.
+Aby uzyskać dostęp do wyselekcjonowanej listy modeli, które zostały zatwierdzone i zweryfikowane przez zespół Hena.
 
-1. Uruchom polecenie `/connect` w TUI, wybierz hena-agent i przejdź do [hena.dev/auth](https://hena.dev/auth).
+1. Uruchom polecenie `/connect` w TUI, wybierz hena i przejdź do [hena.dev/auth](https://hena.dev/auth).
 
    ```txt
    /connect
@@ -166,25 +166,25 @@ Po skonfigurowaniu dostawcy możesz przejść do projektu, nad którym chcesz pr
 cd /path/to/project
 ```
 
-Uruchom Hena Agent.
+Uruchom Hena.
 
 ```bash
-hena-agent
+hena
 ```
 
-Następnie zainicjuj hena-agent dla projektu, uruchamiając odpowiednie polecenie.
+Następnie zainicjuj hena dla projektu, uruchamiając odpowiednie polecenie.
 
 ```bash frame="none"
 /init
 ```
 
-Spowoduje to, że hena-agent przeanalizuje Twój projekt i utworzy plik `AGENTS.md` w katalogu głównym projektu.
+Spowoduje to, że hena przeanalizuje Twój projekt i utworzy plik `AGENTS.md` w katalogu głównym projektu.
 
 :::tip
 Powinieneś zacommitować plik `AGENTS.md` swojego projektu w Git.
 :::
 
-Pomaga to hena-agent zrozumieć strukturę projektu i stosowane wzorce kodowania.
+Pomaga to hena zrozumieć strukturę projektu i stosowane wzorce kodowania.
 
 ---
 
@@ -198,7 +198,7 @@ Jeśli dopiero zaczynasz korzystać z agenta kodującego AI, oto kilka wskazówe
 
 ### Zadawaj pytania
 
-Możesz poprosić hena-agent o wyjaśnienie bazy kodu.
+Możesz poprosić hena o wyjaśnienie bazy kodu.
 
 :::tip
 Użyj `@` do wyszukiwania rozmytego plików w projekcie.
@@ -214,11 +214,11 @@ Jest to pomocne, jeśli istnieje część bazy kodu, nad którą nie pracowałe�
 
 ### Dodaj funkcje
 
-Możesz poprosić hena-agent o dodanie nowej funkcji do Twojego projektu. Najpierw zalecamy poproszenie o przygotowanie planu.
+Możesz poprosić hena o dodanie nowej funkcji do Twojego projektu. Najpierw zalecamy poproszenie o przygotowanie planu.
 
 1. **Stwórz Plan**
 
-   hena-agent ma _Plan Mode_, który umożliwia wyłączenie zmian i
+   hena ma _Plan Mode_, który umożliwia wyłączenie zmian i
    zamiast tego zasugeruje, jak zaimplementować tę funkcję.
 
    Przejdź do niego za pomocą klawisza **Tab**. Zobaczysz odpowiedni wskaźnik w prawym dolnym rogu.
@@ -235,11 +235,11 @@ Możesz poprosić hena-agent o dodanie nowej funkcji do Twojego projektu. Najpie
    From this screen, the user can undelete a note or permanently delete it.
    ```
 
-   Wersja hena-agent jest bardzo inteligentna, aby zrozumieć, czego chcesz. To pomaga
+   Wersja hena jest bardzo inteligentna, aby zrozumieć, czego chcesz. To pomaga
    rozmawiaj z nim tak, jakbyś rozmawiał z młodszym programistą w swoim zespole.
 
    :::tip
-   Podaj hena-agent kontekst, aby zrozumiał, czego chcesz.
+   Podaj hena kontekst, aby zrozumiał, czego chcesz.
    :::
 
 2. **Udoskonalanie planu**
@@ -255,7 +255,7 @@ Możesz poprosić hena-agent o dodanie nowej funkcji do Twojego projektu. Najpie
    Przeciągnij i upuść obrazy do terminala, aby dodać je do monitu.
    :::
 
-   hena-agent może zeskanować obrazy, które mu przekażesz i zrozumieć je. Możesz to zrobić, przeciągając i upuszczając obraz do terminala.
+   hena może zeskanować obrazy, które mu przekażesz i zrozumieć je. Możesz to zrobić, przeciągając i upuszczając obraz do terminala.
 
 3. **Wprowadź zmiany**
 
@@ -275,7 +275,7 @@ Możesz poprosić hena-agent o dodanie nowej funkcji do Twojego projektu. Najpie
 
 ### Wprowadź zmiany
 
-Aby wprowadzić kolejną zmianę, możesz poprosić hena-agent lub zrobić to bezpośrednio bez konieczności wcześniejszego przeglądania planu.
+Aby wprowadzić kolejną zmianę, możesz poprosić hena lub zrobić to bezpośrednio bez konieczności wcześniejszego przeglądania planu.
 
 ```txt frame="none" "@packages/functions/src/settings.ts" "@packages/functions/src/notes.ts"
 We need to add authentication to the /settings route. Take a look at how this is
@@ -283,13 +283,13 @@ handled in the /notes route in @packages/functions/src/notes.ts and implement
 the same logic in @packages/functions/src/settings.ts
 ```
 
-Musisz upewnić się, że dostarczyłeś odpowiednie pliki, aby hena-agent mógł wprowadzić zmiany.
+Musisz upewnić się, że dostarczyłeś odpowiednie pliki, aby hena mógł wprowadzić zmiany.
 
 ---
 
 ### Cofnij zmiany
 
-Załóżmy, że prosisz hena-agent o wprowadzenie zmian.
+Załóżmy, że prosisz hena o wprowadzenie zmian.
 
 ```txt frame="none" "@packages/functions/src/api/index.ts"
 Can you refactor the function in @packages/functions/src/api/index.ts?
@@ -302,13 +302,13 @@ za pomocą polecenia `/undo`.
 /undo
 ```
 
-hena-agent cofnie teraz zmiany i wyświetli wiadomość ponownie.
+hena cofnie teraz zmiany i wyświetli wiadomość ponownie.
 
 ```txt frame="none" "@packages/functions/src/api/index.ts"
 Can you refactor the function in @packages/functions/src/api/index.ts?
 ```
 
-Możesz edytować monit i poprosić hena-agent o ponowną próbę.
+Możesz edytować monit i poprosić hena o ponowną próbę.
 
 :::tip
 Możesz użyć `/undo` wiele razy, aby cofnąć wiele zmian.
@@ -324,7 +324,7 @@ Możesz też **przywrócić** zmianę za pomocą polecenia `/redo`.
 
 ## Udostępnianie
 
-Rozmowy z hena-agent można [udostępniać swojemu zespołowi](/docs/share).
+Rozmowy z hena można [udostępniać swojemu zespołowi](/docs/share).
 
 ```bash frame="none"
 /share
@@ -336,12 +336,12 @@ Spowoduje to, że link do bieżącej rozmowy zostanie skopiowany do schowka.
 Rozmowy nie są ogólnodostępne.
 :::
 
-Oto [przykładowa rozmowa](https://hena.dev/s/4XP1fce5) z Hena Agent.
+Oto [przykładowa rozmowa](https://hena.dev/s/4XP1fce5) z Hena.
 
 ---
 
 ## Dostosuj
 
-To tyle! Jesteś teraz profesjonalistą w korzystaniu z Hena Agent.
+To tyle! Jesteś teraz profesjonalistą w korzystaniu z Hena.
 
-Aby dostosować go do potrzeb, zalecamy [wybranie motywu](/docs/themes), [dostosowanie skrótów klawiaturowych](/docs/keybinds), [konfigurowanie programów formatujących kod](/docs/formatters), [tworzenie niestandardowych poleceń](/docs/commands) lub zabawę z [konfiguracją hena-agent](/docs/config).
+Aby dostosować go do potrzeb, zalecamy [wybranie motywu](/docs/themes), [dostosowanie skrótów klawiaturowych](/docs/keybinds), [konfigurowanie programów formatujących kod](/docs/formatters), [tworzenie niestandardowych poleceń](/docs/commands) lub zabawę z [konfiguracją hena](/docs/config).

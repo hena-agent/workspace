@@ -3,14 +3,14 @@
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena Agent logo">
+      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena logo">
     </picture>
   </a>
 </p>
 <p align="center">开源的 AI Coding Agent。</p>
 <p align="center">
   <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/hena"><img alt="npm" src="https://img.shields.io/npm/v/hena?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
 
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
+[![Hena Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -50,14 +50,14 @@
 curl -fsSL https://hena.dev/install | bash
 
 # 软件包管理器
-npm i -g hena-agent@latest        # 也可使用 bun/pnpm/yarn
-scoop install hena-agent             # Windows
-choco install hena-agent             # Windows
-brew install hena-agent/tap/hena-agent # macOS 和 Linux（推荐，始终保持最新）
-brew install hena-agent              # macOS 和 Linux（官方 brew formula，更新频率较低）
-sudo pacman -S hena-agent            # Arch Linux (Stable)
-paru -S hena-agent-bin               # Arch Linux (Latest from AUR)
-mise use -g hena-agent               # 任意系统
+npm i -g hena@latest        # 也可使用 bun/pnpm/yarn
+scoop install hena             # Windows
+choco install hena             # Windows
+brew install hena-agent/tap/hena # macOS 和 Linux（推荐，始终保持最新）
+brew install hena              # macOS 和 Linux（官方 brew formula，更新频率较低）
+sudo pacman -S hena            # Arch Linux (Stable)
+paru -S hena-bin               # Arch Linux (Latest from AUR)
+mise use -g hena               # 任意系统
 nix run github:hena-agent/hena           # 或用 github:hena-agent/hena 获取最新 dev 分支
 ```
 
@@ -66,40 +66,40 @@ nix run github:hena-agent/hena           # 或用 github:hena-agent/hena 获取�
 
 ### 桌面应用程序 (BETA)
 
-Hena Agent 也提供桌面版应用。可直接从 [发布页 (releases page)](https://github.com/hena-agent/hena/releases) 或 [hena.dev/download](https://hena.dev/download) 下载。
+Hena 也提供桌面版应用。可直接从 [发布页 (releases page)](https://github.com/hena-agent/hena/releases) 或 [hena.dev/download](https://hena.dev/download) 下载。
 
 | 平台                  | 下载文件                           |
 | --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `hena-agent-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `hena-agent-desktop-mac-x64.dmg`     |
-| Windows               | `hena-agent-desktop-windows-x64.exe` |
+| macOS (Apple Silicon) | `hena-desktop-mac-arm64.dmg`   |
+| macOS (Intel)         | `hena-desktop-mac-x64.dmg`     |
+| Windows               | `hena-desktop-windows-x64.exe` |
 | Linux                 | `.deb`、`.rpm` 或 AppImage         |
 
 ```bash
 # macOS (Homebrew Cask)
-brew install --cask hena-agent
+brew install --cask hena
 # Windows (Scoop)
-scoop bucket add extras; scoop install hena-agent
+scoop bucket add extras; scoop install hena
 ```
 
 #### 安装目录
 
 安装脚本按照以下优先级决定安装路径：
 
-1. `$HENA_AGENT_INSTALL_DIR` - 自定义安装目录
+1. `$HENA_INSTALL_DIR` - 自定义安装目录
 2. `$XDG_BIN_DIR` - 符合 XDG 基础目录规范的路径
 3. `$HOME/bin` - 如果存在或可创建的用户二进制目录
-4. `$HOME/.hena-agent/bin` - 默认备用路径
+4. `$HOME/.hena/bin` - 默认备用路径
 
 ```bash
 # 示例
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+HENA_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
 XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agents
 
-Hena Agent 内置两种 Agent，可用 `Tab` 键快速切换：
+Hena 内置两种 Agent，可用 `Tab` 键快速切换：
 
 - **build** - 默认模式，具备完整权限，适合开发工作
 - **plan** - 只读模式，适合代码分析与探索
@@ -119,9 +119,9 @@ Hena Agent 内置两种 Agent，可用 `Tab` 键快速切换：
 
 如有兴趣贡献代码，请在提交 PR 前阅读 [贡献指南 (Contributing Docs)](./CONTRIBUTING.md)。
 
-### 基于 Hena Agent 进行开发
+### 基于 Hena 进行开发
 
-如果你在项目名中使用了 “hena-agent”（如 “hena-agent-dashboard” 或 “hena-agent-mobile”），请在 README 里注明该项目不是 Hena Agent 团队官方开发，且不存在隶属关系。
+如果你在项目名中使用了 “hena”（如 “hena-dashboard” 或 “hena-mobile”），请在 README 里注明该项目不是 Hena 团队官方开发，且不存在隶属关系。
 
 ---
 

@@ -25,6 +25,6 @@ jobs:
       - name: Publish
         run: |
           git config --global user.email "github@hena.dev"
-          git config --global user.name "hena-agent"
+          git config --global user.name "hena"
           ./script/publish
         working-directory: ./github

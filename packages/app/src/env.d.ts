@@ -1,7 +1,7 @@
 interface ImportMetaEnv {
-  readonly VITE_HENA_AGENT_SERVER_HOST: string
-  readonly VITE_HENA_AGENT_SERVER_PORT: string
-  readonly VITE_HENA_AGENT_CHANNEL?: "dev" | "beta" | "prod"
+  readonly VITE_HENA_SERVER_HOST: string
+  readonly VITE_HENA_SERVER_PORT: string
+  readonly VITE_HENA_CHANNEL?: "dev" | "beta" | "prod"
 
   readonly VITE_SENTRY_DSN?: string
   readonly VITE_SENTRY_ENVIRONMENT?: string

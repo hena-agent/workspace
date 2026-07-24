@@ -9,9 +9,9 @@ import path from "path"
 
 import { createClient } from "@hey-api/openapi-ts"
 
-const henaAgent = path.resolve(dir, "../../hena-agent")
+const hena = path.resolve(dir, "../../hena")
 
-await $`bun dev generate > ${dir}/openapi.json`.cwd(henaAgent)
+await $`bun dev generate > ${dir}/openapi.json`.cwd(hena)
 
 const document = (await Bun.file("./openapi.json").json()) as {
   components?: { schemas?: Record<string, unknown> }
@@ -58,7 +58,7 @@ await createClient({
     },
     {
       name: "@hey-api/sdk",
-      instance: "HenaAgentClient",
+      instance: "HenaClient",
       exportFromIndex: false,
       auth: false,
       paramsStructure: "flat",

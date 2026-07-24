@@ -1,2 +1,2 @@
 export { ClientError } from "./client-error"
-export * as HenaAgent from "./client"
+export * as Hena from "./client"

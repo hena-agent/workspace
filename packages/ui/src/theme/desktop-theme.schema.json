@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://hena.dev/desktop-theme.json",
-  "title": "Hena Agent Desktop Theme",
-  "description": "A theme definition for the Hena Agent desktop application",
+  "title": "Hena Desktop Theme",
+  "description": "A theme definition for the Hena desktop application",
   "type": "object",
   "required": ["name", "id", "light", "dark"],
   "properties": {

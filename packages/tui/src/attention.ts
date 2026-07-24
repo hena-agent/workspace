@@ -9,17 +9,17 @@ import type {
   TuiAttentionSoundName,
   TuiAttentionSoundPack,
   TuiAttentionSoundPackInfo,
-} from "@hena-agent/plugin/tui"
+} from "@hena/plugin/tui"
 import { AttentionSoundName, type TuiConfig } from "./config"
 import { Schema } from "effect"
 import stripAnsi from "strip-ansi"
 import * as TuiAudio from "./audio"
-import defaultSoundPath from "@hena-agent/ui/audio/bip-bop-01.mp3" with { type: "file" }
-import questionSoundPath from "@hena-agent/ui/audio/bip-bop-03.mp3" with { type: "file" }
-import permissionSoundPath from "@hena-agent/ui/audio/staplebops-06.mp3" with { type: "file" }
-import errorSoundPath from "@hena-agent/ui/audio/nope-03.mp3" with { type: "file" }
-import doneSoundPath from "@hena-agent/ui/audio/bip-bop-01.mp3" with { type: "file" }
-import subagentDoneSoundPath from "@hena-agent/ui/audio/yup-01.mp3" with { type: "file" }
+import defaultSoundPath from "@hena/ui/audio/bip-bop-01.mp3" with { type: "file" }
+import questionSoundPath from "@hena/ui/audio/bip-bop-03.mp3" with { type: "file" }
+import permissionSoundPath from "@hena/ui/audio/staplebops-06.mp3" with { type: "file" }
+import errorSoundPath from "@hena/ui/audio/nope-03.mp3" with { type: "file" }
+import doneSoundPath from "@hena/ui/audio/bip-bop-01.mp3" with { type: "file" }
+import subagentDoneSoundPath from "@hena/ui/audio/yup-01.mp3" with { type: "file" }
 
 type FocusState = "unknown" | "focused" | "blurred"
 
@@ -38,14 +38,14 @@ type TuiAttentionHost = TuiAttention & {
   dispose(): void
 }
 
-const DEFAULT_TITLE = "Hena Agent"
-const DEFAULT_PACK_ID = "hena-agent.default"
+const DEFAULT_TITLE = "Hena"
+const DEFAULT_PACK_ID = "hena.default"
 const KV_SOUND_PACK = "attention_sound_pack"
 const TITLE_LIMIT = 80
 const MESSAGE_LIMIT = 240
 const BUILTIN_PACK: RegisteredSoundPack = {
   id: DEFAULT_PACK_ID,
-  name: "Hena Agent Default",
+  name: "Hena Default",
   builtin: true,
   sounds: {
     default: defaultSoundPath,

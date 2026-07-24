@@ -5,14 +5,14 @@ import StarlightLanguageSelect from "@astrojs/starlight/components/LanguageSelec
 const locales = Object.keys(config.locales ?? {})
 ---
 
-<hena-agent-language-select data-locales={JSON.stringify(locales)}>
+<hena-language-select data-locales={JSON.stringify(locales)}>
   <StarlightLanguageSelect />
-</hena-agent-language-select>
+</hena-language-select>
 
 <script>
   document.addEventListener("change", (event) => {
     if (!(event.target instanceof HTMLSelectElement)) return
-    const wrapper = event.target.closest("hena-agent-language-select")
+    const wrapper = event.target.closest("hena-language-select")
     if (!(wrapper instanceof HTMLElement)) return
 
     const locales = JSON.parse(wrapper.dataset.locales ?? "[]") as string[]
@@ -23,7 +23,7 @@ const locales = Object.keys(config.locales ?? {})
 </script>
 
 <style>
-  hena-agent-language-select {
+  hena-language-select {
     display: contents;
   }
 </style>

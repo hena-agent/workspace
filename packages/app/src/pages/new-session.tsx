@@ -2,10 +2,10 @@ import { Show, createEffect, createMemo, createResource, createSignal, onCleanup
 import { createStore } from "solid-js/store"
 import { Portal } from "solid-js/web"
 import { useSearchParams } from "@solidjs/router"
-import { Tooltip } from "@hena-agent/ui/tooltip"
-import { useDialog } from "@hena-agent/ui/context/dialog"
-import { Icon as IconV2 } from "@hena-agent/ui/v2/icon"
-import { TooltipV2 } from "@hena-agent/ui/v2/tooltip-v2"
+import { Tooltip } from "@hena/ui/tooltip"
+import { useDialog } from "@hena/ui/context/dialog"
+import { Icon as IconV2 } from "@hena/ui/v2/icon"
+import { TooltipV2 } from "@hena/ui/v2/tooltip-v2"
 import { NewSessionDesignView } from "@/components/session"
 import { PromptInputV2Composer, usePromptInputV2Controller } from "@/components/prompt-input-v2"
 import { StatusPopoverV2 } from "@/components/status-popover"
@@ -35,7 +35,7 @@ import createPresence from "solid-presence"
 import { useLocal } from "@/context/local"
 import { createPromptModelSelection } from "@/pages/session/composer/prompt-model-selection"
 
-const workspaceBarEnabled = import.meta.env.VITE_HENA_AGENT_CHANNEL !== "prod"
+const workspaceBarEnabled = import.meta.env.VITE_HENA_CHANNEL !== "prod"
 const providerTipDismissalDuration = 30 * 24 * 60 * 60 * 1000
 const providerTipExitDuration = 250
 

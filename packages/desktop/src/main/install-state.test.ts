@@ -10,10 +10,10 @@ describe("hasExistingAppState", () => {
     expect(hasExistingAppState([file("Local State"), directory("Crashpad")])).toBe(false)
   })
 
-  test("recognizes Hena Agent state", () => {
-    expect(hasExistingAppState([file("hena-agent.settings")])).toBe(true)
-    expect(hasExistingAppState([file("hena-agent.global.dat")])).toBe(true)
+  test("recognizes Hena state", () => {
+    expect(hasExistingAppState([file("hena.settings")])).toBe(true)
+    expect(hasExistingAppState([file("hena.global.dat")])).toBe(true)
     expect(hasExistingAppState([file("window-state-abc.json")])).toBe(true)
-    expect(hasExistingAppState([directory("hena-agent")])).toBe(true)
+    expect(hasExistingAppState([directory("hena")])).toBe(true)
   })
 })

@@ -1,15 +1,15 @@
 ---
 title: Intro
-description: Get started with Hena Agent.
+description: Get started with Hena.
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 import config from "../../../config.mjs"
 export const console = config.console
 
-[**Hena Agent**](/) is an open source AI coding agent. It's available as a terminal-based interface, desktop app, or IDE extension.
+[**Hena**](/) is an open source AI coding agent. It's available as a terminal-based interface, desktop app, or IDE extension.
 
-![Hena Agent TUI with the hena-agent theme](../../assets/lander/screenshot.png)
+![Hena TUI with the hena theme](../../assets/lander/screenshot.png)
 
 Let's get started.
 
@@ -17,7 +17,7 @@ Let's get started.
 
 #### Prerequisites
 
-To use Hena Agent in your terminal, you'll need:
+To use Hena in your terminal, you'll need:
 
 1. A modern terminal emulator like:
    - [WezTerm](https://wezterm.org), cross-platform
@@ -31,7 +31,7 @@ To use Hena Agent in your terminal, you'll need:
 
 ## Install
 
-The easiest way to install Hena Agent is through the install script.
+The easiest way to install Hena is through the install script.
 
 ```bash
 curl -fsSL https://hena.dev/install | bash
@@ -45,28 +45,28 @@ You can also install it with the following commands:
 
       <TabItem label="npm">
       ```bash
-      npm install -g hena-agent
+      npm install -g hena
       ```
 
           </TabItem>
 
         <TabItem label="Bun">
         ```bash
-        bun install -g hena-agent
+        bun install -g hena
         ```
 
           </TabItem>
 
         <TabItem label="pnpm">
         ```bash
-        pnpm install -g hena-agent
+        pnpm install -g hena
         ```
 
           </TabItem>
 
         <TabItem label="Yarn">
         ```bash
-        yarn global add hena-agent
+        yarn global add hena
         ```
 
       </TabItem>
@@ -76,40 +76,40 @@ You can also install it with the following commands:
 - **Using Homebrew on macOS and Linux**
 
   ```bash
-  brew install anomalyco/tap/hena-agent
+  brew install hena-agent/tap/hena
   ```
 
-  > We recommend using the Hena Agent tap for the most up to date releases. The official `brew install hena-agent` formula is maintained by the Homebrew team and is updated less frequently.
+  > We recommend using the Hena tap for the most up to date releases. The official `brew install hena` formula is maintained by the Homebrew team and is updated less frequently.
 
 - **Installing on Arch Linux**
 
   ```bash
-  sudo pacman -S hena-agent           # Arch Linux (Stable)
-  paru -S hena-agent-bin              # Arch Linux (Latest from AUR)
+  sudo pacman -S hena           # Arch Linux (Stable)
+  paru -S hena-bin              # Arch Linux (Latest from AUR)
   ```
 
 #### Windows
 
 :::tip[Recommended: Use WSL]
-For the best experience on Windows, we recommend using [Windows Subsystem for Linux (WSL)](/docs/windows-wsl). It provides better performance and full compatibility with Hena Agent's features.
+For the best experience on Windows, we recommend using [Windows Subsystem for Linux (WSL)](/docs/windows-wsl). It provides better performance and full compatibility with Hena's features.
 :::
 
 - **Using Chocolatey**
 
   ```bash
-  choco install hena-agent
+  choco install hena
   ```
 
 - **Using Scoop**
 
   ```bash
-  scoop install hena-agent
+  scoop install hena
   ```
 
 - **Using NPM**
 
   ```bash
-  npm install -g hena-agent
+  npm install -g hena
   ```
 
 - **Using Mise**
@@ -124,7 +124,7 @@ For the best experience on Windows, we recommend using [Windows Subsystem for Li
   docker run -it --rm ghcr.io/hena-agent/hena
   ```
 
-Support for installing Hena Agent on Windows using Bun is currently in progress.
+Support for installing Hena on Windows using Bun is currently in progress.
 
 You can also grab the binary from the [Releases](https://github.com/hena-agent/hena/releases).
 
@@ -132,13 +132,13 @@ You can also grab the binary from the [Releases](https://github.com/hena-agent/h
 
 ## Configure
 
-With Hena Agent you can use any LLM provider by configuring their API keys.
+With Hena you can use any LLM provider by configuring their API keys.
 
 If you are new to using LLM providers, we recommend using [Hena Zen](/docs/zen).
-It's a curated list of models that have been tested and verified by the Hena Agent
+It's a curated list of models that have been tested and verified by the Hena
 team.
 
-1. Run the `/connect` command in the TUI, select hena-agent, and head to [hena.dev/auth](https://hena.dev/auth).
+1. Run the `/connect` command in the TUI, select hena, and head to [hena.dev/auth](https://hena.dev/auth).
 
    ```txt
    /connect
@@ -168,33 +168,33 @@ you want to work on.
 cd /path/to/project
 ```
 
-And run Hena Agent.
+And run Hena.
 
 ```bash
-hena-agent
+hena
 ```
 
-Next, initialize Hena Agent for the project by running the following command.
+Next, initialize Hena for the project by running the following command.
 
 ```bash frame="none"
 /init
 ```
 
-This will get Hena Agent to analyze your project and create an `AGENTS.md` file in
+This will get Hena to analyze your project and create an `AGENTS.md` file in
 the project root.
 
 :::tip
 You should commit your project's `AGENTS.md` file to Git.
 :::
 
-This helps Hena Agent understand the project structure and the coding patterns
+This helps Hena understand the project structure and the coding patterns
 used.
 
 ---
 
 ## Usage
 
-You are now ready to use Hena Agent to work on your project. Feel free to ask it
+You are now ready to use Hena to work on your project. Feel free to ask it
 anything!
 
 If you are new to using an AI coding agent, here are some examples that might
@@ -204,7 +204,7 @@ help.
 
 ### Ask questions
 
-You can ask Hena Agent to explain the codebase to you.
+You can ask Hena to explain the codebase to you.
 
 :::tip
 Use the `@` key to fuzzy search for files in the project.
@@ -220,11 +220,11 @@ This is helpful if there's a part of the codebase that you didn't work on.
 
 ### Add features
 
-You can ask Hena Agent to add new features to your project. Though we first recommend asking it to create a plan.
+You can ask Hena to add new features to your project. Though we first recommend asking it to create a plan.
 
 1. **Create a plan**
 
-   Hena Agent has a _Plan mode_ that disables its ability to make changes and
+   Hena has a _Plan mode_ that disables its ability to make changes and
    instead suggest _how_ it'll implement the feature.
 
    Switch to it using the **Tab** key. You'll see an indicator for this in the lower right corner.
@@ -241,11 +241,11 @@ You can ask Hena Agent to add new features to your project. Though we first reco
    From this screen, the user can undelete a note or permanently delete it.
    ```
 
-   You want to give Hena Agent enough details to understand what you want. It helps
+   You want to give Hena enough details to understand what you want. It helps
    to talk to it like you are talking to a junior developer on your team.
 
    :::tip
-   Give Hena Agent plenty of context and examples to help it understand what you
+   Give Hena plenty of context and examples to help it understand what you
    want.
    :::
 
@@ -262,7 +262,7 @@ You can ask Hena Agent to add new features to your project. Though we first reco
    Drag and drop images into the terminal to add them to the prompt.
    :::
 
-   Hena Agent can scan any images you give it and add them to the prompt. You can
+   Hena can scan any images you give it and add them to the prompt. You can
    do this by dragging and dropping an image into the terminal.
 
 3. **Build the feature**
@@ -284,7 +284,7 @@ You can ask Hena Agent to add new features to your project. Though we first reco
 
 ### Make changes
 
-For more straightforward changes, you can ask Hena Agent to directly build it
+For more straightforward changes, you can ask Hena to directly build it
 without having to review the plan first.
 
 ```txt frame="none" "@packages/functions/src/settings.ts" "@packages/functions/src/notes.ts"
@@ -293,14 +293,14 @@ handled in the /notes route in @packages/functions/src/notes.ts and implement
 the same logic in @packages/functions/src/settings.ts
 ```
 
-You want to make sure you provide a good amount of detail so Hena Agent makes the right
+You want to make sure you provide a good amount of detail so Hena makes the right
 changes.
 
 ---
 
 ### Undo changes
 
-Let's say you ask Hena Agent to make some changes.
+Let's say you ask Hena to make some changes.
 
 ```txt frame="none" "@packages/functions/src/api/index.ts"
 Can you refactor the function in @packages/functions/src/api/index.ts?
@@ -313,14 +313,14 @@ using the `/undo` command.
 /undo
 ```
 
-Hena Agent will now revert the changes you made and show your original message
+Hena will now revert the changes you made and show your original message
 again.
 
 ```txt frame="none" "@packages/functions/src/api/index.ts"
 Can you refactor the function in @packages/functions/src/api/index.ts?
 ```
 
-From here you can tweak the prompt and ask Hena Agent to try again.
+From here you can tweak the prompt and ask Hena to try again.
 
 :::tip
 You can run `/undo` multiple times to undo multiple changes.
@@ -336,7 +336,7 @@ Or you **can redo** the changes using the `/redo` command.
 
 ## Share
 
-The conversations that you have with Hena Agent can be [shared with your
+The conversations that you have with Hena can be [shared with your
 team](/docs/share).
 
 ```bash frame="none"
@@ -349,12 +349,12 @@ This will create a link to the current conversation and copy it to your clipboar
 Conversations are not shared by default.
 :::
 
-Here's an [example conversation](https://hena.dev/s/4XP1fce5) with Hena Agent.
+Here's an [example conversation](https://hena.dev/s/4XP1fce5) with Hena.
 
 ---
 
 ## Customize
 
-And that's it! You are now a pro at using Hena Agent.
+And that's it! You are now a pro at using Hena.
 
-To make it your own, we recommend [picking a theme](/docs/themes), [customizing the keybinds](/docs/keybinds), [configuring code formatters](/docs/formatters), [creating custom commands](/docs/commands), or playing around with the [Hena Agent config](/docs/config).
+To make it your own, we recommend [picking a theme](/docs/themes), [customizing the keybinds](/docs/keybinds), [configuring code formatters](/docs/formatters), [creating custom commands](/docs/commands), or playing around with the [Hena config](/docs/config).

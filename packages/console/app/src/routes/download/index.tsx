@@ -127,27 +127,27 @@ export default function Download() {
                 </code>
                 <CopyStatus />
               </button>
-              <button data-component="cli-row" onClick={handleCopyClick("npm i -g hena-agent")}>
+              <button data-component="cli-row" onClick={handleCopyClick("npm i -g hena")}>
                 <code>
-                  npm i -g <strong>hena-agent</strong>
+                  npm i -g <strong>hena</strong>
                 </code>
                 <CopyStatus />
               </button>
-              <button data-component="cli-row" onClick={handleCopyClick("bun add -g hena-agent")}>
+              <button data-component="cli-row" onClick={handleCopyClick("bun add -g hena")}>
                 <code>
-                  bun add -g <strong>hena-agent</strong>
+                  bun add -g <strong>hena</strong>
                 </code>
                 <CopyStatus />
               </button>
-              <button data-component="cli-row" onClick={handleCopyClick("brew install anomalyco/tap/hena-agent")}>
+              <button data-component="cli-row" onClick={handleCopyClick("brew install hena-agent/tap/hena")}>
                 <code>
-                  brew install <strong>anomalyco/tap/hena-agent</strong>
+                  brew install <strong>hena-agent/tap/hena</strong>
                 </code>
                 <CopyStatus />
               </button>
-              <button data-component="cli-row" onClick={handleCopyClick("paru -S hena-agent")}>
+              <button data-component="cli-row" onClick={handleCopyClick("paru -S hena")}>
                 <code>
-                  paru -S <strong>hena-agent</strong>
+                  paru -S <strong>hena</strong>
                 </code>
                 <CopyStatus />
               </button>
@@ -159,9 +159,9 @@ export default function Download() {
               <span>[2]</span> {i18n.t("download.section.desktop")}
             </div>
             <div data-component="section-content">
-              <button data-component="cli-row" onClick={handleCopyClick("brew install --cask hena-agent-desktop")}>
+              <button data-component="cli-row" onClick={handleCopyClick("brew install --cask hena-desktop")}>
                 <code>
-                  brew install --cask <strong>hena-agent-desktop</strong>
+                  brew install --cask <strong>hena-desktop</strong>
                 </code>
                 <CopyStatus />
               </button>

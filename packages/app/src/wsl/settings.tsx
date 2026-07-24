@@ -1,9 +1,9 @@
-import { useDialog } from "@hena-agent/ui/context/dialog"
-import { Tag } from "@hena-agent/ui/v2/badge-v2"
-import { ButtonV2 } from "@hena-agent/ui/v2/button-v2"
-import { Icon as IconV2 } from "@hena-agent/ui/v2/icon"
-import { IconButtonV2 } from "@hena-agent/ui/v2/icon-button-v2"
-import { MenuV2 } from "@hena-agent/ui/v2/menu-v2"
+import { useDialog } from "@hena/ui/context/dialog"
+import { Tag } from "@hena/ui/v2/badge-v2"
+import { ButtonV2 } from "@hena/ui/v2/button-v2"
+import { Icon as IconV2 } from "@hena/ui/v2/icon"
+import { IconButtonV2 } from "@hena/ui/v2/icon-button-v2"
+import { MenuV2 } from "@hena/ui/v2/menu-v2"
 import { useMutation } from "@tanstack/solid-query"
 import fuzzysort from "fuzzysort"
 import { type Accessor, For, Show, createMemo } from "solid-js"
@@ -15,7 +15,7 @@ import { ServerConnection } from "@/context/server"
 import { showToast } from "@/utils/toast"
 import { DialogAddWslServer } from "./dialog-add-server"
 import { useWslServers } from "./context"
-import { wslHenaAgentAction, wslRuntimeRetryable } from "./settings-model"
+import { wslHenaAction, wslRuntimeRetryable } from "./settings-model"
 
 type Controller = ReturnType<typeof useServerManagementController>
 
@@ -94,9 +94,9 @@ export function WslServerSettings(props: {
       <For each={props.servers()}>
         {(item) => {
           const key = ServerConnection.Key.make(item.config.id)
-          const check = () => wsl.data?.henaAgentChecks[item.config.distro]
-          const henaAgentAction = () => wslHenaAgentAction(check())
-          const busy = () => wsl.data?.job?.kind === "install-hena-agent" && wsl.data.job.distro === item.config.distro
+          const check = () => wsl.data?.henaChecks[item.config.distro]
+          const henaAction = () => wslHenaAction(check())
+          const busy = () => wsl.data?.job?.kind === "install-hena" && wsl.data.job.distro === item.config.distro
           return (
             <div class="settings-v2-servers-row">
               <div class="settings-v2-servers-lead">
@@ -117,12 +117,12 @@ export function WslServerSettings(props: {
                 <Show when={props.controller.canDefault() && props.controller.defaultKey() === key}>
                   <Tag>{language.t("dialog.server.status.default")}</Tag>
                 </Show>
-                <Show when={henaAgentAction()}>
+                <Show when={henaAction()}>
                   {(label) => (
                     <ButtonV2
                       size="small"
                       disabled={busy() || request.isPending}
-                      onClick={() => api && request.mutate(() => api.installHenaAgent(item.config.distro))}
+                      onClick={() => api && request.mutate(() => api.installHena(item.config.distro))}
                     >
                       {busy() ? language.t("wsl.server.updating") : label()}
                     </ButtonV2>

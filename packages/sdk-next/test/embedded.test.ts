@@ -2,22 +2,22 @@ import { expect, test } from "bun:test"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Flag } from "@hena-agent/core/flag/flag"
+import { Flag } from "@hena/core/flag/flag"
 import { Deferred, Effect, Latch, Option, Schema, Stream } from "effect"
-import type { HenaAgentEvent } from "../src"
+import type { HenaEvent } from "../src"
 
 test("embedded client uses the real router and handlers", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "hena-agent-embedded-"))
-  const database = Flag.HENA_AGENT_DB
-  Flag.HENA_AGENT_DB = join(directory, "hena-agent.sqlite")
-  const { AbsolutePath, Agent, HenaAgent, Location, Model, Prompt, Provider, Session, Tool } = await import("../src")
+  const directory = await mkdtemp(join(tmpdir(), "hena-embedded-"))
+  const database = Flag.HENA_DB
+  Flag.HENA_DB = join(directory, "hena.sqlite")
+  const { AbsolutePath, Agent, Hena, Location, Model, Prompt, Provider, Session, Tool } = await import("../src")
   const sessionID = Session.ID.make(`ses_embedded_${crypto.randomUUID()}`)
   const model = Model.Ref.make({ id: Model.ID.make("embedded"), providerID: Provider.ID.make("test") })
 
   try {
     const program = Effect.gen(function* () {
-      const henaAgent = yield* HenaAgent.create()
-      yield* henaAgent.tools.register({
+      const hena = yield* Hena.create()
+      yield* hena.tools.register({
         embedded_tool: Tool.make({
           description: "Embedded test tool",
           input: Schema.Struct({}),
@@ -26,54 +26,54 @@ test("embedded client uses the real router and handlers", async () => {
         }),
       })
 
-      const created = yield* henaAgent.sessions.create({
+      const created = yield* hena.sessions.create({
         id: sessionID,
         agent: Agent.ID.make("build"),
         location: Location.Ref.make({ directory: AbsolutePath.make(directory) }),
       })
-      yield* henaAgent.sessions.switchModel({ sessionID, model })
-      const selected = yield* henaAgent.sessions.get({ sessionID })
-      const page = yield* henaAgent.sessions.list({ directory: AbsolutePath.make(directory) })
-      const active = yield* henaAgent.sessions.active()
-      const admitted = yield* henaAgent.sessions.prompt({
+      yield* hena.sessions.switchModel({ sessionID, model })
+      const selected = yield* hena.sessions.get({ sessionID })
+      const page = yield* hena.sessions.list({ directory: AbsolutePath.make(directory) })
+      const active = yield* hena.sessions.active()
+      const admitted = yield* hena.sessions.prompt({
         sessionID,
         prompt: Prompt.make({ text: "Do not run" }),
         resume: false,
       })
-      const context = yield* henaAgent.sessions.context({ sessionID })
-      const wake = yield* henaAgent.sessions.prompt({
+      const context = yield* hena.sessions.context({ sessionID })
+      const wake = yield* hena.sessions.prompt({
         sessionID,
         prompt: Prompt.make({ text: "Promote this input" }),
       })
-      const prompted = yield* henaAgent.sessions.events({ sessionID }).pipe(
+      const prompted = yield* hena.sessions.events({ sessionID }).pipe(
         Stream.filter((event) => event.type === "session.next.prompted" && event.data.messageID === wake.id),
         Stream.runHead,
         Effect.timeout("10 seconds"),
         Effect.map(Option.getOrThrow),
       )
-      const wakeContext = yield* henaAgent.sessions.context({ sessionID })
-      const event = yield* henaAgent.sessions
+      const wakeContext = yield* hena.sessions.context({ sessionID })
+      const event = yield* hena.sessions
         .events({ sessionID })
         .pipe(Stream.take(1), Stream.runHead, Effect.map(Option.getOrUndefined))
       const modelMessage = Option.fromNullishOr(context.find((message) => message.type === "model-switched")).pipe(
         Option.getOrThrow,
       )
-      const message = yield* henaAgent.sessions.message({ sessionID, messageID: modelMessage.id })
-      yield* henaAgent.sessions.interrupt({ sessionID })
-      const other = yield* henaAgent.sessions.create({
+      const message = yield* hena.sessions.message({ sessionID, messageID: modelMessage.id })
+      yield* hena.sessions.interrupt({ sessionID })
+      const other = yield* hena.sessions.create({
         location: Location.Ref.make({ directory: AbsolutePath.make(directory) }),
       })
       const missingSessionID = Session.ID.make(`ses_missing_${crypto.randomUUID()}`)
       const missing = yield* Effect.all(
         [
-          henaAgent.sessions.events({ sessionID: missingSessionID }).pipe(Stream.runHead, Effect.flip),
-          henaAgent.sessions.interrupt({ sessionID: missingSessionID }).pipe(Effect.flip),
-          henaAgent.sessions.message({ sessionID: missingSessionID, messageID: modelMessage.id }).pipe(Effect.flip),
+          hena.sessions.events({ sessionID: missingSessionID }).pipe(Stream.runHead, Effect.flip),
+          hena.sessions.interrupt({ sessionID: missingSessionID }).pipe(Effect.flip),
+          hena.sessions.message({ sessionID: missingSessionID, messageID: modelMessage.id }).pipe(Effect.flip),
         ],
         { concurrency: "unbounded" },
       )
       const missingMessage = yield* Effect.flip(
-        henaAgent.sessions.message({
+        hena.sessions.message({
           sessionID: other.id,
           messageID: modelMessage.id,
         }),
@@ -99,24 +99,24 @@ test("embedded client uses the real router and handlers", async () => {
     })
     await Effect.runPromise(Effect.scoped(program))
   } finally {
-    Flag.HENA_AGENT_DB = database
+    Flag.HENA_DB = database
     await rm(directory, { recursive: true, force: true })
   }
 })
 
 test("Location-owned runner events reach the ready global client", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "hena-agent-embedded-events-"))
-  const database = Flag.HENA_AGENT_DB
-  Flag.HENA_AGENT_DB = join(directory, "hena-agent.sqlite")
-  const { AbsolutePath, HenaAgent, Location, Prompt, Session } = await import("../src")
+  const directory = await mkdtemp(join(tmpdir(), "hena-embedded-events-"))
+  const database = Flag.HENA_DB
+  Flag.HENA_DB = join(directory, "hena.sqlite")
+  const { AbsolutePath, Hena, Location, Prompt, Session } = await import("../src")
   const sessionID = Session.ID.make(`ses_embedded_${crypto.randomUUID()}`)
 
   try {
     const program = Effect.gen(function* () {
-      const henaAgent = yield* HenaAgent.create()
+      const hena = yield* Hena.create()
       const connected = yield* Latch.make(false)
-      const prompted = yield* Deferred.make<HenaAgentEvent>()
-      yield* henaAgent.events.subscribe().pipe(
+      const prompted = yield* Deferred.make<HenaEvent>()
+      yield* hena.events.subscribe().pipe(
         Stream.runForEach((event) =>
           event.type === "server.connected"
             ? connected.open
@@ -127,39 +127,39 @@ test("Location-owned runner events reach the ready global client", async () => {
         Effect.forkScoped,
       )
       yield* connected.await
-      yield* henaAgent.sessions.create({
+      yield* hena.sessions.create({
         id: sessionID,
         location: Location.Ref.make({ directory: AbsolutePath.make(directory) }),
       })
-      yield* henaAgent.sessions.prompt({ sessionID, prompt: Prompt.make({ text: "Observe this input" }) })
+      yield* hena.sessions.prompt({ sessionID, prompt: Prompt.make({ text: "Observe this input" }) })
 
       const event = yield* Deferred.await(prompted).pipe(Effect.timeout("4 seconds"))
       expect(event.durable).toEqual(expect.objectContaining({ aggregateID: sessionID, seq: expect.any(Number) }))
     })
     await Effect.runPromise(Effect.scoped(program))
   } finally {
-    Flag.HENA_AGENT_DB = database
+    Flag.HENA_DB = database
     await rm(directory, { recursive: true, force: true })
   }
 }, 10_000)
 
 test("independent embedded hosts do not share live notifications", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "hena-agent-embedded-hosts-"))
-  const database = Flag.HENA_AGENT_DB
-  Flag.HENA_AGENT_DB = join(directory, "hena-agent.sqlite")
-  const { AbsolutePath, Agent, HenaAgent, Location, Session } = await import("../src")
+  const directory = await mkdtemp(join(tmpdir(), "hena-embedded-hosts-"))
+  const database = Flag.HENA_DB
+  Flag.HENA_DB = join(directory, "hena.sqlite")
+  const { AbsolutePath, Agent, Hena, Location, Session } = await import("../src")
   const sessionID = Session.ID.make(`ses_embedded_${crypto.randomUUID()}`)
 
   try {
     const program = Effect.gen(function* () {
-      const first = yield* HenaAgent.create()
-      const second = yield* HenaAgent.create()
+      const first = yield* Hena.create()
+      const second = yield* Hena.create()
       const firstReady = yield* Latch.make(false)
       const secondReady = yield* Latch.make(false)
       const firstEvent = yield* Latch.make(false)
       const secondEvent = yield* Latch.make(false)
       const observe = (ready: Latch.Latch, event: Latch.Latch) =>
-        Stream.runForEach((notification: HenaAgentEvent) =>
+        Stream.runForEach((notification: HenaEvent) =>
           notification.type === "server.connected"
             ? ready.open
             : notification.type === "session.next.agent.switched" && notification.data.sessionID === sessionID
@@ -181,32 +181,32 @@ test("independent embedded hosts do not share live notifications", async () => {
     })
     await Effect.runPromise(Effect.scoped(program))
   } finally {
-    Flag.HENA_AGENT_DB = database
+    Flag.HENA_DB = database
     await rm(directory, { recursive: true, force: true })
   }
 }, 10_000)
 
 test("embedded client is available as a Layer service", async () => {
-  const directory = await mkdtemp(join(tmpdir(), "hena-agent-embedded-layer-"))
-  const database = Flag.HENA_AGENT_DB
-  Flag.HENA_AGENT_DB = join(directory, "hena-agent.sqlite")
-  const { AbsolutePath, HenaAgent, Location, Session } = await import("../src")
+  const directory = await mkdtemp(join(tmpdir(), "hena-embedded-layer-"))
+  const database = Flag.HENA_DB
+  Flag.HENA_DB = join(directory, "hena.sqlite")
+  const { AbsolutePath, Hena, Location, Session } = await import("../src")
   const sessionID = Session.ID.make(`ses_embedded_${crypto.randomUUID()}`)
 
   try {
     const created = await Effect.runPromise(
       Effect.gen(function* () {
-        const henaAgent = yield* HenaAgent.Service
-        return yield* henaAgent.sessions.create({
+        const hena = yield* Hena.Service
+        return yield* hena.sessions.create({
           id: sessionID,
           location: Location.Ref.make({ directory: AbsolutePath.make(directory) }),
         })
-      }).pipe(Effect.provide(HenaAgent.layer), Effect.scoped),
+      }).pipe(Effect.provide(Hena.layer), Effect.scoped),
     )
 
     expect(created.id).toBe(sessionID)
   } finally {
-    Flag.HENA_AGENT_DB = database
+    Flag.HENA_DB = database
     await rm(directory, { recursive: true, force: true })
   }
 })

@@ -1,16 +1,16 @@
-# Hena Agent VS Code Extension
+# Hena VS Code Extension
 
-A Visual Studio Code extension that integrates [Hena Agent](https://hena.dev) directly into your development workflow.
+A Visual Studio Code extension that integrates [Hena](https://hena.dev) directly into your development workflow.
 
 ## Prerequisites
 
-This extension requires the [Hena Agent CLI](https://hena.dev) to be installed on your system.
+This extension requires the [Hena CLI](https://hena.dev) to be installed on your system.
 
 ## Features
 
-- **Quick Launch**: Use `Cmd+Esc` (Mac) or `Ctrl+Esc` (Windows/Linux) to open Hena Agent in a split terminal view.
-- **New Session**: Use `Cmd+Shift+Esc` (Mac) or `Ctrl+Shift+Esc` (Windows/Linux) to start a new Hena Agent terminal session.
-- **Context Awareness**: Automatically share your current selection or tab with Hena Agent.
+- **Quick Launch**: Use `Cmd+Esc` (Mac) or `Ctrl+Esc` (Windows/Linux) to open Hena in a split terminal view.
+- **New Session**: Use `Cmd+Shift+Esc` (Mac) or `Ctrl+Shift+Esc` (Windows/Linux) to start a new Hena terminal session.
+- **Context Awareness**: Automatically share your current selection or tab with Hena.
 - **File Reference Shortcuts**: Use `Cmd+Option+K` (Mac) or `Alt+Ctrl+K` (Linux/Windows) to insert file references. For example, `@File#L37-42`.
 
 ## Support

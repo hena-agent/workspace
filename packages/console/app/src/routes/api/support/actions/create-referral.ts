@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server"
-import { Referral } from "@hena-agent/console-core/referral.js"
-import { safeEqual } from "@hena-agent/console-core/util/crypto.js"
-import { Resource } from "@hena-agent/console-resource"
+import { Referral } from "@hena/console-core/referral.js"
+import { safeEqual } from "@hena/console-core/util/crypto.js"
+import { Resource } from "@hena/console-resource"
 import z from "zod"
 
 const Body = z.object({

@@ -1,5 +1,5 @@
-import { base64Encode } from "@hena-agent/core/util/encode"
-import { createSimpleContext } from "@hena-agent/ui/context"
+import { base64Encode } from "@hena/core/util/encode"
+import { createSimpleContext } from "@hena/ui/context"
 import { useParams, useSearchParams } from "@solidjs/router"
 import { createMemo, createResource, createRoot, getOwner, onCleanup } from "solid-js"
 import { requireServerKey } from "@/utils/session-route"

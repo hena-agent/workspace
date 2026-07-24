@@ -1,15 +1,15 @@
 ---
 title: Server LSP
-description: Hena Agent si integra con i tuoi server LSP.
+description: Hena si integra con i tuoi server LSP.
 ---
 
-Hena Agent può integrarsi con server Language Server Protocol (LSP) per usare la diagnostica come feedback per l'agente.
+Hena può integrarsi con server Language Server Protocol (LSP) per usare la diagnostica come feedback per l'agente.
 
 ---
 
 ## Integrati
 
-Hena Agent include diversi server LSP integrati per linguaggi popolari:
+Hena include diversi server LSP integrati per linguaggi popolari:
 
 | Server LSP         | Estensioni                                                          | Requisiti                                                                |
 | ------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------ |
@@ -50,14 +50,14 @@ Hena Agent include diversi server LSP integrati per linguaggi popolari:
 LSP è disabilitato per impostazione predefinita. Quando è abilitato, i server si avviano quando viene rilevata una delle estensioni qui sopra e i requisiti sono soddisfatti.
 
 :::note
-Puoi disabilitare il download automatico dei server LSP impostando la variabile d'ambiente `HENA_AGENT_DISABLE_LSP_DOWNLOAD` a `true`.
+Puoi disabilitare il download automatico dei server LSP impostando la variabile d'ambiente `HENA_DISABLE_LSP_DOWNLOAD` a `true`.
 :::
 
 ---
 
 ## Come funziona
 
-Quando LSP è abilitato e hena-agent apre un file:
+Quando LSP è abilitato e hena apre un file:
 
 1. Controlla l'estensione del file rispetto a tutti i server LSP abilitati.
 2. Avvia il server LSP appropriato se non e gia in esecuzione.
@@ -74,11 +74,11 @@ I server di linguaggio possono andare fuori sincronizzazione, usare molta memori
 
 ## Configura
 
-Puoi abilitare e personalizzare i server LSP tramite la sezione `lsp` nella configurazione di Hena Agent.
+Puoi abilitare e personalizzare i server LSP tramite la sezione `lsp` nella configurazione di Hena.
 
 Per abilitare tutti i server LSP integrati, imposta `lsp` a `true`.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": true
@@ -87,7 +87,7 @@ Per abilitare tutti i server LSP integrati, imposta `lsp` a `true`.
 
 Usa un oggetto per mantenere abilitati i server integrati mentre configuri override o server personalizzati.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": {}
@@ -112,7 +112,7 @@ Vediamo alcuni esempi.
 
 Usa la proprieta `env` per impostare variabili d'ambiente quando avvii il server LSP:
 
-```json title="hena-agent.json" {5-7}
+```json title="hena.json" {5-7}
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": {
@@ -131,7 +131,7 @@ Usa la proprieta `env` per impostare variabili d'ambiente quando avvii il server
 
 Usa la proprieta `initialization` per passare opzioni di inizializzazione al server LSP. Sono impostazioni specifiche del server inviate durante la richiesta LSP `initialize`:
 
-```json title="hena-agent.json" {5-9}
+```json title="hena.json" {5-9}
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": {
@@ -156,7 +156,7 @@ Le opzioni di inizializzazione variano da server a server. Consulta la documenta
 
 Se `lsp` è omesso, tutti i server LSP sono disabilitati. Per disabilitare tutti i server LSP dopo che un'altra configurazione li ha abilitati, imposta `lsp` a `false`:
 
-```json title="hena-agent.json" {3}
+```json title="hena.json" {3}
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": false
@@ -165,7 +165,7 @@ Se `lsp` è omesso, tutti i server LSP sono disabilitati. Per disabilitare tutti
 
 Per disabilitare un server LSP **specifico**, imposta `disabled` a `true`:
 
-```json title="hena-agent.json" {5}
+```json title="hena.json" {5}
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": {
@@ -182,7 +182,7 @@ Per disabilitare un server LSP **specifico**, imposta `disabled` a `true`:
 
 Puoi aggiungere server LSP personalizzati specificando il comando e le estensioni file:
 
-```json title="hena-agent.json" {4-7}
+```json title="hena.json" {4-7}
 {
   "$schema": "https://hena.dev/config.json",
   "lsp": {

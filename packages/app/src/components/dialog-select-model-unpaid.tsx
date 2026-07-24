@@ -1,10 +1,10 @@
-import { Button } from "@hena-agent/ui/button"
-import { useDialog } from "@hena-agent/ui/context/dialog"
-import { Dialog } from "@hena-agent/ui/dialog"
-import { List, type ListRef } from "@hena-agent/ui/list"
-import { ProviderIcon } from "@hena-agent/ui/provider-icon"
-import { Tag } from "@hena-agent/ui/tag"
-import { Tooltip } from "@hena-agent/ui/tooltip"
+import { Button } from "@hena/ui/button"
+import { useDialog } from "@hena/ui/context/dialog"
+import { Dialog } from "@hena/ui/dialog"
+import { List, type ListRef } from "@hena/ui/list"
+import { ProviderIcon } from "@hena/ui/provider-icon"
+import { Tag } from "@hena/ui/tag"
+import { Tooltip } from "@hena/ui/tooltip"
 import { type Component, Show } from "solid-js"
 import { useLocal } from "@/context/local"
 import { popularProviders, useProviders } from "@/hooks/use-providers"
@@ -61,7 +61,7 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
                 <ModelTooltip
                   model={item}
                   latest={item.latest}
-                  free={item.provider.id === "hena-agent" && (!item.cost || item.cost.input === 0)}
+                  free={item.provider.id === "hena" && (!item.cost || item.cost.input === 0)}
                 />
               }
             >
@@ -110,16 +110,16 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
                   <div class="w-full flex items-center gap-x-3">
                     <ProviderIcon data-slot="list-item-extra-icon" id={i.id} />
                     <span>{i.name}</span>
-                    <Show when={i.id === "hena-agent"}>
-                      <div class="text-14-regular text-text-weak">{language.t("dialog.provider.hena-agent.tagline")}</div>
+                    <Show when={i.id === "hena"}>
+                      <div class="text-14-regular text-text-weak">{language.t("dialog.provider.hena.tagline")}</div>
                     </Show>
-                    <Show when={i.id === "hena-agent"}>
+                    <Show when={i.id === "hena"}>
                       <Tag>{language.t("dialog.provider.tag.recommended")}</Tag>
                     </Show>
-                    <Show when={i.id === "hena-agent-go"}>
+                    <Show when={i.id === "hena-go"}>
                       <>
                         <div class="text-14-regular text-text-weak">
-                          {language.t("dialog.provider.hena-agentGo.tagline")}
+                          {language.t("dialog.provider.henaGo.tagline")}
                         </div>
                         <Tag>{language.t("dialog.provider.tag.recommended")}</Tag>
                       </>

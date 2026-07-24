@@ -1,12 +1,12 @@
-import { TextField } from "@hena-agent/ui/text-field"
+import { TextField } from "@hena/ui/text-field"
 import * as Sentry from "@sentry/solid"
-import { Logo } from "@hena-agent/ui/logo"
-import { Button } from "@hena-agent/ui/button"
+import { Logo } from "@hena/ui/logo"
+import { Button } from "@hena/ui/button"
 import { Component, createSignal, onMount, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { usePlatform } from "@/context/platform"
 import { useLanguage } from "@/context/language"
-import { Icon } from "@hena-agent/ui/icon"
+import { Icon } from "@hena/ui/icon"
 import { errorDescriptionKey } from "./error-description"
 
 export type InitError = {

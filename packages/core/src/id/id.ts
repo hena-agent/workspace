@@ -1,4 +1,4 @@
-import { create as createIdentifier } from "@hena-agent/schema/identifier"
+import { create as createIdentifier } from "@hena/schema/identifier"
 
 const prefixes = {
   job: "job",

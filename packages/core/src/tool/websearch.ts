@@ -1,6 +1,6 @@
 export * as WebSearchTool from "./websearch"
 
-import { ToolFailure } from "@hena-agent/llm"
+import { ToolFailure } from "@hena/llm"
 import { Context, Duration, Effect, Layer, Schema } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { makeLocationNode } from "../effect/app-node"
@@ -67,17 +67,17 @@ export interface Config {
   readonly parallelApiKey?: string
 }
 
-export class ConfigService extends Context.Service<ConfigService, Config>()("@hena-agent/v2/WebSearchConfig") {}
+export class ConfigService extends Context.Service<ConfigService, Config>()("@hena/v2/WebSearchConfig") {}
 
 /** Isolates the retained product environment contract from the generic tool implementation. */
 export const defaultConfigLayer = Layer.sync(ConfigService, () =>
   ConfigService.of({
     provider:
-      Flag.HENA_AGENT_WEBSEARCH_PROVIDER === "exa" || Flag.HENA_AGENT_WEBSEARCH_PROVIDER === "parallel"
-        ? Flag.HENA_AGENT_WEBSEARCH_PROVIDER
+      Flag.HENA_WEBSEARCH_PROVIDER === "exa" || Flag.HENA_WEBSEARCH_PROVIDER === "parallel"
+        ? Flag.HENA_WEBSEARCH_PROVIDER
         : undefined,
-    enableExa: truthy("HENA_AGENT_EXPERIMENTAL") || truthy("HENA_AGENT_ENABLE_EXA") || truthy("HENA_AGENT_EXPERIMENTAL_EXA"),
-    enableParallel: truthy("HENA_AGENT_ENABLE_PARALLEL") || truthy("HENA_AGENT_EXPERIMENTAL_PARALLEL"),
+    enableExa: truthy("HENA_EXPERIMENTAL") || truthy("HENA_ENABLE_EXA") || truthy("HENA_EXPERIMENTAL_EXA"),
+    enableParallel: truthy("HENA_ENABLE_PARALLEL") || truthy("HENA_EXPERIMENTAL_PARALLEL"),
     exaApiKey: process.env.EXA_API_KEY,
     parallelApiKey: process.env.PARALLEL_API_KEY,
   }),
@@ -237,7 +237,7 @@ const layer = Layer.effectDiscard(
                         // V2 invocation context does not safely expose the model yet.
                       },
                       {
-                        "User-Agent": `hena-agent/${InstallationVersion}`,
+                        "User-Agent": `hena/${InstallationVersion}`,
                         ...(config.parallelApiKey ? { Authorization: `Bearer ${config.parallelApiKey}` } : {}),
                       },
                     )

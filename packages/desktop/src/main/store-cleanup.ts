@@ -74,8 +74,8 @@ export async function deleteStoreFileIfEmpty(userDataPath: string, name: string)
 }
 
 function storeKind(name: string): StoreKind | undefined {
-  if (/^hena-agent\.draft\..+\.dat$/.test(name)) return "draft"
-  if (/^hena-agent\.workspace\..+\.dat$/.test(name)) return "workspace"
+  if (/^hena\.draft\..+\.dat$/.test(name)) return "draft"
+  if (/^hena\.workspace\..+\.dat$/.test(name)) return "workspace"
 }
 
 async function isEmptyStore(file: string, size: number) {

@@ -1,28 +1,28 @@
 ---
 title: Web
-description: Tarayıcınızda hena-agent'u kullanma.
+description: Tarayıcınızda hena'u kullanma.
 ---
 
-hena-agent, tarayıcınızda bir web uygulaması olarak çalışabilir ve bir terminale ihtiyaç duymadan aynı güçlü AI kodlama deneyimini sağlayabilir.
+hena, tarayıcınızda bir web uygulaması olarak çalışabilir ve bir terminale ihtiyaç duymadan aynı güçlü AI kodlama deneyimini sağlayabilir.
 
-![hena-agent Web - Yeni Oturum](../../../assets/web/web-homepage-new-session.png)
+![hena Web - Yeni Oturum](../../../assets/web/web-homepage-new-session.png)
 
 ## Başlarken
 
 Aşağıdakileri çalıştırarak web arayüzünü başlatın:
 
 ```bash
-hena-agent web
+hena web
 ```
 
-Bu, `127.0.0.1` üzerinde rastgele kullanılabilir bir bağlantı noktasına sahip yerel bir sunucuyu başlatır ve hena-agent'u varsayılan tarayıcınızda otomatik olarak açar.
+Bu, `127.0.0.1` üzerinde rastgele kullanılabilir bir bağlantı noktasına sahip yerel bir sunucuyu başlatır ve hena'u varsayılan tarayıcınızda otomatik olarak açar.
 
 :::caution
-`HENA_AGENT_SERVER_PASSWORD` ayarlanmadıysa sunucunun güvenliği kaldırılacaktır. Bu, yerel kullanım için iyidir ancak ağ erişimi için ayarlanmalıdır.
+`HENA_SERVER_PASSWORD` ayarlanmadıysa sunucunun güvenliği kaldırılacaktır. Bu, yerel kullanım için iyidir ancak ağ erişimi için ayarlanmalıdır.
 :::
 
 :::tip[Windows Kullanıcıları]
-En iyi deneyim için PowerShell yerine `hena-agent web`'yi [WSL](/docs/windows-wsl)'den çalıştırın. Bu, uygun dosya sistemi erişimini ve terminal entegrasyonunu sağlar.
+En iyi deneyim için PowerShell yerine `hena web`'yi [WSL](/docs/windows-wsl)'den çalıştırın. Bu, uygun dosya sistemi erişimini ve terminal entegrasyonunu sağlar.
 :::
 
 ---
@@ -33,21 +33,21 @@ Web sunucusunu komut satırı bayraklarıyla veya [config dosyanızda](/docs/con
 
 ### Port
 
-hena-agent varsayılan olarak kullanılabilir bir bağlantı noktasını seçer. Bir bağlantı noktası belirtebilirsiniz:
+hena varsayılan olarak kullanılabilir bir bağlantı noktasını seçer. Bir bağlantı noktası belirtebilirsiniz:
 
 ```bash
-hena-agent web --port 4096
+hena web --port 4096
 ```
 
 ### Ana makine adı
 
-Varsayılan olarak sunucu `127.0.0.1` (yalnızca localhost) öğesine bağlanır. hena-agent'u ağınızda erişilebilir kılmak için:
+Varsayılan olarak sunucu `127.0.0.1` (yalnızca localhost) öğesine bağlanır. hena'u ağınızda erişilebilir kılmak için:
 
 ```bash
-hena-agent web --hostname 0.0.0.0
+hena web --hostname 0.0.0.0
 ```
 
-`0.0.0.0` kullanıldığında, hena-agent hem yerel hem de ağ adreslerini gösterecektir:
+`0.0.0.0` kullanıldığında, hena hem yerel hem de ağ adreslerini gösterecektir:
 
 ```
   Local access:       http://localhost:4096
@@ -59,15 +59,15 @@ hena-agent web --hostname 0.0.0.0
 Sunucunuzun yerel ağda bulunabilir olmasını sağlamak için mDNS'yi etkinleştirin:
 
 ```bash
-hena-agent web --mdns
+hena web --mdns
 ```
 
-Bu, ana bilgisayar adını otomatik olarak `0.0.0.0` olarak ayarlar ve sunucuyu `hena-agent.local` olarak tanıtır.
+Bu, ana bilgisayar adını otomatik olarak `0.0.0.0` olarak ayarlar ve sunucuyu `hena.local` olarak tanıtır.
 
 Aynı ağ üzerinde birden fazla örneği çalıştıracak şekilde mDNS alan adını özelleştirebilirsiniz:
 
 ```bash
-hena-agent web --mdns --mdns-domain myproject.local
+hena web --mdns --mdns-domain myproject.local
 ```
 
 ### CORS
@@ -75,36 +75,36 @@ hena-agent web --mdns --mdns-domain myproject.local
 CORS'a yönelik ek alan adlarına izin vermek için (özel ön uçlar için kullanışlıdır):
 
 ```bash
-hena-agent web --cors https://example.com
+hena web --cors https://example.com
 ```
 
 ### Kimlik Doğrulaması
 
-Erişimi korumak için `HENA_AGENT_SERVER_PASSWORD` ortam değişkenini kullanarak bir parola ayarlayın:
+Erişimi korumak için `HENA_SERVER_PASSWORD` ortam değişkenini kullanarak bir parola ayarlayın:
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=secret hena-agent web
+HENA_SERVER_PASSWORD=secret hena web
 ```
 
-Kullanıcı adı varsayılan olarak `hena-agent` şeklindedir ancak `HENA_AGENT_SERVER_USERNAME` ile değiştirilebilir.
+Kullanıcı adı varsayılan olarak `hena` şeklindedir ancak `HENA_SERVER_USERNAME` ile değiştirilebilir.
 
 ---
 
 ## Web Arayüzünü Kullanma
 
-Web arayüzü başlatıldığında hena-agent oturumlarınıza erişim sağlar.
+Web arayüzü başlatıldığında hena oturumlarınıza erişim sağlar.
 
 ### Oturum
 
 Oturumlarınızı ana sayfadan görüntüleyin ve yönetin. Aktif oturumları görebilir ve yenilerini başlatabilirsiniz.
 
-![hena-agent Web - Etkin Oturum](../../../assets/web/web-homepage-active-session.png)
+![hena Web - Etkin Oturum](../../../assets/web/web-homepage-active-session.png)
 
 ### Sunucu Durumu
 
 Bağlı sunucuları ve durumlarını görüntülemek için "Sunucuları Gör" seçeneğini tıklayın.
 
-![hena-agent Web - Sunuculara bakın](../../../assets/web/web-homepage-see-servers.png)
+![hena Web - Sunuculara bakın](../../../assets/web/web-homepage-see-servers.png)
 
 ---
 
@@ -114,10 +114,10 @@ Bağlı sunucuları ve durumlarını görüntülemek için "Sunucuları Gör" se
 
 ```bash
 # Start the web server
-hena-agent web --port 4096
+hena web --port 4096
 
 # In another terminal, attach the TUI
-hena-agent attach http://localhost:4096
+hena attach http://localhost:4096
 ```
 
 Bu, aynı oturumları ve durumu paylaşarak hem web arayüzünü hem de terminali aynı anda kullanmanıza olanak tanır.
@@ -126,7 +126,7 @@ Bu, aynı oturumları ve durumu paylaşarak hem web arayüzünü hem de terminal
 
 ## Yapılandırma Dosyası
 
-Sunucu ayarlarını `hena-agent.json` yapılandırma dosyanızda da yapılandırabilirsiniz:
+Sunucu ayarlarını `hena.json` yapılandırma dosyanızda da yapılandırabilirsiniz:
 
 ```json
 {

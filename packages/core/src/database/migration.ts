@@ -2,7 +2,7 @@ export * as DatabaseMigration from "./migration"
 
 import { sql } from "drizzle-orm"
 import { Effect, Semaphore } from "effect"
-import type { EffectDrizzleSqlite } from "@hena-agent/effect-drizzle-sqlite"
+import type { EffectDrizzleSqlite } from "@hena/effect-drizzle-sqlite"
 import { migrations } from "./migration.gen"
 import schema from "./schema.gen"
 

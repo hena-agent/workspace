@@ -8,8 +8,8 @@ import {
   type DragEvent,
 } from "@thisbeyond/solid-dnd"
 import { ConstrainDragXAxis } from "@/utils/solid-dnd"
-import { IconButton } from "@hena-agent/ui/icon-button"
-import { Tooltip, TooltipKeybind } from "@hena-agent/ui/tooltip"
+import { IconButton } from "@hena/ui/icon-button"
+import { Tooltip, TooltipKeybind } from "@hena/ui/tooltip"
 import { type LocalProject } from "@/context/layout"
 
 export const SidebarContent = (props: {

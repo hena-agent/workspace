@@ -1,68 +1,34 @@
 ---
 title: GitLab
-description: Usa Hena Agent in issue e merge request su GitLab.
+description: Usa Hena in issue e merge request su GitLab.
 ---
 
-Hena Agent si integra nel tuo workflow GitLab tramite la pipeline GitLab CI/CD o con GitLab Duo.
+Hena si integra nel tuo workflow GitLab tramite la pipeline GitLab CI/CD o con GitLab Duo.
 
-In entrambi i casi, Hena Agent girera' sui tuoi runner GitLab.
-
----
-
-## GitLab CI
-
-Hena Agent funziona in una pipeline GitLab standard. Puoi integrarlo nella pipeline come [componente CI](https://docs.gitlab.com/ee/ci/components/).
-
-Qui usiamo un componente CI/CD creato dalla community per Hena Agent — [nagyv/gitlab-opencode](https://gitlab.com/nagyv/gitlab-opencode).
+In entrambi i casi, Hena girera' sui tuoi runner GitLab.
 
 ---
 
-### Funzionalità
-
-- **Configurazione personalizzata per job**: configura Hena Agent con una directory di configurazione personalizzata, ad esempio `./config/#custom-directory`, per abilitare o disabilitare funzionalita' per ogni invocazione di Hena Agent.
-- **Setup minimo**: il componente CI prepara Hena Agent in background; devi solo creare la configurazione Hena Agent e il prompt iniziale.
-- **Flessibile**: il componente CI supporta diversi input per personalizzarne il comportamento.
-
----
-
-### Configurazione
-
-1. Salva il JSON di autenticazione di Hena Agent come variabile d'ambiente CI di tipo File in **Settings** > **CI/CD** > **Variables**. Assicurati di marcarla come "Masked and hidden".
-2. Aggiungi quanto segue al tuo file `.gitlab-ci.yml`.
-
-   ```yaml title=".gitlab-ci.yml"
-   include:
-     - component: $CI_SERVER_FQDN/nagyv/gitlab-opencode/opencode@2
-       inputs:
-         config_dir: ${CI_PROJECT_DIR}/hena-agent-config
-         auth_json: $HENA_AGENT_AUTH_JSON # The variable name for your Hena Agent authentication JSON
-         command: optional-custom-command
-         message: "Your prompt here"
-   ```
-
-Per altri input e casi d'uso, [consulta la documentazione](https://gitlab.com/explore/catalog/nagyv/gitlab-opencode) di questo componente.
-
----
 
 ## GitLab Duo
 
-Hena Agent si integra nel tuo workflow GitLab.
-Menziona `@hena-agent` in un commento e Hena Agent eseguira' i task dentro la tua pipeline GitLab CI.
+Hena si integra nel tuo workflow GitLab.
+Menziona `@hena` in un commento e Hena eseguira' i task dentro la tua pipeline GitLab CI.
 
 ---
 
 ### Funzionalità
 
-- **Triage delle issue**: chiedi a Hena Agent di indagare su una issue e spiegartela.
-- **Fix e implementazioni**: chiedi a Hena Agent di risolvere una issue o implementare una feature.
+- **Triage delle issue**: chiedi a Hena di indagare su una issue e spiegartela.
+- **Fix e implementazioni**: chiedi a Hena di risolvere una issue o implementare una feature.
   Creera' un nuovo branch e aprira' una merge request con le modifiche.
-- **Sicuro**: Hena Agent gira sui tuoi runner GitLab.
+- **Sicuro**: Hena gira sui tuoi runner GitLab.
 
 ---
 
 ### Configurazione
 
-Hena Agent gira nella pipeline GitLab CI/CD. Ecco cosa ti serve per configurarlo:
+Hena gira nella pipeline GitLab CI/CD. Ecco cosa ti serve per configurarlo:
 
 :::tip
 Dai un'occhiata alle [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_platform/agent_assistant/) per istruzioni aggiornate.
@@ -82,19 +48,19 @@ Dai un'occhiata alle [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_pl
     ```yaml
     image: node:22-slim
     commands:
-      - echo "Installing hena-agent"
-      - npm install --global hena-agent
+      - echo "Installing hena"
+      - npm install --global hena
       - echo "Installing glab"
-      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA_AGENT
+      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA
       - apt-get update --quiet && apt-get install --yes curl wget gpg git && rm --recursive --force /var/lib/apt/lists/*
       - curl --silent --show-error --location "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash
       - apt-get install --yes glab
       - echo "Configuring glab"
       - echo $GITLAB_HOST
-      - echo "Creating Hena Agent auth configuration"
-      - mkdir --parents ~/.local/share/hena-agent
+      - echo "Creating Hena auth configuration"
+      - mkdir --parents ~/.local/share/hena
       - |
-        cat > ~/.local/share/hena-agent/auth.json << EOF
+        cat > ~/.local/share/hena/auth.json << EOF
         {
           "anthropic": {
             "type": "api",
@@ -103,13 +69,13 @@ Dai un'occhiata alle [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_pl
         }
         EOF
       - echo "Configuring git"
-      - git config --global user.email "hena-agent@gitlab.com"
-      - git config --global user.name "Hena Agent"
+      - git config --global user.email "hena@gitlab.com"
+      - git config --global user.name "Hena"
       - echo "Testing glab"
       - glab issue list
-      - echo "Running Hena Agent"
+      - echo "Running Hena"
       - |
-        hena-agent run "
+        hena run "
         You are an AI assistant helping with GitLab operations.
 
         Context: $AI_FLOW_CONTEXT
@@ -146,7 +112,7 @@ Dai un'occhiata alle [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_pl
         fi
     variables:
       - ANTHROPIC_API_KEY
-      - GITLAB_TOKEN_HENA_AGENT
+      - GITLAB_TOKEN_HENA
       - GITLAB_HOST
     ```
 
@@ -158,10 +124,10 @@ Puoi fare riferimento alla [documentazione GitLab CLI agents](https://docs.gitla
 
 ### Esempi
 
-Ecco alcuni esempi di come puoi usare Hena Agent in GitLab.
+Ecco alcuni esempi di come puoi usare Hena in GitLab.
 
 :::tip
-Puoi configurare una frase trigger diversa da `@hena-agent`.
+Puoi configurare una frase trigger diversa da `@hena`.
 :::
 
 - **Spiega una issue**
@@ -169,27 +135,27 @@ Puoi configurare una frase trigger diversa da `@hena-agent`.
   Aggiungi questo commento in una issue GitLab.
 
   ```
-  @hena-agent explain this issue
+  @hena explain this issue
   ```
 
-  Hena Agent leggera' la issue e rispondera' con una spiegazione chiara.
+  Hena leggera' la issue e rispondera' con una spiegazione chiara.
 
 - **Risolvi una issue**
 
   In una issue GitLab, scrivi:
 
   ```
-  @hena-agent fix this
+  @hena fix this
   ```
 
-  Hena Agent creera' un nuovo branch, implementera' le modifiche e aprira' una merge request con i cambiamenti.
+  Hena creera' un nuovo branch, implementera' le modifiche e aprira' una merge request con i cambiamenti.
 
 - **Rivedi merge request**
 
   Lascia il seguente commento su una merge request GitLab.
 
   ```
-  @hena-agent review this merge request
+  @hena review this merge request
   ```
 
-  Hena Agent rivedra' la merge request e fornira' feedback.
+  Hena rivedra' la merge request e fornira' feedback.

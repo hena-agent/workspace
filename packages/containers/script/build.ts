@@ -22,11 +22,11 @@ const images = ["base", "bun-node", "rust", "tauri-linux", "publish"]
 const setup = async () => {
   if (!push) return
   const list = await $`docker buildx ls`.text()
-  if (list.includes("hena-agent")) {
-    await $`docker buildx use hena-agent`
+  if (list.includes("hena")) {
+    await $`docker buildx use hena`
     return
   }
-  await $`docker buildx create --name hena-agent --use`
+  await $`docker buildx create --name hena --use`
 }
 
 await setup()

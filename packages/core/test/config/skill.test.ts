@@ -1,12 +1,12 @@
 import path from "path"
 import { describe, expect } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
-import { Config } from "@hena-agent/core/config"
-import { ConfigSkillPlugin } from "@hena-agent/core/config/plugin/skill"
-import { Global } from "@hena-agent/core/global"
-import { Location } from "@hena-agent/core/location"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { SkillV2 } from "@hena-agent/core/skill"
+import { Config } from "@hena/core/config"
+import { ConfigSkillPlugin } from "@hena/core/config/plugin/skill"
+import { Global } from "@hena/core/global"
+import { Location } from "@hena/core/location"
+import { AbsolutePath } from "@hena/core/schema"
+import { SkillV2 } from "@hena/core/skill"
 import { location } from "../fixture/location"
 import { testEffect } from "../lib/effect"
 import { host } from "../plugin/host"
@@ -46,7 +46,7 @@ describe("ConfigSkillPlugin.Plugin", () => {
           Config.Service.of({
             entries: () =>
               Effect.succeed([
-                new Config.Directory({ type: "directory", path: AbsolutePath.make("/repo/.hena-agent") }),
+                new Config.Directory({ type: "directory", path: AbsolutePath.make("/repo/.hena") }),
                 new Config.Document({
                   type: "document",
                   info: decode({
@@ -61,11 +61,11 @@ describe("ConfigSkillPlugin.Plugin", () => {
       expect(sources).toEqual([
         SkillV2.DirectorySource.make({
           type: "directory",
-          path: AbsolutePath.make(path.join("/repo/.hena-agent", "skill")),
+          path: AbsolutePath.make(path.join("/repo/.hena", "skill")),
         }),
         SkillV2.DirectorySource.make({
           type: "directory",
-          path: AbsolutePath.make(path.join("/repo/.hena-agent", "skills")),
+          path: AbsolutePath.make(path.join("/repo/.hena", "skills")),
         }),
         SkillV2.DirectorySource.make({ type: "directory", path: AbsolutePath.make(path.join(directory, "skills")) }),
         SkillV2.DirectorySource.make({

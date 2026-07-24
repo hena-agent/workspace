@@ -1,35 +1,35 @@
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
-import { AgentV2 } from "@hena-agent/core/agent"
-import { ModelV2 } from "@hena-agent/core/model"
-import { SessionV2 } from "@hena-agent/core/session"
-import { Agent } from "@hena-agent/schema/agent"
-import { Location } from "@hena-agent/schema/location"
-import { Model } from "@hena-agent/schema/model"
-import { AgentAttachment, FileAttachment, Prompt, Source } from "@hena-agent/schema/prompt"
-import { Provider } from "@hena-agent/schema/provider"
-import { Project } from "@hena-agent/schema/project"
-import { ProjectDirectories } from "@hena-agent/schema/project-directories"
-import { PermissionV1 } from "@hena-agent/schema/permission-v1"
-import { Session } from "@hena-agent/schema/session"
-import { SessionInput } from "@hena-agent/schema/session-input"
-import { SessionMessage } from "@hena-agent/schema/session-message"
-import { Workspace } from "@hena-agent/schema/workspace"
-import { Command } from "@hena-agent/schema/command"
-import { Connection } from "@hena-agent/schema/connection"
-import { Credential } from "@hena-agent/schema/credential"
-import { FileSystem } from "@hena-agent/schema/filesystem"
-import { Integration } from "@hena-agent/schema/integration"
-import { LLM } from "@hena-agent/schema/llm"
-import { Permission } from "@hena-agent/schema/permission"
-import { Plugin } from "@hena-agent/schema/plugin"
-import { Pty } from "@hena-agent/schema/pty"
-import { Reference } from "@hena-agent/schema/reference"
-import { SessionTodo } from "@hena-agent/schema/session-todo"
-import { Skill } from "@hena-agent/schema/skill"
-import { AbsolutePath, DateTimeUtcFromMillis, optional, statics } from "@hena-agent/schema/schema"
-import { ProviderV2 } from "@hena-agent/core/provider"
-import { PluginV2 } from "@hena-agent/core/plugin"
+import { AgentV2 } from "@hena/core/agent"
+import { ModelV2 } from "@hena/core/model"
+import { SessionV2 } from "@hena/core/session"
+import { Agent } from "@hena/schema/agent"
+import { Location } from "@hena/schema/location"
+import { Model } from "@hena/schema/model"
+import { AgentAttachment, FileAttachment, Prompt, Source } from "@hena/schema/prompt"
+import { Provider } from "@hena/schema/provider"
+import { Project } from "@hena/schema/project"
+import { ProjectDirectories } from "@hena/schema/project-directories"
+import { PermissionV1 } from "@hena/schema/permission-v1"
+import { Session } from "@hena/schema/session"
+import { SessionInput } from "@hena/schema/session-input"
+import { SessionMessage } from "@hena/schema/session-message"
+import { Workspace } from "@hena/schema/workspace"
+import { Command } from "@hena/schema/command"
+import { Connection } from "@hena/schema/connection"
+import { Credential } from "@hena/schema/credential"
+import { FileSystem } from "@hena/schema/filesystem"
+import { Integration } from "@hena/schema/integration"
+import { LLM } from "@hena/schema/llm"
+import { Permission } from "@hena/schema/permission"
+import { Plugin } from "@hena/schema/plugin"
+import { Pty } from "@hena/schema/pty"
+import { Reference } from "@hena/schema/reference"
+import { SessionTodo } from "@hena/schema/session-todo"
+import { Skill } from "@hena/schema/skill"
+import { AbsolutePath, DateTimeUtcFromMillis, optional, statics } from "@hena/schema/schema"
+import { ProviderV2 } from "@hena/core/provider"
+import { PluginV2 } from "@hena/core/plugin"
 
 test("Core reuses the canonical shared schemas", async () => {
   const [
@@ -55,27 +55,27 @@ test("Core reuses the canonical shared schemas", async () => {
     coreSchema,
     coreWorkspace,
   ] = await Promise.all([
-    import("@hena-agent/core/command"),
-    import("@hena-agent/core/integration/connection"),
-    import("@hena-agent/core/credential"),
-    import("@hena-agent/core/filesystem"),
-    import("@hena-agent/core/integration"),
-    import("@hena-agent/core/location"),
-    import("@hena-agent/llm"),
-    import("@hena-agent/core/permission"),
-    import("@hena-agent/core/v1/permission"),
-    import("@hena-agent/core/project/copy"),
-    import("@hena-agent/core/pty"),
-    import("@hena-agent/core/project/schema"),
-    import("@hena-agent/core/reference"),
-    import("@hena-agent/core/session/input"),
-    import("@hena-agent/core/session/message"),
-    import("@hena-agent/core/session/todo"),
-    import("@hena-agent/core/session/prompt"),
-    import("@hena-agent/core/skill"),
-    import("@hena-agent/core/v2-schema"),
-    import("@hena-agent/core/schema"),
-    import("@hena-agent/core/workspace"),
+    import("@hena/core/command"),
+    import("@hena/core/integration/connection"),
+    import("@hena/core/credential"),
+    import("@hena/core/filesystem"),
+    import("@hena/core/integration"),
+    import("@hena/core/location"),
+    import("@hena/llm"),
+    import("@hena/core/permission"),
+    import("@hena/core/v1/permission"),
+    import("@hena/core/project/copy"),
+    import("@hena/core/pty"),
+    import("@hena/core/project/schema"),
+    import("@hena/core/reference"),
+    import("@hena/core/session/input"),
+    import("@hena/core/session/message"),
+    import("@hena/core/session/todo"),
+    import("@hena/core/session/prompt"),
+    import("@hena/core/skill"),
+    import("@hena/core/v2-schema"),
+    import("@hena/core/schema"),
+    import("@hena/core/workspace"),
   ])
 
   const schemas = [

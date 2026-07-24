@@ -1,5 +1,5 @@
-import { useI18n } from "@hena-agent/ui/context/i18n"
-import { Icon } from "@hena-agent/ui/v2/icon"
+import { useI18n } from "@hena/ui/context/i18n"
+import { Icon } from "@hena/ui/v2/icon"
 import "./session-review-v2.css"
 
 export function SessionReviewEmptyChangesV2() {

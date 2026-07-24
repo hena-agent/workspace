@@ -1,4 +1,4 @@
-import { base64Encode } from "@hena-agent/core/util/encode"
+import { base64Encode } from "@hena/core/util/encode"
 import { expect, test, type Page } from "@playwright/test"
 import {
   assistantMessage,
@@ -13,7 +13,7 @@ import {
   userID,
   userMessage,
 } from "../performance/timeline-stability/fixture"
-import { mockHenaAgentServer } from "../utils/mock-server"
+import { mockHenaServer } from "../utils/mock-server"
 import { installSseTransport } from "../utils/sse-transport"
 import { expectSessionTitle } from "../utils/waits"
 
@@ -58,14 +58,14 @@ for (const scenario of scenarios) {
       server: `http://${process.env.PLAYWRIGHT_SERVER_HOST ?? "127.0.0.1"}:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`,
       retry: 20,
     })
-    await mockHenaAgentServer(page, {
+    await mockHenaServer(page, {
       directory,
       project: project(),
       provider: {
         all: [
           {
-            id: "hena-agent",
-            name: "Hena Agent",
+            id: "hena",
+            name: "Hena",
             models: {
               "claude-opus-4-6": {
                 id: "claude-opus-4-6",
@@ -75,8 +75,8 @@ for (const scenario of scenarios) {
             },
           },
         ],
-        connected: ["hena-agent"],
-        default: { providerID: "hena-agent", modelID: "claude-opus-4-6" },
+        connected: ["hena"],
+        default: { providerID: "hena", modelID: "claude-opus-4-6" },
       },
       sessions: [session()],
       sessionStatus: { [sessionID]: { type: "busy" } },

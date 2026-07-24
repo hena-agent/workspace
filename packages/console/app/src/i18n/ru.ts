@@ -15,7 +15,7 @@ export const dict = {
   "nav.home": "Главная",
   "nav.openMenu": "Открыть меню",
   "nav.getStartedFree": "Начать бесплатно",
-  "nav.logoAlt": "Hena Agent",
+  "nav.logoAlt": "Hena",
 
   "nav.context.copyLogo": "Скопировать логотип как SVG",
   "nav.context.copyWordmark": "Скопировать название как SVG",
@@ -37,14 +37,14 @@ export const dict = {
   "email.subscribe": "Подписаться",
   "email.success": "Почти готово, проверьте почту и подтвердите ваш email",
 
-  "notFound.title": "Не найдено | hena-agent",
+  "notFound.title": "Не найдено | hena",
   "notFound.heading": "404 - Страница не найдена",
   "notFound.home": "Главная",
   "notFound.docs": "Документация",
   "notFound.github": "GitHub",
   "notFound.discord": "Discord",
-  "notFound.logoLightAlt": "светлый логотип hena-agent",
-  "notFound.logoDarkAlt": "темный логотип hena-agent",
+  "notFound.logoLightAlt": "светлый логотип hena",
+  "notFound.logoDarkAlt": "темный логотип hena",
 
   "user.logout": "Выйти",
 
@@ -81,25 +81,25 @@ export const dict = {
   "error.reloadAmountMin": "Сумма пополнения должна быть не менее ${{amount}}",
   "error.reloadTriggerMin": "Порог баланса должен быть не менее ${{amount}}",
 
-  "app.meta.description": "Hena Agent - AI-агент с открытым кодом для программирования.",
+  "app.meta.description": "Hena - AI-агент с открытым кодом для программирования.",
 
-  "home.title": "Hena Agent | AI-агент с открытым кодом для программирования",
+  "home.title": "Hena | AI-агент с открытым кодом для программирования",
 
-  "temp.title": "hena-agent | AI-агент для программирования в терминале",
+  "temp.title": "hena | AI-агент для программирования в терминале",
   "temp.hero.title": "AI-агент для программирования в терминале",
-  "temp.zen": "hena-agent zen",
+  "temp.zen": "hena zen",
   "temp.getStarted": "Начать",
   "temp.feature.native.title": "Нативный TUI",
   "temp.feature.native.body": "Отзывчивый, нативный, темизируемый терминальный интерфейс",
   "temp.feature.zen.beforeLink": "",
   "temp.feature.zen.link": "Отобранный список моделей",
-  "temp.feature.zen.afterLink": "от hena-agent",
+  "temp.feature.zen.afterLink": "от hena",
   "temp.feature.models.beforeLink": "Поддерживает 75+ провайдеров LLM через",
   "temp.feature.models.afterLink": ", включая локальные модели",
-  "temp.screenshot.caption": "Hena Agent TUI с темой tokyonight",
-  "temp.screenshot.alt": "Hena Agent TUI с темой tokyonight",
-  "temp.logoLightAlt": "светлый логотип hena-agent",
-  "temp.logoDarkAlt": "темный логотип hena-agent",
+  "temp.screenshot.caption": "Hena TUI с темой tokyonight",
+  "temp.screenshot.alt": "Hena TUI с темой tokyonight",
+  "temp.logoLightAlt": "светлый логотип hena",
+  "temp.logoDarkAlt": "темный логотип hena",
 
   "home.banner.badge": "Новое",
   "home.banner.text": "Представляем вкладки в десктопном приложении.",
@@ -117,9 +117,9 @@ export const dict = {
 
   "home.install.ariaLabel": "Варианты установки",
 
-  "home.what.title": "Что такое Hena Agent?",
+  "home.what.title": "Что такое Hena?",
   "home.what.body":
-    "Hena Agent — это агент с открытым исходным кодом, который помогает писать код в терминале, IDE или на десктопе.",
+    "Hena — это агент с открытым исходным кодом, который помогает писать код в терминале, IDE или на десктопе.",
   "home.what.lsp.title": "Поддержка LSP",
   "home.what.lsp.body": "Автоматически загружает нужные LSP для LLM",
   "home.what.multiSession.title": "Мульти-сессии",
@@ -138,44 +138,44 @@ export const dict = {
 
   "home.growth.title": "AI-агент с открытым кодом для программирования",
   "home.growth.body":
-    "С более чем <strong>{{stars}}</strong> звезд на GitHub, <strong>{{contributors}}</strong> контрибьюторов и <strong>{{commits}}</strong> коммитов, Hena Agent доверяют более <strong>{{monthlyUsers}}</strong> разработчиков ежемесячно.",
+    "С более чем <strong>{{stars}}</strong> звезд на GitHub, <strong>{{contributors}}</strong> контрибьюторов и <strong>{{commits}}</strong> коммитов, Hena доверяют более <strong>{{monthlyUsers}}</strong> разработчиков ежемесячно.",
   "home.growth.githubStars": "Звезд на GitHub",
   "home.growth.contributors": "Контрибьюторов",
   "home.growth.monthlyDevs": "Разработчиков в месяц",
 
   "home.privacy.title": "Создан с заботой о приватности",
   "home.privacy.body":
-    "Hena Agent не хранит ваш код или контекстные данные, поэтому он может работать в средах, чувствительных к приватности.",
+    "Hena не хранит ваш код или контекстные данные, поэтому он может работать в средах, чувствительных к приватности.",
   "home.privacy.learnMore": "Подробнее о",
   "home.privacy.link": "приватности",
 
-  "home.faq.q1": "Что такое Hena Agent?",
+  "home.faq.q1": "Что такое Hena?",
   "home.faq.a1":
-    "Hena Agent — это агент с открытым исходным кодом, который помогает писать и запускать код с любой AI-моделью. Доступен как терминальный интерфейс, десктопное приложение или расширение для IDE.",
-  "home.faq.q2": "Как использовать Hena Agent?",
+    "Hena — это агент с открытым исходным кодом, который помогает писать и запускать код с любой AI-моделью. Доступен как терминальный интерфейс, десктопное приложение или расширение для IDE.",
+  "home.faq.q2": "Как использовать Hena?",
   "home.faq.a2.before": "Проще всего начать с чтения",
   "home.faq.a2.link": "введения",
-  "home.faq.q3": "Нужны ли дополнительные подписки на AI для использования Hena Agent?",
+  "home.faq.q3": "Нужны ли дополнительные подписки на AI для использования Hena?",
   "home.faq.a3.p1":
-    "Не обязательно, Hena Agent поставляется с набором бесплатных моделей, которые можно использовать без создания аккаунта.",
+    "Не обязательно, Hena поставляется с набором бесплатных моделей, которые можно использовать без создания аккаунта.",
   "home.faq.a3.p2.beforeZen":
     "Помимо этого, вы можете использовать любые популярные модели для кодинга, создав аккаунт",
   "home.faq.a3.p2.afterZen": ".",
   "home.faq.a3.p3":
-    "Хотя мы рекомендуем использовать Zen, Hena Agent также работает со всеми популярными провайдерами, такими как OpenAI, Anthropic, xAI и др.",
+    "Хотя мы рекомендуем использовать Zen, Hena также работает со всеми популярными провайдерами, такими как OpenAI, Anthropic, xAI и др.",
   "home.faq.a3.p4.beforeLocal": "Вы даже можете подключить ваши",
   "home.faq.a3.p4.localLink": "локальные модели",
-  "home.faq.q4": "Могу ли я использовать мои существующие AI-подписки с Hena Agent?",
+  "home.faq.q4": "Могу ли я использовать мои существующие AI-подписки с Hena?",
   "home.faq.a4.p1":
-    "Да, Hena Agent поддерживает подписки всех основных провайдеров. Вы можете использовать ваши подписки Claude Pro/Max, ChatGPT Plus/Pro или GitHub Copilot.",
-  "home.faq.q5": "Можно ли использовать Hena Agent только в терминале?",
-  "home.faq.a5.beforeDesktop": "Больше нет! Hena Agent теперь доступен как приложение для",
+    "Да, Hena поддерживает подписки всех основных провайдеров. Вы можете использовать ваши подписки Claude Pro/Max, ChatGPT Plus/Pro или GitHub Copilot.",
+  "home.faq.q5": "Можно ли использовать Hena только в терминале?",
+  "home.faq.a5.beforeDesktop": "Больше нет! Hena теперь доступен как приложение для",
   "home.faq.a5.desktop": "десктопа",
   "home.faq.a5.and": "и",
   "home.faq.a5.web": "веба",
-  "home.faq.q6": "Сколько стоит Hena Agent?",
+  "home.faq.q6": "Сколько стоит Hena?",
   "home.faq.a6":
-    "Hena Agent на 100% бесплатен. Он также включает набор бесплатных моделей. Дополнительные расходы могут возникнуть, если вы подключите другого провайдера.",
+    "Hena на 100% бесплатен. Он также включает набор бесплатных моделей. Дополнительные расходы могут возникнуть, если вы подключите другого провайдера.",
   "home.faq.q7": "Как насчет данных и приватности?",
   "home.faq.a7.p1":
     "Ваши данные сохраняются только тогда, когда вы используете наши бесплатные модели или создаете ссылки для шеринга.",
@@ -183,8 +183,8 @@ export const dict = {
   "home.faq.a7.p2.modelsLink": "наших моделях",
   "home.faq.a7.p2.and": "и",
   "home.faq.a7.p2.shareLink": "страницах шеринга",
-  "home.faq.q8": "Hena Agent — это open source?",
-  "home.faq.a8.p1": "Да, Hena Agent полностью open source. Исходный код доступен публично на",
+  "home.faq.q8": "Hena — это open source?",
+  "home.faq.a8.p1": "Да, Hena полностью open source. Исходный код доступен публично на",
   "home.faq.a8.p2": "под",
   "home.faq.a8.mitLicense": "лицензией MIT",
   "home.faq.a8.p3":
@@ -192,23 +192,23 @@ export const dict = {
 
   "home.zenCta.title": "Доступ к надежным оптимизированным моделям для кодинг-агентов",
   "home.zenCta.body":
-    "Zen дает доступ к отобранному набору AI-моделей, которые Hena Agent протестировал и проверил специально для кодинг-агентов. Не нужно беспокоиться о нестабильной производительности и качестве разных провайдеров, используйте проверенные модели, которые работают.",
+    "Zen дает доступ к отобранному набору AI-моделей, которые Hena протестировал и проверил специально для кодинг-агентов. Не нужно беспокоиться о нестабильной производительности и качестве разных провайдеров, используйте проверенные модели, которые работают.",
   "home.zenCta.link": "Узнать о Zen",
 
   "zen.title": "Hena Zen | Набор надежных оптимизированных моделей для кодинг-агентов",
   "zen.hero.title": "Надежные оптимизированные модели для кодинг-агентов",
   "zen.hero.body":
-    "Zen дает доступ к отобранному набору AI-моделей, которые Hena Agent протестировал и проверил специально для кодинг-агентов. Не нужно беспокоиться о нестабильной производительности и качестве, используйте проверенные модели, которые работают.",
+    "Zen дает доступ к отобранному набору AI-моделей, которые Hena протестировал и проверил специально для кодинг-агентов. Не нужно беспокоиться о нестабильной производительности и качестве, используйте проверенные модели, которые работают.",
 
   "zen.faq.q1": "Что такое Hena Zen?",
   "zen.faq.a1":
-    "Zen — это отобранный набор AI-моделей, протестированных и проверенных для кодинг-агентов командой, стоящей за Hena Agent.",
+    "Zen — это отобранный набор AI-моделей, протестированных и проверенных для кодинг-агентов командой, стоящей за Hena.",
   "zen.faq.q2": "Почему Zen точнее?",
   "zen.faq.a2":
     "Zen предоставляет только те модели, которые были специально протестированы и проверены для кодинг-агентов. Вы же не режете стейк ножом для масла, не используйте плохие модели для кодинга.",
   "zen.faq.q3": "Zen дешевле?",
   "zen.faq.a3":
-    "Zen — некоммерческий проект. Zen транслирует расходы от провайдеров моделей вам. Чем больше использование Zen, тем лучшие тарифы Hena Agent может согласовать и передать вам.",
+    "Zen — некоммерческий проект. Zen транслирует расходы от провайдеров моделей вам. Чем больше использование Zen, тем лучшие тарифы Hena может согласовать и передать вам.",
   "zen.faq.q4": "Сколько стоит Zen?",
   "zen.faq.a4.p1.beforePricing": "Zen",
   "zen.faq.a4.p1.pricingLink": "взимает плату за запрос",
@@ -218,7 +218,7 @@ export const dict = {
     "Общая стоимость зависит от использования, и вы можете установить ежемесячные лимиты расходов в своем",
   "zen.faq.a4.p2.accountLink": "аккаунте",
   "zen.faq.a4.p3":
-    "Для покрытия расходов Hena Agent добавляет лишь небольшую комиссию за обработку платежа в размере $1.23 при пополнении баланса на $20.",
+    "Для покрытия расходов Hena добавляет лишь небольшую комиссию за обработку платежа в размере $1.23 при пополнении баланса на $20.",
   "zen.faq.q5": "Как насчет данных и приватности?",
   "zen.faq.a5.beforeExceptions":
     "Все модели Zen размещены в США. Провайдеры следуют политике нулевого хранения и не используют ваши данные для обучения моделей, за",
@@ -229,7 +229,7 @@ export const dict = {
   "zen.faq.a7": "Да, вы можете отключить оплату в любое время и использовать оставшийся баланс.",
   "zen.faq.q8": "Могу ли я использовать Zen с другими кодинг-агентами?",
   "zen.faq.a8":
-    "Хотя Zen отлично работает с Hena Agent, вы можете использовать Zen с любым агентом. Следуйте инструкциям по настройке в вашем любимом агенте.",
+    "Хотя Zen отлично работает с Hena, вы можете использовать Zen с любым агентом. Следуйте инструкциям по настройке в вашем любимом агенте.",
 
   "zen.cta.start": "Начать работу с Zen",
   "zen.pricing.title": "Пополнить баланс на $20 (Pay as you go)",
@@ -238,12 +238,12 @@ export const dict = {
   "zen.problem.title": "Какую проблему решает Zen?",
   "zen.problem.body":
     "Доступно множество моделей, но лишь немногие хорошо работают с кодинг-агентами. Большинство провайдеров настраивают их по-разному с разными результатами.",
-  "zen.problem.subtitle": "Мы исправляем это для всех, а не только для пользователей Hena Agent.",
+  "zen.problem.subtitle": "Мы исправляем это для всех, а не только для пользователей Hena.",
   "zen.problem.item1": "Тестирование избранных моделей и консультации с их командами",
   "zen.problem.item2": "Работа с провайдерами для обеспечения правильной доставки",
   "zen.problem.item3": "Бенчмаркинг всех рекомендуемых нами комбинаций модель-провайдер",
   "zen.how.title": "Как работает Zen",
-  "zen.how.body": "Хотя мы предлагаем использовать Zen с Hena Agent, вы можете использовать его с любым агентом.",
+  "zen.how.body": "Хотя мы предлагаем использовать Zen с Hena, вы можете использовать его с любым агентом.",
   "zen.how.step1.title": "Зарегистрируйтесь и пополните баланс на $20",
   "zen.how.step1.beforeLink": "следуйте",
   "zen.how.step1.link": "инструкциям по настройке",
@@ -281,7 +281,7 @@ export const dict = {
 
   "go.testimonials.brand.zen": "Zen",
   "go.testimonials.brand.go": "Go",
-  "go.testimonials.handle": "@Hena Agent",
+  "go.testimonials.handle": "@Hena",
   "go.testimonials.dax.name": "Dax Raad",
   "go.testimonials.dax.title": "ex-CEO, Terminal Products",
   "go.testimonials.dax.quoteAfter": "изменил мою жизнь, это действительно очевидный выбор.",
@@ -303,7 +303,7 @@ export const dict = {
   "go.testimonials.frank.quote": "Жаль, что я больше не в Nvidia.",
   "go.problem.title": "Какую проблему решает Go?",
   "go.problem.body":
-    "Мы стремимся сделать Hena Agent доступным для как можно большего числа людей. Hena Go - это недорогая подписка: $5 за первый месяц, затем $10/месяц. Она предоставляет щедрые лимиты и надежный доступ к самым мощным моделям с открытым исходным кодом.",
+    "Мы стремимся сделать Hena доступным для как можно большего числа людей. Hena Go - это недорогая подписка: $5 за первый месяц, затем $10/месяц. Она предоставляет щедрые лимиты и надежный доступ к самым мощным моделям с открытым исходным кодом.",
   "go.problem.subtitle": " ",
   "go.problem.item1": "Недорогая подписка",
   "go.problem.item2": "Щедрые лимиты и надежный доступ",
@@ -312,7 +312,7 @@ export const dict = {
     "Включает Grok 4.5, GLM-5.2, GLM-5.1, Kimi K3, Kimi K2.7 Code, Kimi K2.6, MiMo-V2.5-Pro, MiMo-V2.5, Qwen3.7 Max, Qwen3.7 Plus, Qwen3.6 Plus, MiniMax M2.7, MiniMax M3, DeepSeek V4 Pro, DeepSeek V4 Flash и Hy3",
   "go.how.title": "Как работает Go",
   "go.how.body":
-    "Go начинается с $5 за первый месяц, затем $10/месяц. Вы можете использовать его с Hena Agent или любым агентом.",
+    "Go начинается с $5 за первый месяц, затем $10/месяц. Вы можете использовать его с Hena или любым агентом.",
   "go.how.step1.title": "Создайте аккаунт",
   "go.how.step1.beforeLink": "следуйте",
   "go.how.step1.link": "инструкциям по настройке",
@@ -458,15 +458,15 @@ export const dict = {
     "Доступ к моделям, настроенным для оптимальной производительности — никаких даунгрейдов или перенаправления к дешевым провайдерам.",
   "workspace.newUser.feature.lockin.title": "Без привязки (Lock-in)",
   "workspace.newUser.feature.lockin.body":
-    "Используйте Zen с любым кодинг-агентом и продолжайте использовать других провайдеров с hena-agent, когда захотите.",
+    "Используйте Zen с любым кодинг-агентом и продолжайте использовать других провайдеров с hena, когда захотите.",
   "workspace.newUser.copyApiKey": "Копировать API ключ",
   "workspace.newUser.copyKey": "Копировать ключ",
   "workspace.newUser.copied": "Скопировано!",
   "workspace.newUser.step.enableBilling": "Включить оплату",
   "workspace.newUser.step.login.before": "Запустите",
-  "workspace.newUser.step.login.after": "и выберите hena-agent",
+  "workspace.newUser.step.login.after": "и выберите hena",
   "workspace.newUser.step.pasteKey": "Вставьте ваш API ключ",
-  "workspace.newUser.step.models.before": "Запустите hena-agent и выполните",
+  "workspace.newUser.step.models.before": "Запустите hena и выполните",
   "workspace.newUser.step.models.after": "для выбора модели",
 
   "workspace.models.title": "Модели",
@@ -513,10 +513,10 @@ export const dict = {
   "workspace.cost.subscriptionShort": "подписка",
 
   "workspace.keys.title": "API Ключи",
-  "workspace.keys.subtitle": "Управляйте вашими API ключами для доступа к сервисам Hena Agent.",
+  "workspace.keys.subtitle": "Управляйте вашими API ключами для доступа к сервисам Hena.",
   "workspace.keys.create": "Создать API ключ",
   "workspace.keys.placeholder": "Введите название ключа",
-  "workspace.keys.empty": "Создайте API ключ для шлюза hena-agent",
+  "workspace.keys.empty": "Создайте API ключ для шлюза hena",
   "workspace.keys.table.name": "Название",
   "workspace.keys.table.key": "Ключ",
   "workspace.keys.table.createdBy": "Создан",
@@ -665,7 +665,7 @@ export const dict = {
   "workspace.lite.subscription.resetsIn": "Сброс через",
   "workspace.lite.subscription.useBalance": "Использовать доступный баланс после достижения лимитов",
   "workspace.lite.subscription.selectProvider":
-    'Выберите "Hena Go" в качестве провайдера в настройках hena-agent для использования моделей Go.',
+    'Выберите "Hena Go" в качестве провайдера в настройках hena для использования моделей Go.',
   "workspace.lite.providers.title": "Провайдеры",
   "workspace.lite.providers.description": "Управляйте провайдерами, используемыми для маршрутизации.",
   "workspace.lite.providers.useChina": "Включить модели, размещенные в Китае",
@@ -719,15 +719,15 @@ export const dict = {
     "Используйте {{amount}}, чтобы уменьшить текущее использование этого workspace.",
   "workspace.referral.apply.confirmAction": "Применить",
 
-  "download.title": "Hena Agent | Скачать",
-  "download.meta.description": "Скачать Hena Agent для macOS, Windows и Linux",
-  "download.hero.title": "Скачать Hena Agent Desktop",
+  "download.title": "Hena | Скачать",
+  "download.meta.description": "Скачать Hena для macOS, Windows и Linux",
+  "download.hero.title": "Скачать Hena Desktop",
   "download.hero.subtitle": "Доступна бета для macOS, Windows и Linux",
   "download.hero.button": "Скачать для {{os}}",
-  "download.section.terminal": "Hena Agent Terminal",
-  "download.section.desktop": "Hena Agent Desktop",
-  "download.section.extensions": "Расширения Hena Agent",
-  "download.section.integrations": "Интеграции Hena Agent",
+  "download.section.terminal": "Hena Terminal",
+  "download.section.desktop": "Hena Desktop",
+  "download.section.extensions": "Расширения Hena",
+  "download.section.integrations": "Интеграции Hena",
   "download.action.download": "Скачать",
   "download.action.install": "Установить",
 
@@ -738,26 +738,26 @@ export const dict = {
   "download.platform.linuxRpm": "Linux (.rpm)",
 
   "download.faq.a3.beforeLocal":
-    "Не обязательно, но возможно. Вам понадобится AI подписка, если вы хотите подключить Hena Agent к платному провайдеру, хотя вы можете работать с",
+    "Не обязательно, но возможно. Вам понадобится AI подписка, если вы хотите подключить Hena к платному провайдеру, хотя вы можете работать с",
   "download.faq.a3.localLink": "локальными моделями",
   "download.faq.a3.afterLocal.beforeZen": "бесплатно. Хотя мы рекомендуем использовать",
   "download.faq.a3.afterZen":
-    ", Hena Agent работает со всеми популярными провайдерами, такими как OpenAI, Anthropic, xAI и др.",
+    ", Hena работает со всеми популярными провайдерами, такими как OpenAI, Anthropic, xAI и др.",
 
-  "download.faq.a5.p1": "Hena Agent на 100% бесплатен.",
+  "download.faq.a5.p1": "Hena на 100% бесплатен.",
   "download.faq.a5.p2.beforeZen":
-    "Любые дополнительные расходы будут связаны с вашей подпиской у провайдера моделей. Хотя Hena Agent работает с любым провайдером моделей, мы рекомендуем использовать",
+    "Любые дополнительные расходы будут связаны с вашей подпиской у провайдера моделей. Хотя Hena работает с любым провайдером моделей, мы рекомендуем использовать",
   "download.faq.a5.p2.afterZen": ".",
 
-  "download.faq.a6.p1": "Ваши данные и информация сохраняются только при создании ссылок для шеринга в Hena Agent.",
+  "download.faq.a6.p1": "Ваши данные и информация сохраняются только при создании ссылок для шеринга в Hena.",
   "download.faq.a6.p2.beforeShare": "Подробнее о",
   "download.faq.a6.shareLink": "страницах шеринга",
 
-  "enterprise.title": "Hena Agent | Корпоративные решения для вашей организации",
-  "enterprise.meta.description": "Свяжитесь с Hena Agent для корпоративных решений",
+  "enterprise.title": "Hena | Корпоративные решения для вашей организации",
+  "enterprise.meta.description": "Свяжитесь с Hena для корпоративных решений",
   "enterprise.hero.title": "Ваш код принадлежит вам",
   "enterprise.hero.body1":
-    "Hena Agent безопасно работает внутри вашей организации: не хранит данные и контекст, без лицензионных ограничений и претензий на собственность. Начните пробный период с командой, затем разверните по всей организации, интегрировав с SSO и внутренним AI-шлюзом.",
+    "Hena безопасно работает внутри вашей организации: не хранит данные и контекст, без лицензионных ограничений и претензий на собственность. Начните пробный период с командой, затем разверните по всей организации, интегрировав с SSO и внутренним AI-шлюзом.",
   "enterprise.hero.body2": "Сообщите нам, чем мы можем помочь.",
   "enterprise.form.name.label": "Полное имя",
   "enterprise.form.name.placeholder": "Джефф Безос",
@@ -779,29 +779,29 @@ export const dict = {
   "enterprise.form.error.invalidEmailFormat": "Неверный формат email.",
   "enterprise.form.error.internalServer": "Внутренняя ошибка сервера.",
   "enterprise.faq.title": "FAQ",
-  "enterprise.faq.q1": "Что такое Hena Agent Enterprise?",
+  "enterprise.faq.q1": "Что такое Hena Enterprise?",
   "enterprise.faq.a1":
-    "Hena Agent Enterprise предназначен для организаций, которые хотят гарантировать, что их код и данные никогда не покинут их инфраструктуру. Это достигается за счет централизованной конфигурации, интегрированной с вашим SSO и внутренним AI-шлюзом.",
-  "enterprise.faq.q2": "Как начать работу с Hena Agent Enterprise?",
+    "Hena Enterprise предназначен для организаций, которые хотят гарантировать, что их код и данные никогда не покинут их инфраструктуру. Это достигается за счет централизованной конфигурации, интегрированной с вашим SSO и внутренним AI-шлюзом.",
+  "enterprise.faq.q2": "Как начать работу с Hena Enterprise?",
   "enterprise.faq.a2":
-    "Просто начните с внутреннего триала с вашей командой. Hena Agent по умолчанию не хранит ваш код или контекстные данные, поэтому начать легко. Затем свяжитесь с нами, чтобы обсудить цены и варианты внедрения.",
+    "Просто начните с внутреннего триала с вашей командой. Hena по умолчанию не хранит ваш код или контекстные данные, поэтому начать легко. Затем свяжитесь с нами, чтобы обсудить цены и варианты внедрения.",
   "enterprise.faq.q3": "Как работает корпоративное ценообразование?",
   "enterprise.faq.a3":
     "Мы предлагаем модель ценообразования за рабочее место (per-seat). Если у вас есть собственный LLM-шлюз, мы не взимаем плату за использованные токены. Для получения подробной информации свяжитесь с нами для индивидуального расчета на основе потребностей вашей организации.",
-  "enterprise.faq.q4": "Безопасны ли мои данные с Hena Agent Enterprise?",
+  "enterprise.faq.q4": "Безопасны ли мои данные с Hena Enterprise?",
   "enterprise.faq.a4":
-    "Да. Hena Agent не хранит ваш код или контекстные данные. Вся обработка происходит локально или через прямые вызовы API к вашему AI-провайдеру. Благодаря централизованной конфигурации и интеграции SSO ваши данные остаются защищенными внутри инфраструктуры вашей организации.",
+    "Да. Hena не хранит ваш код или контекстные данные. Вся обработка происходит локально или через прямые вызовы API к вашему AI-провайдеру. Благодаря централизованной конфигурации и интеграции SSO ваши данные остаются защищенными внутри инфраструктуры вашей организации.",
 
-  "brand.title": "Hena Agent | Бренд",
-  "brand.meta.description": "Гайдлайны бренда Hena Agent",
+  "brand.title": "Hena | Бренд",
+  "brand.meta.description": "Гайдлайны бренда Hena",
   "brand.heading": "Гайдлайны бренда",
-  "brand.subtitle": "Ресурсы и активы, которые помогут вам работать с брендом Hena Agent.",
+  "brand.subtitle": "Ресурсы и активы, которые помогут вам работать с брендом Hena.",
   "brand.downloadAll": "Скачать все ресурсы",
 
-  "changelog.title": "Hena Agent | Список изменений",
-  "changelog.meta.description": "Примечания к релизам и список изменений Hena Agent",
+  "changelog.title": "Hena | Список изменений",
+  "changelog.meta.description": "Примечания к релизам и список изменений Hena",
   "changelog.hero.title": "Список изменений",
-  "changelog.hero.subtitle": "Новые обновления и улучшения Hena Agent",
+  "changelog.hero.subtitle": "Новые обновления и улучшения Hena",
   "changelog.empty": "Записи в списке изменений не найдены.",
   "changelog.viewJson": "Посмотреть JSON",
 

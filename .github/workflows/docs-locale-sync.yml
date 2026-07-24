@@ -10,7 +10,7 @@ on:
 jobs:
   sync-locales:
     if: false
-    #if: github.actor != 'hena-agent[bot]'
+    #if: github.actor != 'hena[bot]'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write
@@ -29,8 +29,8 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          hena-agent-app-id: ${{ vars.HENA_AGENT_APP_ID }}
-          hena-agent-app-secret: ${{ secrets.HENA_AGENT_APP_SECRET }}
+          hena-app-id: ${{ vars.HENA_APP_ID }}
+          hena-app-secret: ${{ secrets.HENA_APP_SECRET }}
 
       - name: Compute changed English docs
         id: changes
@@ -48,15 +48,15 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Install Hena Agent
+      - name: Install Hena
         if: steps.changes.outputs.has_changes == 'true'
         run: curl -fsSL https://hena.dev/install | bash
 
-      - name: Sync locale docs with Hena Agent
+      - name: Sync locale docs with Hena
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          HENA_AGENT_API_KEY: ${{ secrets.HENA_AGENT_API_KEY }}
-          HENA_AGENT_CONFIG_CONTENT: |
+          HENA_API_KEY: ${{ secrets.HENA_API_KEY }}
+          HENA_CONFIG_CONTENT: |
             {
               "permission": {
                 "*": "deny",
@@ -67,7 +67,7 @@ jobs:
               }
             }
         run: |
-          hena-agent run --agent docs --model hena-agent/gpt-5.3-codex <<'EOF'
+          hena run --agent docs --model hena/gpt-5.3-codex <<'EOF'
             Update localized docs to match the latest English docs changes.
 
             Changed English doc files:
@@ -77,7 +77,7 @@ jobs:
 
             Requirements:
             1. Update all relevant locale docs under packages/web/src/content/docs/<locale>/ so they reflect these English page changes.
-            2. You MUST use the Task tool for translation work and launch subagents with subagent_type `translator` (defined in .hena-agent/agent/translator.md).
+            2. You MUST use the Task tool for translation work and launch subagents with subagent_type `translator` (defined in .hena/agent/translator.md).
             3. Do not translate directly in the primary agent. Use translator subagent output as the source for locale text updates.
             4. Run translator subagent Task calls in parallel whenever file/locale translation work is independent.
             5. Use only the minimum tools needed for this task (read/glob, file edits, and translator Task). Do not use shell, web, search, or GitHub tools for translation work.

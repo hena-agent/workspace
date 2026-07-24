@@ -2,9 +2,9 @@
 
 ## Goal
 
-Create a small workspace package that vendors the Drizzle `effect-sqlite` adapter shape for our repo. This is not a Hena Agent storage abstraction. It is a local package that ports the Drizzle Effect SQLite implementation so we can use it before/independently of upstream release timing.
+Create a small workspace package that vendors the Drizzle `effect-sqlite` adapter shape for our repo. This is not a Hena storage abstraction. It is a local package that ports the Drizzle Effect SQLite implementation so we can use it before/independently of upstream release timing.
 
-`packages/hena-agent` will use it internally, but the package itself should be generic: Drizzle + Effect + SQLite. No Hena Agent paths, migrations, tables, transaction hooks, post-commit behavior, or domain language should live in this package.
+`packages/hena` will use it internally, but the package itself should be generic: Drizzle + Effect + SQLite. No Hena paths, migrations, tables, transaction hooks, post-commit behavior, or domain language should live in this package.
 
 ## Package Shape
 
@@ -18,7 +18,7 @@ Add a package similar in style to `packages/http-recorder`:
 
 Package name:
 
-- `@hena-agent/effect-drizzle-sqlite`
+- `@hena/effect-drizzle-sqlite`
 
 Initial exports:
 
@@ -78,29 +78,29 @@ Notes:
 - `make` / `makeWithDefaults` should match the Drizzle Effect SQLite branch as much as possible.
 - `DefaultServices` should provide Drizzle's default logger/cache services, same as Effect Postgres.
 - The package should depend on Effect SQL SQLite clients (`@effect/sql-sqlite-bun` and/or node) the same way the Drizzle branch does.
-- Hena Agent-specific path/channel selection stays in `packages/hena-agent`.
+- Hena-specific path/channel selection stays in `packages/hena`.
 
-## Hena Agent Adoption Notes
+## Hena Adoption Notes
 
-These are not package requirements, but they matter for the later Hena Agent adoption PR.
+These are not package requirements, but they matter for the later Hena adoption PR.
 
-The current `packages/hena-agent/src/storage/db.ts` has two non-obvious semantics that the Hena Agent wrapper must preserve when it consumes this adapter:
+The current `packages/hena/src/storage/db.ts` has two non-obvious semantics that the Hena wrapper must preserve when it consumes this adapter:
 
 - Nested `Database.use` inside `Database.transaction` sees the current transaction, not the root client.
 - `Database.effect` queues post-commit side effects while inside a transaction, and runs immediately outside a transaction.
 
-The Hena Agent wrapper can implement that using Effect context instead of `LocalContext`:
+The Hena wrapper can implement that using Effect context instead of `LocalContext`:
 
 - A private transaction context holding `{ tx, afterCommit }`.
 - `withDb`/`db` methods read the current transaction context if present, otherwise use the root db.
 - `transaction` installs a transaction context around the effect.
 - Nested transactions can either reuse the existing tx initially, matching current behavior, or later use explicit savepoints if needed.
 
-Do not remove this behavior while moving Hena Agent to Effect SQLite. `SyncEvent.run` depends on transaction composability and `behavior: "immediate"` for sequencing correctness.
+Do not remove this behavior while moving Hena to Effect SQLite. `SyncEvent.run` depends on transaction composability and `behavior: "immediate"` for sequencing correctness.
 
 ## Migration Strategy
 
-1. Add `@hena-agent/effect-drizzle-sqlite` with a minimal in-memory/file SQLite test schema.
+1. Add `@hena/effect-drizzle-sqlite` with a minimal in-memory/file SQLite test schema.
 2. Port the Drizzle Effect SQLite adapter from the SQLite branch into the package, preserving upstream names and API shape.
 3. Test adapter-level guarantees:
    - query builders are yieldable Effect values,
@@ -108,38 +108,38 @@ Do not remove this behavior while moving Hena Agent to Effect SQLite. `SyncEvent
    - failed transaction rolls back,
    - migrations run once and in order,
    - close finalizer closes the underlying SQLite database.
-4. Add `@hena-agent/effect-drizzle-sqlite` as a dependency of `packages/hena-agent`.
-5. Port `packages/hena-agent/src/storage/db.ts` to be a thin compatibility wrapper over the adapter plus Hena Agent-specific transaction/post-commit context.
+4. Add `@hena/effect-drizzle-sqlite` as a dependency of `packages/hena`.
+5. Port `packages/hena/src/storage/db.ts` to be a thin compatibility wrapper over the adapter plus Hena-specific transaction/post-commit context.
 6. Keep existing call sites working first:
    - `Database.Client()`
    - `Database.use(...)`
    - `Database.transaction(...)`
    - `Database.effect(...)`
 7. After compatibility is stable, migrate call sites from callback-style `Database.use` to yielding Effect Drizzle queries directly.
-8. Only then build domain stores like session/message/project stores on top of Hena Agent's storage wrapper.
+8. Only then build domain stores like session/message/project stores on top of Hena's storage wrapper.
 
 ## Why This Is Cleaner Than Starting With SessionStorage
 
 `SessionStorage` is a useful domain seam, but it does not answer the core adapter problem: how to make Drizzle SQLite Effect-native in this repo.
 
-An Effect Drizzle SQLite package lets us vendor the adapter once. Then Hena Agent can build its own storage wrapper on top, and `SessionStorage`, `MessageStorage`, event store, and projector writes can all share the same transaction and migration model.
+An Effect Drizzle SQLite package lets us vendor the adapter once. Then Hena can build its own storage wrapper on top, and `SessionStorage`, `MessageStorage`, event store, and projector writes can all share the same transaction and migration model.
 
 ## Open Questions
 
 - Which client should the first package target: `@effect/sql-sqlite-bun`, `@effect/sql-sqlite-node`, or both behind separate layers?
 - How much source should we copy from the Drizzle branch versus import from catalog `drizzle-orm` internals?
 - What is the update path once Drizzle upstream ships `effect-sqlite`?
-- Should `afterCommit` stay Hena Agent-specific until event publishing moves? Default answer: yes.
+- Should `afterCommit` stay Hena-specific until event publishing moves? Default answer: yes.
 - Should the compatibility wrapper preserve synchronous return types temporarily, or should the migration intentionally force Effect call sites?
-- Do CLI/admin raw SQL and sqlite shell stay in `packages/hena-agent`, or does the storage package expose backend capabilities for them?
+- Do CLI/admin raw SQL and sqlite shell stay in `packages/hena`, or does the storage package expose backend capabilities for them?
 
 ## Recommended First PR
 
 Make the first PR package-only and intentionally boring:
 
 - Add `packages/effect-drizzle-sqlite`.
-- Use a tiny test schema, not Hena Agent domain tables.
+- Use a tiny test schema, not Hena domain tables.
 - Prove Effect Drizzle SQLite queries, transactions, and migrations.
-- Do not migrate `packages/hena-agent` yet except possibly adding the dependency if needed for typechecking.
+- Do not migrate `packages/hena` yet except possibly adding the dependency if needed for typechecking.
 
-That gives us a focused place to validate the Effect SQLite approach before disturbing Hena Agent's current database runtime.
+That gives us a focused place to validate the Effect SQLite approach before disturbing Hena's current database runtime.

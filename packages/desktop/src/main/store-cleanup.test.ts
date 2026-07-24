@@ -7,7 +7,7 @@ import { cleanupStoreFiles, deleteStoreFileIfEmpty } from "./store-cleanup"
 const roots: string[] = []
 
 async function tempRoot() {
-  const root = await mkdtemp(join(tmpdir(), "hena-agent-store-cleanup-"))
+  const root = await mkdtemp(join(tmpdir(), "hena-store-cleanup-"))
   roots.push(root)
   return root
 }
@@ -25,37 +25,37 @@ describe("store cleanup", () => {
   test("removes empty scoped stores and leaves global stores alone", async () => {
     const root = await tempRoot()
     const now = new Date("2026-07-01T00:00:00.000Z")
-    await writeStore(root, "hena-agent.draft.empty.dat", "{}", now)
-    await writeStore(root, "hena-agent.workspace.empty.dat", "{\n}", now)
-    await writeStore(root, "hena-agent.global.dat", "{}", now)
-    await writeStore(root, "hena-agent.workspace.empty.dat.json", "{}", now)
+    await writeStore(root, "hena.draft.empty.dat", "{}", now)
+    await writeStore(root, "hena.workspace.empty.dat", "{\n}", now)
+    await writeStore(root, "hena.global.dat", "{}", now)
+    await writeStore(root, "hena.workspace.empty.dat.json", "{}", now)
 
     const result = await cleanupStoreFiles(root, now.getTime())
 
-    expect(result.deleted.sort()).toEqual(["hena-agent.draft.empty.dat", "hena-agent.workspace.empty.dat"])
-    expect((await readdir(root)).sort()).toEqual(["hena-agent.global.dat", "hena-agent.workspace.empty.dat.json"])
+    expect(result.deleted.sort()).toEqual(["hena.draft.empty.dat", "hena.workspace.empty.dat"])
+    expect((await readdir(root)).sort()).toEqual(["hena.global.dat", "hena.workspace.empty.dat.json"])
   })
 
   test("removes stale drafts by age without removing non-empty workspace stores", async () => {
     const root = await tempRoot()
     const now = new Date("2026-07-01T00:00:00.000Z")
-    await writeStore(root, "hena-agent.draft.old.dat", '{"draft:prompt":"hello"}', new Date("2026-05-01T00:00:00.000Z"))
-    await writeStore(root, "hena-agent.draft.recent.dat", '{"draft:prompt":"hello"}', now)
+    await writeStore(root, "hena.draft.old.dat", '{"draft:prompt":"hello"}', new Date("2026-05-01T00:00:00.000Z"))
+    await writeStore(root, "hena.draft.recent.dat", '{"draft:prompt":"hello"}', now)
     await writeStore(
       root,
-      "hena-agent.workspace.old.dat",
+      "hena.workspace.old.dat",
       '{"workspace:layout":"wide"}',
       new Date("2025-01-01T00:00:00.000Z"),
     )
-    await writeStore(root, "hena-agent.workspace.recent.dat", '{"workspace:layout":"wide"}', now)
+    await writeStore(root, "hena.workspace.recent.dat", '{"workspace:layout":"wide"}', now)
 
     const result = await cleanupStoreFiles(root, now.getTime())
 
-    expect(result.deleted).toEqual(["hena-agent.draft.old.dat"])
+    expect(result.deleted).toEqual(["hena.draft.old.dat"])
     expect((await readdir(root)).sort()).toEqual([
-      "hena-agent.draft.recent.dat",
-      "hena-agent.workspace.old.dat",
-      "hena-agent.workspace.recent.dat",
+      "hena.draft.recent.dat",
+      "hena.workspace.old.dat",
+      "hena.workspace.recent.dat",
     ])
   })
 
@@ -66,7 +66,7 @@ describe("store cleanup", () => {
       Array.from({ length: 102 }, (_, index) =>
         writeStore(
           root,
-          `hena-agent.draft.${index}.dat`,
+          `hena.draft.${index}.dat`,
           '{"draft:prompt":"hello"}',
           new Date(now.getTime() - index * 1000),
         ),
@@ -77,17 +77,17 @@ describe("store cleanup", () => {
 
     const remaining = await readdir(root)
 
-    expect(result.deleted.sort()).toEqual(["hena-agent.draft.100.dat", "hena-agent.draft.101.dat"])
+    expect(result.deleted.sort()).toEqual(["hena.draft.100.dat", "hena.draft.101.dat"])
     expect(remaining).toHaveLength(100)
   })
 
   test("removes a scoped store immediately when it becomes empty", async () => {
     const root = await tempRoot()
-    await writeStore(root, "hena-agent.draft.empty.dat", "{}", new Date("2026-07-01T00:00:00.000Z"))
-    await writeStore(root, "hena-agent.global.dat", "{}", new Date("2026-07-01T00:00:00.000Z"))
+    await writeStore(root, "hena.draft.empty.dat", "{}", new Date("2026-07-01T00:00:00.000Z"))
+    await writeStore(root, "hena.global.dat", "{}", new Date("2026-07-01T00:00:00.000Z"))
 
-    expect(await deleteStoreFileIfEmpty(root, "hena-agent.draft.empty.dat")).toBe(true)
-    expect(await deleteStoreFileIfEmpty(root, "hena-agent.global.dat")).toBe(false)
-    expect(await readdir(root)).toEqual(["hena-agent.global.dat"])
+    expect(await deleteStoreFileIfEmpty(root, "hena.draft.empty.dat")).toBe(true)
+    expect(await deleteStoreFileIfEmpty(root, "hena.global.dat")).toBe(false)
+    expect(await readdir(root)).toEqual(["hena.global.dat"])
   })
 })

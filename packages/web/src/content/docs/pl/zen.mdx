@@ -1,17 +1,17 @@
 ---
 title: Zen
-description: Wyselekcjonowana lista modeli dostarczonych przez Hena Agent.
+description: Wyselekcjonowana lista modeli dostarczonych przez Hena.
 ---
 
 import config from "../../../../config.mjs"
 export const console = config.console
 export const email = `mailto:${config.email}`
 
-Hena Zen to lista przetestowanych i zweryfikowanych modeli udostępniana przez zespół Hena Agent.
+Hena Zen to lista przetestowanych i zweryfikowanych modeli udostępniana przez zespół Hena.
 
-Zen działa jak każdy inny dostawca w Hena Agent. Logujesz się do Hena Zen i otrzymujesz
+Zen działa jak każdy inny dostawca w Hena. Logujesz się do Hena Zen i otrzymujesz
 swój klucz API. To **całkowicie opcjonalne** i nie musisz z tego korzystać, aby używać
-Hena Agent.
+Hena.
 
 ---
 
@@ -22,7 +22,7 @@ agenci kodujący. Dodatkowo większość dostawców jest skonfigurowana bardzo r
 więc otrzymujesz bardzo różną wydajność i jakość.
 
 :::tip
-Przetestowaliśmy wybraną grupę modeli i dostawców, którzy dobrze współpracują z Hena Agent.
+Przetestowaliśmy wybraną grupę modeli i dostawców, którzy dobrze współpracują z Hena.
 :::
 
 Jeśli więc używasz modelu przez coś takiego jak OpenRouter, nigdy nie masz
@@ -43,7 +43,7 @@ Hena Zen to brama AI, która daje dostęp do tych modeli.
 
 ## Jak to działa
 
-Hena Zen działa jak każdy inny dostawca w Hena Agent.
+Hena Zen działa jak każdy inny dostawca w Hena.
 
 1. Logujesz się do **<a href={console}>Hena Zen</a>**, dodajesz dane
    rozliczeniowe i kopiujesz swój klucz API.
@@ -118,9 +118,9 @@ Możesz też uzyskać dostęp do naszych modeli przez poniższe endpointy API.
 | Nemotron 3 Ultra Free  | nemotron-3-ultra-free  | `https://hena.dev/zen/v1/chat/completions`             | `@ai-sdk/openai-compatible` |
 | DeepSeek V4 Flash Free | deepseek-v4-flash-free | `https://hena.dev/zen/v1/chat/completions`             | `@ai-sdk/openai-compatible` |
 
-[ID modelu](/docs/config/#models) w Twojej konfiguracji Hena Agent używa formatu
-`hena-agent/<model-id>`. Na przykład dla GPT 5.5 użyjesz w konfiguracji
-`hena-agent/gpt-5.5`.
+[ID modelu](/docs/config/#models) w Twojej konfiguracji Hena używa formatu
+`hena/<model-id>`. Na przykład dla GPT 5.5 użyjesz w konfiguracji
+`hena/gpt-5.5`.
 
 ---
 
@@ -206,7 +206,7 @@ Obsługujemy model pay-as-you-go. Poniżej znajdują się ceny **za 1M tokenów*
 | GPT 5 Codex                       | $1.07   | $8.50   | $0.107         | -              |
 | GPT 5 Nano                        | $0.05   | $0.40   | $0.005         | -              |
 
-W historii użycia możesz zauważyć [niedrogie modele](/docs/config/#models), takie jak Haiku, Nano lub Flash. Hena Agent używa tych modeli do generowania tytułów sesji.
+W historii użycia możesz zauważyć [niedrogie modele](/docs/config/#models), takie jak Haiku, Nano lub Flash. Hena używa tych modeli do generowania tytułów sesji.
 
 :::note
 Opłaty za karty kredytowe są przenoszone po kosztach (4.4% + $0.30 per transaction); nie naliczamy nic ponad to.
@@ -214,12 +214,12 @@ Opłaty za karty kredytowe są przenoszone po kosztach (4.4% + $0.30 per transac
 
 Darmowe modele:
 
-- DeepSeek V4 Flash Free jest dostępny w Hena Agent przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
-- MiMo-V2.5 Free jest dostępny w Hena Agent przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
-- Laguna S 2.1 Free jest dostępny w Hena Agent przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
-- North Mini Code Free jest dostępny w Hena Agent przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
-- Nemotron 3 Ultra Free jest dostępny w Hena Agent przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
-- Big Pickle to stealth model, który jest darmowy w Hena Agent przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- DeepSeek V4 Flash Free jest dostępny w Hena przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- MiMo-V2.5 Free jest dostępny w Hena przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- Laguna S 2.1 Free jest dostępny w Hena przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- North Mini Code Free jest dostępny w Hena przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- Nemotron 3 Ultra Free jest dostępny w Hena przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
+- Big Pickle to stealth model, który jest darmowy w Hena przez ograniczony czas. Zespół wykorzystuje ten czas do zbierania opinii i ulepszania modelu.
 
 <a href={email}>Skontaktuj się z nami</a>, jeśli masz pytania.
 
@@ -335,4 +335,4 @@ Stworzyliśmy Hena Zen, aby:
 1. **Benchmarkować** najlepsze modele/dostawców dla agentów kodujących.
 2. Mieć dostęp do opcji o **najwyższej jakości** i nie obniżać wydajności ani nie kierować ruchu do tańszych dostawców.
 3. Przekazywać wszelkie **obniżki cen**, sprzedając po kosztach; jedyna marża pokrywa nasze opłaty za przetwarzanie.
-4. Nie tworzyć **lock-in**, pozwalając używać tego z dowolnym innym agentem kodującym. I zawsze pozwalać Ci używać w Hena Agent także dowolnego innego dostawcy.
+4. Nie tworzyć **lock-in**, pozwalając używać tego z dowolnym innym agentem kodującym. I zawsze pozwalać Ci używać w Hena także dowolnego innego dostawcy.

@@ -1,11 +1,11 @@
-import { useDialog } from "@hena-agent/ui/context/dialog"
-import { showToast } from "@hena-agent/ui/toast"
-import { ButtonV2 } from "@hena-agent/ui/v2/button-v2"
-import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@hena-agent/ui/v2/dialog-v2"
-import { DividerV2 } from "@hena-agent/ui/v2/divider-v2"
-import { LoaderV2 } from "@hena-agent/ui/v2/loader-v2"
-import { RadioGroupV2, RadioItemV2 } from "@hena-agent/ui/v2/radio-v2"
-import { TextInputV2 } from "@hena-agent/ui/v2/text-input-v2"
+import { useDialog } from "@hena/ui/context/dialog"
+import { showToast } from "@hena/ui/toast"
+import { ButtonV2 } from "@hena/ui/v2/button-v2"
+import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@hena/ui/v2/dialog-v2"
+import { DividerV2 } from "@hena/ui/v2/divider-v2"
+import { LoaderV2 } from "@hena/ui/v2/loader-v2"
+import { RadioGroupV2, RadioItemV2 } from "@hena/ui/v2/radio-v2"
+import { TextInputV2 } from "@hena/ui/v2/text-input-v2"
 import { createMemo, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/context/language"
@@ -338,8 +338,8 @@ function useWslAddServerController(props: DialogWslServerProps) {
     const distro = model().selectedDistro
     const action = button.action
     if (!distro || !action) return
-    if (action === "install-hena-agent") {
-      await run(() => api.installHenaAgent(distro))
+    if (action === "install-hena") {
+      await run(() => api.installHena(distro))
       return
     }
     setStore("adding", true)

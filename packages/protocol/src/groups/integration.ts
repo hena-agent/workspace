@@ -1,5 +1,5 @@
-import { Integration } from "@hena-agent/schema/integration"
-import { Location } from "@hena-agent/schema/location"
+import { Integration } from "@hena/schema/integration"
+import { Location } from "@hena/schema/location"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import { InvalidRequestError } from "../errors"

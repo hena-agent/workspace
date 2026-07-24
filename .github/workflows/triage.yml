@@ -22,7 +22,7 @@ jobs:
           LOGIN="${{ github.event.issue.user.login }}"
           ASSOCIATION="${{ github.event.issue.author_association }}"
 
-          if [ "$LOGIN" = "hena-agent[bot]" ] ||
+          if [ "$LOGIN" = "hena[bot]" ] ||
              [ "$ASSOCIATION" = "OWNER" ] ||
              [ "$ASSOCIATION" = "MEMBER" ] ||
              grep -qxiF "$LOGIN" .github/TEAM_MEMBERS; then
@@ -36,20 +36,20 @@ jobs:
         if: steps.author.outputs.skip != 'true'
         uses: ./.github/actions/setup-bun
 
-      - name: Install Hena Agent
+      - name: Install Hena
         if: steps.author.outputs.skip != 'true'
         run: curl -fsSL https://hena.dev/install | bash
 
       - name: Triage issue
         if: steps.author.outputs.skip != 'true'
         env:
-          HENA_AGENT_API_KEY: ${{ secrets.HENA_AGENT_API_KEY }}
+          HENA_API_KEY: ${{ secrets.HENA_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
-          hena-agent run --agent triage "The following issue was just opened, triage it:
+          hena run --agent triage "The following issue was just opened, triage it:
 
           Title: $ISSUE_TITLE
 

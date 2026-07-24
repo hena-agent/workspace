@@ -1,4 +1,4 @@
-import type { WslServersState } from "@hena-agent/app/wsl/types"
+import type { WslServersState } from "@hena/app/wsl/types"
 
 export function readyWslConnections(state?: WslServersState) {
   return (state?.servers ?? []).flatMap((item) => {

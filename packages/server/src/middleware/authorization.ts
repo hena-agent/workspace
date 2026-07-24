@@ -1,8 +1,8 @@
 import { ServerAuth } from "../auth"
-import { UnauthorizedError } from "@hena-agent/protocol/errors"
-import { Authorization } from "@hena-agent/protocol/middleware/authorization"
-export { Authorization } from "@hena-agent/protocol/middleware/authorization"
-import { hasPtyConnectTicketURL } from "@hena-agent/protocol/groups/pty"
+import { UnauthorizedError } from "@hena/protocol/errors"
+import { Authorization } from "@hena/protocol/middleware/authorization"
+export { Authorization } from "@hena/protocol/middleware/authorization"
+import { hasPtyConnectTicketURL } from "@hena/protocol/groups/pty"
 import { Effect, Encoding, Layer, Redacted } from "effect"
 import { HttpEffect, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 

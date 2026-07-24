@@ -3,7 +3,7 @@ title: "Agentfærdigheder"
 description: "Definer gjenbrugbar atferd via SKILL.md-definisjoner"
 ---
 
-Agentferdigheter lar Hena Agent oppdage gjenbrugbare instruksjoner fra repo- eller hjemmekatalogen din.
+Agentferdigheter lar Hena oppdage gjenbrugbare instruksjoner fra repo- eller hjemmekatalogen din.
 Ferdigheter lastes inn på forespørsel via det opprinnelige `skill`-verktøyet – agenter ser tilgængelige ferdigheter og kan laste inn hele innholdet når det er nødvendig.
 
 ---
@@ -11,10 +11,10 @@ Ferdigheter lastes inn på forespørsel via det opprinnelige `skill`-verktøyet 
 ## Placer filer
 
 Opret én mappe per ferdighetsnavn og tilføj inn en `SKILL.md` i den.
-Hena Agent søker etter disse stedene:
+Hena søker etter disse stedene:
 
-- Prosjektkonfigurasjon: `.hena-agent/skills/<name>/SKILL.md`
-- Global konfigurasjon: `~/.config/hena-agent/skills/<name>/SKILL.md`
+- Prosjektkonfigurasjon: `.hena/skills/<name>/SKILL.md`
+- Global konfigurasjon: `~/.config/hena/skills/<name>/SKILL.md`
 - Prosjekt Claude-kompatibel: `.claude/skills/<name>/SKILL.md`
 - Global Claude-kompatibel: `~/.claude/skills/<name>/SKILL.md`
 - Prosjektagent-kompatibel: `.agents/skills/<name>/SKILL.md`
@@ -24,10 +24,10 @@ Hena Agent søker etter disse stedene:
 
 ## Forstå opdagelsen
 
-For prosjektlokale stier går Hena Agent opp fra din nåværende arbejdskatalog til den når git-arbeidstreet.
-Den laster alle matchende `skills/*/SKILL.md` i `.hena-agent/` og alle matchende `.claude/skills/*/SKILL.md` eller `.agents/skills/*/SKILL.md` underveis.
+For prosjektlokale stier går Hena opp fra din nåværende arbejdskatalog til den når git-arbeidstreet.
+Den laster alle matchende `skills/*/SKILL.md` i `.hena/` og alle matchende `.claude/skills/*/SKILL.md` eller `.agents/skills/*/SKILL.md` underveis.
 
-Globale definisjoner lastes også inn fra `~/.config/hena-agent/skills/*/SKILL.md`, `~/.claude/skills/*/SKILL.md` og `~/.agents/skills/*/SKILL.md`.
+Globale definisjoner lastes også inn fra `~/.config/hena/skills/*/SKILL.md`, `~/.claude/skills/*/SKILL.md` og `~/.agents/skills/*/SKILL.md`.
 
 ---
 
@@ -73,14 +73,14 @@ Hold det spesifikt nok til at agenten kan velge riktig.
 
 ## Brug et eksempel
 
-Lag `.hena-agent/skills/git-release/SKILL.md` slik:
+Lag `.hena/skills/git-release/SKILL.md` slik:
 
 ```markdown
 ---
 name: git-release
 description: Create consistent releases and changelogs
 license: MIT
-compatibility: hena-agent
+compatibility: hena
 metadata:
   audience: maintainers
   workflow: github
@@ -102,7 +102,7 @@ Ask clarifying questions if the target versioning scheme is unclear.
 
 ## Genkend værktøjsbeskrivelsen
 
-Hena Agent viser tilgængelige ferdigheter i `skill` verktøybeskrivelsen.
+Hena viser tilgængelige ferdigheter i `skill` verktøybeskrivelsen.
 Hver oppføring inneholder ferdighetsnavnet og beskrivelsen:
 
 ```xml
@@ -124,7 +124,7 @@ skill({ name: "git-release" })
 
 ## Konfigurer tilladelser
 
-Kontroller hvilke ferdigheter agenter har tilgang til ved at bruge mønsterbaserte tillatelser i `hena-agent.json`:
+Kontroller hvilke ferdigheter agenter har tilgang til ved at bruge mønsterbaserte tillatelser i `hena.json`:
 
 ```json
 {
@@ -163,7 +163,7 @@ permission:
 ---
 ```
 
-**For innebygde agenter** (i `hena-agent.json`):
+**For innebygde agenter** (i `hena.json`):
 
 ```json
 {

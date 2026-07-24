@@ -1,8 +1,8 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Credential } from "@hena-agent/core/credential"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { Integration } from "@hena-agent/core/integration"
+import { Credential } from "@hena/core/credential"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { Integration } from "@hena/core/integration"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(LayerNode.compile(Credential.node))

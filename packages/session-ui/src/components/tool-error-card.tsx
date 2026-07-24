@@ -1,11 +1,11 @@
 import { type ComponentProps, createMemo, Show, splitProps } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Card, CardDescription } from "@hena-agent/ui/card"
-import { Collapsible } from "@hena-agent/ui/collapsible"
-import { Icon } from "@hena-agent/ui/icon"
-import { IconButton } from "@hena-agent/ui/icon-button"
-import { Tooltip } from "@hena-agent/ui/tooltip"
-import { useI18n } from "@hena-agent/ui/context/i18n"
+import { Card, CardDescription } from "@hena/ui/card"
+import { Collapsible } from "@hena/ui/collapsible"
+import { Icon } from "@hena/ui/icon"
+import { IconButton } from "@hena/ui/icon-button"
+import { Tooltip } from "@hena/ui/tooltip"
+import { useI18n } from "@hena/ui/context/i18n"
 
 export interface ToolErrorCardProps extends Omit<ComponentProps<typeof Card>, "children" | "variant"> {
   tool: string

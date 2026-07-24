@@ -26,7 +26,7 @@ export interface MockServerConfig {
   sessionStatus?: unknown
 }
 
-export async function mockHenaAgentServer(page: Page, config: MockServerConfig) {
+export async function mockHenaServer(page: Page, config: MockServerConfig) {
   const cursors = new Map<string, string>()
   let nextCursor = 0
   const staticRoutes: Record<string, unknown> = {
@@ -36,7 +36,7 @@ export async function mockHenaAgentServer(page: Page, config: MockServerConfig) 
       config: config.directory,
       worktree: config.directory,
       directory: config.directory,
-      home: "C:/Hena Agent",
+      home: "C:/Hena",
     },
     "/project": [config.project],
     "/project/current": config.project,

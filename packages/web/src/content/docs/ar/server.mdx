@@ -1,19 +1,19 @@
 ---
 title: الخادم
-description: تفاعل مع خادم hena-agent عبر HTTP.
+description: تفاعل مع خادم hena عبر HTTP.
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-يشغّل الأمر `hena-agent serve` خادما HTTP دون واجهة ويعرض نقطة نهاية OpenAPI يمكن لعميل hena-agent استخدامها.
+يشغّل الأمر `hena serve` خادما HTTP دون واجهة ويعرض نقطة نهاية OpenAPI يمكن لعميل hena استخدامها.
 
 ---
 
 ### الاستخدام
 
 ```bash
-hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
+hena serve [--port <number>] [--hostname <string>] [--cors <origin>]
 ```
 
 #### الخيارات
@@ -23,41 +23,41 @@ hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
 | `--port`        | المنفذ الذي يستمع عليه                | `4096`           |
 | `--hostname`    | اسم المضيف الذي يستمع عليه            | `127.0.0.1`      |
 | `--mdns`        | تفعيل اكتشاف mDNS                     | `false`          |
-| `--mdns-domain` | اسم نطاق مخصص لخدمة mDNS              | `hena-agent.local` |
+| `--mdns-domain` | اسم نطاق مخصص لخدمة mDNS              | `hena.local` |
 | `--cors`        | أصول (Origins) متصفح إضافية مسموح بها | `[]`             |
 
 يمكن تمرير `--cors` عدة مرات:
 
 ```bash
-hena-agent serve --cors http://localhost:5173 --cors https://app.example.com
+hena serve --cors http://localhost:5173 --cors https://app.example.com
 ```
 
 ---
 
 ### المصادقة
 
-عيّن `HENA_AGENT_SERVER_PASSWORD` لحماية الخادم باستخدام مصادقة HTTP الأساسية. اسم المستخدم افتراضيا هو `hena-agent`، أو عيّن `HENA_AGENT_SERVER_USERNAME` لتغييره. ينطبق ذلك على كل من `hena-agent serve` و `hena-agent web`.
+عيّن `HENA_SERVER_PASSWORD` لحماية الخادم باستخدام مصادقة HTTP الأساسية. اسم المستخدم افتراضيا هو `hena`، أو عيّن `HENA_SERVER_USERNAME` لتغييره. ينطبق ذلك على كل من `hena serve` و `hena web`.
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve
+HENA_SERVER_PASSWORD=your-password hena serve
 ```
 
 ---
 
 ### كيف يعمل
 
-عند تشغيل `hena-agent` يبدأ تشغيل واجهة terminal تفاعلية (TUI) وخادما. تكون الـ TUI هي
+عند تشغيل `hena` يبدأ تشغيل واجهة terminal تفاعلية (TUI) وخادما. تكون الـ TUI هي
 العميل الذي يتحدث إلى الخادم. يوفّر الخادم نقطة نهاية لمواصفة OpenAPI 3.1.
 وتُستخدم هذه النقطة أيضا لتوليد [SDK](/docs/sdk).
 
 :::tip
-استخدم خادم hena-agent للتفاعل مع hena-agent برمجيا.
+استخدم خادم hena للتفاعل مع hena برمجيا.
 :::
 
-تتيح هذه البنية لـ hena-agent دعم عدة عملاء وتمكّنك من التفاعل مع hena-agent برمجيا.
+تتيح هذه البنية لـ hena دعم عدة عملاء وتمكّنك من التفاعل مع hena برمجيا.
 
-يمكنك تشغيل `hena-agent serve` لبدء خادم مستقل. إذا كانت واجهة hena-agent في terminal (TUI)
-قيد التشغيل، فسيبدأ `hena-agent serve` خادما جديدا.
+يمكنك تشغيل `hena serve` لبدء خادم مستقل. إذا كانت واجهة hena في terminal (TUI)
+قيد التشغيل، فسيبدأ `hena serve` خادما جديدا.
 
 ---
 
@@ -65,7 +65,7 @@ HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve
 
 عند بدء الـ TUI تقوم بتعيين منفذ واسم مضيف عشوائيا. يمكنك بدلا من ذلك تمرير [الخيارات](/docs/cli) `--hostname` و `--port`، ثم استخدامهما للاتصال بخادمها.
 
-يمكن استخدام نقطة النهاية [`/tui`](#tui) للتحكم في الـ TUI عبر الخادم. على سبيل المثال، يمكنك تعبئة الموجّه مسبقا أو تشغيله. يُستخدم هذا الإعداد بواسطة ملحقات Hena Agent لـ [IDE](/docs/ide).
+يمكن استخدام نقطة النهاية [`/tui`](#tui) للتحكم في الـ TUI عبر الخادم. على سبيل المثال، يمكنك تعبئة الموجّه مسبقا أو تشغيله. يُستخدم هذا الإعداد بواسطة ملحقات Hena لـ [IDE](/docs/ide).
 
 ---
 
@@ -83,7 +83,7 @@ http://<hostname>:<port>/doc
 
 ## واجهات API
 
-يعرض خادم hena-agent واجهات API التالية.
+يعرض خادم hena واجهات API التالية.
 
 ---
 

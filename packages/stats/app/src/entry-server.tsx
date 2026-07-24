@@ -6,7 +6,7 @@ import { dir, localeFromRequest, tag } from "./lib/language"
 const statsThemePreloadScript = `;(function () {
   var preference = "system"
   try {
-    var key = "hena-agent:stats-theme"
+    var key = "hena:stats-theme"
     var stored = localStorage.getItem(key)
     if (stored === "dark" || stored === "light" || stored === "system") preference = stored
   } catch (_) {}

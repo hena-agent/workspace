@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { base64Encode } from "@hena-agent/core/util/encode"
+import { base64Encode } from "@hena/core/util/encode"
 import { fixture } from "../timeline/session-timeline-stress.fixture"
 import { stressSessionHref } from "../timeline/timeline-test-helpers"
 

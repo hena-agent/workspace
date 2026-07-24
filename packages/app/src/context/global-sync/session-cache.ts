@@ -6,7 +6,7 @@ import type {
   SessionStatus,
   SnapshotFileDiff,
   Todo,
-} from "@hena-agent/sdk/v2/client"
+} from "@hena/sdk/v2/client"
 
 export const SESSION_CACHE_LIMIT = 40
 

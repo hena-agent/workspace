@@ -3,14 +3,14 @@
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena Agent logo">
+      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena logo">
     </picture>
   </a>
 </p>
-<p align="center">Hena Agent je open source AI agent za programiranje.</p>
+<p align="center">Hena je open source AI agent za programiranje.</p>
 <p align="center">
   <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/hena"><img alt="npm" src="https://img.shields.io/npm/v/hena?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
 
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
+[![Hena Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -50,14 +50,14 @@
 curl -fsSL https://hena.dev/install | bash
 
 # Package manageri
-npm i -g hena-agent@latest        # ili bun/pnpm/yarn
-scoop install hena-agent             # Windows
-choco install hena-agent             # Windows
-brew install hena-agent/tap/hena-agent # macOS i Linux (preporučeno, uvijek ažurno)
-brew install hena-agent              # macOS i Linux (zvanična brew formula, rjeđe se ažurira)
-sudo pacman -S hena-agent            # Arch Linux (Stable)
-paru -S hena-agent-bin               # Arch Linux (Latest from AUR)
-mise use -g hena-agent               # Bilo koji OS
+npm i -g hena@latest        # ili bun/pnpm/yarn
+scoop install hena             # Windows
+choco install hena             # Windows
+brew install hena-agent/tap/hena # macOS i Linux (preporučeno, uvijek ažurno)
+brew install hena              # macOS i Linux (zvanična brew formula, rjeđe se ažurira)
+sudo pacman -S hena            # Arch Linux (Stable)
+paru -S hena-bin               # Arch Linux (Latest from AUR)
+mise use -g hena               # Bilo koji OS
 nix run github:hena-agent/hena           # ili github:hena-agent/hena za najnoviji dev branch
 ```
 
@@ -66,40 +66,40 @@ nix run github:hena-agent/hena           # ili github:hena-agent/hena za najnovi
 
 ### Desktop aplikacija (BETA)
 
-Hena Agent je dostupan i kao desktop aplikacija. Preuzmi je direktno sa [stranice izdanja](https://github.com/hena-agent/hena/releases) ili sa [hena.dev/download](https://hena.dev/download).
+Hena je dostupan i kao desktop aplikacija. Preuzmi je direktno sa [stranice izdanja](https://github.com/hena-agent/hena/releases) ili sa [hena.dev/download](https://hena.dev/download).
 
 | Platforma             | Preuzimanje                        |
 | --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `hena-agent-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `hena-agent-desktop-mac-x64.dmg`     |
-| Windows               | `hena-agent-desktop-windows-x64.exe` |
+| macOS (Apple Silicon) | `hena-desktop-mac-arm64.dmg`   |
+| macOS (Intel)         | `hena-desktop-mac-x64.dmg`     |
+| Windows               | `hena-desktop-windows-x64.exe` |
 | Linux                 | `.deb`, `.rpm`, ili AppImage       |
 
 ```bash
 # macOS (Homebrew)
-brew install --cask hena-agent
+brew install --cask hena
 # Windows (Scoop)
-scoop bucket add extras; scoop install hena-agent
+scoop bucket add extras; scoop install hena
 ```
 
 #### Instalacijski direktorij
 
 Instalacijska skripta koristi sljedeći redoslijed prioriteta za putanju instalacije:
 
-1. `$HENA_AGENT_INSTALL_DIR` - Prilagođeni instalacijski direktorij
+1. `$HENA_INSTALL_DIR` - Prilagođeni instalacijski direktorij
 2. `$XDG_BIN_DIR` - Putanja usklađena sa XDG Base Directory specifikacijom
 3. `$HOME/bin` - Standardni korisnički bin direktorij (ako postoji ili se može kreirati)
-4. `$HOME/.hena-agent/bin` - Podrazumijevana rezervna lokacija
+4. `$HOME/.hena/bin` - Podrazumijevana rezervna lokacija
 
 ```bash
 # Primjeri
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+HENA_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
 XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agenti
 
-Hena Agent uključuje dva ugrađena agenta između kojih možeš prebacivati tasterom `Tab`.
+Hena uključuje dva ugrađena agenta između kojih možeš prebacivati tasterom `Tab`.
 
 - **build** - Podrazumijevani agent sa punim pristupom za razvoj
 - **plan** - Agent samo za čitanje za analizu i istraživanje koda
@@ -114,15 +114,15 @@ Saznaj više o [agentima](https://hena.dev/docs/agents).
 
 ### Dokumentacija
 
-Za više informacija o konfiguraciji Hena Agent-a, [**pogledaj dokumentaciju**](https://hena.dev/docs).
+Za više informacija o konfiguraciji Hena-a, [**pogledaj dokumentaciju**](https://hena.dev/docs).
 
 ### Doprinosi
 
-Ako želiš doprinositi Hena Agent-u, pročitaj [upute za doprinošenje](./CONTRIBUTING.md) prije slanja pull requesta.
+Ako želiš doprinositi Hena-u, pročitaj [upute za doprinošenje](./CONTRIBUTING.md) prije slanja pull requesta.
 
-### Gradnja na Hena Agent-u
+### Gradnja na Hena-u
 
-Ako radiš na projektu koji je povezan s Hena Agent-om i koristi "hena-agent" kao dio naziva, npr. "hena-agent-dashboard" ili "hena-agent-mobile", dodaj napomenu u svoj README da projekat nije napravio Hena Agent tim i da nije povezan s nama.
+Ako radiš na projektu koji je povezan s Hena-om i koristi "hena" kao dio naziva, npr. "hena-dashboard" ili "hena-mobile", dodaj napomenu u svoj README da projekat nije napravio Hena tim i da nije povezan s nama.
 
 ---
 

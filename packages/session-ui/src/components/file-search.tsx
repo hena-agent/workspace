@@ -1,6 +1,6 @@
 import { Portal } from "solid-js/web"
-import { useI18n } from "@hena-agent/ui/context/i18n"
-import { Icon } from "@hena-agent/ui/icon"
+import { useI18n } from "@hena/ui/context/i18n"
+import { Icon } from "@hena/ui/icon"
 
 export function FileSearchBar(props: {
   pos: () => { top: number; right: number }

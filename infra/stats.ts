@@ -105,7 +105,7 @@ export const inferenceEvent = new sst.Linkable("InferenceEvent", {
 ////////////////
 
 const cluster = planetscale.getDatabaseOutput({
-  name: "hena-agent-stats",
+  name: "hena-stats",
   organization: "hena-agent",
 })
 

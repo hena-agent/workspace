@@ -1,7 +1,7 @@
 export * as ApplyPatchTool from "./apply-patch"
 
-import { ToolFailure } from "@hena-agent/llm"
-import { FileDiff } from "@hena-agent/schema/file-diff"
+import { ToolFailure } from "@hena/llm"
+import { FileDiff } from "@hena/schema/file-diff"
 import { createTwoFilesPatch, diffLines } from "diff"
 import { Effect, Layer, Schema } from "effect"
 import { makeLocationNode } from "../effect/app-node"

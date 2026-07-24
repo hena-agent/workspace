@@ -1,1 +1,1 @@
-export * as Identifier from "@hena-agent/schema/identifier"
+export * as Identifier from "@hena/schema/identifier"

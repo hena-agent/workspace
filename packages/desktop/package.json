@@ -1,12 +1,12 @@
 {
-  "name": "@hena-agent/desktop",
+  "name": "@hena/desktop",
   "private": true,
   "version": "1.18.4",
   "type": "module",
   "license": "MIT",
   "homepage": "https://hena.dev",
   "author": {
-    "name": "Hena Agent",
+    "name": "Hena",
     "email": "hello@hena.dev"
   },
   "scripts": {
@@ -36,8 +36,8 @@
   "devDependencies": {
     "@actions/artifact": "4.0.0",
     "@lydell/node-pty": "catalog:",
-    "@hena-agent/app": "workspace:*",
-    "@hena-agent/ui": "workspace:*",
+    "@hena/app": "workspace:*",
+    "@hena/ui": "workspace:*",
     "@sentry/solid": "catalog:",
     "@sentry/vite-plugin": "catalog:",
     "@solid-primitives/i18n": "2.2.1",

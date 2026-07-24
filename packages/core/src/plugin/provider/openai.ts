@@ -1,6 +1,6 @@
 import { createServer } from "node:http"
-import type { IntegrationOAuthMethodRegistration } from "@hena-agent/plugin/v2/effect/integration"
-import { define } from "@hena-agent/plugin/v2/effect/plugin"
+import type { IntegrationOAuthMethodRegistration } from "@hena/plugin/v2/effect/integration"
+import { define } from "@hena/plugin/v2/effect/plugin"
 import { Deferred, Effect } from "effect"
 import type { Scope } from "effect"
 import { Credential } from "../../credential"
@@ -189,7 +189,7 @@ export const OpenAIPlugin = define({
 } satisfies PluginInternal.Plugin<PluginInternal.Requirements | Scope.Scope>)
 
 function headers(contentType: string) {
-  return { "Content-Type": contentType, "User-Agent": `hena-agent/${InstallationVersion}` }
+  return { "Content-Type": contentType, "User-Agent": `hena/${InstallationVersion}` }
 }
 
 function exchange(code: string, redirect: string, pkce: Pkce) {
@@ -268,7 +268,7 @@ function authorizeURL(redirect: string, pkce: Pkce, state: string) {
     id_token_add_organizations: "true",
     codex_cli_simplified_flow: "true",
     state,
-    originator: "hena-agent",
+    originator: "hena",
   })}`
 }
 

@@ -1,8 +1,8 @@
 import { useFile } from "@/context/file"
 import { encodeFilePath } from "@/context/file/path"
-import { Collapsible } from "@hena-agent/ui/collapsible"
-import { FileIcon } from "@hena-agent/ui/file-icon"
-import { Icon } from "@hena-agent/ui/icon"
+import { Collapsible } from "@hena/ui/collapsible"
+import { FileIcon } from "@hena/ui/file-icon"
+import { Icon } from "@hena/ui/icon"
 import {
   createEffect,
   createMemo,
@@ -17,7 +17,7 @@ import {
   type ParentProps,
 } from "solid-js"
 import { Dynamic } from "solid-js/web"
-import type { FileNode } from "@hena-agent/sdk/v2"
+import type { FileNode } from "@hena/sdk/v2"
 
 const MAX_DEPTH = 128
 

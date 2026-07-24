@@ -1,6 +1,6 @@
-import type { UpdaterState } from "@hena-agent/app/updater"
+import type { UpdaterState } from "@hena/app/updater"
 
-export type { UpdaterState } from "@hena-agent/app/updater"
+export type { UpdaterState } from "@hena/app/updater"
 
 export type UpdaterReadyRecord = { version: string }
 

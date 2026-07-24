@@ -1,9 +1,9 @@
-import { createHenaAgentClient } from "@hena-agent/sdk/v2/client"
+import { createHenaClient } from "@hena/sdk/v2/client"
 import type { ServerConnection } from "@/context/server"
 import { decode64 } from "@/utils/base64"
 
 export function authTokenFromCredentials(input: { username?: string; password: string }) {
-  return btoa(`${input.username ?? "hena-agent"}:${input.password}`)
+  return btoa(`${input.username ?? "hena"}:${input.password}`)
 }
 
 export function authFromToken(token: string | null) {
@@ -12,7 +12,7 @@ export function authFromToken(token: string | null) {
   const separator = decoded.indexOf(":")
   if (separator === -1) return
   return {
-    username: decoded.slice(0, separator) || "hena-agent",
+    username: decoded.slice(0, separator) || "hena",
     password: decoded.slice(separator + 1),
   }
 }
@@ -20,7 +20,7 @@ export function authFromToken(token: string | null) {
 export function createSdkForServer({
   server,
   ...config
-}: Omit<NonNullable<Parameters<typeof createHenaAgentClient>[0]>, "baseUrl"> & {
+}: Omit<NonNullable<Parameters<typeof createHenaClient>[0]>, "baseUrl"> & {
   server: ServerConnection.HttpBase
 }) {
   const auth = (() => {
@@ -30,7 +30,7 @@ export function createSdkForServer({
     }
   })()
 
-  return createHenaAgentClient({
+  return createHenaClient({
     ...config,
     headers: {
       ...(config.headers instanceof Headers ? Object.fromEntries(config.headers.entries()) : config.headers),

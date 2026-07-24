@@ -1,10 +1,10 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { Location } from "@hena-agent/core/location"
-import { Project } from "@hena-agent/core/project"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { WorkspaceV2 } from "@hena-agent/core/workspace"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { Location } from "@hena/core/location"
+import { Project } from "@hena/core/project"
+import { AbsolutePath } from "@hena/core/schema"
+import { WorkspaceV2 } from "@hena/core/workspace"
 import { testEffect } from "./lib/effect"
 
 const workspaceID = WorkspaceV2.ID.make("wrk_test")

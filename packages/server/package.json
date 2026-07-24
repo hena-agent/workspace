@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@hena-agent/server",
+  "name": "@hena/server",
   "version": "1.18.4",
   "private": true,
   "type": "module",
@@ -12,8 +12,8 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@hena-agent/core": "workspace:*",
-    "@hena-agent/protocol": "workspace:*",
+    "@hena/core": "workspace:*",
+    "@hena/protocol": "workspace:*",
     "drizzle-orm": "catalog:",
     "effect": "catalog:"
   },

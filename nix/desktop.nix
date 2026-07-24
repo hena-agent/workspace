@@ -10,14 +10,14 @@
   autoPatchelfHook,
   copyDesktopItems,
   makeDesktopItem,
-  hena-agent,
+  hena,
 }:
 let
   electron = electron_41;
 in
 stdenv.mkDerivation (finalAttrs: {
-  pname = "hena-agent-desktop";
-  inherit (hena-agent)
+  pname = "hena-desktop";
+  inherit (hena)
     version
     src
     node_modules
@@ -44,16 +44,16 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   desktopItems = lib.optional stdenv.hostPlatform.isLinux (makeDesktopItem {
-    name = "ai.hena-agent.desktop";
-    desktopName = "Hena Agent";
-    exec = "hena-agent-desktop %U";
-    icon = "ai.hena-agent.desktop";
+    name = "dev.hena.desktop";
+    desktopName = "Hena";
+    exec = "hena-desktop %U";
+    icon = "dev.hena.desktop";
     # Electron 41 derives X11 WM_CLASS from app.name.
-    startupWMClass = "Hena Agent";
+    startupWMClass = "Hena";
     categories = [ "Development" ];
   });
 
-  env = hena-agent.env // {
+  env = hena.env // {
     ELECTRON_SKIP_BINARY_DOWNLOAD = "1";
   };
 
@@ -71,7 +71,7 @@ stdenv.mkDerivation (finalAttrs: {
       FILES=(src/main/windows.ts)
       for file in "''${FILES[@]}"; do
         substituteInPlace $BASE_PATH/$file \
-          --replace-fail "process.resourcesPath" "'$out/opt/hena-agent-desktop/resources'"
+          --replace-fail "process.resourcesPath" "'$out/opt/hena-desktop/resources'"
       done
     '';
 
@@ -104,27 +104,27 @@ stdenv.mkDerivation (finalAttrs: {
   + lib.optionalString stdenv.hostPlatform.isDarwin ''
     mkdir -p $out/Applications
     mv dist/mac*/*.app $out/Applications
-    makeWrapper "$out/Applications/Hena Agent.app/Contents/MacOS/Hena Agent" $out/bin/hena-agent-desktop
+    makeWrapper "$out/Applications/Hena.app/Contents/MacOS/Hena" $out/bin/hena-desktop
   ''
   + lib.optionalString stdenv.hostPlatform.isLinux ''
-    mkdir -p $out/opt/hena-agent-desktop
-    cp -r dist/linux*-unpacked/{resources,LICENSE*} $out/opt/hena-agent-desktop
+    mkdir -p $out/opt/hena-desktop
+    cp -r dist/linux*-unpacked/{resources,LICENSE*} $out/opt/hena-desktop
     install -Dm644 resources/icons/32x32.png \
-      "$out/share/icons/hicolor/32x32/apps/ai.hena-agent.desktop.png"
+      "$out/share/icons/hicolor/32x32/apps/dev.hena.desktop.png"
     install -Dm644 resources/icons/64x64.png \
-      "$out/share/icons/hicolor/64x64/apps/ai.hena-agent.desktop.png"
+      "$out/share/icons/hicolor/64x64/apps/dev.hena.desktop.png"
     install -Dm644 resources/icons/128x128.png \
-      "$out/share/icons/hicolor/128x128/apps/ai.hena-agent.desktop.png"
+      "$out/share/icons/hicolor/128x128/apps/dev.hena.desktop.png"
     install -Dm644 resources/icons/128x128@2x.png \
-      "$out/share/icons/hicolor/256x256/apps/ai.hena-agent.desktop.png"
+      "$out/share/icons/hicolor/256x256/apps/dev.hena.desktop.png"
     install -Dm644 resources/icons/icon.png \
-      "$out/share/icons/hicolor/512x512/apps/ai.hena-agent.desktop.png"
-    install -Dm644 resources/ai.hena-agent.desktop.metainfo.xml \
-      "$out/share/metainfo/ai.hena-agent.desktop.metainfo.xml"
-    makeWrapper ${lib.getExe electron} $out/bin/hena-agent-desktop \
+      "$out/share/icons/hicolor/512x512/apps/dev.hena.desktop.png"
+    install -Dm644 resources/dev.hena.desktop.metainfo.xml \
+      "$out/share/metainfo/dev.hena.desktop.metainfo.xml"
+    makeWrapper ${lib.getExe electron} $out/bin/hena-desktop \
      --inherit-argv0 \
      --set ELECTRON_FORCE_IS_PACKAGED 1 \
-     --add-flags $out/opt/hena-agent-desktop/resources/app.asar \
+     --add-flags $out/opt/hena-desktop/resources/app.asar \
      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--ozone-platform-hint=auto --enable-features=WaylandWindowDecorations --enable-wayland-ime=true}}"
   ''
   + ''
@@ -136,8 +136,8 @@ stdenv.mkDerivation (finalAttrs: {
   ];
 
   meta = {
-    description = "Hena Agent Desktop App";
-    mainProgram = "hena-agent-desktop";
-    inherit (hena-agent.meta) homepage license platforms;
+    description = "Hena Desktop App";
+    mainProgram = "hena-desktop";
+    inherit (hena.meta) homepage license platforms;
   };
 })

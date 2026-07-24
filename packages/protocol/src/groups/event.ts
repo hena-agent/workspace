@@ -1,7 +1,7 @@
-import { Event } from "@hena-agent/schema/event"
-import { EventManifest } from "@hena-agent/schema/event-manifest"
-import { Location } from "@hena-agent/schema/location"
-import type { Definition } from "@hena-agent/schema/event"
+import { Event } from "@hena/schema/event"
+import { EventManifest } from "@hena/schema/event-manifest"
+import { Location } from "@hena/schema/location"
+import type { Definition } from "@hena/schema/event"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 
@@ -51,6 +51,6 @@ export const makeEventGroup = <const Definitions extends ReadonlyArray<Definitio
 
 const event = make(EventManifest.ServerDefinitions)
 export const EventGroup = event.group
-export const HenaAgentEvent = event.schema
-export type HenaAgentEvent = typeof HenaAgentEvent.Type
-export type HenaAgentEventEncoded = typeof HenaAgentEvent.Encoded
+export const HenaEvent = event.schema
+export type HenaEvent = typeof HenaEvent.Type
+export type HenaEventEncoded = typeof HenaEvent.Encoded

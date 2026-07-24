@@ -1,4 +1,4 @@
-import { define } from "@hena-agent/plugin/v2/effect"
+import { define } from "@hena/plugin/v2/effect"
 import { Effect } from "effect"
 
 export default define({

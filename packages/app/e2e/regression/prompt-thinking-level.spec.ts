@@ -1,14 +1,14 @@
 import { expect, test, type Page } from "@playwright/test"
-import { base64Encode } from "@hena-agent/core/util/encode"
-import { mockHenaAgentServer } from "../utils/mock-server"
+import { base64Encode } from "@hena/core/util/encode"
+import { mockHenaServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
 
-const directory = "C:/Hena Agent/PromptThinkingLevelRegression"
+const directory = "C:/Hena/PromptThinkingLevelRegression"
 const projectID = "proj_prompt_thinking_level_regression"
 const sessionID = "ses_prompt_thinking_level_regression"
 
 test("shows the V2 thinking level control while relevant", async ({ page }) => {
-  await mockHenaAgentServer(page, {
+  await mockHenaServer(page, {
     directory,
     project: {
       id: projectID,
@@ -21,8 +21,8 @@ test("shows the V2 thinking level control while relevant", async ({ page }) => {
     provider: {
       all: [
         {
-          id: "hena-agent",
-          name: "Hena Agent",
+          id: "hena",
+          name: "Hena",
           models: {
             "thinking-model": {
               id: "thinking-model",
@@ -33,8 +33,8 @@ test("shows the V2 thinking level control while relevant", async ({ page }) => {
           },
         },
       ],
-      connected: ["hena-agent"],
-      default: { providerID: "hena-agent", modelID: "thinking-model" },
+      connected: ["hena"],
+      default: { providerID: "hena", modelID: "thinking-model" },
     },
     sessions: [
       {

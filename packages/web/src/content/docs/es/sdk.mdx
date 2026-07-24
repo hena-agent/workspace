@@ -1,13 +1,13 @@
 ---
 title: SDK
-description: Cliente JS con seguridad de tipos para el servidor Hena Agent.
+description: Cliente JS con seguridad de tipos para el servidor Hena.
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-El SDK hena-agent JS/TS proporciona un cliente con seguridad de tipos para interactuar con el servidor.
-Úselo para crear integraciones y controlar hena-agent mediante programación.
+El SDK hena JS/TS proporciona un cliente con seguridad de tipos para interactuar con el servidor.
+Úselo para crear integraciones y controlar hena mediante programación.
 
 [Más información](/docs/server) sobre cómo funciona el servidor. Para ver ejemplos, consulte los [proyectos](/docs/ecosystem#projects) creados por la comunidad.
 
@@ -18,19 +18,19 @@ El SDK hena-agent JS/TS proporciona un cliente con seguridad de tipos para inter
 Instale el SDK desde npm:
 
 ```bash
-npm install @hena-agent/sdk
+npm install @hena/sdk
 ```
 
 ---
 
 ## Crear cliente
 
-Cree una instancia de hena-agent:
+Cree una instancia de hena:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const { client } = await createHenaAgent()
+const { client } = await createHena()
 ```
 
 Esto inicia tanto un servidor como un cliente.
@@ -49,12 +49,12 @@ Esto inicia tanto un servidor como un cliente.
 
 ## Configuración
 
-Puede pasar un objeto de configuración para personalizar el comportamiento. La instancia aún recoge su `hena-agent.json`, pero puede anular o agregar configuración en línea:
+Puede pasar un objeto de configuración para personalizar el comportamiento. La instancia aún recoge su `hena.json`, pero puede anular o agregar configuración en línea:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const agent = await createHenaAgent({
+const agent = await createHena({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -69,12 +69,12 @@ agent.server.close()
 
 ## Solo cliente
 
-Si ya tiene una instancia en ejecución de hena-agent, puede crear una instancia de cliente para conectarse a ella:
+Si ya tiene una instancia en ejecución de hena, puede crear una instancia de cliente para conectarse a ella:
 
 ```javascript
-import { createHenaAgentClient } from "@hena-agent/sdk"
+import { createHenaClient } from "@hena/sdk"
 
-const client = createHenaAgentClient({
+const client = createHenaClient({
   baseUrl: "http://localhost:4096",
 })
 ```
@@ -96,7 +96,7 @@ const client = createHenaAgentClient({
 El SDK incluye definiciones TypeScript para todos los tipos API. Importarlos directamente:
 
 ```typescript
-import type { Session, Message, Part } from "@hena-agent/sdk"
+import type { Session, Message, Part } from "@hena/sdk"
 ```
 
 Todos los tipos se generan a partir de la especificación OpenAPI del servidor y están disponibles en el <a href={typesUrl}>archivo de tipos</a>.
@@ -376,7 +376,7 @@ await client.session.prompt({
 ```javascript
 // Search and read files
 const textResults = await client.find.text({
-  query: { pattern: "function.*hena-agent" },
+  query: { pattern: "function.*hena" },
 })
 
 const files = await client.find.files({

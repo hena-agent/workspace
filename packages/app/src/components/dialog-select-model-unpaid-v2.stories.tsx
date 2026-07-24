@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { Button } from "@hena-agent/ui/button"
-import { useDialog } from "@hena-agent/ui/context/dialog"
+import { Button } from "@hena/ui/button"
+import { useDialog } from "@hena/ui/context/dialog"
 import { createSignal, onMount } from "solid-js"
 import { DialogSelectModelUnpaidV2 } from "./dialog-select-model-unpaid-v2"
 
@@ -18,7 +18,7 @@ function SelectModelWithoutProviders() {
   const models = names.map((name, index) => ({
     id: name.toLowerCase().replaceAll(" ", "-"),
     name,
-    provider: { id: "hena-agent", name: "Hena Agent" },
+    provider: { id: "hena", name: "Hena" },
     cost: { input: 0, output: 0 },
     limit: { context: 128_000 },
     capabilities: {

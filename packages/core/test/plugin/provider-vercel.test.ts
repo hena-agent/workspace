@@ -1,12 +1,12 @@
-import { AISDK } from "@hena-agent/core/aisdk"
+import { AISDK } from "@hena/core/aisdk"
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Catalog } from "@hena-agent/core/catalog"
-import { ModelV2 } from "@hena-agent/core/model"
-import { PluginV2 } from "@hena-agent/core/plugin"
-import { PluginHost } from "@hena-agent/core/plugin/host"
-import { VercelPlugin } from "@hena-agent/core/plugin/provider/vercel"
-import { ProviderV2 } from "@hena-agent/core/provider"
+import { Catalog } from "@hena/core/catalog"
+import { ModelV2 } from "@hena/core/model"
+import { PluginV2 } from "@hena/core/plugin"
+import { PluginHost } from "@hena/core/plugin/host"
+import { VercelPlugin } from "@hena/core/plugin/provider/vercel"
+import { ProviderV2 } from "@hena/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -33,7 +33,7 @@ describe("VercelPlugin", () => {
       expect((yield* catalog.provider.get(ProviderV2.ID.make("vercel")))?.request.headers).toEqual({
         Existing: "1",
         "http-referer": "https://hena.dev/",
-        "x-title": "hena-agent",
+        "x-title": "hena",
       })
     }),
   )

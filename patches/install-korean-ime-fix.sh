@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Hena Agent Korean IME Fix Installer
+# Hena Korean IME Fix Installer
 # https://github.com/anomalyco/opencode/issues/14371
 #
-# Patches Hena Agent to prevent Korean (and other CJK) IME last character
+# Patches Hena to prevent Korean (and other CJK) IME last character
 # truncation when pressing Enter in Kitty and other terminals.
 #
 # Usage:
@@ -18,8 +18,8 @@ ORANGE='\033[38;5;214m'
 MUTED='\033[0;2m'
 NC='\033[0m'
 
-HENA_AGENT_DIR="${HENA_AGENT_DIR:-$HOME/.hena-agent}"
-HENA_AGENT_SRC="${HENA_AGENT_SRC:-$HOME/.hena-agent-src}"
+HENA_DIR="${HENA_DIR:-$HOME/.hena}"
+HENA_SRC="${HENA_SRC:-$HOME/.hena-src}"
 FORK_REPO="${FORK_REPO:-https://github.com/hena-agent/hena.git}"
 FORK_BRANCH="${FORK_BRANCH:-dev}"
 
@@ -39,18 +39,18 @@ need git
 need bun
 
 # ── 1. Clone or update fork ────────────────────────────────────────────
-if [ -d "$HENA_AGENT_SRC/.git" ]; then
-  info "Updating existing source at $HENA_AGENT_SRC ..."
-  git -C "$HENA_AGENT_SRC" fetch origin "$FORK_BRANCH"
-  git -C "$HENA_AGENT_SRC" checkout "$FORK_BRANCH"
-  git -C "$HENA_AGENT_SRC" reset --hard "origin/$FORK_BRANCH"
+if [ -d "$HENA_SRC/.git" ]; then
+  info "Updating existing source at $HENA_SRC ..."
+  git -C "$HENA_SRC" fetch origin "$FORK_BRANCH"
+  git -C "$HENA_SRC" checkout "$FORK_BRANCH"
+  git -C "$HENA_SRC" reset --hard "origin/$FORK_BRANCH"
 else
-  info "Cloning fork (shallow) to $HENA_AGENT_SRC ..."
-  git clone --depth 1 --branch "$FORK_BRANCH" "$FORK_REPO" "$HENA_AGENT_SRC"
+  info "Cloning fork (shallow) to $HENA_SRC ..."
+  git clone --depth 1 --branch "$FORK_BRANCH" "$FORK_REPO" "$HENA_SRC"
 fi
 
 # ── 2. Verify the IME fix is present in source ────────────────────────
-PROMPT_FILE="$HENA_AGENT_SRC/packages/tui/src/component/prompt/index.tsx"
+PROMPT_FILE="$HENA_SRC/packages/tui/src/component/prompt/index.tsx"
 if [ ! -f "$PROMPT_FILE" ]; then
   err "Prompt file not found: $PROMPT_FILE"
   exit 1
@@ -72,16 +72,16 @@ fi
 
 # ── 3. Install dependencies ────────────────────────────────────────────
 info "Installing dependencies (this may take a minute) ..."
-cd "$HENA_AGENT_SRC"
+cd "$HENA_SRC"
 bun install --frozen-lockfile 2>/dev/null || bun install
 
 # ── 4. Build (current platform only) ──────────────────────────────────
-info "Building Hena Agent for current platform ..."
-cd "$HENA_AGENT_SRC/packages/hena-agent"
+info "Building Hena for current platform ..."
+cd "$HENA_SRC/packages/hena"
 bun run build --single
 
 # ── 5. Install binary ──────────────────────────────────────────────────
-mkdir -p "$HENA_AGENT_DIR/bin"
+mkdir -p "$HENA_DIR/bin"
 
 PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
@@ -90,23 +90,23 @@ ARCH=$(uname -m)
 [ "$PLATFORM" = "darwin" ] && true
 [ "$PLATFORM" = "linux" ] && true
 
-BUILT_BINARY="$HENA_AGENT_SRC/packages/hena-agent/dist/hena-agent-${PLATFORM}-${ARCH}/bin/hena-agent"
+BUILT_BINARY="$HENA_SRC/packages/hena/dist/hena-${PLATFORM}-${ARCH}/bin/hena"
 
 if [ ! -f "$BUILT_BINARY" ]; then
-  BUILT_BINARY=$(find "$HENA_AGENT_SRC/packages/hena-agent/dist" -name "hena-agent" -type f -executable 2>/dev/null | head -1)
+  BUILT_BINARY=$(find "$HENA_SRC/packages/hena/dist" -name "hena" -type f -executable 2>/dev/null | head -1)
 fi
 
 if [ -f "$BUILT_BINARY" ]; then
-  if [ -f "$HENA_AGENT_DIR/bin/hena-agent" ]; then
-    cp "$HENA_AGENT_DIR/bin/hena-agent" "$HENA_AGENT_DIR/bin/hena-agent.bak.$(date +%Y%m%d%H%M%S)"
+  if [ -f "$HENA_DIR/bin/hena" ]; then
+    cp "$HENA_DIR/bin/hena" "$HENA_DIR/bin/hena.bak.$(date +%Y%m%d%H%M%S)"
   fi
-  cp "$BUILT_BINARY" "$HENA_AGENT_DIR/bin/hena-agent"
-  chmod +x "$HENA_AGENT_DIR/bin/hena-agent"
-  ok "Installed to $HENA_AGENT_DIR/bin/hena-agent"
+  cp "$BUILT_BINARY" "$HENA_DIR/bin/hena"
+  chmod +x "$HENA_DIR/bin/hena"
+  ok "Installed to $HENA_DIR/bin/hena"
 else
   err "Build failed - binary not found in dist/"
   info "Try running manually:"
-  echo "  cd $HENA_AGENT_SRC/packages/hena-agent && bun run build --single"
+  echo "  cd $HENA_SRC/packages/hena && bun run build --single"
   exit 1
 fi
 

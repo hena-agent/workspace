@@ -1,21 +1,21 @@
-import { Database } from "@hena-agent/core/database/database"
-import { LocationServiceMap } from "@hena-agent/core/location-services"
-import { Location } from "@hena-agent/core/location"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { SessionV2 } from "@hena-agent/core/session"
-import { SessionTable } from "@hena-agent/core/session/sql"
-import { WorkspaceV2 } from "@hena-agent/core/workspace"
+import { Database } from "@hena/core/database/database"
+import { LocationServiceMap } from "@hena/core/location-services"
+import { Location } from "@hena/core/location"
+import { AbsolutePath } from "@hena/core/schema"
+import { SessionV2 } from "@hena/core/session"
+import { SessionTable } from "@hena/core/session/sql"
+import { WorkspaceV2 } from "@hena/core/workspace"
 import { eq } from "drizzle-orm"
 import { Effect, Layer, Schema } from "effect"
 import { HttpRouter } from "effect/unstable/http"
 import { HttpApiMiddleware } from "effect/unstable/httpapi"
-import { InvalidRequestError, SessionNotFoundError } from "@hena-agent/protocol/errors"
+import { InvalidRequestError, SessionNotFoundError } from "@hena/protocol/errors"
 import type { LocationServices } from "../location"
 
 export class SessionLocationMiddleware extends HttpApiMiddleware.Service<
   SessionLocationMiddleware,
   { provides: LocationServices }
->()("@hena-agent/HttpApiSessionLocation", {
+>()("@hena/HttpApiSessionLocation", {
   error: [InvalidRequestError, SessionNotFoundError],
 }) {}
 

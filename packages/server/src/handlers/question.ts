@@ -1,8 +1,8 @@
-import { QuestionV2 } from "@hena-agent/core/question"
+import { QuestionV2 } from "@hena/core/question"
 import { Effect } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
 import { Api } from "../api"
-import { QuestionNotFoundError } from "@hena-agent/protocol/errors"
+import { QuestionNotFoundError } from "@hena/protocol/errors"
 import { response } from "../location"
 
 function missingRequest(id: QuestionV2.ID) {

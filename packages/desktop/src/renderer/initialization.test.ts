@@ -29,7 +29,7 @@ describe("desktop renderer initialization", () => {
   })
 
   test("returns initialized sidecar data", () => {
-    const sidecar = { url: "http://127.0.0.1:1234", username: "hena-agent", password: "secret" }
+    const sidecar = { url: "http://127.0.0.1:1234", username: "hena", password: "secret" }
 
     expect(initializationData(Object.assign(() => sidecar, { error: undefined }))).toBe(sidecar)
   })

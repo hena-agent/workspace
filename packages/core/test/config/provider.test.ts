@@ -1,13 +1,13 @@
 import { describe, expect } from "bun:test"
 import { Effect, Schema } from "effect"
-import { Catalog } from "@hena-agent/core/catalog"
-import { Config } from "@hena-agent/core/config"
-import { ConfigProviderPlugin } from "@hena-agent/core/config/plugin/provider"
-import { Integration } from "@hena-agent/core/integration"
-import { ModelV2 } from "@hena-agent/core/model"
-import { PluginV2 } from "@hena-agent/core/plugin"
-import { PluginHost } from "@hena-agent/core/plugin/host"
-import { ProviderV2 } from "@hena-agent/core/provider"
+import { Catalog } from "@hena/core/catalog"
+import { Config } from "@hena/core/config"
+import { ConfigProviderPlugin } from "@hena/core/config/plugin/provider"
+import { Integration } from "@hena/core/integration"
+import { ModelV2 } from "@hena/core/model"
+import { PluginV2 } from "@hena/core/plugin"
+import { PluginHost } from "@hena/core/plugin/host"
+import { ProviderV2 } from "@hena/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "../plugin/fixture"
 
@@ -58,7 +58,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
   it.effect("keeps configured model variant bodies unchanged", () =>
     Effect.gen(function* () {
       const catalog = yield* Catalog.Service
-      const providerID = ProviderV2.ID.henaAgent
+      const providerID = ProviderV2.ID.hena
       const modelID = ModelV2.ID.make("alpha-gpt-next")
       const config = Config.Service.of({
         entries: () =>
@@ -67,8 +67,8 @@ describe("ConfigProviderPlugin.Plugin", () => {
               type: "document",
               info: decode({
                 providers: {
-                  "hena-agent": {
-                    api: { type: "aisdk", package: "@ai-sdk/openai", url: "https://hena-agent.test/v1" },
+                  "hena": {
+                    api: { type: "aisdk", package: "@ai-sdk/openai", url: "https://hena.test/v1" },
                     models: {
                       "alpha-gpt-next": {
                         variants: [
@@ -109,7 +109,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
   it.effect("keeps layered model variant bodies unchanged", () =>
     Effect.gen(function* () {
       const catalog = yield* Catalog.Service
-      const providerID = ProviderV2.ID.henaAgent
+      const providerID = ProviderV2.ID.hena
       const modelID = ModelV2.ID.make("alpha-gpt-next")
       const config = Config.Service.of({
         entries: () =>
@@ -118,8 +118,8 @@ describe("ConfigProviderPlugin.Plugin", () => {
               type: "document",
               info: decode({
                 providers: {
-                  "hena-agent": {
-                    api: { type: "aisdk", package: "@ai-sdk/openai", url: "https://hena-agent.test/v1" },
+                  "hena": {
+                    api: { type: "aisdk", package: "@ai-sdk/openai", url: "https://hena.test/v1" },
                   },
                 },
               }),
@@ -128,7 +128,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
               type: "document",
               info: decode({
                 providers: {
-                  "hena-agent": {
+                  "hena": {
                     models: {
                       "alpha-gpt-next": {
                         variants: [{ id: "high", body: { reasoningEffort: "high" } }],

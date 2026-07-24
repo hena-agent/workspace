@@ -1,67 +1,33 @@
 ---
 title: GitLab
-description: 在 GitLab Issue 和合併請求中使用 Hena Agent。
+description: 在 GitLab Issue 和合併請求中使用 Hena。
 ---
 
-Hena Agent 透過 GitLab CI/CD 管線或 GitLab Duo 與您的 GitLab 工作流程整合。
+Hena 透過 GitLab CI/CD 管線或 GitLab Duo 與您的 GitLab 工作流程整合。
 
-在這兩種情況下，Hena Agent 都將在您的 GitLab Runner 上執行。
-
----
-
-## GitLab CI
-
-Hena Agent 可以在常規的 GitLab 管線中執行。您可以將其作為 [CI 元件](https://docs.gitlab.com/ee/ci/components/) 整合到管線中。
-
-這裡我們使用的是社群建立的 Hena Agent CI/CD 元件 — [nagyv/gitlab-opencode](https://gitlab.com/nagyv/gitlab-opencode)。
+在這兩種情況下，Hena 都將在您的 GitLab Runner 上執行。
 
 ---
 
-### 功能特性
-
-- **按任務自訂設定**：使用自訂設定目錄來設定 Hena Agent，例如 `./config/#custom-directory`，以便為每次 Hena Agent 呼叫啟用或停用特定功能。
-- **最小化設定**：CI 元件會在背景完成 Hena Agent 的設定，您只需建立 Hena Agent 設定和初始提示詞即可。
-- **靈活可自訂**：CI 元件支援多種輸入參數來自訂其行為。
-
----
-
-### 設定
-
-1. 將您的 Hena Agent 身分驗證 JSON 作為檔案類型的 CI 環境變數儲存在 **Settings** > **CI/CD** > **Variables** 下。請確保將其標記為「Masked and hidden」。
-2. 將以下內容新增到您的 `.gitlab-ci.yml` 檔案中。
-
-   ```yaml title=".gitlab-ci.yml"
-   include:
-     - component: $CI_SERVER_FQDN/nagyv/gitlab-opencode/opencode@2
-       inputs:
-         config_dir: ${CI_PROJECT_DIR}/hena-agent-config
-         auth_json: $HENA_AGENT_AUTH_JSON # The variable name for your Hena Agent authentication JSON
-         command: optional-custom-command
-         message: "Your prompt here"
-   ```
-
-有關更多輸入參數和使用情境，請[查看該元件的文件](https://gitlab.com/explore/catalog/nagyv/gitlab-opencode)。
-
----
 
 ## GitLab Duo
 
-Hena Agent 與您的 GitLab 工作流程整合。
-在評論中提及 `@hena-agent`，Hena Agent 將在您的 GitLab CI 管線中執行任務。
+Hena 與您的 GitLab 工作流程整合。
+在評論中提及 `@hena`，Hena 將在您的 GitLab CI 管線中執行任務。
 
 ---
 
 ### 功能特性
 
-- **Issue 分類**：讓 Hena Agent 調查某個 Issue 並為您解釋。
-- **修復與實作**：讓 Hena Agent 修復 Issue 或實作某個功能。它會建立一個新分支，並提交包含變更的合併請求。
-- **安全可靠**：Hena Agent 在您的 GitLab Runner 上執行。
+- **Issue 分類**：讓 Hena 調查某個 Issue 並為您解釋。
+- **修復與實作**：讓 Hena 修復 Issue 或實作某個功能。它會建立一個新分支，並提交包含變更的合併請求。
+- **安全可靠**：Hena 在您的 GitLab Runner 上執行。
 
 ---
 
 ### 設定
 
-Hena Agent 在您的 GitLab CI/CD 管線中執行，以下是設定所需的步驟：
+Hena 在您的 GitLab CI/CD 管線中執行，以下是設定所需的步驟：
 
 :::tip
 請查看 [**GitLab 文件**](https://docs.gitlab.com/user/duo_agent_platform/agent_assistant/) 取得最新說明。
@@ -81,19 +47,19 @@ Hena Agent 在您的 GitLab CI/CD 管線中執行，以下是設定所需的步�
     ```yaml
     image: node:22-slim
     commands:
-      - echo "Installing hena-agent"
-      - npm install --global hena-agent
+      - echo "Installing hena"
+      - npm install --global hena
       - echo "Installing glab"
-      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA_AGENT
+      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA
       - apt-get update --quiet && apt-get install --yes curl wget gpg git && rm --recursive --force /var/lib/apt/lists/*
       - curl --silent --show-error --location "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash
       - apt-get install --yes glab
       - echo "Configuring glab"
       - echo $GITLAB_HOST
-      - echo "Creating Hena Agent auth configuration"
-      - mkdir --parents ~/.local/share/hena-agent
+      - echo "Creating Hena auth configuration"
+      - mkdir --parents ~/.local/share/hena
       - |
-        cat > ~/.local/share/hena-agent/auth.json << EOF
+        cat > ~/.local/share/hena/auth.json << EOF
         {
           "anthropic": {
             "type": "api",
@@ -102,13 +68,13 @@ Hena Agent 在您的 GitLab CI/CD 管線中執行，以下是設定所需的步�
         }
         EOF
       - echo "Configuring git"
-      - git config --global user.email "hena-agent@gitlab.com"
-      - git config --global user.name "Hena Agent"
+      - git config --global user.email "hena@gitlab.com"
+      - git config --global user.name "Hena"
       - echo "Testing glab"
       - glab issue list
-      - echo "Running Hena Agent"
+      - echo "Running Hena"
       - |
-        hena-agent run "
+        hena run "
         You are an AI assistant helping with GitLab operations.
 
         Context: $AI_FLOW_CONTEXT
@@ -145,7 +111,7 @@ Hena Agent 在您的 GitLab CI/CD 管線中執行，以下是設定所需的步�
         fi
     variables:
       - ANTHROPIC_API_KEY
-      - GITLAB_TOKEN_HENA_AGENT
+      - GITLAB_TOKEN_HENA
       - GITLAB_HOST
     ```
 
@@ -157,10 +123,10 @@ Hena Agent 在您的 GitLab CI/CD 管線中執行，以下是設定所需的步�
 
 ### 範例
 
-以下是在 GitLab 中使用 Hena Agent 的一些範例。
+以下是在 GitLab 中使用 Hena 的一些範例。
 
 :::tip
-您可以設定使用不同於 `@hena-agent` 的觸發詞。
+您可以設定使用不同於 `@hena` 的觸發詞。
 :::
 
 - **解釋 Issue**
@@ -168,27 +134,27 @@ Hena Agent 在您的 GitLab CI/CD 管線中執行，以下是設定所需的步�
   在 GitLab Issue 中新增以下評論。
 
   ```
-  @hena-agent explain this issue
+  @hena explain this issue
   ```
 
-  Hena Agent 會閱讀該 Issue 並回覆清晰的解釋。
+  Hena 會閱讀該 Issue 並回覆清晰的解釋。
 
 - **修復 Issue**
 
   在 GitLab Issue 中輸入：
 
   ```
-  @hena-agent fix this
+  @hena fix this
   ```
 
-  Hena Agent 會建立一個新分支，實作變更，並提交包含變更的合併請求。
+  Hena 會建立一個新分支，實作變更，並提交包含變更的合併請求。
 
 - **審查合併請求**
 
   在 GitLab 合併請求中留下以下評論。
 
   ```
-  @hena-agent review this merge request
+  @hena review this merge request
   ```
 
-  Hena Agent 會審查合併請求並提供回饋。
+  Hena 會審查合併請求並提供回饋。

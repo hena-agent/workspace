@@ -22,26 +22,26 @@ async function signWindows(configuration: { path: string }) {
 }
 
 const channel = (() => {
-  const raw = process.env.HENA_AGENT_CHANNEL
+  const raw = process.env.HENA_CHANNEL
   if (raw === "dev" || raw === "beta" || raw === "prod") return raw
   return "dev"
 })()
 
 const APP_IDS = {
-  dev: "ai.hena-agent.desktop.dev",
-  beta: "ai.hena-agent.desktop.beta",
-  prod: "ai.hena-agent.desktop",
+  dev: "dev.hena.desktop.dev",
+  beta: "dev.hena.desktop.beta",
+  prod: "dev.hena.desktop",
 } as const
 
 const getBase = (appId: string): Configuration => ({
-  artifactName: "hena-agent-desktop-${os}-${arch}.${ext}",
+  artifactName: "hena-desktop-${os}-${arch}.${ext}",
   directories: {
     output: "dist",
     buildResources: "resources",
   },
   // Linux launchers are .desktop files, so this is the desktop file name,
-  // not just the app id. For prod, app id "ai.hena-agent.desktop" becomes
-  // "ai.hena-agent.desktop.desktop".
+  // not just the app id. For prod, app id "dev.hena.desktop" becomes
+  // "dev.hena.desktop.desktop".
   // https://developer.gnome.org/documentation/guidelines/maintainer/integrating.html
   // https://www.electron.build/docs/linux/
   extraMetadata: {
@@ -69,8 +69,8 @@ const getBase = (appId: string): Configuration => ({
     sign: true,
   },
   protocols: {
-    name: "Hena Agent",
-    schemes: ["hena-agent"],
+    name: "Hena",
+    schemes: ["hena"],
   },
   win: {
     icon: `resources/icons/icon.ico`,
@@ -110,28 +110,28 @@ function getConfig() {
       return {
         ...base,
         appId,
-        productName: "Hena Agent Dev",
-        rpm: { packageName: "hena-agent-dev" },
+        productName: "Hena Dev",
+        rpm: { packageName: "hena-dev" },
       }
     }
     case "beta": {
       return {
         ...base,
         appId,
-        productName: "Hena Agent Beta",
-        protocols: { name: "Hena Agent Beta", schemes: ["hena-agent"] },
+        productName: "Hena Beta",
+        protocols: { name: "Hena Beta", schemes: ["hena"] },
         publish: { provider: "github", owner: "hena-agent", repo: "hena", channel: "latest" },
-        rpm: { packageName: "hena-agent-beta" },
+        rpm: { packageName: "hena-beta" },
       }
     }
     case "prod": {
       return {
         ...base,
         appId,
-        productName: "Hena Agent",
-        protocols: { name: "Hena Agent", schemes: ["hena-agent"] },
+        productName: "Hena",
+        protocols: { name: "Hena", schemes: ["hena"] },
         publish: { provider: "github", owner: "hena-agent", repo: "hena", channel: "latest" },
-        rpm: { packageName: "hena-agent" },
+        rpm: { packageName: "hena" },
       }
     }
   }

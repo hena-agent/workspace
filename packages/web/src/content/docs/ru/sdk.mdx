@@ -1,6 +1,6 @@
 ---
 title: SDK
-description: Типобезопасный JS-клиент для сервера Hena Agent.
+description: Типобезопасный JS-клиент для сервера Hena.
 ---
 
 import config from "../../../../config.mjs"
@@ -18,19 +18,19 @@ SDK JS/TS с открытым кодом предоставляет типобе
 Установите SDK из npm:
 
 ```bash
-npm install @hena-agent/sdk
+npm install @hena/sdk
 ```
 
 ---
 
 ## Создать клиента
 
-Создайте экземпляр hena-agent:
+Создайте экземпляр hena:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const { client } = await createHenaAgent()
+const { client } = await createHena()
 ```
 
 Это запускает и сервер, и клиент.
@@ -49,12 +49,12 @@ const { client } = await createHenaAgent()
 
 ## Конфигурация
 
-Вы можете передать объект конфигурации для настройки поведения. Экземпляр по-прежнему получает ваш `hena-agent.json`, но вы можете переопределить или добавить встроенную конфигурацию:
+Вы можете передать объект конфигурации для настройки поведения. Экземпляр по-прежнему получает ваш `hena.json`, но вы можете переопределить или добавить встроенную конфигурацию:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const agent = await createHenaAgent({
+const agent = await createHena({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -69,12 +69,12 @@ agent.server.close()
 
 ## Только клиент
 
-Если у вас уже есть работающий экземпляр hena-agent, вы можете создать экземпляр клиента для подключения к нему:
+Если у вас уже есть работающий экземпляр hena, вы можете создать экземпляр клиента для подключения к нему:
 
 ```javascript
-import { createHenaAgentClient } from "@hena-agent/sdk"
+import { createHenaClient } from "@hena/sdk"
 
-const client = createHenaAgentClient({
+const client = createHenaClient({
   baseUrl: "http://localhost:4096",
 })
 ```
@@ -96,7 +96,7 @@ const client = createHenaAgentClient({
 SDK включает определения TypeScript для всех типов API. Импортируйте их напрямую:
 
 ```typescript
-import type { Session, Message, Part } from "@hena-agent/sdk"
+import type { Session, Message, Part } from "@hena/sdk"
 ```
 
 Все типы генерируются на основе спецификации OpenAPI сервера и доступны в файле <a href={typesUrl}>types</a>.
@@ -376,7 +376,7 @@ await client.session.prompt({
 ```javascript
 // Search and read files
 const textResults = await client.find.text({
-  query: { pattern: "function.*hena-agent" },
+  query: { pattern: "function.*hena" },
 })
 
 const files = await client.find.files({

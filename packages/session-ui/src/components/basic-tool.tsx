@@ -1,10 +1,10 @@
 import { createEffect, For, Match, on, onCleanup, onMount, Show, Switch, type Accessor, type JSX } from "solid-js"
 import { animate, type AnimationPlaybackControls } from "motion"
-import { useI18n } from "@hena-agent/ui/context/i18n"
+import { useI18n } from "@hena/ui/context/i18n"
 import { createStore } from "solid-js/store"
-import { Collapsible } from "@hena-agent/ui/collapsible"
-import type { IconProps } from "@hena-agent/ui/icon"
-import { TextShimmer } from "@hena-agent/ui/text-shimmer"
+import { Collapsible } from "@hena/ui/collapsible"
+import type { IconProps } from "@hena/ui/icon"
+import { TextShimmer } from "@hena/ui/text-shimmer"
 
 export type TriggerTitle = {
   title: string

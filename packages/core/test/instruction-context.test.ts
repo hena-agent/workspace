@@ -2,15 +2,15 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import fs from "fs/promises"
 import path from "path"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { FSUtil } from "@hena-agent/core/fs-util"
-import { Global } from "@hena-agent/core/global"
-import { InstructionContext } from "@hena-agent/core/instruction-context"
-import { Location } from "@hena-agent/core/location"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { SystemContext } from "@hena-agent/core/system-context"
-import { SystemContextRegistry } from "@hena-agent/core/system-context/registry"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { FSUtil } from "@hena/core/fs-util"
+import { Global } from "@hena/core/global"
+import { InstructionContext } from "@hena/core/instruction-context"
+import { Location } from "@hena/core/location"
+import { AbsolutePath } from "@hena/core/schema"
+import { SystemContext } from "@hena/core/system-context"
+import { SystemContextRegistry } from "@hena/core/system-context/registry"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
@@ -257,9 +257,9 @@ describe("InstructionContext", () => {
 
   it.effect("honors the project instruction opt-out", () =>
     Effect.gen(function* () {
-      const previous = process.env.HENA_AGENT_DISABLE_PROJECT_CONFIG
+      const previous = process.env.HENA_DISABLE_PROJECT_CONFIG
       let scanned = false
-      process.env.HENA_AGENT_DISABLE_PROJECT_CONFIG = "1"
+      process.env.HENA_DISABLE_PROJECT_CONFIG = "1"
 
       yield* SystemContextRegistry.Service.pipe(
         Effect.flatMap((service) => service.load()),
@@ -280,8 +280,8 @@ describe("InstructionContext", () => {
         ),
         Effect.ensuring(
           Effect.sync(() => {
-            if (previous === undefined) delete process.env.HENA_AGENT_DISABLE_PROJECT_CONFIG
-            else process.env.HENA_AGENT_DISABLE_PROJECT_CONFIG = previous
+            if (previous === undefined) delete process.env.HENA_DISABLE_PROJECT_CONFIG
+            else process.env.HENA_DISABLE_PROJECT_CONFIG = previous
           }),
         ),
       )

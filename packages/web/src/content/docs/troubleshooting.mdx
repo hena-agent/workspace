@@ -3,7 +3,7 @@ title: Troubleshooting
 description: Common issues and how to resolve them.
 ---
 
-To debug issues with Hena Agent, start by checking the logs and local data it stores on disk.
+To debug issues with Hena, start by checking the logs and local data it stores on disk.
 
 ---
 
@@ -11,21 +11,21 @@ To debug issues with Hena Agent, start by checking the logs and local data it st
 
 Log files are written to:
 
-- **macOS/Linux**: `~/.local/share/hena-agent/log/`
-- **Windows**: Press `WIN+R` and paste `%USERPROFILE%\.local\share\hena-agent\log`
+- **macOS/Linux**: `~/.local/share/hena/log/`
+- **Windows**: Press `WIN+R` and paste `%USERPROFILE%\.local\share\hena\log`
 
 Log files are named with timestamps (e.g., `2025-01-09T123456.log`) and the most recent 10 log files are kept.
 
-You can set the log level with the `--log-level` command-line option to get more detailed debug information. For example, `hena-agent --log-level DEBUG`.
+You can set the log level with the `--log-level` command-line option to get more detailed debug information. For example, `hena --log-level DEBUG`.
 
 ---
 
 ## Storage
 
-hena-agent stores session data and other application data on disk at:
+hena stores session data and other application data on disk at:
 
-- **macOS/Linux**: `~/.local/share/hena-agent/`
-- **Windows**: Press `WIN+R` and paste `%USERPROFILE%\.local\share\hena-agent`
+- **macOS/Linux**: `~/.local/share/hena/`
+- **Windows**: Press `WIN+R` and paste `%USERPROFILE%\.local\share\hena`
 
 This directory contains:
 
@@ -39,27 +39,27 @@ This directory contains:
 
 ## Uninstall
 
-To uninstall the Hena Agent CLI and remove its related files, run:
+To uninstall the Hena CLI and remove its related files, run:
 
 ```bash
-hena-agent uninstall
+hena uninstall
 ```
 
 The command shows what will be removed and asks for confirmation. See the [CLI reference](/docs/cli#uninstall) for options to keep your configuration or application data.
 
-To remove Hena Agent Desktop, uninstall the application through your operating system's app management tools.
+To remove Hena Desktop, uninstall the application through your operating system's app management tools.
 
 ---
 
 ## Desktop app
 
-Hena Agent Desktop runs a local Hena Agent server (the `hena-agent-cli` sidecar) in the background. Most issues are caused by a misbehaving plugin, a corrupted cache, or a bad server setting.
+Hena Desktop runs a local Hena server (the `hena-cli` sidecar) in the background. Most issues are caused by a misbehaving plugin, a corrupted cache, or a bad server setting.
 
 ### Quick checks
 
 - Fully quit and relaunch the app.
 - If the app shows an error screen, click **Restart** and copy the error details.
-- macOS only: `Hena Agent` menu -> **Reload Webview** (helps if the UI is blank/frozen).
+- macOS only: `Hena` menu -> **Reload Webview** (helps if the UI is blank/frozen).
 
 ---
 
@@ -71,9 +71,9 @@ If the desktop app is crashing on launch, hanging, or behaving strangely, start 
 
 Open your global config file and look for a `plugin` key.
 
-- **macOS/Linux**: `~/.config/hena-agent/hena.jsonc` (or `~/.config/hena-agent/hena.json`)
-- **macOS/Linux** (older installs): `~/.local/share/hena-agent/hena.jsonc`
-- **Windows**: Press `WIN+R` and paste `%USERPROFILE%\.config\hena-agent\hena-agent.jsonc`
+- **macOS/Linux**: `~/.config/hena/hena.jsonc` (or `~/.config/hena/hena.json`)
+- **macOS/Linux** (older installs): `~/.local/share/hena/hena.jsonc`
+- **Windows**: Press `WIN+R` and paste `%USERPROFILE%\.config\hena\hena.jsonc`
 
 If you have plugins configured, temporarily disable them by removing the key or setting it to an empty array:
 
@@ -86,13 +86,13 @@ If you have plugins configured, temporarily disable them by removing the key or 
 
 #### Check plugin directories
 
-Hena Agent can also load local plugins from disk. Temporarily move these out of the way (or rename the folder) and restart the desktop app:
+Hena can also load local plugins from disk. Temporarily move these out of the way (or rename the folder) and restart the desktop app:
 
 - **Global plugins**
-  - **macOS/Linux**: `~/.config/hena-agent/plugins/`
-  - **Windows**: Press `WIN+R` and paste `%USERPROFILE%\.config\hena-agent\plugins`
+  - **macOS/Linux**: `~/.config/hena/plugins/`
+  - **Windows**: Press `WIN+R` and paste `%USERPROFILE%\.config\hena\plugins`
 - **Project plugins** (only if you use per-project config)
-  - `<your-project>/.hena-agent/plugins/`
+  - `<your-project>/.hena/plugins/`
 
 If the app starts working again, re-enable plugins one at a time to find which one is causing the issue.
 
@@ -100,22 +100,22 @@ If the app starts working again, re-enable plugins one at a time to find which o
 
 ### Clear the cache
 
-If disabling plugins doesn't help (or a plugin install is stuck), clear the cache so Hena Agent can rebuild it.
+If disabling plugins doesn't help (or a plugin install is stuck), clear the cache so Hena can rebuild it.
 
-1. Quit Hena Agent Desktop completely.
+1. Quit Hena Desktop completely.
 2. Delete the cache directory:
 
-- **macOS**: Finder -> `Cmd+Shift+G` -> paste `~/.cache/hena-agent`
-- **Linux**: delete `~/.cache/hena-agent` (or run `rm -rf ~/.cache/hena-agent`)
-- **Windows**: Press `WIN+R` and paste `%USERPROFILE%\.cache\hena-agent`
+- **macOS**: Finder -> `Cmd+Shift+G` -> paste `~/.cache/hena`
+- **Linux**: delete `~/.cache/hena` (or run `rm -rf ~/.cache/hena`)
+- **Windows**: Press `WIN+R` and paste `%USERPROFILE%\.cache\hena`
 
-3. Restart Hena Agent Desktop.
+3. Restart Hena Desktop.
 
 ---
 
 ### Fix server connection issues
 
-Hena Agent Desktop can either start its own local server (default) or connect to a server URL you configured.
+Hena Desktop can either start its own local server (default) or connect to a server URL you configured.
 
 If you see a **"Connection Failed"** dialog (or the app never gets past the splash screen), check for a custom server URL.
 
@@ -125,13 +125,13 @@ From the Home screen, click the server name (with the status dot) to open the Se
 
 #### Remove `server.port` / `server.hostname` from your config
 
-If your `hena-agent.json(c)` contains a `server` section, temporarily remove it and restart the desktop app.
+If your `hena.json(c)` contains a `server` section, temporarily remove it and restart the desktop app.
 
 #### Check environment variables
 
-If you have `HENA_AGENT_PORT` set in your environment, the desktop app will try to use that port for the local server.
+If you have `HENA_PORT` set in your environment, the desktop app will try to use that port for the local server.
 
-- Unset `HENA_AGENT_PORT` (or pick a free port) and restart.
+- Unset `HENA_PORT` (or pick a free port) and restart.
 
 ---
 
@@ -146,21 +146,21 @@ On Linux, some Wayland setups can cause blank windows or compositor errors.
 
 ### Windows: WebView2 runtime
 
-On Windows, Hena Agent Desktop requires the Microsoft Edge **WebView2 Runtime**. If the app opens to a blank window or won't start, install/update WebView2 and try again.
+On Windows, Hena Desktop requires the Microsoft Edge **WebView2 Runtime**. If the app opens to a blank window or won't start, install/update WebView2 and try again.
 
 ---
 
 ### Windows: General performance issues
 
-If you're experiencing slow performance, file access issues, or terminal problems on Windows, try using [WSL (Windows Subsystem for Linux)](/docs/windows-wsl). WSL provides a Linux environment that works more seamlessly with Hena Agent's features.
+If you're experiencing slow performance, file access issues, or terminal problems on Windows, try using [WSL (Windows Subsystem for Linux)](/docs/windows-wsl). WSL provides a Linux environment that works more seamlessly with Hena's features.
 
 ---
 
 ### Notifications not showing
 
-Hena Agent Desktop only shows system notifications when:
+Hena Desktop only shows system notifications when:
 
-- notifications are enabled for Hena Agent in your OS settings, and
+- notifications are enabled for Hena in your OS settings, and
 - the app window is not focused.
 
 ---
@@ -169,11 +169,11 @@ Hena Agent Desktop only shows system notifications when:
 
 If the app won't start and you can't clear settings from inside the UI, reset the desktop app's saved state.
 
-1. Quit Hena Agent Desktop.
-2. Find and delete these files (they live in the Hena Agent Desktop app data directory):
+1. Quit Hena Desktop.
+2. Find and delete these files (they live in the Hena Desktop app data directory):
 
-- `hena-agent.settings.dat` (desktop default server URL)
-- `hena-agent.global.dat` and `hena-agent.workspace.*.dat` (UI state like recent servers/projects)
+- `hena.settings.dat` (desktop default server URL)
+- `hena.global.dat` and `hena.workspace.*.dat` (UI state like recent servers/projects)
 
 To find the directory quickly:
 
@@ -185,7 +185,7 @@ To find the directory quickly:
 
 ## Getting help
 
-If you're experiencing issues with Hena Agent:
+If you're experiencing issues with Hena:
 
 1. **Report issues on GitHub**
 
@@ -209,11 +209,11 @@ Here are some common issues and how to resolve them.
 
 ---
 
-### Hena Agent won't start
+### Hena won't start
 
 1. Check the logs for error messages
 2. Try running with `--print-logs` to see output in the terminal
-3. Ensure you have the latest version with `hena-agent upgrade`
+3. Ensure you have the latest version with `hena upgrade`
 
 ---
 
@@ -239,9 +239,9 @@ Examples:
 
 - `openai/gpt-4.1`
 - `openrouter/google/gemini-2.5-flash`
-- `hena-agent/kimi-k2`
+- `hena/kimi-k2`
 
-To figure out what models you have access to, run `hena-agent models`
+To figure out what models you have access to, run `hena models`
 
 ---
 
@@ -255,10 +255,10 @@ To resolve this:
 2. If the issue persists, try clearing your stored configuration:
 
    ```bash
-   rm -rf ~/.local/share/hena-agent
+   rm -rf ~/.local/share/hena
    ```
 
-   On Windows, press `WIN+R` and delete: `%USERPROFILE%\.local\share\hena-agent`
+   On Windows, press `WIN+R` and delete: `%USERPROFILE%\.local\share\hena`
 
 3. Re-authenticate with your provider using the `/connect` command in the TUI.
 
@@ -266,21 +266,21 @@ To resolve this:
 
 ### AI_APICallError and provider package issues
 
-If you encounter API call errors, this may be due to outdated provider packages. hena-agent dynamically installs provider packages (OpenAI, Anthropic, Google, etc.) as needed and caches them locally.
+If you encounter API call errors, this may be due to outdated provider packages. hena dynamically installs provider packages (OpenAI, Anthropic, Google, etc.) as needed and caches them locally.
 
 To resolve provider package issues:
 
 1. Clear the provider package cache:
 
    ```bash
-   rm -rf ~/.cache/hena-agent
+   rm -rf ~/.cache/hena
    ```
 
-   On Windows, press `WIN+R` and delete: `%USERPROFILE%\.cache\hena-agent`
+   On Windows, press `WIN+R` and delete: `%USERPROFILE%\.cache\hena`
 
-2. Restart hena-agent to reinstall the latest provider packages
+2. Restart hena to reinstall the latest provider packages
 
-This will force hena-agent to download the most recent versions of provider packages, which often resolves compatibility issues with model parameters and API changes.
+This will force hena to download the most recent versions of provider packages, which often resolves compatibility issues with model parameters and API changes.
 
 ---
 
@@ -311,4 +311,4 @@ Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
 export DISPLAY=:99.0
 ```
 
-hena-agent will detect if you're using Wayland and prefer `wl-clipboard`, otherwise it will try to find clipboard tools in order of: `xclip` and `xsel`.
+hena will detect if you're using Wayland and prefer `wl-clipboard`, otherwise it will try to find clipboard tools in order of: `xclip` and `xsel`.

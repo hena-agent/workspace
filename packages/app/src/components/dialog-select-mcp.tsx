@@ -1,8 +1,8 @@
 import { Component, createMemo, Show } from "solid-js"
 import { useSync } from "@/context/sync"
-import { Dialog } from "@hena-agent/ui/dialog"
-import { List } from "@hena-agent/ui/list"
-import { Switch } from "@hena-agent/ui/switch"
+import { Dialog } from "@hena/ui/dialog"
+import { List } from "@hena/ui/list"
+import { Switch } from "@hena/ui/switch"
 import { useLanguage } from "@/context/language"
 import { useMcpToggle } from "@/context/mcp"
 

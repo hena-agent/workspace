@@ -1,15 +1,15 @@
 ---
 title: Formattatori
-description: Hena Agent usa formattatori specifici per linguaggio.
+description: Hena usa formattatori specifici per linguaggio.
 ---
 
-Hena Agent formatta automaticamente i file dopo che vengono scritti o modificati usando formattatori specifici per linguaggio. Questo assicura che il codice generato segua lo stile del tuo progetto.
+Hena formatta automaticamente i file dopo che vengono scritti o modificati usando formattatori specifici per linguaggio. Questo assicura che il codice generato segua lo stile del tuo progetto.
 
 ---
 
 ## Integrati
 
-Hena Agent include diversi formattatori integrati per linguaggi e framework popolari. Qui sotto trovi la lista dei formattatori, delle estensioni supportate e dei comandi o opzioni di config richiesti.
+Hena include diversi formattatori integrati per linguaggi e framework popolari. Qui sotto trovi la lista dei formattatori, delle estensioni supportate e dei comandi o opzioni di config richiesti.
 
 | Formattatore         | Estensioni                                                                                               | Requisiti                                                                                                    |
 | -------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -40,13 +40,13 @@ Hena Agent include diversi formattatori integrati per linguaggi e framework popo
 | uv                   | .py, .pyi                                                                                                | comando `uv` disponibile                                                                                     |
 | zig                  | .zig, .zon                                                                                               | comando `zig` disponibile                                                                                    |
 
-Quindi, se il progetto ha `prettier` in `package.json`, Hena Agent lo usera automaticamente.
+Quindi, se il progetto ha `prettier` in `package.json`, Hena lo usera automaticamente.
 
 ---
 
 ## Come funziona
 
-Quando Hena Agent scrive o modifica un file:
+Quando Hena scrive o modifica un file:
 
 1. Controlla l'estensione del file rispetto a tutti i formattatori abilitati.
 2. Esegue il comando del formattatore appropriato sul file.
@@ -58,9 +58,9 @@ Questo processo avviene in background, mantenendo lo stile del codice senza pass
 
 ## Configurazione
 
-Puoi personalizzare i formattatori nella sezione `formatter` della config di Hena Agent.
+Puoi personalizzare i formattatori nella sezione `formatter` della config di Hena.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {}
@@ -84,7 +84,7 @@ Vediamo alcuni esempi.
 
 Per disabilitare **tutti** i formattatori globalmente, imposta `formatter` a `false`:
 
-```json title="hena-agent.json" {3}
+```json title="hena.json" {3}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": false
@@ -93,7 +93,7 @@ Per disabilitare **tutti** i formattatori globalmente, imposta `formatter` a `fa
 
 Per disabilitare un formattatore **specifico**, imposta `disabled` a `true`:
 
-```json title="hena-agent.json" {5}
+```json title="hena.json" {5}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {
@@ -110,7 +110,7 @@ Per disabilitare un formattatore **specifico**, imposta `disabled` a `true`:
 
 Puoi sovrascrivere i formattatori integrati o aggiungerne di nuovi specificando comando, variabili d'ambiente ed estensioni file:
 
-```json title="hena-agent.json" {4-14}
+```json title="hena.json" {4-14}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {

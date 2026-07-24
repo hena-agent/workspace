@@ -1,30 +1,30 @@
 import { describe, expect, beforeAll, beforeEach, afterAll } from "bun:test"
 import { Effect, Layer, Ref } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/unstable/http"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@hena-agent/core/effect/app-node-platform"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { Flag } from "@hena-agent/core/flag/flag"
-import { Global } from "@hena-agent/core/global"
-import { ModelsDev } from "@hena-agent/core/models-dev"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@hena/core/effect/app-node-platform"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { Flag } from "@hena/core/flag/flag"
+import { Global } from "@hena/core/global"
+import { ModelsDev } from "@hena/core/models-dev"
 import { it } from "./lib/effect"
 import { readFile, rm, writeFile, utimes, mkdir } from "fs/promises"
 import path from "path"
 
-// test/preload.ts pins HENA_AGENT_MODELS_PATH to a fixture so other tests can
+// test/preload.ts pins HENA_MODELS_PATH to a fixture so other tests can
 // resolve providers without network. These tests need to drive the on-disk
 // cache themselves and silence the eager refresh fork. Save/restore around
 // the suite — never leak the mutation to subsequent test files in the same
 // bun process.
-const ORIGINAL_MODELS_PATH = Flag.HENA_AGENT_MODELS_PATH
-const ORIGINAL_DISABLE_FETCH = Flag.HENA_AGENT_DISABLE_MODELS_FETCH
+const ORIGINAL_MODELS_PATH = Flag.HENA_MODELS_PATH
+const ORIGINAL_DISABLE_FETCH = Flag.HENA_DISABLE_MODELS_FETCH
 beforeAll(() => {
-  Flag.HENA_AGENT_MODELS_PATH = undefined
-  Flag.HENA_AGENT_DISABLE_MODELS_FETCH = true
+  Flag.HENA_MODELS_PATH = undefined
+  Flag.HENA_DISABLE_MODELS_FETCH = true
 })
 afterAll(() => {
-  Flag.HENA_AGENT_MODELS_PATH = ORIGINAL_MODELS_PATH
-  Flag.HENA_AGENT_DISABLE_MODELS_FETCH = ORIGINAL_DISABLE_FETCH
+  Flag.HENA_MODELS_PATH = ORIGINAL_MODELS_PATH
+  Flag.HENA_DISABLE_MODELS_FETCH = ORIGINAL_DISABLE_FETCH
 })
 
 const cacheFile = path.join(Global.Path.cache, "models.json")
@@ -161,12 +161,12 @@ describe("ModelsDev Service", () => {
       const context = yield* Layer.build(buildLayer(state))
       const result = yield* Effect.acquireUseRelease(
         Effect.sync(() => {
-          Flag.HENA_AGENT_DISABLE_MODELS_FETCH = false
+          Flag.HENA_DISABLE_MODELS_FETCH = false
         }),
         () => ModelsDev.Service.use((s) => s.get()).pipe(Effect.provide(context)),
         () =>
           Effect.sync(() => {
-            Flag.HENA_AGENT_DISABLE_MODELS_FETCH = true
+            Flag.HENA_DISABLE_MODELS_FETCH = true
           }),
       )
       expect(result).toEqual(fixture2)

@@ -2,11 +2,11 @@ import { describe, expect, test } from "bun:test"
 import fs from "fs/promises"
 import os from "os"
 import path from "path"
-import { Global } from "@hena-agent/core/global"
+import { Global } from "@hena/core/global"
 
 describe("global paths", () => {
   test("tmp path is under the system temp directory", () => {
-    expect(Global.Path.tmp).toBe(path.join(os.tmpdir(), "hena-agent"))
+    expect(Global.Path.tmp).toBe(path.join(os.tmpdir(), "hena"))
     expect(Global.make().tmp).toBe(Global.Path.tmp)
   })
 

@@ -1,5 +1,5 @@
 import { action, useSubmission } from "@solidjs/router"
-import { Resource } from "@hena-agent/console-resource"
+import { Resource } from "@hena/console-resource"
 import { Show } from "solid-js"
 import { useI18n } from "~/context/i18n"
 

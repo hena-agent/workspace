@@ -1,7 +1,7 @@
-export const deepLinkEvent = "hena-agent:deep-link"
+export const deepLinkEvent = "hena:deep-link"
 
 const parseUrl = (input: string) => {
-  if (!input.startsWith("hena-agent://")) return
+  if (!input.startsWith("hena://")) return
   if (typeof URL.canParse === "function" && !URL.canParse(input)) return
   try {
     return new URL(input)
@@ -36,15 +36,15 @@ export const collectOpenProjectDeepLinks = (urls: string[]) =>
 export const collectNewSessionDeepLinks = (urls: string[]) =>
   urls.map(parseNewSessionDeepLink).filter((link): link is { directory: string; prompt?: string } => !!link)
 
-type HenaAgentWindow = Window & {
-  __HENA_AGENT__?: {
+type HenaWindow = Window & {
+  __HENA__?: {
     deepLinks?: string[]
   }
 }
 
-export const drainPendingDeepLinks = (target: HenaAgentWindow) => {
-  const pending = target.__HENA_AGENT__?.deepLinks ?? []
+export const drainPendingDeepLinks = (target: HenaWindow) => {
+  const pending = target.__HENA__?.deepLinks ?? []
   if (pending.length === 0) return []
-  if (target.__HENA_AGENT__) target.__HENA_AGENT__.deepLinks = []
+  if (target.__HENA__) target.__HENA__.deepLinks = []
   return pending
 }

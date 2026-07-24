@@ -1,5 +1,5 @@
 import type { APIEvent } from "@solidjs/start/server"
-import { Resource } from "@hena-agent/console-resource"
+import { Resource } from "@hena/console-resource"
 import { cookie, docs, localeFromRequest, tag } from "~/lib/language"
 
 async function handler(evt: APIEvent) {

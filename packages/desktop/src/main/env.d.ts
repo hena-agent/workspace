@@ -1,19 +1,19 @@
 interface ImportMetaEnv {
-  readonly HENA_AGENT_CHANNEL: string
+  readonly HENA_CHANNEL: string
 }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
 
-declare module "virtual:hena-agent-server" {
+declare module "virtual:hena-server" {
   export namespace Server {
-    export const listen: typeof import("../../../hena-agent/dist/types/src/node").Server.listen
-    export type Listener = import("../../../hena-agent/dist/types/src/node").Server.Listener
+    export const listen: typeof import("../../../hena/dist/types/src/node").Server.listen
+    export type Listener = import("../../../hena/dist/types/src/node").Server.Listener
   }
   export namespace Config {
-    export const get: typeof import("../../../hena-agent/dist/types/src/node").Config.get
-    export type Info = import("../../../hena-agent/dist/types/src/node").Config.Info
+    export const get: typeof import("../../../hena/dist/types/src/node").Config.get
+    export type Info = import("../../../hena/dist/types/src/node").Config.Info
   }
-  export const bootstrap: typeof import("../../../hena-agent/dist/types/src/node").bootstrap
+  export const bootstrap: typeof import("../../../hena/dist/types/src/node").bootstrap
 }

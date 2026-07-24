@@ -1,6 +1,6 @@
-# Hena Agent Desktop
+# Hena Desktop
 
-The Hena Agent desktop app, built with Electron.
+The Hena desktop app, built with Electron.
 
 ## Development
 

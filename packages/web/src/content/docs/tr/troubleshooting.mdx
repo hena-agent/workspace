@@ -3,7 +3,7 @@ title: Sorun giderme
 description: Yaygin sorunlar ve cozum adimlari.
 ---
 
-hena-agent ile ilgili bir sorunu ayiklamak icin once loglari ve diskte tuttugu yerel verileri kontrol edin.
+hena ile ilgili bir sorunu ayiklamak icin once loglari ve diskte tuttugu yerel verileri kontrol edin.
 
 ---
 
@@ -11,21 +11,21 @@ hena-agent ile ilgili bir sorunu ayiklamak icin once loglari ve diskte tuttugu y
 
 Log dosyalari su konuma yazilir:
 
-- **macOS/Linux**: `~/.local/share/hena-agent/log/`
-- **Windows**: `WIN+R` tuslayip `%USERPROFILE%\.local\share\hena-agent\log` yapistirin
+- **macOS/Linux**: `~/.local/share/hena/log/`
+- **Windows**: `WIN+R` tuslayip `%USERPROFILE%\.local\share\hena\log` yapistirin
 
 Log dosyalari zaman damgasiyla adlandirilir (ornegin `2025-01-09T123456.log`) ve en yeni 10 log dosyasi tutulur.
 
-Daha ayrintili ayiklama bilgisi icin `--log-level` komut satiri secenegini kullanabilirsiniz. Ornek: `hena-agent --log-level DEBUG`.
+Daha ayrintili ayiklama bilgisi icin `--log-level` komut satiri secenegini kullanabilirsiniz. Ornek: `hena --log-level DEBUG`.
 
 ---
 
 ## Depolama
 
-hena-agent, oturum verilerini ve diger uygulama verilerini diskte su konumda saklar:
+hena, oturum verilerini ve diger uygulama verilerini diskte su konumda saklar:
 
-- **macOS/Linux**: `~/.local/share/hena-agent/`
-- **Windows**: `WIN+R` tuslayip `%USERPROFILE%\.local\share\hena-agent` yapistirin
+- **macOS/Linux**: `~/.local/share/hena/`
+- **Windows**: `WIN+R` tuslayip `%USERPROFILE%\.local\share\hena` yapistirin
 
 Bu dizin sunlari icerir:
 
@@ -39,13 +39,13 @@ Bu dizin sunlari icerir:
 
 ## Masaüstü uygulaması
 
-hena-agent Desktop arka planda yerel bir hena-agent sunucusu (`hena-agent-cli` sidecar) calistirir. Sorunlarin cogu bozuk bir plugin, hasarli cache veya hatali sunucu ayarindan kaynaklanir.
+hena Desktop arka planda yerel bir hena sunucusu (`hena-cli` sidecar) calistirir. Sorunlarin cogu bozuk bir plugin, hasarli cache veya hatali sunucu ayarindan kaynaklanir.
 
 ### Hızlı kontroller
 
 - Uygulamayi tamamen kapatip yeniden acin
 - Uygulama hata ekrani gosteriyorsa **Restart**'a tiklayip hata detaylarini kopyalayin
-- Yalnizca macOS: `hena-agent` menusu -> **Reload Webview** (arayuz bos/donukse yardimci olur)
+- Yalnizca macOS: `hena` menusu -> **Reload Webview** (arayuz bos/donukse yardimci olur)
 
 ---
 
@@ -57,9 +57,9 @@ Desktop uygulamasi acilista cokuyorsa, takiliyorsa veya garip davranislar goster
 
 Global config dosyanizi acin ve `plugin` anahtarini arayin.
 
-- **macOS/Linux**: `~/.config/hena-agent/hena.jsonc` (veya `~/.config/hena-agent/hena.json`)
-- **macOS/Linux** (eski kurulumlar): `~/.local/share/hena-agent/hena.jsonc`
-- **Windows**: `WIN+R` tuslayip `%USERPROFILE%\.config\hena-agent\hena-agent.jsonc` yapistirin
+- **macOS/Linux**: `~/.config/hena/hena.jsonc` (veya `~/.config/hena/hena.json`)
+- **macOS/Linux** (eski kurulumlar): `~/.local/share/hena/hena.jsonc`
+- **Windows**: `WIN+R` tuslayip `%USERPROFILE%\.config\hena\hena.jsonc` yapistirin
 
 Plugin tanimliysa anahtari kaldirarak veya bos bir diziye cekerek gecici olarak devre disi birakin:
 
@@ -72,13 +72,13 @@ Plugin tanimliysa anahtari kaldirarak veya bos bir diziye cekerek gecici olarak 
 
 #### Eklenti dizinlerini kontrol edin
 
-hena-agent diskten yerel plugin de yukleyebilir. Bu dizinleri gecici olarak tasiyin (veya klasoru yeniden adlandirin) ve uygulamayi yeniden baslatin:
+hena diskten yerel plugin de yukleyebilir. Bu dizinleri gecici olarak tasiyin (veya klasoru yeniden adlandirin) ve uygulamayi yeniden baslatin:
 
 - **Global plugins**
-  - **macOS/Linux**: `~/.config/hena-agent/plugins/`
-  - **Windows**: `WIN+R` tuslayip `%USERPROFILE%\.config\hena-agent\plugins` yapistirin
+  - **macOS/Linux**: `~/.config/hena/plugins/`
+  - **Windows**: `WIN+R` tuslayip `%USERPROFILE%\.config\hena\plugins` yapistirin
 - **Project plugins** (sadece proje bazli config kullaniyorsaniz)
-  - `<your-project>/.hena-agent/plugins/`
+  - `<your-project>/.hena/plugins/`
 
 Uygulama duzelirse soruna neden olan plugini bulmak icin pluginleri tek tek yeniden etkinlestirin.
 
@@ -86,22 +86,22 @@ Uygulama duzelirse soruna neden olan plugini bulmak icin pluginleri tek tek yeni
 
 ### Cache'i temizleyin
 
-Pluginleri kapatmak ise yaramazsa (veya plugin kurulumu takili kaldiysa), hena-agent'un cache'i yeniden olusturmasi icin cache'i temizleyin.
+Pluginleri kapatmak ise yaramazsa (veya plugin kurulumu takili kaldiysa), hena'un cache'i yeniden olusturmasi icin cache'i temizleyin.
 
-1. hena-agent Desktop'u tamamen kapatin
+1. hena Desktop'u tamamen kapatin
 2. Cache dizinini silin:
 
-- **macOS**: Finder -> `Cmd+Shift+G` -> `~/.cache/hena-agent`
-- **Linux**: `~/.cache/hena-agent` dizinini silin (veya `rm -rf ~/.cache/hena-agent` calistirin)
-- **Windows**: `WIN+R` tuslayip `%USERPROFILE%\.cache\hena-agent` yapistirin
+- **macOS**: Finder -> `Cmd+Shift+G` -> `~/.cache/hena`
+- **Linux**: `~/.cache/hena` dizinini silin (veya `rm -rf ~/.cache/hena` calistirin)
+- **Windows**: `WIN+R` tuslayip `%USERPROFILE%\.cache\hena` yapistirin
 
-3. hena-agent Desktop'u yeniden baslatin
+3. hena Desktop'u yeniden baslatin
 
 ---
 
 ### Sunucu bağlantı sorunlarını düzeltin
 
-hena-agent Desktop ya kendi yerel sunucusunu baslatir (varsayilan) ya da sizin tanimladiginiz bir sunucu URL'sine baglanir.
+hena Desktop ya kendi yerel sunucusunu baslatir (varsayilan) ya da sizin tanimladiginiz bir sunucu URL'sine baglanir.
 
 **"Connection Failed"** penceresi goruyorsaniz (veya uygulama acilis ekranini gecemiyorsa), ozel bir sunucu URL'si olup olmadigini kontrol edin.
 
@@ -111,13 +111,13 @@ Ana ekranda sunucu adina (durum noktali) tiklayarak Server secicisini acin. **De
 
 #### Config'ten `server.port` / `server.hostname` kaldirin
 
-`hena-agent.json(c)` dosyanizda `server` bolumu varsa gecici olarak kaldirin ve desktop uygulamasini yeniden baslatin.
+`hena.json(c)` dosyanizda `server` bolumu varsa gecici olarak kaldirin ve desktop uygulamasini yeniden baslatin.
 
 #### Ortam degiskenlerini kontrol edin
 
-Ortamda `HENA_AGENT_PORT` ayarliysa desktop uygulamasi yerel sunucu icin o portu kullanmaya calisir.
+Ortamda `HENA_PORT` ayarliysa desktop uygulamasi yerel sunucu icin o portu kullanmaya calisir.
 
-- `HENA_AGENT_PORT` degerini kaldirin (veya bos bir port secin) ve yeniden baslatin
+- `HENA_PORT` degerini kaldirin (veya bos bir port secin) ve yeniden baslatin
 
 ---
 
@@ -132,21 +132,21 @@ Linux'ta bazi Wayland kurulumlari bos pencere veya compositor hatalarina yol aca
 
 ### Windows: WebView2 Çalışma Zamanı
 
-Windows'ta hena-agent Desktop, Microsoft Edge **WebView2 Runtime** gerektirir. Uygulama bos pencereyle aciliyorsa veya hic baslamiyorsa WebView2'yi kurup/guncelleyip tekrar deneyin.
+Windows'ta hena Desktop, Microsoft Edge **WebView2 Runtime** gerektirir. Uygulama bos pencereyle aciliyorsa veya hic baslamiyorsa WebView2'yi kurup/guncelleyip tekrar deneyin.
 
 ---
 
 ### Windows: Genel performans sorunları
 
-Windows'ta yavaslik, dosya erisim sorunlari veya terminal problemleri yasiyorsaniz [WSL (Windows Subsystem for Linux)](/docs/windows-wsl) kullanmayi deneyin. WSL, hena-agent ozellikleriyle daha sorunsuz calisan bir Linux ortami saglar.
+Windows'ta yavaslik, dosya erisim sorunlari veya terminal problemleri yasiyorsaniz [WSL (Windows Subsystem for Linux)](/docs/windows-wsl) kullanmayi deneyin. WSL, hena ozellikleriyle daha sorunsuz calisan bir Linux ortami saglar.
 
 ---
 
 ### Bildirimler görünmüyor
 
-hena-agent Desktop sistem bildirimlerini yalnizca su durumlarda gosterir:
+hena Desktop sistem bildirimlerini yalnizca su durumlarda gosterir:
 
-- Isletim sistemi ayarlarinizda hena-agent icin bildirimler etkinse
+- Isletim sistemi ayarlarinizda hena icin bildirimler etkinse
 - Uygulama penceresi odakta degilse
 
 ---
@@ -155,11 +155,11 @@ hena-agent Desktop sistem bildirimlerini yalnizca su durumlarda gosterir:
 
 Uygulama acilmiyorsa ve ayarlari arayuz icinden temizleyemiyorsaniz, desktop uygulamasinin kayitli durumunu sifirlayin.
 
-1. hena-agent Desktop'u kapatin
-2. Su dosyalari bulun ve silin (hena-agent Desktop uygulama veri dizininde yer alirlar):
+1. hena Desktop'u kapatin
+2. Su dosyalari bulun ve silin (hena Desktop uygulama veri dizininde yer alirlar):
 
-- `hena-agent.settings.dat` (desktop varsayilan sunucu URL'si)
-- `hena-agent.global.dat` ve `hena-agent.workspace.*.dat` (son sunucular/projeler gibi UI durumu)
+- `hena.settings.dat` (desktop varsayilan sunucu URL'si)
+- `hena.global.dat` ve `hena.workspace.*.dat` (son sunucular/projeler gibi UI durumu)
 
 Dizini hizlica bulmak icin:
 
@@ -171,7 +171,7 @@ Dizini hizlica bulmak icin:
 
 ## Yardım alın
 
-hena-agent ile ilgili bir sorun yasiyorsaniz:
+hena ile ilgili bir sorun yasiyorsaniz:
 
 1. **GitHub'da issue acin**
 
@@ -195,11 +195,11 @@ Asagida yaygin sorunlar ve cozumleri yer aliyor.
 
 ---
 
-### hena-agent başlamıyor
+### hena başlamıyor
 
 1. Hata mesaji icin loglari kontrol edin
 2. Terminalde cikti gormek icin `--print-logs` ile calistirin
-3. `hena-agent upgrade` ile en guncel surumu kullandiginizdan emin olun
+3. `hena upgrade` ile en guncel surumu kullandiginizdan emin olun
 
 ---
 
@@ -224,9 +224,9 @@ Ornekler:
 
 - `openai/gpt-4.1`
 - `openrouter/google/gemini-2.5-flash`
-- `hena-agent/kimi-k2`
+- `hena/kimi-k2`
 
-Erisiminiz olan modelleri gormek icin `hena-agent models` calistirin.
+Erisiminiz olan modelleri gormek icin `hena models` calistirin.
 
 ---
 
@@ -240,10 +240,10 @@ Cozum adimlari:
 2. Sorun surerse kayitli konfigurasyonu temizlemeyi deneyin:
 
    ```bash
-   rm -rf ~/.local/share/hena-agent
+   rm -rf ~/.local/share/hena
    ```
 
-   Windows'ta `WIN+R` tuslayip su konumu silin: `%USERPROFILE%\.local\share\hena-agent`
+   Windows'ta `WIN+R` tuslayip su konumu silin: `%USERPROFILE%\.local\share\hena`
 
 3. TUI'da `/connect` komutuyla provider kimlik dogrulamasini tekrar yapin
 
@@ -251,21 +251,21 @@ Cozum adimlari:
 
 ### AI_APICallError ve provider paket sorunlari
 
-API cagrisi hatalari aliyorsaniz bunun nedeni guncel olmayan provider paketleri olabilir. hena-agent, provider paketlerini (OpenAI, Anthropic, Google vb.) gerektikce dinamik yukler ve yerelde onbellekler.
+API cagrisi hatalari aliyorsaniz bunun nedeni guncel olmayan provider paketleri olabilir. hena, provider paketlerini (OpenAI, Anthropic, Google vb.) gerektikce dinamik yukler ve yerelde onbellekler.
 
 Provider paket sorunlarini gidermek icin:
 
 1. Provider paket cache'ini temizleyin:
 
    ```bash
-   rm -rf ~/.cache/hena-agent
+   rm -rf ~/.cache/hena
    ```
 
-   Windows'ta `WIN+R` tuslayip su konumu silin: `%USERPROFILE%\.cache\hena-agent`
+   Windows'ta `WIN+R` tuslayip su konumu silin: `%USERPROFILE%\.cache\hena`
 
-2. En guncel provider paketlerini yeniden kurmak icin hena-agent'u yeniden baslatin
+2. En guncel provider paketlerini yeniden kurmak icin hena'u yeniden baslatin
 
-Bu, hena-agent'un en yeni provider paket surumlerini indirmesini zorlar ve model parametresi/API degisikliklerinden kaynakli uyumsuzluklari cogu zaman cozer.
+Bu, hena'un en yeni provider paket surumlerini indirmesini zorlar ve model parametresi/API degisikliklerinden kaynakli uyumsuzluklari cogu zaman cozer.
 
 ---
 
@@ -296,4 +296,4 @@ Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
 export DISPLAY=:99.0
 ```
 
-hena-agent, Wayland kullandiginizi algilarsa `wl-clipboard` tercihi yapar. Aksi halde sirayla `xclip` ve `xsel` araclarini arar.
+hena, Wayland kullandiginizi algilarsa `wl-clipboard` tercihi yapar. Aksi halde sirayla `xclip` ve `xsel` araclarini arar.

@@ -1,68 +1,34 @@
 ---
 title: GitLab
-description: Brug Hena Agent i GitLab-problemer og Merge Requests.
+description: Brug Hena i GitLab-problemer og Merge Requests.
 ---
 
-Hena Agent integreres med din GitLab-arbejdsgang gennem din GitLab CI/CD-pipeline eller med GitLab Duo.
+Hena integreres med din GitLab-arbejdsgang gennem din GitLab CI/CD-pipeline eller med GitLab Duo.
 
-I begge tilfælde vil Hena Agent køre på dine GitLab-løbere.
-
----
-
-## GitLab CI
-
-Hena Agent fungerer i en almindelig GitLab-pipeline. Du kan bygge det ind i en pipeline som en [CI component](https://docs.gitlab.com/ee/ci/components/)
-
-Her bruger vi en community-skabt CI/CD-komponent til Hena Agent — [nagyv/gitlab-opencode](https://gitlab.com/nagyv/gitlab-opencode).
+I begge tilfælde vil Hena køre på dine GitLab-løbere.
 
 ---
 
-### Funktioner
-
-- **Brug brugerdefineret konfiguration pr. job**: Konfigurer Hena Agent med en brugerdefineret konfigurationsmappe, for eksempel `./config/#custom-directory` for at aktivere eller deaktivere funktionalitet pr. Hena Agent påkald.
-- **Minimal opsætning**: CI-komponenten sætter Hena Agent op i baggrunden, du behøver kun at oprette Hena Agent-konfigurationen og den indledende prompt.
-- **Fleksibel**: CI-komponenten understøtter flere input til at tilpasse dens adfærd
-
----
-
-### Opsætning
-
-1. Gem din Hena Agent-autentificering JSON som en filtype CI-miljøvariabel under **Indstillinger** > **CI/CD** > **Variabler**. Sørg for at markere dem som "Maskede og skjulte".
-2. Tilføj følgende til din `.gitlab-ci.yml` fil.
-
-   ```yaml title=".gitlab-ci.yml"
-   include:
-     - component: $CI_SERVER_FQDN/nagyv/gitlab-opencode/opencode@2
-       inputs:
-         config_dir: ${CI_PROJECT_DIR}/hena-agent-config
-         auth_json: $HENA_AGENT_AUTH_JSON # The variable name for your Hena Agent authentication JSON
-         command: optional-custom-command
-         message: "Your prompt here"
-   ```
-
-For flere input og use cases [check out the docs](https://gitlab.com/explore/catalog/nagyv/gitlab-opencode) for denne komponent.
-
----
 
 ## GitLab Duo
 
-Hena Agent integreres med din GitLab-arbejdsgang.
-Nævn `@hena-agent` i en kommentar, og Hena Agent vil udføre opgaver i din GitLab CI-pipeline.
+Hena integreres med din GitLab-arbejdsgang.
+Nævn `@hena` i en kommentar, og Hena vil udføre opgaver i din GitLab CI-pipeline.
 
 ---
 
 ### Funktioner
 
-- **Triageproblemer**: Bed Hena Agent om at undersøge et problem og forklare dig det.
-- **Ret og implementer**: Bed Hena Agent om at løse et problem eller implementere en funktion.
+- **Triageproblemer**: Bed Hena om at undersøge et problem og forklare dig det.
+- **Ret og implementer**: Bed Hena om at løse et problem eller implementere en funktion.
   Det vil oprette en ny branch og rejse en Merge Request med ændringer.
-- **Sikker**: Hena Agent kører på dine GitLab-løbere.
+- **Sikker**: Hena kører på dine GitLab-løbere.
 
 ---
 
 ### Opsætning
 
-Hena Agent kører i din GitLab CI/CD pipeline, her er hvad du skal bruge for at konfigurere det:
+Hena kører i din GitLab CI/CD pipeline, her er hvad du skal bruge for at konfigurere det:
 
 :::tip
 Tjek [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_platform/agent_assistant/) for opdaterede instruktioner.
@@ -82,19 +48,19 @@ Tjek [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_platform/agent_ass
     ```yaml
     image: node:22-slim
     commands:
-      - echo "Installing hena-agent"
-      - npm install --global hena-agent
+      - echo "Installing hena"
+      - npm install --global hena
       - echo "Installing glab"
-      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA_AGENT
+      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA
       - apt-get update --quiet && apt-get install --yes curl wget gpg git && rm --recursive --force /var/lib/apt/lists/*
       - curl --silent --show-error --location "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash
       - apt-get install --yes glab
       - echo "Configuring glab"
       - echo $GITLAB_HOST
-      - echo "Creating Hena Agent auth configuration"
-      - mkdir --parents ~/.local/share/hena-agent
+      - echo "Creating Hena auth configuration"
+      - mkdir --parents ~/.local/share/hena
       - |
-        cat > ~/.local/share/hena-agent/auth.json << EOF
+        cat > ~/.local/share/hena/auth.json << EOF
         {
           "anthropic": {
             "type": "api",
@@ -103,13 +69,13 @@ Tjek [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_platform/agent_ass
         }
         EOF
       - echo "Configuring git"
-      - git config --global user.email "hena-agent@gitlab.com"
-      - git config --global user.name "Hena Agent"
+      - git config --global user.email "hena@gitlab.com"
+      - git config --global user.name "Hena"
       - echo "Testing glab"
       - glab issue list
-      - echo "Running Hena Agent"
+      - echo "Running Hena"
       - |
-        hena-agent run "
+        hena run "
         You are an AI assistant helping with GitLab operations.
 
         Context: $AI_FLOW_CONTEXT
@@ -146,7 +112,7 @@ Tjek [**GitLab docs**](https://docs.gitlab.com/user/duo_agent_platform/agent_ass
         fi
     variables:
       - ANTHROPIC_API_KEY
-      - GITLAB_TOKEN_HENA_AGENT
+      - GITLAB_TOKEN_HENA
       - GITLAB_HOST
     ```
 
@@ -158,10 +124,10 @@ Du kan henvise til [GitLab CLI agents docs](https://docs.gitlab.com/user/duo_age
 
 ### Eksempler
 
-Her er nogle eksempler på, hvordan du kan bruge Hena Agent i GitLab.
+Her er nogle eksempler på, hvordan du kan bruge Hena i GitLab.
 
 :::tip
-Du kan konfigurere til at bruge en anden udløsersætning end `@hena-agent`.
+Du kan konfigurere til at bruge en anden udløsersætning end `@hena`.
 :::
 
 - **Forklar et problem**
@@ -169,27 +135,27 @@ Du kan konfigurere til at bruge en anden udløsersætning end `@hena-agent`.
   Tilføj denne kommentar i et GitLab-problem.
 
   ```
-  @hena-agent explain this issue
+  @hena explain this issue
   ```
 
-  Hena Agent vil læse spørgsmålet og svare med en klar forklaring.
+  Hena vil læse spørgsmålet og svare med en klar forklaring.
 
 - **Løs et problem**
 
   I et GitLab-nummer skal du sige:
 
   ```
-  @hena-agent fix this
+  @hena fix this
   ```
 
-  Hena Agent vil oprette en ny branch, implementere ændringer og åbne en Merge Request med ændringer.
+  Hena vil oprette en ny branch, implementere ændringer og åbne en Merge Request med ændringer.
 
 - **Gennemgå Merge Requests**
 
   Efterlad følgende kommentar til en GitLab-Merge Request.
 
   ```
-  @hena-agent review this merge request
+  @hena review this merge request
   ```
 
-  Hena Agent vil gennemgå din Merge Request og give feedback.
+  Hena vil gennemgå din Merge Request og give feedback.

@@ -1,4 +1,4 @@
-import { checksum } from "@hena-agent/core/util/encode"
+import { checksum } from "@hena/core/util/encode"
 import DOMPurify from "dompurify"
 import { project } from "./markdown-stream"
 

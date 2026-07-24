@@ -1,17 +1,17 @@
-import { Npm } from "@hena-agent/core/npm"
+import { Npm } from "@hena/core/npm"
 import { describe, expect } from "bun:test"
 import { Cause, Effect, Layer } from "effect"
 import fs from "fs/promises"
 import os from "os"
 import path from "path"
 import { fileURLToPath } from "url"
-import { AISDK } from "@hena-agent/core/aisdk"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { ModelV2 } from "@hena-agent/core/model"
-import { PluginV2 } from "@hena-agent/core/plugin"
-import { PluginHost } from "@hena-agent/core/plugin/host"
-import { DynamicProviderPlugin } from "@hena-agent/core/plugin/provider/dynamic"
-import { ProviderV2 } from "@hena-agent/core/provider"
+import { AISDK } from "@hena/core/aisdk"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { ModelV2 } from "@hena/core/model"
+import { PluginV2 } from "@hena/core/plugin"
+import { PluginHost } from "@hena/core/plugin/host"
+import { DynamicProviderPlugin } from "@hena/core/plugin/provider/dynamic"
+import { ProviderV2 } from "@hena/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -37,7 +37,7 @@ const addPlugin = Effect.fn(function* (npm?: Npm.Interface) {
 function tempEntrypoint(source: string) {
   return Effect.acquireRelease(
     Effect.promise(async () => {
-      const directory = await fs.mkdtemp(path.join(os.tmpdir(), "hena-agent-provider-dynamic-"))
+      const directory = await fs.mkdtemp(path.join(os.tmpdir(), "hena-provider-dynamic-"))
       const entrypoint = path.join(directory, "provider.mjs")
       await Bun.write(entrypoint, source)
       return { directory, entrypoint }

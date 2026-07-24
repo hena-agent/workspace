@@ -1,7 +1,7 @@
 import { test } from "bun:test"
 import { Context, Effect, Layer } from "effect"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { makeGlobalNode, makeLocationNode } from "@hena-agent/core/effect/app-node"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { makeGlobalNode, makeLocationNode } from "@hena/core/effect/app-node"
 
 class A extends Context.Service<A, {}>()("test/LayerNodeA") {}
 class B extends Context.Service<B, {}>()("test/LayerNodeB") {}

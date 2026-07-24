@@ -8,14 +8,14 @@ import { fileLogger } from "../../src/observability/logging"
 import { resource } from "../../src/observability/otlp"
 
 const otelResourceAttributes = process.env.OTEL_RESOURCE_ATTRIBUTES
-const henaAgentClient = process.env.HENA_AGENT_CLIENT
+const henaClient = process.env.HENA_CLIENT
 
 afterEach(() => {
   if (otelResourceAttributes === undefined) delete process.env.OTEL_RESOURCE_ATTRIBUTES
   else process.env.OTEL_RESOURCE_ATTRIBUTES = otelResourceAttributes
 
-  if (henaAgentClient === undefined) delete process.env.HENA_AGENT_CLIENT
-  else process.env.HENA_AGENT_CLIENT = henaAgentClient
+  if (henaClient === undefined) delete process.env.HENA_CLIENT
+  else process.env.HENA_CLIENT = henaClient
 })
 
 describe("resource", () => {
@@ -35,31 +35,31 @@ describe("resource", () => {
     process.env.OTEL_RESOURCE_ATTRIBUTES = "service.namespace=anomalyco,broken"
 
     expect(resource().attributes["service.namespace"]).toBeUndefined()
-    expect(resource().attributes["hena-agent.client"]).toBeDefined()
+    expect(resource().attributes["hena.client"]).toBeDefined()
   })
 
   test("keeps built-in attributes when env values conflict", () => {
-    process.env.HENA_AGENT_CLIENT = "cli"
+    process.env.HENA_CLIENT = "cli"
     process.env.OTEL_RESOURCE_ATTRIBUTES =
-      "hena-agent.client=web,service.instance.id=override,service.namespace=anomalyco"
+      "hena.client=web,service.instance.id=override,service.namespace=anomalyco"
 
     expect(resource().attributes).toMatchObject({
-      "hena-agent.client": "cli",
+      "hena.client": "cli",
       "service.namespace": "anomalyco",
     })
     expect(resource().attributes["service.instance.id"]).not.toBe("override")
-    expect(resource().attributes["hena-agent.run"]).toMatch(/^[0-9a-f]{8}$/)
+    expect(resource().attributes["hena.run"]).toMatch(/^[0-9a-f]{8}$/)
   })
 })
 
 test("file logger appends concurrent runs with a run on every line", async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "hena-agent-log-test-"))
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "hena-log-test-"))
   await using _ = {
     async [Symbol.asyncDispose]() {
       await fs.rm(dir, { recursive: true, force: true })
     },
   }
-  const file = path.join(dir, "hena-agent.log")
+  const file = path.join(dir, "hena.log")
   const write = (runID: string) =>
     Effect.forEach(
       Array.from({ length: 50 }, (_, index) => index),
@@ -81,13 +81,13 @@ test("file logger appends concurrent runs with a run on every line", async () =>
 })
 
 test("file logger flattens nested objects", async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "hena-agent-log-test-"))
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "hena-log-test-"))
   await using _ = {
     async [Symbol.asyncDispose]() {
       await fs.rm(dir, { recursive: true, force: true })
     },
   }
-  const file = path.join(dir, "hena-agent.log")
+  const file = path.join(dir, "hena.log")
 
   await Effect.logInfo("request complete", {
     request: { method: "GET", timing: { duration: 42 } },

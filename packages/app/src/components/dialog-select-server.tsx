@@ -1,11 +1,11 @@
-import { Button } from "@hena-agent/ui/button"
-import { useDialog } from "@hena-agent/ui/context/dialog"
-import { Dialog } from "@hena-agent/ui/dialog"
-import { DropdownMenu } from "@hena-agent/ui/dropdown-menu"
-import { Icon } from "@hena-agent/ui/icon"
-import { IconButton } from "@hena-agent/ui/icon-button"
-import { List } from "@hena-agent/ui/list"
-import { TextField } from "@hena-agent/ui/text-field"
+import { Button } from "@hena/ui/button"
+import { useDialog } from "@hena/ui/context/dialog"
+import { Dialog } from "@hena/ui/dialog"
+import { DropdownMenu } from "@hena/ui/dropdown-menu"
+import { Icon } from "@hena/ui/icon"
+import { IconButton } from "@hena/ui/icon-button"
+import { List } from "@hena/ui/list"
+import { TextField } from "@hena/ui/text-field"
 import { useMutation } from "@tanstack/solid-query"
 import { showToast } from "@/utils/toast"
 import { useNavigate } from "@solidjs/router"
@@ -20,7 +20,7 @@ import { type ServerHealth, useCheckServerHealth } from "@/utils/server-health"
 import { useSettings } from "@/context/settings"
 import { useTabs } from "@/context/tabs"
 
-const DEFAULT_USERNAME = "hena-agent"
+const DEFAULT_USERNAME = "hena"
 
 interface ServerFormProps {
   value: string

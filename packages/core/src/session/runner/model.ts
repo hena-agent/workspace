@@ -1,11 +1,11 @@
 export * as SessionRunnerModel from "./model"
 
 import { makeLocationNode } from "../../effect/app-node"
-import { type Model } from "@hena-agent/llm"
-import * as AnthropicMessages from "@hena-agent/llm/protocols/anthropic-messages"
-import * as OpenAICompatibleChat from "@hena-agent/llm/protocols/openai-compatible-chat"
-import * as OpenAIResponses from "@hena-agent/llm/protocols/openai-responses"
-import { Auth, type AnyRoute } from "@hena-agent/llm/route"
+import { type Model } from "@hena/llm"
+import * as AnthropicMessages from "@hena/llm/protocols/anthropic-messages"
+import * as OpenAICompatibleChat from "@hena/llm/protocols/openai-compatible-chat"
+import * as OpenAIResponses from "@hena/llm/protocols/openai-responses"
+import { Auth, type AnyRoute } from "@hena/llm/route"
 import { Context, Effect, Layer, Schema } from "effect"
 import { produce } from "immer"
 import { Catalog } from "../../catalog"
@@ -75,7 +75,7 @@ export interface Interface {
   readonly resolve: (session: SessionSchema.Info) => Effect.Effect<Model, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@hena-agent/v2/SessionRunnerModel") {}
+export class Service extends Context.Service<Service, Interface>()("@hena/v2/SessionRunnerModel") {}
 
 /** Test or embedding seam for supplying a model resolver directly. */
 export const layerWith = (resolve: Interface["resolve"]) => Layer.succeed(Service, Service.of({ resolve }))

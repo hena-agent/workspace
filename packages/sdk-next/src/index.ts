@@ -1,7 +1,7 @@
-export * as HenaAgent from "./hena-agent"
+export * as Hena from "./hena"
 export * as Tool from "./tool"
 
-export { ClientError } from "@hena-agent/client/effect"
+export { ClientError } from "@hena/client/effect"
 export {
   AbsolutePath,
   Agent,
@@ -13,5 +13,5 @@ export {
   Session,
   SessionInput,
   SessionMessage,
-} from "@hena-agent/client/effect"
-export type { HenaAgentEvent } from "@hena-agent/client/effect"
+} from "@hena/client/effect"
+export type { HenaEvent } from "@hena/client/effect"

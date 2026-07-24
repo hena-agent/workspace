@@ -1,6 +1,6 @@
 export * as Database from "./database"
 
-import { EffectDrizzleSqlite } from "@hena-agent/effect-drizzle-sqlite"
+import { EffectDrizzleSqlite } from "@hena/effect-drizzle-sqlite"
 import { layer as sqliteLayer } from "#sqlite"
 import { Context, Effect, Layer } from "effect"
 import { Global } from "../global"
@@ -17,7 +17,7 @@ export interface Interface {
   db: DatabaseShape
 }
 
-export class Service extends Context.Service<Service, Interface>()("@hena-agent/v2/storage/Database") {}
+export class Service extends Context.Service<Service, Interface>()("@hena/v2/storage/Database") {}
 
 const layer = Layer.effect(
   Service,
@@ -41,16 +41,16 @@ export function layerFromPath(filename: string) {
 }
 
 export function path() {
-  if (Flag.HENA_AGENT_DB) {
-    if (Flag.HENA_AGENT_DB === ":memory:" || isAbsolute(Flag.HENA_AGENT_DB)) return Flag.HENA_AGENT_DB
-    return join(Global.Path.data, Flag.HENA_AGENT_DB)
+  if (Flag.HENA_DB) {
+    if (Flag.HENA_DB === ":memory:" || isAbsolute(Flag.HENA_DB)) return Flag.HENA_DB
+    return join(Global.Path.data, Flag.HENA_DB)
   }
   if (
     ["latest", "beta", "prod"].includes(InstallationChannel) ||
-    Flag.HENA_AGENT_DISABLE_CHANNEL_DB
+    Flag.HENA_DISABLE_CHANNEL_DB
   )
-    return join(Global.Path.data, "hena-agent.db")
-  return join(Global.Path.data, `hena-agent-${InstallationChannel.replace(/[^a-zA-Z0-9._-]/g, "-")}.db`)
+    return join(Global.Path.data, "hena.db")
+  return join(Global.Path.data, `hena-${InstallationChannel.replace(/[^a-zA-Z0-9._-]/g, "-")}.db`)
 }
 
 export const node = makeGlobalNode({ service: Service, layer: layerFromPath(path()), deps: [] })

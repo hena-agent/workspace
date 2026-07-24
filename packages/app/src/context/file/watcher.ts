@@ -1,4 +1,4 @@
-import type { FileNode } from "@hena-agent/sdk/v2"
+import type { FileNode } from "@hena/sdk/v2"
 
 type WatcherEvent = {
   type: string

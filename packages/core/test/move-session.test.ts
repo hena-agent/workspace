@@ -4,19 +4,19 @@ import fs from "fs/promises"
 import path from "path"
 import { eq } from "drizzle-orm"
 import { Effect } from "effect"
-import { MoveSession } from "@hena-agent/core/control-plane/move-session"
-import { Database } from "@hena-agent/core/database/database"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { EventV2 } from "@hena-agent/core/event"
-import { Project } from "@hena-agent/core/project"
-import { ProjectTable } from "@hena-agent/core/project/sql"
-import { ProjectDirectories } from "@hena-agent/core/project/directories"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { SessionV2 } from "@hena-agent/core/session"
-import { SessionProjector } from "@hena-agent/core/session/projector"
-import { SessionTable } from "@hena-agent/core/session/sql"
-import { SessionStore } from "@hena-agent/core/session/store"
+import { MoveSession } from "@hena/core/control-plane/move-session"
+import { Database } from "@hena/core/database/database"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { EventV2 } from "@hena/core/event"
+import { Project } from "@hena/core/project"
+import { ProjectTable } from "@hena/core/project/sql"
+import { ProjectDirectories } from "@hena/core/project/directories"
+import { AbsolutePath } from "@hena/core/schema"
+import { SessionV2 } from "@hena/core/session"
+import { SessionProjector } from "@hena/core/session/projector"
+import { SessionTable } from "@hena/core/session/sql"
+import { SessionStore } from "@hena/core/session/store"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 
@@ -43,7 +43,7 @@ async function initRepo(directory: string) {
   await $`git config core.autocrlf false`.cwd(directory).quiet()
   await $`git config core.fsmonitor false`.cwd(directory).quiet()
   await $`git config commit.gpgsign false`.cwd(directory).quiet()
-  await $`git config user.email test@hena-agent.test`.cwd(directory).quiet()
+  await $`git config user.email test@hena.test`.cwd(directory).quiet()
   await $`git config user.name Test`.cwd(directory).quiet()
   await fs.writeFile(path.join(directory, "tracked.txt"), "initial\n")
   await $`git add tracked.txt`.cwd(directory).quiet()

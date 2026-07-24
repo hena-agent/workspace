@@ -1,5 +1,5 @@
-import { EventV2 } from "@hena-agent/core/event"
-import { HenaAgentEvent } from "@hena-agent/protocol/groups/event"
+import { EventV2 } from "@hena/core/event"
+import { HenaEvent } from "@hena/protocol/groups/event"
 import { Effect, Schema, Stream } from "effect"
 import { HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
@@ -13,7 +13,7 @@ function eventData(data: unknown): Sse.Event {
     _tag: "Event",
     event: "message",
     id: undefined,
-    data: JSON.stringify(Schema.encodeUnknownSync(HenaAgentEvent)(data)),
+    data: JSON.stringify(Schema.encodeUnknownSync(HenaEvent)(data)),
   }
 }
 

@@ -1,13 +1,13 @@
 ---
 title: SDK
-description: hena-agent sunucusu için type-safe JS istemcisi.
+description: hena sunucusu için type-safe JS istemcisi.
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-hena-agent JS/TS SDK, sunucu ile etkileşmek için type-safe bir istemci sağlar.
-hena-agent'u programatik olarak kontrol etmek ve entegrasyonlar oluşturmak için kullanabilirsiniz.
+hena JS/TS SDK, sunucu ile etkileşmek için type-safe bir istemci sağlar.
+hena'u programatik olarak kontrol etmek ve entegrasyonlar oluşturmak için kullanabilirsiniz.
 
 [Sunucu](/docs/server) sayfasında nasıl çalıştığını görebilir, örnekler için topluluğun oluşturduğu [projeler](/docs/ecosystem#projects) bölümüne bakabilirsiniz.
 
@@ -18,19 +18,19 @@ hena-agent'u programatik olarak kontrol etmek ve entegrasyonlar oluşturmak içi
 SDK'yı npm'den yükleyin:
 
 ```bash
-npm install @hena-agent/sdk
+npm install @hena/sdk
 ```
 
 ---
 
 ## İstemci Oluşturma
 
-Bir hena-agent örneği oluşturun:
+Bir hena örneği oluşturun:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const { client } = await createHenaAgent()
+const { client } = await createHena()
 ```
 
 Bu, hem bir sunucu hem de bir istemci başlatır
@@ -49,12 +49,12 @@ Bu, hem bir sunucu hem de bir istemci başlatır
 
 ## Yapılandırma
 
-Davranışı özelleştirmek için bir yapılandırma nesnesi iletebilirsiniz. Örnek yine de `hena-agent.json` dosyanızı alır, ancak yapılandırmayı satır içi olarak geçersiz kılabilir veya ekleyebilirsiniz:
+Davranışı özelleştirmek için bir yapılandırma nesnesi iletebilirsiniz. Örnek yine de `hena.json` dosyanızı alır, ancak yapılandırmayı satır içi olarak geçersiz kılabilir veya ekleyebilirsiniz:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const agent = await createHenaAgent({
+const agent = await createHena({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -69,12 +69,12 @@ agent.server.close()
 
 ## Yalnızca istemci
 
-Halihazırda çalışan bir hena-agent örneğiniz varsa, ona bağlanmak için bir istemci örneği oluşturabilirsiniz:
+Halihazırda çalışan bir hena örneğiniz varsa, ona bağlanmak için bir istemci örneği oluşturabilirsiniz:
 
 ```javascript
-import { createHenaAgentClient } from "@hena-agent/sdk"
+import { createHenaClient } from "@hena/sdk"
 
-const client = createHenaAgentClient({
+const client = createHenaClient({
   baseUrl: "http://localhost:4096",
 })
 ```
@@ -96,7 +96,7 @@ const client = createHenaAgentClient({
 SDK, tüm API türleri için TypeScript tanımlarını içerir. Bunları doğrudan içe aktarın:
 
 ```typescript
-import type { Session, Message, Part } from "@hena-agent/sdk"
+import type { Session, Message, Part } from "@hena/sdk"
 ```
 
 Tüm tipler, sunucunun OpenAPI spesifikasyonundan oluşturulur ve <a href={typesUrl}>tipler dosyasında</a> mevcuttur.
@@ -376,7 +376,7 @@ await client.session.prompt({
 ```javascript
 // Search and read files
 const textResults = await client.find.text({
-  query: { pattern: "function.*hena-agent" },
+  query: { pattern: "function.*hena" },
 })
 
 const files = await client.find.files({

@@ -1,4 +1,4 @@
-import type { UserMessage } from "@hena-agent/sdk/v2"
+import type { UserMessage } from "@hena/sdk/v2"
 
 type Local = {
   session: {

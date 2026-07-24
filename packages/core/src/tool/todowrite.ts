@@ -1,6 +1,6 @@
 export * as TodoWriteTool from "./todowrite"
 
-import { ToolFailure } from "@hena-agent/llm"
+import { ToolFailure } from "@hena/llm"
 import { Effect, Layer, Schema } from "effect"
 import { makeLocationNode } from "../effect/app-node"
 import { PermissionV2 } from "../permission"

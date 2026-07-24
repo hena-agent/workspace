@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
-import { Shell } from "@hena-agent/core/shell"
-import { FSUtil } from "@hena-agent/core/fs-util"
-import { which } from "@hena-agent/core/util/which"
+import { Shell } from "@hena/core/shell"
+import { FSUtil } from "@hena/core/fs-util"
+import { which } from "@hena/core/util/which"
 
 const withShell = async (shell: string | undefined, fn: () => void | Promise<void>) => {
   const prev = process.env.SHELL
@@ -44,8 +44,8 @@ describe("shell", () => {
     await withShell(undefined, async () => {
       const preferred = Shell.preferred()
       const acceptable = Shell.acceptable()
-      expect(Shell.preferred("hena-agent-missing-shell")).toBe(preferred)
-      expect(Shell.acceptable("hena-agent-missing-shell")).toBe(acceptable)
+      expect(Shell.preferred("hena-missing-shell")).toBe(preferred)
+      expect(Shell.acceptable("hena-missing-shell")).toBe(acceptable)
     })
   })
 

@@ -5,7 +5,7 @@ import { testRender, useRenderer } from "@opentui/solid"
 import { expect, test } from "bun:test"
 import { onCleanup } from "solid-js"
 import { TuiKeybind } from "../src/config/keybind"
-import { getHenaAgentModeStack, HENA_AGENT_BASE_MODE, HenaAgentKeymapProvider, registerHenaAgentKeymap } from "../src/keymap"
+import { getHenaModeStack, HENA_BASE_MODE, HenaKeymapProvider, registerHenaKeymap } from "../src/keymap"
 
 function createResolvedKeymapConfig(input: TuiKeybind.KeybindOverrides = {}) {
   const keybinds = TuiKeybind.parse(input)
@@ -28,7 +28,7 @@ test("legacy page key aliases compile as page keys", async () => {
       messages_page_up: "pgup",
       messages_page_down: "pgdown",
     })
-    const offKeymap = registerHenaAgentKeymap(keymap, renderer, config)
+    const offKeymap = registerHenaKeymap(keymap, renderer, config)
     const offLayer = keymap.registerLayer({
       bindings: config.keybinds.gather("session", ["session.page.up", "session.page.down"]),
     })
@@ -46,9 +46,9 @@ test("legacy page key aliases compile as page keys", async () => {
     })
 
     return (
-      <HenaAgentKeymapProvider keymap={keymap}>
+      <HenaKeymapProvider keymap={keymap}>
         <box />
-      </HenaAgentKeymapProvider>
+      </HenaKeymapProvider>
     )
   }
 
@@ -63,14 +63,14 @@ test("legacy page key aliases compile as page keys", async () => {
   }
 })
 
-test("mode-less bindings stay active when hena-agent mode changes", async () => {
+test("mode-less bindings stay active when hena mode changes", async () => {
   const counts: Record<string, Record<string, number>> = {}
 
   function Harness() {
     const renderer = useRenderer()
     const keymap = createDefaultOpenTuiKeymap(renderer)
     const config = createResolvedKeymapConfig()
-    const offKeymap = registerHenaAgentKeymap(keymap, renderer, config)
+    const offKeymap = registerHenaKeymap(keymap, renderer, config)
     const offGlobal = keymap.registerLayer({
       commands: [
         { name: "session.list", run() {} },
@@ -86,7 +86,7 @@ test("mode-less bindings stay active when hena-agent mode changes", async () => 
       ]),
     })
     const offBase = keymap.registerLayer({
-      mode: HENA_AGENT_BASE_MODE,
+      mode: HENA_BASE_MODE,
       commands: [{ name: "model.list", run() {} }],
       bindings: config.keybinds.gather("test.base", ["model.list"]),
     })
@@ -102,10 +102,10 @@ test("mode-less bindings stay active when hena-agent mode changes", async () => 
       )
 
     counts.base = activeCounts()
-    const popQuestion = getHenaAgentModeStack(keymap).push("question")
+    const popQuestion = getHenaModeStack(keymap).push("question")
     counts.question = activeCounts()
     popQuestion()
-    const popAutocomplete = getHenaAgentModeStack(keymap).push("autocomplete")
+    const popAutocomplete = getHenaModeStack(keymap).push("autocomplete")
     counts.autocomplete = activeCounts()
     popAutocomplete()
 
@@ -116,9 +116,9 @@ test("mode-less bindings stay active when hena-agent mode changes", async () => 
     })
 
     return (
-      <HenaAgentKeymapProvider keymap={keymap}>
+      <HenaKeymapProvider keymap={keymap}>
         <box />
-      </HenaAgentKeymapProvider>
+      </HenaKeymapProvider>
     )
   }
 

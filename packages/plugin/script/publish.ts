@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { Script } from "@hena-agent/script"
+import { Script } from "@hena/script"
 import { $ } from "bun"
 import { fileURLToPath } from "url"
 

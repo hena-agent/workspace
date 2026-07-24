@@ -1,7 +1,7 @@
 import type { APIEvent } from "@solidjs/start/server"
-import { Account } from "@hena-agent/console-core/account.js"
-import { safeEqual } from "@hena-agent/console-core/util/crypto.js"
-import { Resource } from "@hena-agent/console-resource"
+import { Account } from "@hena/console-core/account.js"
+import { safeEqual } from "@hena/console-core/util/crypto.js"
+import { Resource } from "@hena/console-resource"
 import z from "zod"
 
 const Body = z.object({ email: z.email() })

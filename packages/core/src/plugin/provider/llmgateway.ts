@@ -16,8 +16,8 @@ export const LLMGatewayPlugin = define({
           if (!(yield* integrations.get(Integration.ID.make(item.provider.id)))) continue
           evt.provider.update(item.provider.id, (provider) => {
             provider.request.headers["HTTP-Referer"] = "https://hena.dev/"
-            provider.request.headers["X-Title"] = "hena-agent"
-            provider.request.headers["X-Source"] = "hena-agent"
+            provider.request.headers["X-Title"] = "hena"
+            provider.request.headers["X-Source"] = "hena"
           })
         }
       }),

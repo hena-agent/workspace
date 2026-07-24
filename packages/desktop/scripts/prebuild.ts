@@ -7,4 +7,4 @@ const channel = resolveChannel()
 await $`bun ./scripts/copy-icons.ts ${channel}`
 await $`bun ./scripts/copy-metainfo.ts ${channel}`
 
-await $`cd ../hena-agent && bun script/build-node.ts`
+await $`cd ../hena && bun script/build-node.ts`

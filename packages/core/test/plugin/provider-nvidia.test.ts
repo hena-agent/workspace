@@ -1,11 +1,11 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Catalog } from "@hena-agent/core/catalog"
-import { PluginV2 } from "@hena-agent/core/plugin"
-import { PluginHost } from "@hena-agent/core/plugin/host"
-import { ProviderPlugins } from "@hena-agent/core/plugin/provider"
-import { NvidiaPlugin } from "@hena-agent/core/plugin/provider/nvidia"
-import { ProviderV2 } from "@hena-agent/core/provider"
+import { Catalog } from "@hena/core/catalog"
+import { PluginV2 } from "@hena/core/plugin"
+import { PluginHost } from "@hena/core/plugin/host"
+import { ProviderPlugins } from "@hena/core/plugin/provider"
+import { NvidiaPlugin } from "@hena/core/plugin/provider/nvidia"
+import { ProviderV2 } from "@hena/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -40,8 +40,8 @@ describe("NvidiaPlugin", () => {
       expect((yield* catalog.provider.get(ProviderV2.ID.make("nvidia")))?.request.headers).toEqual({
         Existing: "value",
         "HTTP-Referer": "https://hena.dev/",
-        "X-Title": "hena-agent",
-        "X-BILLING-INVOKE-ORIGIN": "Hena Agent",
+        "X-Title": "hena",
+        "X-BILLING-INVOKE-ORIGIN": "Hena",
       })
       expect((yield* catalog.provider.get(ProviderV2.ID.openrouter))?.request.headers).toEqual({})
     }),
@@ -63,8 +63,8 @@ describe("NvidiaPlugin", () => {
 
       expect((yield* catalog.provider.get(ProviderV2.ID.make("nvidia")))?.request.headers).toEqual({
         "HTTP-Referer": "https://hena.dev/",
-        "X-Title": "hena-agent",
-        "X-BILLING-INVOKE-ORIGIN": "Hena Agent",
+        "X-Title": "hena",
+        "X-BILLING-INVOKE-ORIGIN": "Hena",
       })
     }),
   )
@@ -89,7 +89,7 @@ describe("NvidiaPlugin", () => {
 
       expect((yield* catalog.provider.get(ProviderV2.ID.make("nvidia")))?.request.headers).toEqual({
         "HTTP-Referer": "https://hena.dev/",
-        "X-Title": "hena-agent",
+        "X-Title": "hena",
         "X-BILLING-INVOKE-ORIGIN": "CustomOrigin",
       })
     }),

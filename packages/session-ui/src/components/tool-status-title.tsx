@@ -1,6 +1,6 @@
 import { Show, createEffect, createMemo, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import { TextShimmer } from "@hena-agent/ui/text-shimmer"
+import { TextShimmer } from "@hena/ui/text-shimmer"
 
 function common(active: string, done: string) {
   const a = Array.from(active)

@@ -1,30 +1,30 @@
 ---
 title: CLI
-description: Opcje i polecenia wiersza poleceń Hena Agent.
+description: Opcje i polecenia wiersza poleceń Hena.
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 
-CLI Hena Agent domyślnie uruchamia [TUI](/docs/tui), gdy wywołasz je bez argumentów.
+CLI Hena domyślnie uruchamia [TUI](/docs/tui), gdy wywołasz je bez argumentów.
 
 ```bash
-hena-agent
+hena
 ```
 
-CLI obsługuje też polecenia opisane na tej stronie, więc możesz używać Hena Agent programowo.
+CLI obsługuje też polecenia opisane na tej stronie, więc możesz używać Hena programowo.
 
 ```bash
-hena-agent run "Explain how closures work in JavaScript"
+hena run "Explain how closures work in JavaScript"
 ```
 
 ---
 
 ### tui
 
-Uruchamia interfejs terminalowy (TUI) Hena Agent.
+Uruchamia interfejs terminalowy (TUI) Hena.
 
 ```bash
-hena-agent [project]
+hena [project]
 ```
 
 #### Flagi
@@ -44,36 +44,36 @@ hena-agent [project]
 
 ## Polecenia
 
-Interfejs CLI Hena Agent zawiera także dodatkowe polecenia.
+Interfejs CLI Hena zawiera także dodatkowe polecenia.
 
 ---
 
 ### agent
 
-Zarządzaj agentami Hena Agent.
+Zarządzaj agentami Hena.
 
 ```bash
-hena-agent agent [command]
+hena agent [command]
 ```
 
 ---
 
 ### attach
 
-Dołącz terminal do już działającego serwera backendu Hena Agent uruchomionego za pomocą `serve` lub `web`.
+Dołącz terminal do już działającego serwera backendu Hena uruchomionego za pomocą `serve` lub `web`.
 
 ```bash
-hena-agent attach [url]
+hena attach [url]
 ```
 
-Pozwala to połączyć TUI ze zdalnym backendem Hena Agent. Na przykład:
+Pozwala to połączyć TUI ze zdalnym backendem Hena. Na przykład:
 
 ```bash
 # Start the backend server for web/mobile access
-hena-agent web --port 4096 --hostname 0.0.0.0
+hena web --port 4096 --hostname 0.0.0.0
 
 # In another terminal, attach the TUI to the running backend
-hena-agent attach http://10.20.30.40:4096
+hena attach http://10.20.30.40:4096
 ```
 
 #### Flagi
@@ -84,8 +84,8 @@ hena-agent attach http://10.20.30.40:4096
 | <nobr><code>{"--continue"}</code></nobr> | `-c`  | Kontynuuj ostatnią sesję                                                                              |
 | <nobr><code>{"--session"}</code></nobr>  | `-s`  | Identyfikator sesji do kontynuowania                                                                  |
 | <nobr><code>{"--fork"}</code></nobr>     |       | Rozgałęź sesję podczas kontynuowania (użyj z `--continue` lub `--session`)                            |
-| <nobr><code>{"--password"}</code></nobr> | `-p`  | Hasło uwierzytelniania podstawowego (domyślnie `HENA_AGENT_SERVER_PASSWORD`)                            |
-| <nobr><code>{"--username"}</code></nobr> | `-u`  | Nazwa użytkownika uwierzytelniania podstawowego (domyślnie `HENA_AGENT_SERVER_USERNAME` lub `hena-agent`) |
+| <nobr><code>{"--password"}</code></nobr> | `-p`  | Hasło uwierzytelniania podstawowego (domyślnie `HENA_SERVER_PASSWORD`)                            |
+| <nobr><code>{"--username"}</code></nobr> | `-u`  | Nazwa użytkownika uwierzytelniania podstawowego (domyślnie `HENA_SERVER_USERNAME` lub `hena`) |
 
 ---
 
@@ -94,7 +94,7 @@ hena-agent attach http://10.20.30.40:4096
 Utwórz nowego agenta z niestandardową konfiguracją.
 
 ```bash
-hena-agent agent create
+hena agent create
 ```
 
 To polecenie poprowadzi Cię przez proces tworzenia nowego agenta z niestandardowym promptem systemowym i konfiguracją narzędzi.
@@ -106,7 +106,7 @@ To polecenie poprowadzi Cię przez proces tworzenia nowego agenta z niestandardo
 Wyświetl listę wszystkich agentów.
 
 ```bash
-hena-agent agent list
+hena agent list
 ```
 
 ---
@@ -116,20 +116,20 @@ hena-agent agent list
 Zarządzaj danymi uwierzytelniającymi i logowaniem dla dostawców.
 
 ```bash
-hena-agent auth [command]
+hena auth [command]
 ```
 
 ---
 
 #### login
 
-Hena Agent integruje się z wieloma dostawcami. Możesz użyć `hena-agent auth login`, aby skonfigurować klucz API dla dowolnego obsługiwanego dostawcy. Klucze są bezpiecznie przechowywane w `~/.local/share/hena-agent/auth.json`.
+Hena integruje się z wieloma dostawcami. Możesz użyć `hena auth login`, aby skonfigurować klucz API dla dowolnego obsługiwanego dostawcy. Klucze są bezpiecznie przechowywane w `~/.local/share/hena/auth.json`.
 
 ```bash
-hena-agent auth login
+hena auth login
 ```
 
-Podczas uruchamiania Hena Agent ładuje dostawców z pliku poświadczeń, a także ze zmiennych środowiskowych lub pliku `.env` w Twoim projekcie.
+Podczas uruchamiania Hena ładuje dostawców z pliku poświadczeń, a także ze zmiennych środowiskowych lub pliku `.env` w Twoim projekcie.
 
 ---
 
@@ -138,13 +138,13 @@ Podczas uruchamiania Hena Agent ładuje dostawców z pliku poświadczeń, a tak�
 Wyświetl listę wszystkich uwierzytelnionych dostawców przechowywanych w pliku poświadczeń.
 
 ```bash
-hena-agent auth list
+hena auth list
 ```
 
 Lub skrócona wersja:
 
 ```bash
-hena-agent auth ls
+hena auth ls
 ```
 
 ---
@@ -154,7 +154,7 @@ hena-agent auth ls
 Wyloguj się z dostawcy, usuwając go z pliku poświadczeń.
 
 ```bash
-hena-agent auth logout
+hena auth logout
 ```
 
 ---
@@ -164,7 +164,7 @@ hena-agent auth logout
 Zarządzaj agentem GitHub w celu automatyzacji repozytorium.
 
 ```bash
-hena-agent github [command]
+hena github [command]
 ```
 
 ---
@@ -174,7 +174,7 @@ hena-agent github [command]
 Zainstaluj agenta GitHub w swoim repozytorium.
 
 ```bash
-hena-agent github install
+hena github install
 ```
 
 Spowoduje to utworzenie pliku workflow GitHub Actions i poprowadzi Cię przez proces konfiguracji. [Dowiedz się więcej](/docs/github).
@@ -186,7 +186,7 @@ Spowoduje to utworzenie pliku workflow GitHub Actions i poprowadzi Cię przez pr
 Uruchom agenta na GitHubie. Zwykle używane w GitHub Actions.
 
 ```bash
-hena-agent github run
+hena github run
 ```
 
 ##### Flagi
@@ -203,7 +203,7 @@ hena-agent github run
 Zarządzaj serwerami Model Context Protocol (MCP).
 
 ```bash
-hena-agent mcp [command]
+hena mcp [command]
 ```
 
 ---
@@ -213,7 +213,7 @@ hena-agent mcp [command]
 Dodaj serwer MCP do swojej konfiguracji.
 
 ```bash
-hena-agent mcp add
+hena mcp add
 ```
 
 To polecenie poprowadzi Cię przez proces dodawania lokalnego lub zdalnego serwera MCP.
@@ -225,13 +225,13 @@ To polecenie poprowadzi Cię przez proces dodawania lokalnego lub zdalnego serwe
 Wyświetl listę wszystkich skonfigurowanych serwerów MCP i ich status.
 
 ```bash
-hena-agent mcp list
+hena mcp list
 ```
 
 Lub skrócona wersja:
 
 ```bash
-hena-agent mcp ls
+hena mcp ls
 ```
 
 ---
@@ -241,7 +241,7 @@ hena-agent mcp ls
 Uwierzytelnij się w serwerze MCP z włączoną funkcją OAuth.
 
 ```bash
-hena-agent mcp auth [name]
+hena mcp auth [name]
 ```
 
 Jeśli nie podasz nazwy serwera, zostaniesz poproszony o wybranie jednego z serwerów wymagających uwierzytelnienia.
@@ -249,13 +249,13 @@ Jeśli nie podasz nazwy serwera, zostaniesz poproszony o wybranie jednego z serw
 Możesz także wyświetlić listę serwerów obsługujących OAuth i ich status uwierzytelnienia.
 
 ```bash
-hena-agent mcp auth list
+hena mcp auth list
 ```
 
 Lub skrócona wersja:
 
 ```bash
-hena-agent mcp auth ls
+hena mcp auth ls
 ```
 
 ---
@@ -265,7 +265,7 @@ hena-agent mcp auth ls
 Usuń tokeny OAuth dla serwera MCP.
 
 ```bash
-hena-agent mcp logout [name]
+hena mcp logout [name]
 ```
 
 ---
@@ -275,7 +275,7 @@ hena-agent mcp logout [name]
 Debuguj problemy z połączeniem OAuth dla serwera MCP.
 
 ```bash
-hena-agent mcp debug <name>
+hena mcp debug <name>
 ```
 
 ---
@@ -285,7 +285,7 @@ hena-agent mcp debug <name>
 Wyświetl listę modeli ze wszystkich skonfigurowanych dostawców.
 
 ```bash
-hena-agent models [provider]
+hena models [provider]
 ```
 
 Pokazuje modele dostępne do użycia w `provider/model`.
@@ -295,7 +295,7 @@ Jest to identyfikator modelu, którego używasz w [konfiguracji](/docs/config).
 Opcjonalnie możesz podać identyfikator dostawcy, aby filtrować modele według tego dostawcy.
 
 ```bash
-hena-agent models anthropic
+hena models anthropic
 ```
 
 #### Flagi
@@ -305,36 +305,36 @@ hena-agent models anthropic
 | <nobr><code>{"--refresh"}</code></nobr> | Odśwież pamięć podręczną modeli                                                 |
 | <nobr><code>{"--verbose"}</code></nobr> | Bardziej szczegółowe dane wyjściowe modelu (zawiera metadane, takie jak koszty) |
 
-Użyj flagi `--refresh`, aby zaktualizować listę modeli w pamięci podręcznej. Jest to przydatne, gdy dostawca dodał nowe modele, które chcesz zobaczyć w Hena Agent.
+Użyj flagi `--refresh`, aby zaktualizować listę modeli w pamięci podręcznej. Jest to przydatne, gdy dostawca dodał nowe modele, które chcesz zobaczyć w Hena.
 
 ```bash
-hena-agent models --refresh
+hena models --refresh
 ```
 
 ---
 
 ### run
 
-Uruchom Hena Agent w trybie nieinteraktywnym, przekazując bezpośrednio prompt.
+Uruchom Hena w trybie nieinteraktywnym, przekazując bezpośrednio prompt.
 
 ```bash
-hena-agent run [message..]
+hena run [message..]
 ```
 
 Jest to przydatne do tworzenia skryptów, automatyzacji lub gdy chcesz wysłać szybkie zapytanie bez uruchamiania TUI. Na przykład:
 
-```bash "hena-agent run"
-hena-agent run Explain the use of context in Go
+```bash "hena run"
+hena run Explain the use of context in Go
 ```
 
-Można również użyć tego z działającym `hena-agent serve`, aby uniknąć zimnego startu serwera MCP przy każdym uruchomieniu:
+Można również użyć tego z działającym `hena serve`, aby uniknąć zimnego startu serwera MCP przy każdym uruchomieniu:
 
 ```bash
 # Start a headless server in one terminal
-hena-agent serve
+hena serve
 
 # In another terminal, run commands that attach to it
-hena-agent run --attach http://localhost:4096 "Explain async/await in JavaScript"
+hena run --attach http://localhost:4096 "Explain async/await in JavaScript"
 ```
 
 #### Flagi
@@ -351,9 +351,9 @@ hena-agent run --attach http://localhost:4096 "Explain async/await in JavaScript
 | <nobr><code>{"--file"}</code></nobr>     | `-f`  | Pliki do załączenia do wiadomości                                                                     |
 | <nobr><code>{"--format"}</code></nobr>   |       | Format wyjściowy: `default` (sformatowany) lub `json` (surowy JSON)                                   |
 | <nobr><code>{"--title"}</code></nobr>    |       | Tytuł sesji (jeśli nie podano, zostanie wygenerowany z promptu)                                       |
-| <nobr><code>{"--attach"}</code></nobr>   |       | Dołącz do działającego serwera Hena Agent (np. http://localhost:4096)                                   |
-| <nobr><code>{"--password"}</code></nobr> | `-p`  | Hasło uwierzytelniania podstawowego (domyślnie `HENA_AGENT_SERVER_PASSWORD`)                            |
-| <nobr><code>{"--username"}</code></nobr> | `-u`  | Nazwa użytkownika uwierzytelniania podstawowego (domyślnie `HENA_AGENT_SERVER_USERNAME` lub `hena-agent`) |
+| <nobr><code>{"--attach"}</code></nobr>   |       | Dołącz do działającego serwera Hena (np. http://localhost:4096)                                   |
+| <nobr><code>{"--password"}</code></nobr> | `-p`  | Hasło uwierzytelniania podstawowego (domyślnie `HENA_SERVER_PASSWORD`)                            |
+| <nobr><code>{"--username"}</code></nobr> | `-u`  | Nazwa użytkownika uwierzytelniania podstawowego (domyślnie `HENA_SERVER_USERNAME` lub `hena`) |
 | <nobr><code>{"--dir"}</code></nobr>      |       | Katalog do uruchomienia lub ścieżka na zdalnym serwerze podczas dołączania                            |
 | <nobr><code>{"--variant"}</code></nobr>  |       | Wariant modelu (poziom wnioskowania specyficzny dla dostawcy)                                         |
 | <nobr><code>{"--thinking"}</code></nobr> |       | Pokaż bloki myślenia                                                                                  |
@@ -363,13 +363,13 @@ hena-agent run --attach http://localhost:4096 "Explain async/await in JavaScript
 
 ### serve
 
-Uruchom serwer Hena Agent (bez interfejsu) w celu uzyskania dostępu do API. Pełny opis API HTTP znajduje się w [dokumentacji serwera](/docs/server).
+Uruchom serwer Hena (bez interfejsu) w celu uzyskania dostępu do API. Pełny opis API HTTP znajduje się w [dokumentacji serwera](/docs/server).
 
 ```bash
-hena-agent serve
+hena serve
 ```
 
-Uruchamia to serwer HTTP, który zapewnia dostęp do API Hena Agent bez interfejsu TUI. Ustaw `HENA_AGENT_SERVER_PASSWORD`, aby włączyć podstawowe uwierzytelnianie HTTP (domyślna nazwa użytkownika to `hena-agent`).
+Uruchamia to serwer HTTP, który zapewnia dostęp do API Hena bez interfejsu TUI. Ustaw `HENA_SERVER_PASSWORD`, aby włączyć podstawowe uwierzytelnianie HTTP (domyślna nazwa użytkownika to `hena`).
 
 #### Flagi
 
@@ -384,20 +384,20 @@ Uruchamia to serwer HTTP, który zapewnia dostęp do API Hena Agent bez interfej
 
 ### session
 
-Zarządzaj sesjami Hena Agent.
+Zarządzaj sesjami Hena.
 
 ```bash
-hena-agent session [command]
+hena session [command]
 ```
 
 ---
 
 #### list
 
-Lista wszystkich sesji Hena Agent.
+Lista wszystkich sesji Hena.
 
 ```bash
-hena-agent session list
+hena session list
 ```
 
 ##### Flagi
@@ -411,10 +411,10 @@ hena-agent session list
 
 ### stats
 
-Pokaż statystyki wykorzystania tokenów i sesji Hena Agent.
+Pokaż statystyki wykorzystania tokenów i sesji Hena.
 
 ```bash
-hena-agent stats
+hena stats
 ```
 
 #### Flagi
@@ -433,7 +433,7 @@ hena-agent stats
 Eksportuj dane sesji jako JSON.
 
 ```bash
-hena-agent export [sessionID]
+hena export [sessionID]
 ```
 
 Jeśli nie podasz identyfikatora sesji, zostaniesz poproszony o wybranie jednej z ostatnich sesji.
@@ -442,30 +442,30 @@ Jeśli nie podasz identyfikatora sesji, zostaniesz poproszony o wybranie jednej 
 
 ### import
 
-Importuj dane sesji z pliku JSON lub adresu URL udostępniania Hena Agent.
+Importuj dane sesji z pliku JSON lub adresu URL udostępniania Hena.
 
 ```bash
-hena-agent import <file>
+hena import <file>
 ```
 
 Możesz importować z pliku lokalnego lub adresu URL.
 
 ```bash
-hena-agent import session.json
-hena-agent import https://hena.dev/s/abc123
+hena import session.json
+hena import https://hena.dev/s/abc123
 ```
 
 ---
 
 ### web
 
-Uruchom serwer Hena Agent z interfejsem internetowym.
+Uruchom serwer Hena z interfejsem internetowym.
 
 ```bash
-hena-agent web
+hena web
 ```
 
-Uruchamia to serwer HTTP i udostępnia Hena Agent przez interfejs przeglądarkowy. Ustaw `HENA_AGENT_SERVER_PASSWORD`, aby włączyć podstawowe uwierzytelnianie HTTP (domyślna nazwa użytkownika to `hena-agent`).
+Uruchamia to serwer HTTP i udostępnia Hena przez interfejs przeglądarkowy. Ustaw `HENA_SERVER_PASSWORD`, aby włączyć podstawowe uwierzytelnianie HTTP (domyślna nazwa użytkownika to `hena`).
 
 #### Flagi
 
@@ -483,7 +483,7 @@ Uruchamia to serwer HTTP i udostępnia Hena Agent przez interfejs przeglądarkow
 Uruchom serwer ACP (Agent Client Protocol).
 
 ```bash
-hena-agent acp
+hena acp
 ```
 
 Uruchamia serwer ACP, który komunikuje się przez stdin/stdout przy użyciu JSON-RPC.
@@ -500,10 +500,10 @@ Uruchamia serwer ACP, który komunikuje się przez stdin/stdout przy użyciu JSO
 
 ### uninstall
 
-Odinstaluj Hena Agent i usuń wszystkie powiązane pliki.
+Odinstaluj Hena i usuń wszystkie powiązane pliki.
 
 ```bash
-hena-agent uninstall
+hena uninstall
 ```
 
 #### Flagi
@@ -519,22 +519,22 @@ hena-agent uninstall
 
 ### upgrade
 
-Aktualizuj Hena Agent do najnowszej lub określonej wersji.
+Aktualizuj Hena do najnowszej lub określonej wersji.
 
 ```bash
-hena-agent upgrade [target]
+hena upgrade [target]
 ```
 
 Aby zaktualizować do najnowszej wersji:
 
 ```bash
-hena-agent upgrade
+hena upgrade
 ```
 
 Aby zaktualizować do konkretnej wersji:
 
 ```bash
-hena-agent upgrade v0.1.48
+hena upgrade v0.1.48
 ```
 
 #### Flagi
@@ -547,7 +547,7 @@ hena-agent upgrade v0.1.48
 
 ## Flagi globalne
 
-Interfejs CLI Hena Agent przyjmuje następujące flagi globalne dla każdego polecenia.
+Interfejs CLI Hena przyjmuje następujące flagi globalne dla każdego polecenia.
 
 | Flaga                                      | Skrót | Opis                                        |
 | ------------------------------------------ | ----- | ------------------------------------------- |
@@ -560,34 +560,34 @@ Interfejs CLI Hena Agent przyjmuje następujące flagi globalne dla każdego pol
 
 ## Zmienne środowiskowe
 
-Hena Agent można skonfigurować za pomocą zmiennych środowiskowych.
+Hena można skonfigurować za pomocą zmiennych środowiskowych.
 
 | Zmienna                               | Typ     | Opis                                                       |
 | ------------------------------------- | ------- | ---------------------------------------------------------- |
-| `HENA_AGENT_AUTO_SHARE`                 | boolean | Automatycznie udostępniaj sesje                            |
-| `HENA_AGENT_GIT_BASH_PATH`              | string  | Ścieżka do pliku wykonywalnego Git Bash w systemie Windows |
-| `HENA_AGENT_CONFIG`                     | string  | Ścieżka do pliku konfiguracyjnego                          |
-| `HENA_AGENT_TUI_CONFIG`                 | string  | Ścieżka do pliku konfiguracyjnego TUI                      |
-| `HENA_AGENT_CONFIG_DIR`                 | string  | Ścieżka do katalogu konfiguracyjnego                       |
-| `HENA_AGENT_CONFIG_CONTENT`             | string  | Treść konfiguracji JSON (inline)                           |
-| `HENA_AGENT_DISABLE_AUTOUPDATE`         | boolean | Wyłącz automatyczne sprawdzanie aktualizacji               |
-| `HENA_AGENT_DISABLE_PRUNE`              | boolean | Wyłącz czyszczenie starych wyników (pruning)               |
-| `HENA_AGENT_DISABLE_TERMINAL_TITLE`     | boolean | Wyłącz automatyczne ustawianie tytułu terminala            |
-| `HENA_AGENT_PERMISSION`                 | string  | Konfiguracja uprawnień w JSON (inline)                     |
-| `HENA_AGENT_DISABLE_DEFAULT_PLUGINS`    | boolean | Wyłącz domyślne wtyczki                                    |
-| `HENA_AGENT_DISABLE_LSP_DOWNLOAD`       | boolean | Wyłącz automatyczne pobieranie serwerów LSP                |
-| `HENA_AGENT_ENABLE_EXPERIMENTAL_MODELS` | boolean | Włącz modele eksperymentalne                               |
-| `HENA_AGENT_DISABLE_AUTOCOMPACT`        | boolean | Wyłącz automatyczne kompaktowanie kontekstu                |
-| `HENA_AGENT_DISABLE_CLAUDE_CODE`        | boolean | Wyłącz integrację z `.claude` (prompt + skills)            |
-| `HENA_AGENT_DISABLE_CLAUDE_CODE_PROMPT` | boolean | Wyłącz czytanie `~/.claude/CLAUDE.md`                      |
-| `HENA_AGENT_DISABLE_CLAUDE_CODE_SKILLS` | boolean | Wyłącz ładowanie `.claude/skills`                          |
-| `HENA_AGENT_DISABLE_MODELS_FETCH`       | boolean | Wyłącz pobieranie modeli ze źródeł zewnętrznych            |
-| `HENA_AGENT_FAKE_VCS`                   | string  | Fałszywy dostawca VCS do celów testowych                   |
-| `HENA_AGENT_CLIENT`                     | string  | Identyfikator klienta (domyślnie `cli`)                    |
-| `HENA_AGENT_ENABLE_EXA`                 | boolean | Włącz narzędzie wyszukiwania internetowego Exa             |
-| `HENA_AGENT_SERVER_PASSWORD`            | string  | Włącz uwierzytelnianie podstawowe dla `serve`/`web`        |
-| `HENA_AGENT_SERVER_USERNAME`            | string  | Nazwa użytkownika do autoryzacji (domyślnie `hena-agent`)    |
-| `HENA_AGENT_MODELS_URL`                 | string  | Niestandardowy adres URL do pobierania konfiguracji modeli |
+| `HENA_AUTO_SHARE`                 | boolean | Automatycznie udostępniaj sesje                            |
+| `HENA_GIT_BASH_PATH`              | string  | Ścieżka do pliku wykonywalnego Git Bash w systemie Windows |
+| `HENA_CONFIG`                     | string  | Ścieżka do pliku konfiguracyjnego                          |
+| `HENA_TUI_CONFIG`                 | string  | Ścieżka do pliku konfiguracyjnego TUI                      |
+| `HENA_CONFIG_DIR`                 | string  | Ścieżka do katalogu konfiguracyjnego                       |
+| `HENA_CONFIG_CONTENT`             | string  | Treść konfiguracji JSON (inline)                           |
+| `HENA_DISABLE_AUTOUPDATE`         | boolean | Wyłącz automatyczne sprawdzanie aktualizacji               |
+| `HENA_DISABLE_PRUNE`              | boolean | Wyłącz czyszczenie starych wyników (pruning)               |
+| `HENA_DISABLE_TERMINAL_TITLE`     | boolean | Wyłącz automatyczne ustawianie tytułu terminala            |
+| `HENA_PERMISSION`                 | string  | Konfiguracja uprawnień w JSON (inline)                     |
+| `HENA_DISABLE_DEFAULT_PLUGINS`    | boolean | Wyłącz domyślne wtyczki                                    |
+| `HENA_DISABLE_LSP_DOWNLOAD`       | boolean | Wyłącz automatyczne pobieranie serwerów LSP                |
+| `HENA_ENABLE_EXPERIMENTAL_MODELS` | boolean | Włącz modele eksperymentalne                               |
+| `HENA_DISABLE_AUTOCOMPACT`        | boolean | Wyłącz automatyczne kompaktowanie kontekstu                |
+| `HENA_DISABLE_CLAUDE_CODE`        | boolean | Wyłącz integrację z `.claude` (prompt + skills)            |
+| `HENA_DISABLE_CLAUDE_CODE_PROMPT` | boolean | Wyłącz czytanie `~/.claude/CLAUDE.md`                      |
+| `HENA_DISABLE_CLAUDE_CODE_SKILLS` | boolean | Wyłącz ładowanie `.claude/skills`                          |
+| `HENA_DISABLE_MODELS_FETCH`       | boolean | Wyłącz pobieranie modeli ze źródeł zewnętrznych            |
+| `HENA_FAKE_VCS`                   | string  | Fałszywy dostawca VCS do celów testowych                   |
+| `HENA_CLIENT`                     | string  | Identyfikator klienta (domyślnie `cli`)                    |
+| `HENA_ENABLE_EXA`                 | boolean | Włącz narzędzie wyszukiwania internetowego Exa             |
+| `HENA_SERVER_PASSWORD`            | string  | Włącz uwierzytelnianie podstawowe dla `serve`/`web`        |
+| `HENA_SERVER_USERNAME`            | string  | Nazwa użytkownika do autoryzacji (domyślnie `hena`)    |
+| `HENA_MODELS_URL`                 | string  | Niestandardowy adres URL do pobierania konfiguracji modeli |
 
 ---
 
@@ -597,21 +597,21 @@ Te zmienne włączają funkcje eksperymentalne, które mogą ulec zmianie lub zo
 
 | Zmienna                                         | Typ     | Opis                                                |
 | ----------------------------------------------- | ------- | --------------------------------------------------- |
-| `HENA_AGENT_EXPERIMENTAL`                         | boolean | Włącz funkcje eksperymentalne objęte flagą zbiorczą |
-| `HENA_AGENT_EXPERIMENTAL_ICON_DISCOVERY`          | boolean | Włącz wykrywanie ikon                               |
-| `HENA_AGENT_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | boolean | Wyłącz kopiowanie przy zaznaczaniu w TUI            |
-| `HENA_AGENT_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | number  | Domyślny limit czasu dla narzędzia bash w ms        |
-| `HENA_AGENT_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | number  | Maksymalne tokeny wyjściowe dla LLM                 |
-| `HENA_AGENT_EXPERIMENTAL_FILEWATCHER`             | boolean | Włącz obserwatora plików dla całego katalogu        |
-| `HENA_AGENT_EXPERIMENTAL_OXFMT`                   | boolean | Włącz formater oxfmt                                |
-| `HENA_AGENT_EXPERIMENTAL_LSP_TOOL`                | boolean | Włącz eksperymentalne narzędzie LSP                 |
-| `HENA_AGENT_EXPERIMENTAL_DISABLE_FILEWATCHER`     | boolean | Wyłącz obserwatora plików                           |
-| `HENA_AGENT_EXPERIMENTAL_EXA`                     | boolean | Włącz funkcje eksperymentalne Exa                   |
-| `HENA_AGENT_EXPERIMENTAL_LSP_TY`                  | boolean | Włącz TY LSP dla plików python                      |
-| `HENA_AGENT_EXPERIMENTAL_PLAN_MODE`               | boolean | Włącz tryb planowania                               |
-| `HENA_AGENT_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | boolean | Włącz zadania subagentów w tle                      |
-| `HENA_AGENT_EXPERIMENTAL_EVENT_SYSTEM`            | boolean | Włącz eksperymentalny system zdarzeń                |
-| `HENA_AGENT_EXPERIMENTAL_NATIVE_LLM`              | boolean | Włącz natywną ścieżkę żądań LLM                     |
-| `HENA_AGENT_EXPERIMENTAL_PARALLEL`                | boolean | Włącz równoległe wykonywanie wyszukiwania web       |
-| `HENA_AGENT_EXPERIMENTAL_SCOUT`                   | boolean | Włącz subagenta Scout                               |
-| `HENA_AGENT_EXPERIMENTAL_WORKSPACES`              | boolean | Włącz obsługę obszarów roboczych                    |
+| `HENA_EXPERIMENTAL`                         | boolean | Włącz funkcje eksperymentalne objęte flagą zbiorczą |
+| `HENA_EXPERIMENTAL_ICON_DISCOVERY`          | boolean | Włącz wykrywanie ikon                               |
+| `HENA_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | boolean | Wyłącz kopiowanie przy zaznaczaniu w TUI            |
+| `HENA_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | number  | Domyślny limit czasu dla narzędzia bash w ms        |
+| `HENA_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | number  | Maksymalne tokeny wyjściowe dla LLM                 |
+| `HENA_EXPERIMENTAL_FILEWATCHER`             | boolean | Włącz obserwatora plików dla całego katalogu        |
+| `HENA_EXPERIMENTAL_OXFMT`                   | boolean | Włącz formater oxfmt                                |
+| `HENA_EXPERIMENTAL_LSP_TOOL`                | boolean | Włącz eksperymentalne narzędzie LSP                 |
+| `HENA_EXPERIMENTAL_DISABLE_FILEWATCHER`     | boolean | Wyłącz obserwatora plików                           |
+| `HENA_EXPERIMENTAL_EXA`                     | boolean | Włącz funkcje eksperymentalne Exa                   |
+| `HENA_EXPERIMENTAL_LSP_TY`                  | boolean | Włącz TY LSP dla plików python                      |
+| `HENA_EXPERIMENTAL_PLAN_MODE`               | boolean | Włącz tryb planowania                               |
+| `HENA_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | boolean | Włącz zadania subagentów w tle                      |
+| `HENA_EXPERIMENTAL_EVENT_SYSTEM`            | boolean | Włącz eksperymentalny system zdarzeń                |
+| `HENA_EXPERIMENTAL_NATIVE_LLM`              | boolean | Włącz natywną ścieżkę żądań LLM                     |
+| `HENA_EXPERIMENTAL_PARALLEL`                | boolean | Włącz równoległe wykonywanie wyszukiwania web       |
+| `HENA_EXPERIMENTAL_SCOUT`                   | boolean | Włącz subagenta Scout                               |
+| `HENA_EXPERIMENTAL_WORKSPACES`              | boolean | Włącz obsługę obszarów roboczych                    |

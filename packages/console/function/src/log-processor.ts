@@ -1,4 +1,4 @@
-import { Resource } from "@hena-agent/console-resource"
+import { Resource } from "@hena/console-resource"
 import type { TraceItem } from "@cloudflare/workers-types"
 
 export default {

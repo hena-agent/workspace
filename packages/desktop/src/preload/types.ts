@@ -1,19 +1,19 @@
-import type { DesktopMenuAction } from "@hena-agent/app/desktop-menu"
-import type { WslServersPlatform } from "@hena-agent/app/wsl/types"
-import type { UpdaterState } from "@hena-agent/app/updater"
+import type { DesktopMenuAction } from "@hena/app/desktop-menu"
+import type { WslServersPlatform } from "@hena/app/wsl/types"
+import type { UpdaterState } from "@hena/app/updater"
 export type {
   WslDistroProbe,
   WslInstalledDistro,
   WslJob,
   WslOnlineDistro,
-  WslHenaAgentCheck,
+  WslHenaCheck,
   WslRuntimeCheck,
   WslServerConfig,
   WslServerItem,
   WslServerRuntime,
   WslServersEvent,
   WslServersState,
-} from "@hena-agent/app/wsl/types"
+} from "@hena/app/wsl/types"
 
 export type ServerReadyData = {
   url: string

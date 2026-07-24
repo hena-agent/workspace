@@ -1,15 +1,15 @@
 ---
 title: Biçimlendiriciler
-description: hena-agent dile özgü biçimlendiriciler kullanır.
+description: hena dile özgü biçimlendiriciler kullanır.
 ---
 
-hena-agent, dosyaları dile özgü formatlayıcılar kullanılarak yazıldıktan veya düzenlendikten sonra otomatik olarak formatlar. Bu, oluşturulan kodun projenizin kod stillerine uymasını sağlar.
+hena, dosyaları dile özgü formatlayıcılar kullanılarak yazıldıktan veya düzenlendikten sonra otomatik olarak formatlar. Bu, oluşturulan kodun projenizin kod stillerine uymasını sağlar.
 
 ---
 
 ## Yerleşik
 
-hena-agent, popüler diller ve çerçeveler için çeşitli yerleşik biçimlendiricilerle birlikte gelir. Aşağıda ihtiyaç duyduğu biçimlendiricilerin, desteklenen dosya uzantılarının ve komutların veya yapılandırma seçeneklerinin bir listesi bulunmaktadır.
+hena, popüler diller ve çerçeveler için çeşitli yerleşik biçimlendiricilerle birlikte gelir. Aşağıda ihtiyaç duyduğu biçimlendiricilerin, desteklenen dosya uzantılarının ve komutların veya yapılandırma seçeneklerinin bir listesi bulunmaktadır.
 
 | Biçimlendirici   | Uzantılar                                                                                                    | Gereksinimler                                                                                          |
 | ---------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
@@ -39,13 +39,13 @@ hena-agent, popüler diller ve çerçeveler için çeşitli yerleşik biçimlend
 | oxfmt (Deneysel) | .js, .jsx, .ts, .tsx                                                                                         | `package.json` içinde `oxfmt` bağımlılığı ve [experimental env variable flag](/docs/cli/#experimental) |
 | ormolu           | .hs                                                                                                          | `ormolu` komutu mevcut                                                                                 |
 
-Yani eğer projenizin `package.json` dosyasında `prettier` varsa, hena-agent bunu otomatik olarak kullanacaktır.
+Yani eğer projenizin `package.json` dosyasında `prettier` varsa, hena bunu otomatik olarak kullanacaktır.
 
 ---
 
 ## Nasıl çalışır?
 
-hena-agent bir dosyayı yazdığında veya düzenlediğinde:
+hena bir dosyayı yazdığında veya düzenlediğinde:
 
 1. Dosya uzantısını tüm etkin formatlayıcılara göre kontrol eder.
 2. Dosyada uygun biçimlendirici komutunu çalıştırır.
@@ -57,9 +57,9 @@ Bu işlem arka planda gerçekleşir ve kod stillerinizin herhangi bir manuel ad�
 
 ## Yapılandırma
 
-Biçimlendiricileri hena-agent yapılandırmanızdaki `formatter` bölümü aracılığıyla özelleştirebilirsiniz.
+Biçimlendiricileri hena yapılandırmanızdaki `formatter` bölümü aracılığıyla özelleştirebilirsiniz.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {}
@@ -83,7 +83,7 @@ Bazı örneklere bakalım.
 
 **tüm** biçimlendiricileri genel olarak devre dışı bırakmak için `formatter` değerini `false` olarak ayarlayın:
 
-```json title="hena-agent.json" {3}
+```json title="hena.json" {3}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": false
@@ -92,7 +92,7 @@ Bazı örneklere bakalım.
 
 **Belirli** bir biçimlendiriciyi devre dışı bırakmak için `disabled` değerini `true` olarak ayarlayın:
 
-```json title="hena-agent.json" {5}
+```json title="hena.json" {5}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {
@@ -109,7 +109,7 @@ Bazı örneklere bakalım.
 
 Komutu, ortam değişkenlerini ve dosya uzantılarını belirterek yerleşik biçimlendiricileri geçersiz kılabilir veya yenilerini ekleyebilirsiniz:
 
-```json title="hena-agent.json" {4-14}
+```json title="hena.json" {4-14}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {

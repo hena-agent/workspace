@@ -1,8 +1,8 @@
-import { Button } from "@hena-agent/ui/button"
-import { useDialog } from "@hena-agent/ui/context/dialog"
-import { Icon } from "@hena-agent/ui/icon"
-import { Switch } from "@hena-agent/ui/switch"
-import { Tabs } from "@hena-agent/ui/tabs"
+import { Button } from "@hena/ui/button"
+import { useDialog } from "@hena/ui/context/dialog"
+import { Icon } from "@hena/ui/icon"
+import { Switch } from "@hena/ui/switch"
+import { Tabs } from "@hena/ui/tabs"
 import { showToast } from "@/utils/toast"
 import { useNavigate } from "@solidjs/router"
 import { type Accessor, createEffect, createMemo, For, type JSXElement, onCleanup, Show } from "solid-js"
@@ -288,7 +288,7 @@ export function StatusPopoverBody(props: { shown: Accessor<boolean> }) {
     (sync().data.config.plugin ?? []).map((item) => (typeof item === "string" ? item : item[0])),
   )
   const pluginCount = createMemo(() => plugins().length)
-  const pluginEmpty = createMemo(() => pluginEmptyMessage(language.t("dialog.plugins.empty"), "hena-agent.json"))
+  const pluginEmpty = createMemo(() => pluginEmptyMessage(language.t("dialog.plugins.empty"), "hena.json"))
 
   return (
     <div class="flex items-center gap-1 w-[360px] rounded-xl shadow-[var(--shadow-lg-border-base)]">

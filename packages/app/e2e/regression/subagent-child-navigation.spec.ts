@@ -1,9 +1,9 @@
-import { base64Encode } from "@hena-agent/core/util/encode"
+import { base64Encode } from "@hena/core/util/encode"
 import { expect, test, type Page } from "@playwright/test"
-import { mockHenaAgentServer } from "../utils/mock-server"
+import { mockHenaServer } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
 
-const directory = "C:/Hena Agent/SubagentNavigation"
+const directory = "C:/Hena/SubagentNavigation"
 const projectID = "proj_subagent_navigation"
 const parentID = "ses_subagent_parent"
 const childID = "ses_subagent_child"
@@ -23,7 +23,7 @@ test("navigates to a subagent child session missing from the session list", asyn
   await expectSessionTitle(page, taskDescription)
   await expect(page.getByRole("heading", { name: parentTitle })).toHaveCount(0)
 
-  const titlebarRight = page.locator("#hena-agent-titlebar-right")
+  const titlebarRight = page.locator("#hena-titlebar-right")
   await expect(titlebarRight.getByRole("button", { name: "Toggle review" })).toHaveCount(1)
 })
 
@@ -44,7 +44,7 @@ test("shows the not found fallback when the viewed session is deleted", async ({
 })
 
 async function setup(page: Page, events?: () => EventPayload[]) {
-  await mockHenaAgentServer(page, {
+  await mockHenaServer(page, {
     directory,
     project: {
       id: projectID,
@@ -57,15 +57,15 @@ async function setup(page: Page, events?: () => EventPayload[]) {
     provider: {
       all: [
         {
-          id: "hena-agent",
-          name: "Hena Agent",
+          id: "hena",
+          name: "Hena",
           models: {
             "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } },
           },
         },
       ],
-      connected: ["hena-agent"],
-      default: { providerID: "hena-agent", modelID: "claude-opus-4-6" },
+      connected: ["hena"],
+      default: { providerID: "hena", modelID: "claude-opus-4-6" },
     },
     sessions: [session(parentID, parentTitle, 1700000000000), childSession()],
     pageMessages: (sessionID) => ({ items: sessionID === parentID ? parentMessages() : [] }),
@@ -126,7 +126,7 @@ function parentMessages() {
         role: "user",
         time: { created: 1700000000000 },
         agent: "build",
-        model: { providerID: "hena-agent", modelID: "claude-opus-4-6" },
+        model: { providerID: "hena", modelID: "claude-opus-4-6" },
       },
       parts: [
         {
@@ -146,7 +146,7 @@ function parentMessages() {
         time: { created: 1700000001000, completed: 1700000002000 },
         parentID: userID,
         modelID: "claude-opus-4-6",
-        providerID: "hena-agent",
+        providerID: "hena",
         mode: "build",
         agent: "build",
         path: { cwd: directory, root: directory },
@@ -182,13 +182,13 @@ async function configurePage(page: Page) {
     ({ directory, server, sessionId }) => {
       localStorage.setItem("settings.v3", JSON.stringify({ general: { newLayoutDesigns: true } }))
       localStorage.setItem(
-        "hena-agent.global.dat:server",
+        "hena.global.dat:server",
         JSON.stringify({
           projects: { local: [{ worktree: directory, expanded: true }] },
           lastProject: { local: directory },
         }),
       )
-      localStorage.setItem("hena-agent.window.browser.dat:tabs", JSON.stringify([{ type: "session", server, sessionId }]))
+      localStorage.setItem("hena.window.browser.dat:tabs", JSON.stringify([{ type: "session", server, sessionId }]))
     },
     { directory, server, sessionId: parentID },
   )

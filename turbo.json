@@ -1,31 +1,31 @@
 {
   "$schema": "https://v2-8-13.turborepo.dev/schema.json",
-  "globalEnv": ["CI", "HENA_AGENT_DISABLE_SHARE"],
-  "globalPassThroughEnv": ["CI", "HENA_AGENT_DISABLE_SHARE"],
+  "globalEnv": ["CI", "HENA_DISABLE_SHARE"],
+  "globalPassThroughEnv": ["CI", "HENA_DISABLE_SHARE"],
   "tasks": {
     "typecheck": {},
     "build": {
       "dependsOn": [],
       "outputs": ["dist/**"]
     },
-    "hena-agent#test": {
+    "hena#test": {
       "dependsOn": ["^build"],
       "outputs": [],
       "passThroughEnv": ["*"]
     },
-    "@hena-agent/core#test": {
+    "@hena/core#test": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@hena-agent/app#test": {
+    "@hena/app#test": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@hena-agent/ui#test": {
+    "@hena/ui#test": {
       "dependsOn": ["^build"],
       "outputs": []
     },
-    "@hena-agent/session-ui#test": {
+    "@hena/session-ui#test": {
       "dependsOn": ["^build"],
       "outputs": []
     }

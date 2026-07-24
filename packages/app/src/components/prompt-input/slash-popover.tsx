@@ -1,9 +1,9 @@
 import { Component, For, Match, Show, Switch } from "solid-js"
-import { FileIcon } from "@hena-agent/ui/file-icon"
-import { Icon } from "@hena-agent/ui/icon"
-import { Tag } from "@hena-agent/ui/v2/badge-v2"
-import { KeybindV2 } from "@hena-agent/ui/v2/keybind-v2"
-import { getDirectory, getFilename } from "@hena-agent/core/util/path"
+import { FileIcon } from "@hena/ui/file-icon"
+import { Icon } from "@hena/ui/icon"
+import { Tag } from "@hena/ui/v2/badge-v2"
+import { KeybindV2 } from "@hena/ui/v2/keybind-v2"
+import { getDirectory, getFilename } from "@hena/core/util/path"
 
 export type AtOption =
   | { type: "agent"; name: string; display: string }

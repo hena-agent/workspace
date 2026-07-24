@@ -1,5 +1,5 @@
-import { and, Database, eq, inArray, sql } from "@hena-agent/console-core/drizzle/index.js"
-import { ModelTpmRateLimitTable } from "@hena-agent/console-core/schema/ip.sql.js"
+import { and, Database, eq, inArray, sql } from "@hena/console-core/drizzle/index.js"
+import { ModelTpmRateLimitTable } from "@hena/console-core/schema/ip.sql.js"
 import { UsageInfo } from "./provider/provider"
 
 export function createModelTpmLimiter(providers: { id: string; model: string; tpmLimit?: number }[]) {

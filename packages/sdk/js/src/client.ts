@@ -2,9 +2,9 @@ export * from "./gen/types.gen.js"
 
 import { createClient } from "./gen/client/client.gen.js"
 import { type Config } from "./gen/client/types.gen.js"
-import { HenaAgentClient } from "./gen/sdk.gen.js"
+import { HenaClient } from "./gen/sdk.gen.js"
 import { wrapClientError } from "./error-interceptor.js"
-export { type Config as HenaAgentClientConfig, HenaAgentClient }
+export { type Config as HenaClientConfig, HenaClient }
 
 function pick(value: string | null, fallback?: string) {
   if (!value) return
@@ -17,7 +17,7 @@ function pick(value: string | null, fallback?: string) {
 function rewrite(request: Request, directory?: string) {
   if (request.method !== "GET" && request.method !== "HEAD") return request
 
-  const value = pick(request.headers.get("x-hena-agent-directory"), directory)
+  const value = pick(request.headers.get("x-hena-directory"), directory)
   if (!value) return request
 
   const url = new URL(request.url)
@@ -26,11 +26,11 @@ function rewrite(request: Request, directory?: string) {
   }
 
   const next = new Request(url, request)
-  next.headers.delete("x-hena-agent-directory")
+  next.headers.delete("x-hena-directory")
   return next
 }
 
-export function createHenaAgentClient(config?: Config & { directory?: string }) {
+export function createHenaClient(config?: Config & { directory?: string }) {
   if (!config?.fetch) {
     const customFetch: any = (req: any) => {
       // @ts-ignore
@@ -46,12 +46,12 @@ export function createHenaAgentClient(config?: Config & { directory?: string }) 
   if (config?.directory) {
     config.headers = {
       ...config.headers,
-      "x-hena-agent-directory": encodeURIComponent(config.directory),
+      "x-hena-directory": encodeURIComponent(config.directory),
     }
   }
 
   const client = createClient(config)
   client.interceptors.request.use((request) => rewrite(request, config?.directory))
   client.interceptors.error.use(wrapClientError)
-  return new HenaAgentClient({ client })
+  return new HenaClient({ client })
 }

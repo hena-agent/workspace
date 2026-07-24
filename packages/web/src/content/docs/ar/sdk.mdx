@@ -1,13 +1,13 @@
 ---
 title: مجموعة تطوير البرمجيات (SDK)
-description: عميل JavaScript آمن الأنواع لخادم Hena Agent.
+description: عميل JavaScript آمن الأنواع لخادم Hena.
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-توفر SDK الخاصة بـ hena-agent لـ JS/TS عميلا آمنا للأنواع للتفاعل مع الخادم.
-استخدمها لبناء التكاملات والتحكم في hena-agent برمجيا.
+توفر SDK الخاصة بـ hena لـ JS/TS عميلا آمنا للأنواع للتفاعل مع الخادم.
+استخدمها لبناء التكاملات والتحكم في hena برمجيا.
 
 [اعرف المزيد](/docs/server) حول كيفية عمل الخادم. للاطلاع على أمثلة، تفقد [المشاريع](/docs/ecosystem#projects) التي أنشأها المجتمع.
 
@@ -18,19 +18,19 @@ export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types
 ثبّت SDK من npm:
 
 ```bash
-npm install @hena-agent/sdk
+npm install @hena/sdk
 ```
 
 ---
 
 ## إنشاء عميل
 
-أنشئ مثيلا من hena-agent:
+أنشئ مثيلا من hena:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const { client } = await createHenaAgent()
+const { client } = await createHena()
 ```
 
 هذا يشغّل خادما وعميلا معا.
@@ -49,12 +49,12 @@ const { client } = await createHenaAgent()
 
 ## الإعدادات
 
-يمكنك تمرير كائن إعدادات لتخصيص السلوك. سيستمر المثيل في التقاط `hena-agent.json` لديك، لكن يمكنك تجاوز الإعدادات أو إضافة إعدادات مباشرة:
+يمكنك تمرير كائن إعدادات لتخصيص السلوك. سيستمر المثيل في التقاط `hena.json` لديك، لكن يمكنك تجاوز الإعدادات أو إضافة إعدادات مباشرة:
 
 ```javascript
-import { createHenaAgent } from "@hena-agent/sdk"
+import { createHena } from "@hena/sdk"
 
-const agent = await createHenaAgent({
+const agent = await createHena({
   hostname: "127.0.0.1",
   port: 4096,
   config: {
@@ -69,12 +69,12 @@ agent.server.close()
 
 ## العميل فقط
 
-إذا كان لديك مثيل hena-agent يعمل بالفعل، يمكنك إنشاء مثيل عميل للاتصال به:
+إذا كان لديك مثيل hena يعمل بالفعل، يمكنك إنشاء مثيل عميل للاتصال به:
 
 ```javascript
-import { createHenaAgentClient } from "@hena-agent/sdk"
+import { createHenaClient } from "@hena/sdk"
 
-const client = createHenaAgentClient({
+const client = createHenaClient({
   baseUrl: "http://localhost:4096",
 })
 ```
@@ -96,7 +96,7 @@ const client = createHenaAgentClient({
 تتضمن SDK تعريفات TypeScript لجميع أنواع API. استوردها مباشرة:
 
 ```typescript
-import type { Session, Message, Part } from "@hena-agent/sdk"
+import type { Session, Message, Part } from "@hena/sdk"
 ```
 
 جميع الأنواع مولّدة من مواصفات OpenAPI الخاصة بالخادم ومتاحة في <a href={typesUrl}>ملف الأنواع</a>.
@@ -376,7 +376,7 @@ await client.session.prompt({
 ```javascript
 // Search and read files
 const textResults = await client.find.text({
-  query: { pattern: "function.*hena-agent" },
+  query: { pattern: "function.*hena" },
 })
 
 const files = await client.find.files({

@@ -1,5 +1,5 @@
 import MarkdownShikiWorkerUrl from "./markdown-shiki.worker.ts?worker&url"
-import { HenaAgentTheme } from "@hena-agent/ui/context/marked"
+import { HenaTheme } from "@hena/ui/context/marked"
 import {
   applyMarkdownWorkerResponse,
   shouldReleaseMarkdownWorkerState,
@@ -117,6 +117,6 @@ function getWorker() {
   }
   worker.onerror = (event) => fail(event.message || "Markdown highlighting worker failed")
   worker.onmessageerror = () => fail("Markdown worker response failed")
-  worker.postMessage({ type: "init", theme: HenaAgentTheme } satisfies MarkdownWorkerRequest)
+  worker.postMessage({ type: "init", theme: HenaTheme } satisfies MarkdownWorkerRequest)
   return worker
 }

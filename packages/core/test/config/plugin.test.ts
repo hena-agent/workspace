@@ -1,15 +1,15 @@
 import path from "path"
 import { describe, expect } from "bun:test"
 import { Effect, Schema } from "effect"
-import { AgentV2 } from "@hena-agent/core/agent"
-import { Config } from "@hena-agent/core/config"
-import { ConfigExternalPlugin } from "@hena-agent/core/config/plugin/external"
-import { FSUtil } from "@hena-agent/core/fs-util"
-import { Location } from "@hena-agent/core/location"
-import { Npm } from "@hena-agent/core/npm"
-import { PluginV2 } from "@hena-agent/core/plugin"
-import { PluginHost } from "@hena-agent/core/plugin/host"
-import { AbsolutePath } from "@hena-agent/core/schema"
+import { AgentV2 } from "@hena/core/agent"
+import { Config } from "@hena/core/config"
+import { ConfigExternalPlugin } from "@hena/core/config/plugin/external"
+import { FSUtil } from "@hena/core/fs-util"
+import { Location } from "@hena/core/location"
+import { Npm } from "@hena/core/npm"
+import { PluginV2 } from "@hena/core/plugin"
+import { PluginHost } from "@hena/core/plugin/host"
+import { AbsolutePath } from "@hena/core/schema"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "../plugin/fixture"
 
@@ -25,7 +25,7 @@ describe("ConfigExternalPlugin", () => {
       const location = yield* Location.Service
       const npm = yield* Npm.Service
       const host = yield* PluginHost.make(plugins)
-      const document = path.join(import.meta.dir, "hena-agent.json")
+      const document = path.join(import.meta.dir, "hena.json")
 
       yield* ConfigExternalPlugin.Plugin.effect(host).pipe(
         Effect.provideService(PluginV2.Service, plugins),
@@ -82,7 +82,7 @@ describe("ConfigExternalPlugin", () => {
               Effect.succeed([
                 new Config.Document({
                   type: "document",
-                  path: path.join(import.meta.dir, "hena-agent.json"),
+                  path: path.join(import.meta.dir, "hena.json"),
                   info: decode({
                     plugins: [
                       {
@@ -125,7 +125,7 @@ describe("ConfigExternalPlugin", () => {
               Effect.succeed([
                 new Config.Document({
                   type: "document",
-                  path: path.join(import.meta.dir, "hena-agent.json"),
+                  path: path.join(import.meta.dir, "hena.json"),
                   info: decode({
                     plugins: [
                       "../plugin/fixtures/missing-plugin.ts",

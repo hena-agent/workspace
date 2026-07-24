@@ -3,12 +3,12 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "hena-agent",
+      "name": "hena",
       "dependencies": {
         "@aws-sdk/client-s3": "3.933.0",
-        "@hena-agent/plugin": "workspace:*",
-        "@hena-agent/script": "workspace:*",
-        "@hena-agent/sdk": "workspace:*",
+        "@hena/plugin": "workspace:*",
+        "@hena/script": "workspace:*",
+        "@hena/sdk": "workspace:*",
         "heap-snapshot-toolkit": "1.1.3",
         "typescript": "catalog:",
       },
@@ -28,7 +28,7 @@
       },
     },
     "packages/app": {
-      "name": "@hena-agent/app",
+      "name": "@hena/app",
       "version": "1.18.4",
       "dependencies": {
         "@corvu/drawer": "catalog:",
@@ -36,11 +36,11 @@
         "@dnd-kit/dom": "0.5.0",
         "@dnd-kit/helpers": "0.5.0",
         "@dnd-kit/solid": "0.5.0",
-        "@hena-agent/core": "workspace:*",
-        "@hena-agent/schema": "workspace:*",
-        "@hena-agent/sdk": "workspace:*",
-        "@hena-agent/session-ui": "workspace:*",
-        "@hena-agent/ui": "workspace:*",
+        "@hena/core": "workspace:*",
+        "@hena/schema": "workspace:*",
+        "@hena/sdk": "workspace:*",
+        "@hena/session-ui": "workspace:*",
+        "@hena/ui": "workspace:*",
         "@kobalte/core": "catalog:",
         "@pierre/trees": "1.0.0-beta.4",
         "@sentry/solid": "catalog:",
@@ -94,17 +94,17 @@
       },
     },
     "packages/cli": {
-      "name": "@hena-agent/cli",
+      "name": "@hena/cli",
       "version": "1.18.4",
       "bin": {
-        "hena-agent": "./bin/hena-agent.cjs",
+        "hena": "./bin/hena.cjs",
       },
       "dependencies": {
         "@effect/platform-node": "catalog:",
-        "@hena-agent/core": "workspace:*",
-        "@hena-agent/sdk": "workspace:*",
-        "@hena-agent/server": "workspace:*",
-        "@hena-agent/tui": "workspace:*",
+        "@hena/core": "workspace:*",
+        "@hena/sdk": "workspace:*",
+        "@hena/server": "workspace:*",
+        "@hena/tui": "workspace:*",
         "@opentui/core": "catalog:",
         "@opentui/solid": "catalog:",
         "@parcel/watcher": "2.5.1",
@@ -112,23 +112,23 @@
         "solid-js": "catalog:",
       },
       "devDependencies": {
-        "@hena-agent/script": "workspace:*",
+        "@hena/script": "workspace:*",
         "@tsconfig/bun": "catalog:",
         "@types/bun": "catalog:",
         "@typescript/native-preview": "catalog:",
       },
     },
     "packages/client": {
-      "name": "@hena-agent/client",
+      "name": "@hena/client",
       "dependencies": {
-        "@hena-agent/protocol": "workspace:*",
-        "@hena-agent/schema": "workspace:*",
+        "@hena/protocol": "workspace:*",
+        "@hena/schema": "workspace:*",
       },
       "devDependencies": {
         "@effect/platform-node": "catalog:",
-        "@hena-agent/core": "workspace:*",
-        "@hena-agent/httpapi-codegen": "workspace:*",
-        "@hena-agent/server": "workspace:*",
+        "@hena/core": "workspace:*",
+        "@hena/httpapi-codegen": "workspace:*",
+        "@hena/server": "workspace:*",
         "@tsconfig/bun": "catalog:",
         "@types/bun": "catalog:",
         "@typescript/native-preview": "catalog:",
@@ -142,7 +142,7 @@
       ],
     },
     "packages/codemode": {
-      "name": "@hena-agent/codemode",
+      "name": "@hena/codemode",
       "version": "1.18.4",
       "dependencies": {
         "acorn": "8.15.0",
@@ -156,14 +156,14 @@
       },
     },
     "packages/console/app": {
-      "name": "@hena-agent/console-app",
+      "name": "@hena/console-app",
       "version": "1.18.4",
       "dependencies": {
         "@cloudflare/vite-plugin": "1.15.2",
-        "@hena-agent/console-core": "workspace:*",
-        "@hena-agent/console-mail": "workspace:*",
-        "@hena-agent/console-resource": "workspace:*",
-        "@hena-agent/ui": "workspace:*",
+        "@hena/console-core": "workspace:*",
+        "@hena/console-mail": "workspace:*",
+        "@hena/console-resource": "workspace:*",
+        "@hena/ui": "workspace:*",
         "@ibm/plex": "6.4.1",
         "@jsx-email/render": "1.1.1",
         "@kobalte/core": "catalog:",
@@ -192,12 +192,12 @@
       },
     },
     "packages/console/core": {
-      "name": "@hena-agent/console-core",
+      "name": "@hena/console-core",
       "version": "1.18.4",
       "dependencies": {
         "@aws-sdk/client-sts": "3.782.0",
-        "@hena-agent/console-mail": "workspace:*",
-        "@hena-agent/console-resource": "workspace:*",
+        "@hena/console-mail": "workspace:*",
+        "@hena/console-resource": "workspace:*",
         "@jsx-email/render": "1.1.1",
         "@planetscale/database": "1.19.0",
         "aws4fetch": "1.0.20",
@@ -219,14 +219,14 @@
       },
     },
     "packages/console/function": {
-      "name": "@hena-agent/console-function",
+      "name": "@hena/console-function",
       "version": "1.18.4",
       "dependencies": {
         "@ai-sdk/anthropic": "3.0.82",
         "@ai-sdk/openai": "3.0.48",
         "@ai-sdk/openai-compatible": "2.0.37",
-        "@hena-agent/console-core": "workspace:*",
-        "@hena-agent/console-resource": "workspace:*",
+        "@hena/console-core": "workspace:*",
+        "@hena/console-resource": "workspace:*",
         "@openauthjs/openauth": "0.0.0-20250322224806",
         "ai": "catalog:",
         "zod": "catalog:",
@@ -241,7 +241,7 @@
       },
     },
     "packages/console/mail": {
-      "name": "@hena-agent/console-mail",
+      "name": "@hena/console-mail",
       "version": "1.18.4",
       "dependencies": {
         "@jsx-email/all": "2.2.3",
@@ -253,7 +253,7 @@
       },
     },
     "packages/console/resource": {
-      "name": "@hena-agent/console-resource",
+      "name": "@hena/console-resource",
       "dependencies": {
         "@cloudflare/workers-types": "catalog:",
       },
@@ -265,11 +265,11 @@
       },
     },
     "packages/console/support": {
-      "name": "@hena-agent/console-support",
+      "name": "@hena/console-support",
       "version": "1.18.4",
       "dependencies": {
         "@cloudflare/vite-plugin": "1.15.2",
-        "@hena-agent/console-core": "workspace:*",
+        "@hena/console-core": "workspace:*",
         "@solidjs/meta": "catalog:",
         "@solidjs/router": "catalog:",
         "@solidjs/start": "catalog:",
@@ -285,7 +285,7 @@
       },
     },
     "packages/core": {
-      "name": "@hena-agent/core",
+      "name": "@hena/core",
       "version": "1.18.4",
       "dependencies": {
         "@ai-sdk/alibaba": "1.0.17",
@@ -313,11 +313,11 @@
         "@effect/platform-node": "catalog:",
         "@effect/sql-sqlite-bun": "catalog:",
         "@ff-labs/fff-bun": "0.9.4",
-        "@hena-agent/effect-drizzle-sqlite": "workspace:*",
-        "@hena-agent/effect-sqlite-node": "workspace:*",
-        "@hena-agent/llm": "workspace:*",
-        "@hena-agent/plugin": "workspace:*",
-        "@hena-agent/schema": "workspace:*",
+        "@hena/effect-drizzle-sqlite": "workspace:*",
+        "@hena/effect-sqlite-node": "workspace:*",
+        "@hena/llm": "workspace:*",
+        "@hena/plugin": "workspace:*",
+        "@hena/schema": "workspace:*",
         "@lydell/node-pty": "catalog:",
         "@npmcli/arborist": "9.4.0",
         "@npmcli/config": "10.8.1",
@@ -354,7 +354,7 @@
         "zod": "catalog:",
       },
       "devDependencies": {
-        "@hena-agent/http-recorder": "workspace:*",
+        "@hena/http-recorder": "workspace:*",
         "@parcel/watcher-darwin-arm64": "2.5.1",
         "@parcel/watcher-darwin-x64": "2.5.1",
         "@parcel/watcher-linux-arm64-glibc": "2.5.1",
@@ -376,7 +376,7 @@
       },
     },
     "packages/desktop": {
-      "name": "@hena-agent/desktop",
+      "name": "@hena/desktop",
       "version": "1.18.4",
       "dependencies": {
         "@zip.js/zip.js": "2.7.62",
@@ -390,8 +390,8 @@
       },
       "devDependencies": {
         "@actions/artifact": "4.0.0",
-        "@hena-agent/app": "workspace:*",
-        "@hena-agent/ui": "workspace:*",
+        "@hena/app": "workspace:*",
+        "@hena/ui": "workspace:*",
         "@lydell/node-pty": "catalog:",
         "@sentry/solid": "catalog:",
         "@sentry/vite-plugin": "catalog:",
@@ -430,7 +430,7 @@
       },
     },
     "packages/effect-drizzle-sqlite": {
-      "name": "@hena-agent/effect-drizzle-sqlite",
+      "name": "@hena/effect-drizzle-sqlite",
       "version": "1.18.4",
       "dependencies": {
         "drizzle-orm": "catalog:",
@@ -444,7 +444,7 @@
       },
     },
     "packages/effect-sqlite-node": {
-      "name": "@hena-agent/effect-sqlite-node",
+      "name": "@hena/effect-sqlite-node",
       "version": "1.18.4",
       "dependencies": {
         "effect": "catalog:",
@@ -456,12 +456,12 @@
       },
     },
     "packages/enterprise": {
-      "name": "@hena-agent/enterprise",
+      "name": "@hena/enterprise",
       "version": "1.18.4",
       "dependencies": {
-        "@hena-agent/core": "workspace:*",
-        "@hena-agent/session-ui": "workspace:*",
-        "@hena-agent/ui": "workspace:*",
+        "@hena/core": "workspace:*",
+        "@hena/session-ui": "workspace:*",
+        "@hena/ui": "workspace:*",
         "@hono/standard-validator": "catalog:",
         "@pierre/diffs": "catalog:",
         "@solidjs/meta": "catalog:",
@@ -488,7 +488,7 @@
       },
     },
     "packages/function": {
-      "name": "@hena-agent/function",
+      "name": "@hena/function",
       "version": "1.18.4",
       "dependencies": {
         "@octokit/auth-app": "8.0.1",
@@ -503,11 +503,11 @@
         "typescript": "catalog:",
       },
     },
-    "packages/hena-agent": {
-      "name": "hena-agent",
+    "packages/hena": {
+      "name": "hena",
       "version": "1.18.4",
       "bin": {
-        "hena-agent": "./bin/hena-agent",
+        "hena": "./bin/hena",
       },
       "dependencies": {
         "@actions/core": "1.11.1",
@@ -538,15 +538,15 @@
         "@effect/platform-node": "catalog:",
         "@ff-labs/fff-bun": "0.9.4",
         "@gitlab/opencode-gitlab-auth": "1.3.3",
-        "@hena-agent/codemode": "workspace:*",
-        "@hena-agent/llm": "workspace:*",
-        "@hena-agent/plugin": "workspace:*",
-        "@hena-agent/protocol": "workspace:*",
-        "@hena-agent/schema": "workspace:*",
-        "@hena-agent/script": "workspace:*",
-        "@hena-agent/sdk": "workspace:*",
-        "@hena-agent/server": "workspace:*",
-        "@hena-agent/tui": "workspace:*",
+        "@hena/codemode": "workspace:*",
+        "@hena/llm": "workspace:*",
+        "@hena/plugin": "workspace:*",
+        "@hena/protocol": "workspace:*",
+        "@hena/schema": "workspace:*",
+        "@hena/script": "workspace:*",
+        "@hena/sdk": "workspace:*",
+        "@hena/server": "workspace:*",
+        "@hena/tui": "workspace:*",
         "@modelcontextprotocol/sdk": "1.29.0",
         "@octokit/graphql": "9.0.2",
         "@octokit/rest": "catalog:",
@@ -612,9 +612,9 @@
       },
       "devDependencies": {
         "@babel/core": "7.28.4",
-        "@hena-agent/core": "workspace:*",
-        "@hena-agent/http-recorder": "workspace:*",
-        "@hena-agent/script": "workspace:*",
+        "@hena/core": "workspace:*",
+        "@hena/http-recorder": "workspace:*",
+        "@hena/script": "workspace:*",
         "@octokit/webhooks-types": "7.6.1",
         "@standard-schema/spec": "1.0.0",
         "@tsconfig/bun": "catalog:",
@@ -635,7 +635,7 @@
       },
     },
     "packages/http-recorder": {
-      "name": "@hena-agent/http-recorder",
+      "name": "@hena/http-recorder",
       "version": "1.18.4",
       "dependencies": {
         "@effect/platform-node": "4.0.0-beta.83",
@@ -654,7 +654,7 @@
       },
     },
     "packages/httpapi-codegen": {
-      "name": "@hena-agent/httpapi-codegen",
+      "name": "@hena/httpapi-codegen",
       "dependencies": {
         "effect": "catalog:",
         "prettier": "3.6.2",
@@ -666,10 +666,10 @@
       },
     },
     "packages/llm": {
-      "name": "@hena-agent/llm",
+      "name": "@hena/llm",
       "version": "1.18.4",
       "dependencies": {
-        "@hena-agent/schema": "workspace:*",
+        "@hena/schema": "workspace:*",
         "@smithy/eventstream-codec": "4.2.14",
         "@smithy/util-utf8": "4.2.2",
         "aws4fetch": "1.0.20",
@@ -678,18 +678,18 @@
       "devDependencies": {
         "@clack/prompts": "1.0.0-alpha.1",
         "@effect/platform-node": "catalog:",
-        "@hena-agent/http-recorder": "workspace:*",
+        "@hena/http-recorder": "workspace:*",
         "@tsconfig/bun": "catalog:",
         "@types/bun": "catalog:",
         "@typescript/native-preview": "catalog:",
       },
     },
     "packages/plugin": {
-      "name": "@hena-agent/plugin",
+      "name": "@hena/plugin",
       "version": "1.18.4",
       "dependencies": {
         "@ai-sdk/provider": "3.0.8",
-        "@hena-agent/sdk": "workspace:*",
+        "@hena/sdk": "workspace:*",
         "effect": "catalog:",
         "zod": "catalog:",
       },
@@ -714,9 +714,9 @@
       ],
     },
     "packages/protocol": {
-      "name": "@hena-agent/protocol",
+      "name": "@hena/protocol",
       "dependencies": {
-        "@hena-agent/schema": "workspace:*",
+        "@hena/schema": "workspace:*",
         "effect": "catalog:",
       },
       "devDependencies": {
@@ -726,7 +726,7 @@
       },
     },
     "packages/schema": {
-      "name": "@hena-agent/schema",
+      "name": "@hena/schema",
       "dependencies": {
         "effect": "catalog:",
       },
@@ -737,7 +737,7 @@
       },
     },
     "packages/script": {
-      "name": "@hena-agent/script",
+      "name": "@hena/script",
       "dependencies": {
         "semver": "^7.6.3",
       },
@@ -747,11 +747,11 @@
       },
     },
     "packages/sdk-next": {
-      "name": "@hena-agent/sdk-next",
+      "name": "@hena/sdk-next",
       "dependencies": {
-        "@hena-agent/client": "workspace:*",
-        "@hena-agent/core": "workspace:*",
-        "@hena-agent/server": "workspace:*",
+        "@hena/client": "workspace:*",
+        "@hena/core": "workspace:*",
+        "@hena/server": "workspace:*",
         "effect": "catalog:",
       },
       "devDependencies": {
@@ -761,7 +761,7 @@
       },
     },
     "packages/sdk/js": {
-      "name": "@hena-agent/sdk",
+      "name": "@hena/sdk",
       "version": "1.18.4",
       "dependencies": {
         "cross-spawn": "catalog:",
@@ -776,11 +776,11 @@
       },
     },
     "packages/server": {
-      "name": "@hena-agent/server",
+      "name": "@hena/server",
       "version": "1.18.4",
       "dependencies": {
-        "@hena-agent/core": "workspace:*",
-        "@hena-agent/protocol": "workspace:*",
+        "@hena/core": "workspace:*",
+        "@hena/protocol": "workspace:*",
         "drizzle-orm": "catalog:",
         "effect": "catalog:",
       },
@@ -791,12 +791,12 @@
       },
     },
     "packages/session-ui": {
-      "name": "@hena-agent/session-ui",
+      "name": "@hena/session-ui",
       "version": "1.18.4",
       "dependencies": {
-        "@hena-agent/core": "workspace:*",
-        "@hena-agent/sdk": "workspace:*",
-        "@hena-agent/ui": "workspace:*",
+        "@hena/core": "workspace:*",
+        "@hena/sdk": "workspace:*",
+        "@hena/ui": "workspace:*",
         "@kobalte/core": "catalog:",
         "@pierre/diffs": "catalog:",
         "@shikijs/stream": "catalog:",
@@ -835,10 +835,10 @@
       },
     },
     "packages/slack": {
-      "name": "@hena-agent/slack",
+      "name": "@hena/slack",
       "version": "1.18.4",
       "dependencies": {
-        "@hena-agent/sdk": "workspace:*",
+        "@hena/sdk": "workspace:*",
         "@slack/bolt": "^3.17.1",
       },
       "devDependencies": {
@@ -848,11 +848,11 @@
       },
     },
     "packages/stats/app": {
-      "name": "@hena-agent/stats-app",
+      "name": "@hena/stats-app",
       "version": "1.18.4",
       "dependencies": {
-        "@hena-agent/stats-core": "workspace:*",
-        "@hena-agent/ui": "workspace:*",
+        "@hena/stats-core": "workspace:*",
+        "@hena/ui": "workspace:*",
         "@ibm/plex": "6.4.1",
         "@kobalte/core": "catalog:",
         "@solidjs/meta": "catalog:",
@@ -882,7 +882,7 @@
       },
     },
     "packages/stats/core": {
-      "name": "@hena-agent/stats-core",
+      "name": "@hena/stats-core",
       "version": "1.18.4",
       "dependencies": {
         "@aws-sdk/client-athena": "3.933.0",
@@ -901,12 +901,12 @@
       },
     },
     "packages/stats/server": {
-      "name": "@hena-agent/stats-server",
+      "name": "@hena/stats-server",
       "version": "1.18.4",
       "dependencies": {
         "@aws-sdk/client-firehose": "3.933.0",
         "@effect/platform-node": "catalog:",
-        "@hena-agent/stats-core": "workspace:*",
+        "@hena/stats-core": "workspace:*",
         "effect": "catalog:",
         "sst": "catalog:",
       },
@@ -919,10 +919,10 @@
       },
     },
     "packages/storybook": {
-      "name": "@hena-agent/storybook",
+      "name": "@hena/storybook",
       "devDependencies": {
-        "@hena-agent/session-ui": "workspace:*",
-        "@hena-agent/ui": "workspace:*",
+        "@hena/session-ui": "workspace:*",
+        "@hena/ui": "workspace:*",
         "@solidjs/meta": "catalog:",
         "@storybook/addon-a11y": "^10.2.13",
         "@storybook/addon-docs": "^10.2.13",
@@ -943,13 +943,13 @@
       },
     },
     "packages/tui": {
-      "name": "@hena-agent/tui",
+      "name": "@hena/tui",
       "version": "1.18.4",
       "dependencies": {
-        "@hena-agent/core": "workspace:*",
-        "@hena-agent/plugin": "workspace:*",
-        "@hena-agent/sdk": "workspace:*",
-        "@hena-agent/ui": "workspace:*",
+        "@hena/core": "workspace:*",
+        "@hena/plugin": "workspace:*",
+        "@hena/sdk": "workspace:*",
+        "@hena/ui": "workspace:*",
         "@opentui/core": "catalog:",
         "@opentui/keymap": "catalog:",
         "@opentui/solid": "catalog:",
@@ -970,7 +970,7 @@
       },
     },
     "packages/ui": {
-      "name": "@hena-agent/ui",
+      "name": "@hena/ui",
       "version": "1.18.4",
       "dependencies": {
         "@kobalte/core": "catalog:",
@@ -1021,7 +1021,7 @@
       },
     },
     "packages/web": {
-      "name": "@hena-agent/web",
+      "name": "@hena/web",
       "version": "1.18.4",
       "dependencies": {
         "@astrojs/cloudflare": "12.6.3",
@@ -1050,7 +1050,7 @@
       "devDependencies": {
         "@astrojs/check": "0.9.6",
         "@types/node": "catalog:",
-        "hena-agent": "workspace:*",
+        "hena": "workspace:*",
         "typescript": "catalog:",
       },
     },
@@ -1653,75 +1653,75 @@
 
     "@happy-dom/global-registrator": ["@happy-dom/global-registrator@20.0.11", "", { "dependencies": { "@types/node": "^20.0.0", "happy-dom": "^20.0.11" } }, "sha512-GqNqiShBT/lzkHTMC/slKBrvN0DsD4Di8ssBk4aDaVgEn+2WMzE6DXxq701ndSXj7/0cJ8mNT71pM7Bnrr6JRw=="],
 
-    "@hena-agent/app": ["@hena-agent/app@workspace:packages/app"],
+    "@hena/app": ["@hena/app@workspace:packages/app"],
 
-    "@hena-agent/cli": ["@hena-agent/cli@workspace:packages/cli"],
+    "@hena/cli": ["@hena/cli@workspace:packages/cli"],
 
-    "@hena-agent/client": ["@hena-agent/client@workspace:packages/client"],
+    "@hena/client": ["@hena/client@workspace:packages/client"],
 
-    "@hena-agent/codemode": ["@hena-agent/codemode@workspace:packages/codemode"],
+    "@hena/codemode": ["@hena/codemode@workspace:packages/codemode"],
 
-    "@hena-agent/console-app": ["@hena-agent/console-app@workspace:packages/console/app"],
+    "@hena/console-app": ["@hena/console-app@workspace:packages/console/app"],
 
-    "@hena-agent/console-core": ["@hena-agent/console-core@workspace:packages/console/core"],
+    "@hena/console-core": ["@hena/console-core@workspace:packages/console/core"],
 
-    "@hena-agent/console-function": ["@hena-agent/console-function@workspace:packages/console/function"],
+    "@hena/console-function": ["@hena/console-function@workspace:packages/console/function"],
 
-    "@hena-agent/console-mail": ["@hena-agent/console-mail@workspace:packages/console/mail"],
+    "@hena/console-mail": ["@hena/console-mail@workspace:packages/console/mail"],
 
-    "@hena-agent/console-resource": ["@hena-agent/console-resource@workspace:packages/console/resource"],
+    "@hena/console-resource": ["@hena/console-resource@workspace:packages/console/resource"],
 
-    "@hena-agent/console-support": ["@hena-agent/console-support@workspace:packages/console/support"],
+    "@hena/console-support": ["@hena/console-support@workspace:packages/console/support"],
 
-    "@hena-agent/core": ["@hena-agent/core@workspace:packages/core"],
+    "@hena/core": ["@hena/core@workspace:packages/core"],
 
-    "@hena-agent/desktop": ["@hena-agent/desktop@workspace:packages/desktop"],
+    "@hena/desktop": ["@hena/desktop@workspace:packages/desktop"],
 
-    "@hena-agent/effect-drizzle-sqlite": ["@hena-agent/effect-drizzle-sqlite@workspace:packages/effect-drizzle-sqlite"],
+    "@hena/effect-drizzle-sqlite": ["@hena/effect-drizzle-sqlite@workspace:packages/effect-drizzle-sqlite"],
 
-    "@hena-agent/effect-sqlite-node": ["@hena-agent/effect-sqlite-node@workspace:packages/effect-sqlite-node"],
+    "@hena/effect-sqlite-node": ["@hena/effect-sqlite-node@workspace:packages/effect-sqlite-node"],
 
-    "@hena-agent/enterprise": ["@hena-agent/enterprise@workspace:packages/enterprise"],
+    "@hena/enterprise": ["@hena/enterprise@workspace:packages/enterprise"],
 
-    "@hena-agent/function": ["@hena-agent/function@workspace:packages/function"],
+    "@hena/function": ["@hena/function@workspace:packages/function"],
 
-    "@hena-agent/http-recorder": ["@hena-agent/http-recorder@workspace:packages/http-recorder"],
+    "@hena/http-recorder": ["@hena/http-recorder@workspace:packages/http-recorder"],
 
-    "@hena-agent/httpapi-codegen": ["@hena-agent/httpapi-codegen@workspace:packages/httpapi-codegen"],
+    "@hena/httpapi-codegen": ["@hena/httpapi-codegen@workspace:packages/httpapi-codegen"],
 
-    "@hena-agent/llm": ["@hena-agent/llm@workspace:packages/llm"],
+    "@hena/llm": ["@hena/llm@workspace:packages/llm"],
 
-    "@hena-agent/plugin": ["@hena-agent/plugin@workspace:packages/plugin"],
+    "@hena/plugin": ["@hena/plugin@workspace:packages/plugin"],
 
-    "@hena-agent/protocol": ["@hena-agent/protocol@workspace:packages/protocol"],
+    "@hena/protocol": ["@hena/protocol@workspace:packages/protocol"],
 
-    "@hena-agent/schema": ["@hena-agent/schema@workspace:packages/schema"],
+    "@hena/schema": ["@hena/schema@workspace:packages/schema"],
 
-    "@hena-agent/script": ["@hena-agent/script@workspace:packages/script"],
+    "@hena/script": ["@hena/script@workspace:packages/script"],
 
-    "@hena-agent/sdk": ["@hena-agent/sdk@workspace:packages/sdk/js"],
+    "@hena/sdk": ["@hena/sdk@workspace:packages/sdk/js"],
 
-    "@hena-agent/sdk-next": ["@hena-agent/sdk-next@workspace:packages/sdk-next"],
+    "@hena/sdk-next": ["@hena/sdk-next@workspace:packages/sdk-next"],
 
-    "@hena-agent/server": ["@hena-agent/server@workspace:packages/server"],
+    "@hena/server": ["@hena/server@workspace:packages/server"],
 
-    "@hena-agent/session-ui": ["@hena-agent/session-ui@workspace:packages/session-ui"],
+    "@hena/session-ui": ["@hena/session-ui@workspace:packages/session-ui"],
 
-    "@hena-agent/slack": ["@hena-agent/slack@workspace:packages/slack"],
+    "@hena/slack": ["@hena/slack@workspace:packages/slack"],
 
-    "@hena-agent/stats-app": ["@hena-agent/stats-app@workspace:packages/stats/app"],
+    "@hena/stats-app": ["@hena/stats-app@workspace:packages/stats/app"],
 
-    "@hena-agent/stats-core": ["@hena-agent/stats-core@workspace:packages/stats/core"],
+    "@hena/stats-core": ["@hena/stats-core@workspace:packages/stats/core"],
 
-    "@hena-agent/stats-server": ["@hena-agent/stats-server@workspace:packages/stats/server"],
+    "@hena/stats-server": ["@hena/stats-server@workspace:packages/stats/server"],
 
-    "@hena-agent/storybook": ["@hena-agent/storybook@workspace:packages/storybook"],
+    "@hena/storybook": ["@hena/storybook@workspace:packages/storybook"],
 
-    "@hena-agent/tui": ["@hena-agent/tui@workspace:packages/tui"],
+    "@hena/tui": ["@hena/tui@workspace:packages/tui"],
 
-    "@hena-agent/ui": ["@hena-agent/ui@workspace:packages/ui"],
+    "@hena/ui": ["@hena/ui@workspace:packages/ui"],
 
-    "@hena-agent/web": ["@hena-agent/web@workspace:packages/web"],
+    "@hena/web": ["@hena/web@workspace:packages/web"],
 
     "@hey-api/codegen-core": ["@hey-api/codegen-core@0.5.5", "", { "dependencies": { "@hey-api/types": "0.1.2", "ansi-colors": "4.1.3", "c12": "3.3.3", "color-support": "1.1.3" }, "peerDependencies": { "typescript": ">=5.5.3" } }, "sha512-f2ZHucnA2wBGAY8ipB4wn/mrEYW+WUxU2huJmUvfDO6AE2vfILSHeF3wCO39Pz4wUYPoAWZByaauftLrOfC12Q=="],
 
@@ -3917,7 +3917,7 @@
 
     "heap-snapshot-toolkit": ["heap-snapshot-toolkit@1.1.3", "", {}, "sha512-joThu2rEsDu8/l4arupRDI1qP4CZXNG+J6Wr348vnbLGSiBkwRdqZ6aOHl5BzEiC+Dc8OTbMlmWjD0lbXD5K2Q=="],
 
-    "hena-agent": ["hena-agent@workspace:packages/hena-agent"],
+    "hena": ["hena@workspace:packages/hena"],
 
     "hey-listen": ["hey-listen@1.0.8", "", {}, "sha512-COpmrF2NOg4TBWUJ5UVyaCU2A88wEMkUPK4hNqyCkqHbxT92BbvfjoSozkAIIm6XhicGlJHhFdullInrdhwU8Q=="],
 
@@ -5877,25 +5877,25 @@
 
     "@fastify/proxy-addr/ipaddr.js": ["ipaddr.js@2.4.0", "", {}, "sha512-9VGk3HGanVE6JoZXHiCpnGy5X0jYDnN4EA4lntFPj+1vIWlFhIylq2CrrCOJH9EAhc5CYhq18F2Av2tgoAPsYQ=="],
 
-    "@hena-agent/core/@ai-sdk/openai": ["@ai-sdk/openai@3.0.84", "", { "dependencies": { "@ai-sdk/provider": "3.0.14", "@ai-sdk/provider-utils": "4.0.38" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-cmgbeJL0bbY0yTJH4/AdmP5E7MjWRL9G8UdhIi0JlV/So03o82ORJofW8OzwCZPTORVQblFbpZXYGDcUd9NdUQ=="],
+    "@hena/core/@ai-sdk/openai": ["@ai-sdk/openai@3.0.84", "", { "dependencies": { "@ai-sdk/provider": "3.0.14", "@ai-sdk/provider-utils": "4.0.38" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-cmgbeJL0bbY0yTJH4/AdmP5E7MjWRL9G8UdhIi0JlV/So03o82ORJofW8OzwCZPTORVQblFbpZXYGDcUd9NdUQ=="],
 
-    "@hena-agent/core/@ai-sdk/openai-compatible": ["@ai-sdk/openai-compatible@2.0.41", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@ai-sdk/provider-utils": "4.0.23" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-kNAGINk71AlOXx10Dq/PXw4t/9XjdK8uxfpVElRwtSFMdeSiLVt58p9TPx4/FJD+hxZuVhvxYj9r42osxWq79g=="],
+    "@hena/core/@ai-sdk/openai-compatible": ["@ai-sdk/openai-compatible@2.0.41", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@ai-sdk/provider-utils": "4.0.23" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-kNAGINk71AlOXx10Dq/PXw4t/9XjdK8uxfpVElRwtSFMdeSiLVt58p9TPx4/FJD+hxZuVhvxYj9r42osxWq79g=="],
 
-    "@hena-agent/desktop/@actions/artifact": ["@actions/artifact@4.0.0", "", { "dependencies": { "@actions/core": "^1.10.0", "@actions/github": "^6.0.1", "@actions/http-client": "^2.1.0", "@azure/core-http": "^3.0.5", "@azure/storage-blob": "^12.15.0", "@octokit/core": "^5.2.1", "@octokit/plugin-request-log": "^1.0.4", "@octokit/plugin-retry": "^3.0.9", "@octokit/request": "^8.4.1", "@octokit/request-error": "^5.1.1", "@protobuf-ts/plugin": "^2.2.3-alpha.1", "archiver": "^7.0.1", "jwt-decode": "^3.1.2", "unzip-stream": "^0.3.1" } }, "sha512-HCc2jMJRAfviGFAh0FsOR/jNfWhirxl7W6z8zDtttt0GltwxBLdEIjLiweOPFl9WbyJRW1VWnPUSAixJqcWUMQ=="],
+    "@hena/desktop/@actions/artifact": ["@actions/artifact@4.0.0", "", { "dependencies": { "@actions/core": "^1.10.0", "@actions/github": "^6.0.1", "@actions/http-client": "^2.1.0", "@azure/core-http": "^3.0.5", "@azure/storage-blob": "^12.15.0", "@octokit/core": "^5.2.1", "@octokit/plugin-request-log": "^1.0.4", "@octokit/plugin-retry": "^3.0.9", "@octokit/request": "^8.4.1", "@octokit/request-error": "^5.1.1", "@protobuf-ts/plugin": "^2.2.3-alpha.1", "archiver": "^7.0.1", "jwt-decode": "^3.1.2", "unzip-stream": "^0.3.1" } }, "sha512-HCc2jMJRAfviGFAh0FsOR/jNfWhirxl7W6z8zDtttt0GltwxBLdEIjLiweOPFl9WbyJRW1VWnPUSAixJqcWUMQ=="],
 
-    "@hena-agent/desktop/marked": ["marked@15.0.12", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-8dD6FusOQSrpv9Z1rdNMdlSgQOIP880DHqnohobOmYLElGEqAL/JvxvuxZO16r4HtjTlfPRDC1hbvxC9dPN2nA=="],
+    "@hena/desktop/marked": ["marked@15.0.12", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-8dD6FusOQSrpv9Z1rdNMdlSgQOIP880DHqnohobOmYLElGEqAL/JvxvuxZO16r4HtjTlfPRDC1hbvxC9dPN2nA=="],
 
-    "@hena-agent/desktop/typescript": ["typescript@5.6.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw=="],
+    "@hena/desktop/typescript": ["typescript@5.6.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw=="],
 
-    "@hena-agent/llm/@smithy/eventstream-codec": ["@smithy/eventstream-codec@4.2.14", "", { "dependencies": { "@aws-crypto/crc32": "5.2.0", "@smithy/types": "^4.14.1", "@smithy/util-hex-encoding": "^4.2.2", "tslib": "^2.6.2" } }, "sha512-erZq0nOIpzfeZdCyzZjdJb4nVSKLUmSkaQUVkRGQTXs30gyUGeKnrYEg+Xe1W5gE3aReS7IgsvANwVPxSzY6Pw=="],
+    "@hena/llm/@smithy/eventstream-codec": ["@smithy/eventstream-codec@4.2.14", "", { "dependencies": { "@aws-crypto/crc32": "5.2.0", "@smithy/types": "^4.14.1", "@smithy/util-hex-encoding": "^4.2.2", "tslib": "^2.6.2" } }, "sha512-erZq0nOIpzfeZdCyzZjdJb4nVSKLUmSkaQUVkRGQTXs30gyUGeKnrYEg+Xe1W5gE3aReS7IgsvANwVPxSzY6Pw=="],
 
-    "@hena-agent/llm/@smithy/util-utf8": ["@smithy/util-utf8@4.2.2", "", { "dependencies": { "@smithy/util-buffer-from": "^4.2.2", "tslib": "^2.6.2" } }, "sha512-75MeYpjdWRe8M5E3AW0O4Cx3UadweS+cwdXjwYGBW5h/gxxnbeZ877sLPX/ZJA9GVTlL/qG0dXP29JWFCD1Ayw=="],
+    "@hena/llm/@smithy/util-utf8": ["@smithy/util-utf8@4.2.2", "", { "dependencies": { "@smithy/util-buffer-from": "^4.2.2", "tslib": "^2.6.2" } }, "sha512-75MeYpjdWRe8M5E3AW0O4Cx3UadweS+cwdXjwYGBW5h/gxxnbeZ877sLPX/ZJA9GVTlL/qG0dXP29JWFCD1Ayw=="],
 
-    "@hena-agent/session-ui/@solid-primitives/resize-observer": ["@solid-primitives/resize-observer@2.1.3", "", { "dependencies": { "@solid-primitives/event-listener": "^2.4.3", "@solid-primitives/rootless": "^1.5.2", "@solid-primitives/static-store": "^0.1.2", "@solid-primitives/utils": "^6.3.2" }, "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-zBLje5E06TgOg93S7rGPldmhDnouNGhvfZVKOp+oG2XU8snA+GoCSSCz1M+jpNAg5Ek2EakU5UVQqL152WmdXQ=="],
+    "@hena/session-ui/@solid-primitives/resize-observer": ["@solid-primitives/resize-observer@2.1.3", "", { "dependencies": { "@solid-primitives/event-listener": "^2.4.3", "@solid-primitives/rootless": "^1.5.2", "@solid-primitives/static-store": "^0.1.2", "@solid-primitives/utils": "^6.3.2" }, "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-zBLje5E06TgOg93S7rGPldmhDnouNGhvfZVKOp+oG2XU8snA+GoCSSCz1M+jpNAg5Ek2EakU5UVQqL152WmdXQ=="],
 
-    "@hena-agent/ui/@solid-primitives/resize-observer": ["@solid-primitives/resize-observer@2.1.3", "", { "dependencies": { "@solid-primitives/event-listener": "^2.4.3", "@solid-primitives/rootless": "^1.5.2", "@solid-primitives/static-store": "^0.1.2", "@solid-primitives/utils": "^6.3.2" }, "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-zBLje5E06TgOg93S7rGPldmhDnouNGhvfZVKOp+oG2XU8snA+GoCSSCz1M+jpNAg5Ek2EakU5UVQqL152WmdXQ=="],
+    "@hena/ui/@solid-primitives/resize-observer": ["@solid-primitives/resize-observer@2.1.3", "", { "dependencies": { "@solid-primitives/event-listener": "^2.4.3", "@solid-primitives/rootless": "^1.5.2", "@solid-primitives/static-store": "^0.1.2", "@solid-primitives/utils": "^6.3.2" }, "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-zBLje5E06TgOg93S7rGPldmhDnouNGhvfZVKOp+oG2XU8snA+GoCSSCz1M+jpNAg5Ek2EakU5UVQqL152WmdXQ=="],
 
-    "@hena-agent/web/@shikijs/transformers": ["@shikijs/transformers@3.20.0", "", { "dependencies": { "@shikijs/core": "3.20.0", "@shikijs/types": "3.20.0" } }, "sha512-PrHHMRr3Q5W1qB/42kJW6laqFyWdhrPF2hNR9qjOm1xcSiAO3hAHo7HaVyHE6pMyevmy3i51O8kuGGXC78uK3g=="],
+    "@hena/web/@shikijs/transformers": ["@shikijs/transformers@3.20.0", "", { "dependencies": { "@shikijs/core": "3.20.0", "@shikijs/types": "3.20.0" } }, "sha512-PrHHMRr3Q5W1qB/42kJW6laqFyWdhrPF2hNR9qjOm1xcSiAO3hAHo7HaVyHE6pMyevmy3i51O8kuGGXC78uK3g=="],
 
     "@hey-api/json-schema-ref-parser/js-yaml": ["js-yaml@4.3.0", "", { "dependencies": { "argparse": "^2.0.1" }, "bin": { "js-yaml": "bin/js-yaml.js" } }, "sha512-1td788aAnnZ5qs7V2QIRl1owjtYpbKt749Y3xauqQgwIIGF/xXWz1wMTEBx5O3LK3lXLVuqXPdPxj2BoFHaW9Q=="],
 
@@ -6247,15 +6247,15 @@
 
     "got/@sindresorhus/is": ["@sindresorhus/is@4.6.0", "", {}, "sha512-t09vSN3MdfsyCHoFcTRCH/iUtG7OJ0CsjzB8cjAmKc/va/kIgeDI/TxsigdncE/4be734m0cvIYwNaV4i2XqAw=="],
 
-    "hena-agent/@ai-sdk/cerebras": ["@ai-sdk/cerebras@2.0.60", "", { "dependencies": { "@ai-sdk/openai-compatible": "2.0.54", "@ai-sdk/provider": "3.0.12", "@ai-sdk/provider-utils": "4.0.33" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-Rnok3cThg6awBwaDSyiZpgRpbV7pqxGYrA89LODCo5cuEHeP2h0AM0lLHP7zIkclAdXfOm4wldKi/S2T/DGCOw=="],
+    "hena/@ai-sdk/cerebras": ["@ai-sdk/cerebras@2.0.60", "", { "dependencies": { "@ai-sdk/openai-compatible": "2.0.54", "@ai-sdk/provider": "3.0.12", "@ai-sdk/provider-utils": "4.0.33" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-Rnok3cThg6awBwaDSyiZpgRpbV7pqxGYrA89LODCo5cuEHeP2h0AM0lLHP7zIkclAdXfOm4wldKi/S2T/DGCOw=="],
 
-    "hena-agent/@ai-sdk/openai": ["@ai-sdk/openai@3.0.84", "", { "dependencies": { "@ai-sdk/provider": "3.0.14", "@ai-sdk/provider-utils": "4.0.38" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-cmgbeJL0bbY0yTJH4/AdmP5E7MjWRL9G8UdhIi0JlV/So03o82ORJofW8OzwCZPTORVQblFbpZXYGDcUd9NdUQ=="],
+    "hena/@ai-sdk/openai": ["@ai-sdk/openai@3.0.84", "", { "dependencies": { "@ai-sdk/provider": "3.0.14", "@ai-sdk/provider-utils": "4.0.38" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-cmgbeJL0bbY0yTJH4/AdmP5E7MjWRL9G8UdhIi0JlV/So03o82ORJofW8OzwCZPTORVQblFbpZXYGDcUd9NdUQ=="],
 
-    "hena-agent/@ai-sdk/openai-compatible": ["@ai-sdk/openai-compatible@2.0.41", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@ai-sdk/provider-utils": "4.0.23" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-kNAGINk71AlOXx10Dq/PXw4t/9XjdK8uxfpVElRwtSFMdeSiLVt58p9TPx4/FJD+hxZuVhvxYj9r42osxWq79g=="],
+    "hena/@ai-sdk/openai-compatible": ["@ai-sdk/openai-compatible@2.0.41", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@ai-sdk/provider-utils": "4.0.23" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-kNAGINk71AlOXx10Dq/PXw4t/9XjdK8uxfpVElRwtSFMdeSiLVt58p9TPx4/FJD+hxZuVhvxYj9r42osxWq79g=="],
 
-    "hena-agent/@solid-primitives/scheduled": ["@solid-primitives/scheduled@1.5.2", "", { "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-/j2igE0xyNaHhj6kMfcUQn5rAVSTLbAX+CDEBm25hSNBmNiHLu2lM7Usj2kJJ5j36D67bE8wR1hBNA8hjtvsQA=="],
+    "hena/@solid-primitives/scheduled": ["@solid-primitives/scheduled@1.5.2", "", { "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-/j2igE0xyNaHhj6kMfcUQn5rAVSTLbAX+CDEBm25hSNBmNiHLu2lM7Usj2kJJ5j36D67bE8wR1hBNA8hjtvsQA=="],
 
-    "hena-agent/minimatch": ["minimatch@10.0.3", "", { "dependencies": { "@isaacs/brace-expansion": "^5.0.0" } }, "sha512-IPZ167aShDZZUMdRk66cyQAW3qr0WzbHkPdMYa8bzZhlHhO3jALbKdxcaak7W9FfT2rZNpQuUu4Od7ILEpXSaw=="],
+    "hena/minimatch": ["minimatch@10.0.3", "", { "dependencies": { "@isaacs/brace-expansion": "^5.0.0" } }, "sha512-IPZ167aShDZZUMdRk66cyQAW3qr0WzbHkPdMYa8bzZhlHhO3jALbKdxcaak7W9FfT2rZNpQuUu4Od7ILEpXSaw=="],
 
     "html-minifier-terser/commander": ["commander@10.0.1", "", {}, "sha512-y4Mg2tXshplEbSGzx7amzPwKKOCGuoSRP/CjEdwwk0FOGlUbq6lKuoyDZTNZkmxHdJtp54hdfY/JUrdL7Xfdug=="],
 
@@ -6649,15 +6649,15 @@
 
     "@expressive-code/plugin-shiki/shiki/@shikijs/types": ["@shikijs/types@3.23.0", "", { "dependencies": { "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4" } }, "sha512-3JZ5HXOZfYjsYSk0yPwBrkupyYSLpAE26Qc0HLghhZNGTZg/SKxXIIgoxOpmmeQP0RRSDJTk1/vPfw9tbw+jSQ=="],
 
-    "@hena-agent/core/@ai-sdk/openai/@ai-sdk/provider": ["@ai-sdk/provider@3.0.14", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA=="],
+    "@hena/core/@ai-sdk/openai/@ai-sdk/provider": ["@ai-sdk/provider@3.0.14", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA=="],
 
-    "@hena-agent/core/@ai-sdk/openai/@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@4.0.38", "", { "dependencies": { "@ai-sdk/provider": "3.0.14", "@standard-schema/spec": "^1.1.0", "eventsource-parser": "^3.0.8" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-/HHGmtKllqjg1OLc023v9w9kK3laW7Z6TzfZukYQWCsGBbzB9p60zTvvpXFVcs44NZBVXL3viOa1HRKUbeee8g=="],
+    "@hena/core/@ai-sdk/openai/@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@4.0.38", "", { "dependencies": { "@ai-sdk/provider": "3.0.14", "@standard-schema/spec": "^1.1.0", "eventsource-parser": "^3.0.8" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-/HHGmtKllqjg1OLc023v9w9kK3laW7Z6TzfZukYQWCsGBbzB9p60zTvvpXFVcs44NZBVXL3viOa1HRKUbeee8g=="],
 
-    "@hena-agent/desktop/@actions/artifact/@actions/http-client": ["@actions/http-client@2.2.3", "", { "dependencies": { "tunnel": "^0.0.6", "undici": "^5.25.4" } }, "sha512-mx8hyJi/hjFvbPokCg4uRd4ZX78t+YyRPtnKWwIl+RzNaVuFpQHfmlGVfsKEJN8LwTCvL+DfVgAM04XaHkm6bA=="],
+    "@hena/desktop/@actions/artifact/@actions/http-client": ["@actions/http-client@2.2.3", "", { "dependencies": { "tunnel": "^0.0.6", "undici": "^5.25.4" } }, "sha512-mx8hyJi/hjFvbPokCg4uRd4ZX78t+YyRPtnKWwIl+RzNaVuFpQHfmlGVfsKEJN8LwTCvL+DfVgAM04XaHkm6bA=="],
 
-    "@hena-agent/web/@shikijs/transformers/@shikijs/core": ["@shikijs/core@3.20.0", "", { "dependencies": { "@shikijs/types": "3.20.0", "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4", "hast-util-to-html": "^9.0.5" } }, "sha512-f2ED7HYV4JEk827mtMDwe/yQ25pRiXZmtHjWF8uzZKuKiEsJR7Ce1nuQ+HhV9FzDcbIo4ObBCD9GPTzNuy9S1g=="],
+    "@hena/web/@shikijs/transformers/@shikijs/core": ["@shikijs/core@3.20.0", "", { "dependencies": { "@shikijs/types": "3.20.0", "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4", "hast-util-to-html": "^9.0.5" } }, "sha512-f2ED7HYV4JEk827mtMDwe/yQ25pRiXZmtHjWF8uzZKuKiEsJR7Ce1nuQ+HhV9FzDcbIo4ObBCD9GPTzNuy9S1g=="],
 
-    "@hena-agent/web/@shikijs/transformers/@shikijs/types": ["@shikijs/types@3.20.0", "", { "dependencies": { "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4" } }, "sha512-lhYAATn10nkZcBQ0BlzSbJA3wcmL5MXUUF8d2Zzon6saZDlToKaiRX60n2+ZaHJCmXEcZRWNzn+k9vplr8Jhsw=="],
+    "@hena/web/@shikijs/transformers/@shikijs/types": ["@shikijs/types@3.20.0", "", { "dependencies": { "@shikijs/vscode-textmate": "^10.0.2", "@types/hast": "^3.0.4" } }, "sha512-lhYAATn10nkZcBQ0BlzSbJA3wcmL5MXUUF8d2Zzon6saZDlToKaiRX60n2+ZaHJCmXEcZRWNzn+k9vplr8Jhsw=="],
 
     "@hey-api/json-schema-ref-parser/js-yaml/argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 
@@ -6995,15 +6995,15 @@
 
     "gcp-metadata/gaxios/node-fetch": ["node-fetch@3.3.2", "", { "dependencies": { "data-uri-to-buffer": "^4.0.0", "fetch-blob": "^3.1.4", "formdata-polyfill": "^4.0.10" } }, "sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA=="],
 
-    "hena-agent/@ai-sdk/cerebras/@ai-sdk/openai-compatible": ["@ai-sdk/openai-compatible@2.0.54", "", { "dependencies": { "@ai-sdk/provider": "3.0.12", "@ai-sdk/provider-utils": "4.0.33" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-OyXt0zK8y2/ZIyWlbxTv2r1M7AK227S+Gl4BYOEF42q0wz1n5m4fwR8L4Fy/MQ4Ho6xje47MPsFcRdIqIyP6Rw=="],
+    "hena/@ai-sdk/cerebras/@ai-sdk/openai-compatible": ["@ai-sdk/openai-compatible@2.0.54", "", { "dependencies": { "@ai-sdk/provider": "3.0.12", "@ai-sdk/provider-utils": "4.0.33" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-OyXt0zK8y2/ZIyWlbxTv2r1M7AK227S+Gl4BYOEF42q0wz1n5m4fwR8L4Fy/MQ4Ho6xje47MPsFcRdIqIyP6Rw=="],
 
-    "hena-agent/@ai-sdk/cerebras/@ai-sdk/provider": ["@ai-sdk/provider@3.0.12", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-sj9DWTJ2Ze0WR9qsiOPqoqzNx3OxL6iMxHImbhvoe9qOspekbzxNDMiJ4TIGfYHYh9w4OmBjz3prvqhzTi96+Q=="],
+    "hena/@ai-sdk/cerebras/@ai-sdk/provider": ["@ai-sdk/provider@3.0.12", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-sj9DWTJ2Ze0WR9qsiOPqoqzNx3OxL6iMxHImbhvoe9qOspekbzxNDMiJ4TIGfYHYh9w4OmBjz3prvqhzTi96+Q=="],
 
-    "hena-agent/@ai-sdk/cerebras/@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@4.0.33", "", { "dependencies": { "@ai-sdk/provider": "3.0.12", "@standard-schema/spec": "^1.1.0", "eventsource-parser": "^3.0.8" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-nJ0bAfegMAIJtrzMJtbzer1cS3nb7c7DsyU1S4nrPm7ZU0Mn6SBBZv5IGZZGTbpWTJwqKTSPeZJTXalbAxt1BA=="],
+    "hena/@ai-sdk/cerebras/@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@4.0.33", "", { "dependencies": { "@ai-sdk/provider": "3.0.12", "@standard-schema/spec": "^1.1.0", "eventsource-parser": "^3.0.8" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-nJ0bAfegMAIJtrzMJtbzer1cS3nb7c7DsyU1S4nrPm7ZU0Mn6SBBZv5IGZZGTbpWTJwqKTSPeZJTXalbAxt1BA=="],
 
-    "hena-agent/@ai-sdk/openai/@ai-sdk/provider": ["@ai-sdk/provider@3.0.14", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA=="],
+    "hena/@ai-sdk/openai/@ai-sdk/provider": ["@ai-sdk/provider@3.0.14", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-5X1k57JBJ4H7H1QjX7CnJYAB1I19r/trVZTMcSms7/kLNZ8RaU4Nt2agcwZzv82Hfx6Q7/TOLU7agAKeFfc8cA=="],
 
-    "hena-agent/@ai-sdk/openai/@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@4.0.38", "", { "dependencies": { "@ai-sdk/provider": "3.0.14", "@standard-schema/spec": "^1.1.0", "eventsource-parser": "^3.0.8" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-/HHGmtKllqjg1OLc023v9w9kK3laW7Z6TzfZukYQWCsGBbzB9p60zTvvpXFVcs44NZBVXL3viOa1HRKUbeee8g=="],
+    "hena/@ai-sdk/openai/@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@4.0.38", "", { "dependencies": { "@ai-sdk/provider": "3.0.14", "@standard-schema/spec": "^1.1.0", "eventsource-parser": "^3.0.8" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-/HHGmtKllqjg1OLc023v9w9kK3laW7Z6TzfZukYQWCsGBbzB9p60zTvvpXFVcs44NZBVXL3viOa1HRKUbeee8g=="],
 
     "js-beautify/glob/jackspeak": ["jackspeak@3.4.3", "", { "dependencies": { "@isaacs/cliui": "^8.0.2" }, "optionalDependencies": { "@pkgjs/parseargs": "^0.11.0" } }, "sha512-OGlZQpz2yfahA/Rd1Y8Cd9SIEsqvXkLVoSw/cgwhnhFMDbsQFeZYoJJ7bIZBS9BcamUW96asq/npPWugM+RQBw=="],
 
@@ -7179,9 +7179,9 @@
 
     "@electron/universal/minimatch/brace-expansion/balanced-match": ["balanced-match@1.0.2", "", {}, "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw=="],
 
-    "@hena-agent/core/@ai-sdk/openai/@ai-sdk/provider-utils/@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
+    "@hena/core/@ai-sdk/openai/@ai-sdk/provider-utils/@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
-    "@hena-agent/desktop/@actions/artifact/@actions/http-client/undici": ["undici@5.29.0", "", { "dependencies": { "@fastify/busboy": "^2.0.0" } }, "sha512-raqeBD6NQK4SkWhQzeYKd1KmIG6dllBOTt55Rmkt4HtI9mwdWtJljnrXjAFUBLTSN67HWrOIZ3EPF4kjUw80Bg=="],
+    "@hena/desktop/@actions/artifact/@actions/http-client/undici": ["undici@5.29.0", "", { "dependencies": { "@fastify/busboy": "^2.0.0" } }, "sha512-raqeBD6NQK4SkWhQzeYKd1KmIG6dllBOTt55Rmkt4HtI9mwdWtJljnrXjAFUBLTSN67HWrOIZ3EPF4kjUw80Bg=="],
 
     "@jsx-email/cli/tailwindcss/chokidar/glob-parent": ["glob-parent@5.1.2", "", { "dependencies": { "is-glob": "^4.0.1" } }, "sha512-AOIgSQCepiJYwP3ARnGx+5VnTu2HBYdzbGP45eLw1vr3zB3vZLeyed1sC9hnbcOc9/SrMyM5RPQrkGz4aS9Zow=="],
 
@@ -7313,9 +7313,9 @@
 
     "filelist/minimatch/brace-expansion/balanced-match": ["balanced-match@1.0.2", "", {}, "sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw=="],
 
-    "hena-agent/@ai-sdk/cerebras/@ai-sdk/provider-utils/@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
+    "hena/@ai-sdk/cerebras/@ai-sdk/provider-utils/@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
-    "hena-agent/@ai-sdk/openai/@ai-sdk/provider-utils/@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
+    "hena/@ai-sdk/openai/@ai-sdk/provider-utils/@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
     "js-beautify/glob/jackspeak/@isaacs/cliui": ["@isaacs/cliui@8.0.2", "", { "dependencies": { "string-width": "^5.1.2", "string-width-cjs": "npm:string-width@^4.2.0", "strip-ansi": "^7.0.1", "strip-ansi-cjs": "npm:strip-ansi@^6.0.1", "wrap-ansi": "^8.1.0", "wrap-ansi-cjs": "npm:wrap-ansi@^7.0.0" } }, "sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA=="],
 

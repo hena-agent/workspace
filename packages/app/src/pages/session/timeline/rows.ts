@@ -1,6 +1,6 @@
 import { parseCommentNote, readCommentMetadata } from "@/utils/comment-note"
-import { AssistantMessage, Part, SessionStatus, UserMessage } from "@hena-agent/sdk/v2"
-import { groupParts, renderable, type PartGroup } from "@hena-agent/session-ui/message-part"
+import { AssistantMessage, Part, SessionStatus, UserMessage } from "@hena/sdk/v2"
+import { groupParts, renderable, type PartGroup } from "@hena/session-ui/message-part"
 import { TimelineRow, type SummaryDiff } from "./timeline-row"
 import { uniqueSummaryDiffs } from "./summary-diffs"
 

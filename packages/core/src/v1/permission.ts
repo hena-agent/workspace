@@ -1,8 +1,8 @@
 export * as PermissionV1 from "./permission"
 
 import { Schema } from "effect"
-export * from "@hena-agent/schema/permission-v1"
-import { ID } from "@hena-agent/schema/permission-v1"
+export * from "@hena/schema/permission-v1"
+import { ID } from "@hena/schema/permission-v1"
 
 export class RejectedError extends Schema.TaggedErrorClass<RejectedError>()("PermissionRejectedError", {}) {
   override get message() {

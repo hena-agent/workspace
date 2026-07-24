@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { ProviderMetadata } from "@hena-agent/schema/llm"
+import { ProviderMetadata } from "@hena/schema/llm"
 
 export { ProviderMetadata }
 

@@ -1,4 +1,4 @@
-import type { FilePartSource } from "@hena-agent/sdk/v2/client"
+import type { FilePartSource } from "@hena/sdk/v2/client"
 
 type PromptInputV2PartBase = {
   content: string

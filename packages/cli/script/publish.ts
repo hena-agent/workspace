@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { $ } from "bun"
 import pkg from "../package.json"
-import { Script } from "@hena-agent/script"
+import { Script } from "@hena/script"
 import { fileURLToPath } from "url"
 
 const dir = fileURLToPath(new URL("..", import.meta.url))
@@ -27,12 +27,12 @@ console.log("binaries", binaries)
 const version = Object.values(binaries)[0]
 
 await $`mkdir -p ./dist/${pkg.name}/bin`
-await $`cp ./bin/hena-agent.cjs ./dist/${pkg.name}/bin/hena-agent`
+await $`cp ./bin/hena.cjs ./dist/${pkg.name}/bin/hena`
 await Bun.file(`./dist/${pkg.name}/package.json`).write(
   JSON.stringify(
     {
       name: pkg.name,
-      bin: { "hena-agent": "./bin/hena-agent" },
+      bin: { "hena": "./bin/hena" },
       version,
       license: pkg.license,
       repository: { type: "git", url: "git+https://github.com/hena-agent/hena.git" },
@@ -47,7 +47,7 @@ await Bun.file(`./dist/${pkg.name}/package.json`).write(
 
 await Promise.all(
   Object.entries(binaries).map(([name, version]) =>
-    publish(`./dist/${name.replace("@hena-agent/", "")}`, name, version),
+    publish(`./dist/${name.replace("@hena/", "")}`, name, version),
   ),
 )
 await publish(`./dist/${pkg.name}`, pkg.name, version)

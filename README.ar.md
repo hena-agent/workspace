@@ -3,14 +3,14 @@
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="شعار Hena Agent">
+      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="شعار Hena">
     </picture>
   </a>
 </p>
 <p align="center">وكيل برمجة بالذكاء الاصطناعي مفتوح المصدر.</p>
 <p align="center">
   <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/hena"><img alt="npm" src="https://img.shields.io/npm/v/hena?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
 
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
+[![Hena Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -50,14 +50,14 @@
 curl -fsSL https://hena.dev/install | bash
 
 # مديري الحزم
-npm i -g hena-agent@latest        # او bun/pnpm/yarn
-scoop install hena-agent             # Windows
-choco install hena-agent             # Windows
-brew install hena-agent/tap/hena-agent # macOS و Linux (موصى به، دائما محدث)
-brew install hena-agent              # macOS و Linux (صيغة brew الرسمية، تحديث اقل)
-sudo pacman -S hena-agent            # Arch Linux (Stable)
-paru -S hena-agent-bin               # Arch Linux (Latest from AUR)
-mise use -g hena-agent               # اي نظام
+npm i -g hena@latest        # او bun/pnpm/yarn
+scoop install hena             # Windows
+choco install hena             # Windows
+brew install hena-agent/tap/hena # macOS و Linux (موصى به، دائما محدث)
+brew install hena              # macOS و Linux (صيغة brew الرسمية، تحديث اقل)
+sudo pacman -S hena            # Arch Linux (Stable)
+paru -S hena-bin               # Arch Linux (Latest from AUR)
+mise use -g hena               # اي نظام
 nix run github:hena-agent/hena           # او github:hena-agent/hena لاحدث فرع dev
 ```
 
@@ -66,40 +66,40 @@ nix run github:hena-agent/hena           # او github:hena-agent/hena لاحد�
 
 ### تطبيق سطح المكتب (BETA)
 
-يتوفر Hena Agent ايضا كتطبيق سطح مكتب. قم بالتنزيل مباشرة من [صفحة الاصدارات](https://github.com/hena-agent/hena/releases) او من [hena.dev/download](https://hena.dev/download).
+يتوفر Hena ايضا كتطبيق سطح مكتب. قم بالتنزيل مباشرة من [صفحة الاصدارات](https://github.com/hena-agent/hena/releases) او من [hena.dev/download](https://hena.dev/download).
 
 | المنصة                | التنزيل                            |
 | --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `hena-agent-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `hena-agent-desktop-mac-x64.dmg`     |
-| Windows               | `hena-agent-desktop-windows-x64.exe` |
+| macOS (Apple Silicon) | `hena-desktop-mac-arm64.dmg`   |
+| macOS (Intel)         | `hena-desktop-mac-x64.dmg`     |
+| Windows               | `hena-desktop-windows-x64.exe` |
 | Linux                 | `.deb` او `.rpm` او AppImage       |
 
 ```bash
 # macOS (Homebrew)
-brew install --cask hena-agent
+brew install --cask hena
 # Windows (Scoop)
-scoop bucket add extras; scoop install hena-agent
+scoop bucket add extras; scoop install hena
 ```
 
 #### مجلد التثبيت
 
 يحترم سكربت التثبيت ترتيب الاولوية التالي لمسار التثبيت:
 
-1. `$HENA_AGENT_INSTALL_DIR` - مجلد تثبيت مخصص
+1. `$HENA_INSTALL_DIR` - مجلد تثبيت مخصص
 2. `$XDG_BIN_DIR` - مسار متوافق مع مواصفات XDG Base Directory
 3. `$HOME/bin` - مجلد الثنائيات القياسي للمستخدم (ان وجد او امكن انشاؤه)
-4. `$HOME/.hena-agent/bin` - المسار الافتراضي الاحتياطي
+4. `$HOME/.hena/bin` - المسار الافتراضي الاحتياطي
 
 ```bash
 # امثلة
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+HENA_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
 XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agents
 
-يتضمن Hena Agent وكيليْن (Agents) مدمجين يمكنك التبديل بينهما باستخدام زر `Tab`.
+يتضمن Hena وكيليْن (Agents) مدمجين يمكنك التبديل بينهما باستخدام زر `Tab`.
 
 - **build** - الافتراضي، وكيل بصلاحيات كاملة لاعمال التطوير
 - **plan** - وكيل للقراءة فقط للتحليل واستكشاف الكود
@@ -114,15 +114,15 @@ XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 
 ### التوثيق
 
-لمزيد من المعلومات حول كيفية ضبط Hena Agent، [**راجع التوثيق**](https://hena.dev/docs).
+لمزيد من المعلومات حول كيفية ضبط Hena، [**راجع التوثيق**](https://hena.dev/docs).
 
 ### المساهمة
 
-اذا كنت مهتما بالمساهمة في Hena Agent، يرجى قراءة [contributing docs](./CONTRIBUTING.md) قبل ارسال pull request.
+اذا كنت مهتما بالمساهمة في Hena، يرجى قراءة [contributing docs](./CONTRIBUTING.md) قبل ارسال pull request.
 
-### البناء فوق Hena Agent
+### البناء فوق Hena
 
-اذا كنت تعمل على مشروع مرتبط بـ Hena Agent ويستخدم "hena-agent" كجزء من اسمه (مثل "hena-agent-dashboard" او "hena-agent-mobile")، يرجى اضافة ملاحظة في README توضح انه ليس مبنيا بواسطة فريق Hena Agent ولا يرتبط بنا بأي شكل.
+اذا كنت تعمل على مشروع مرتبط بـ Hena ويستخدم "hena" كجزء من اسمه (مثل "hena-dashboard" او "hena-mobile")، يرجى اضافة ملاحظة في README توضح انه ليس مبنيا بواسطة فريق Hena ولا يرتبط بنا بأي شكل.
 
 ---
 

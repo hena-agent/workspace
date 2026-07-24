@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@hena-agent/protocol",
+  "name": "@hena/protocol",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -11,7 +11,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@hena-agent/schema": "workspace:*",
+    "@hena/schema": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

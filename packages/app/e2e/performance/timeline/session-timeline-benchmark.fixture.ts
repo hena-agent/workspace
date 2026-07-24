@@ -1,10 +1,10 @@
-import { base64Encode } from "@hena-agent/core/util/encode"
+import { base64Encode } from "@hena/core/util/encode"
 import type { Page } from "@playwright/test"
-import { mockHenaAgentServer } from "../../utils/mock-server"
+import { mockHenaServer } from "../../utils/mock-server"
 import { expectAppVisible, expectSessionTitle } from "../../utils/waits"
 import { expect } from "../benchmark"
 
-const directory = "C:/Hena Agent/TimelineStateRegression"
+const directory = "C:/Hena/TimelineStateRegression"
 const projectID = "proj_timeline_state_regression"
 const sessionID = "ses_timeline_state_regression"
 const userMessageID = "msg_user_regression"
@@ -12,7 +12,7 @@ const assistantMessageID = "msg_assistant_regression"
 const editPartID = "prt_0001_edit"
 export const textPartID = "prt_9999_text"
 const title = "Timeline collapse state regression"
-const model = { providerID: "hena-agent", modelID: "claude-opus-4-6", variant: "max" }
+const model = { providerID: "hena", modelID: "claude-opus-4-6", variant: "max" }
 
 type EventPayload = {
   directory: string
@@ -108,7 +108,7 @@ export async function setupTimelineBenchmark(
   const currentUserMessage = options.turnDiffs
     ? { ...userMessage, info: { ...userMessage.info, summary: { diffs: options.turnDiffs } } }
     : userMessage
-  await mockHenaAgentServer(page, {
+  await mockHenaServer(page, {
     directory,
     project: project(),
     provider: provider(),
@@ -493,12 +493,12 @@ function provider() {
   return {
     all: [
       {
-        id: "hena-agent",
-        name: "Hena Agent",
+        id: "hena",
+        name: "Hena",
         models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
       },
     ],
-    connected: ["hena-agent"],
-    default: { providerID: "hena-agent", modelID: "claude-opus-4-6" },
+    connected: ["hena"],
+    default: { providerID: "hena", modelID: "claude-opus-4-6" },
   }
 }

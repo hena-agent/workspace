@@ -99,19 +99,19 @@ beforeAll(async () => {
     useSearchParams: () => [search, () => undefined],
   }))
 
-  mock.module("@hena-agent/sdk/v2/client", () => ({
-    createHenaAgentClient: (input: { directory: string }) => {
+  mock.module("@hena/sdk/v2/client", () => ({
+    createHenaClient: (input: { directory: string }) => {
       createdClients.push(input.directory)
       return clientFor(input.directory)
     },
   }))
 
-  mock.module("@hena-agent/ui/toast", () => ({
+  mock.module("@hena/ui/toast", () => ({
     Toast: { Region: () => null },
     showToast: () => 0,
   }))
 
-  mock.module("@hena-agent/core/util/encode", () => ({
+  mock.module("@hena/core/util/encode", () => ({
     base64Encode: (value: string) => value,
   }))
 

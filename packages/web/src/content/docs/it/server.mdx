@@ -1,19 +1,19 @@
 ---
 title: Server
-description: Interagisci con il server hena-agent via HTTP.
+description: Interagisci con il server hena via HTTP.
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-Il comando `hena-agent serve` avvia un server HTTP headless che espone un endpoint OpenAPI utilizzabile da un client Hena Agent.
+Il comando `hena serve` avvia un server HTTP headless che espone un endpoint OpenAPI utilizzabile da un client Hena.
 
 ---
 
 ### Utilizzo
 
 ```bash
-hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
+hena serve [--port <number>] [--hostname <string>] [--cors <origin>]
 ```
 
 #### Opzioni
@@ -23,38 +23,38 @@ hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
 | `--port`        | Porta su cui ascoltare                  | `4096`           |
 | `--hostname`    | Hostname su cui ascoltare               | `127.0.0.1`      |
 | `--mdns`        | Abilita la scoperta mDNS                | `false`          |
-| `--mdns-domain` | Nome di dominio personalizzato mDNS     | `hena-agent.local` |
+| `--mdns-domain` | Nome di dominio personalizzato mDNS     | `hena.local` |
 | `--cors`        | Origin browser aggiuntive da permettere | `[]`             |
 
 `--cors` puo essere passato piu volte:
 
 ```bash
-hena-agent serve --cors http://localhost:5173 --cors https://app.example.com
+hena serve --cors http://localhost:5173 --cors https://app.example.com
 ```
 
 ---
 
 ### Autenticazione
 
-Imposta `HENA_AGENT_SERVER_PASSWORD` per proteggere il server con HTTP basic auth. Lo username predefinito e `hena-agent`, oppure imposta `HENA_AGENT_SERVER_USERNAME` per sovrascriverlo. Questo vale sia per `hena-agent serve` sia per `hena-agent web`.
+Imposta `HENA_SERVER_PASSWORD` per proteggere il server con HTTP basic auth. Lo username predefinito e `hena`, oppure imposta `HENA_SERVER_USERNAME` per sovrascriverlo. Questo vale sia per `hena serve` sia per `hena web`.
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve
+HENA_SERVER_PASSWORD=your-password hena serve
 ```
 
 ---
 
 ### Come funziona
 
-Quando esegui `hena-agent` avvia una TUI e un server. La TUI e il client che parla col server. Il server espone un endpoint con specifica OpenAPI 3.1. Questo endpoint viene anche usato per generare un [SDK](/docs/sdk).
+Quando esegui `hena` avvia una TUI e un server. La TUI e il client che parla col server. Il server espone un endpoint con specifica OpenAPI 3.1. Questo endpoint viene anche usato per generare un [SDK](/docs/sdk).
 
 :::tip
-Usa il server hena-agent per interagire con hena-agent in modo programmatico.
+Usa il server hena per interagire con hena in modo programmatico.
 :::
 
-Questa architettura permette a hena-agent di supportare piu client e di essere usato in modo programmatico.
+Questa architettura permette a hena di supportare piu client e di essere usato in modo programmatico.
 
-Puoi eseguire `hena-agent serve` per avviare un server standalone. Se la TUI di hena-agent e gia in esecuzione, `hena-agent serve` avviera un nuovo server.
+Puoi eseguire `hena serve` per avviare un server standalone. Se la TUI di hena e gia in esecuzione, `hena serve` avviera un nuovo server.
 
 ---
 
@@ -62,7 +62,7 @@ Puoi eseguire `hena-agent serve` per avviare un server standalone. Se la TUI di 
 
 Quando avvii la TUI assegna casualmente porta e hostname. In alternativa puoi passare i [flag](/docs/cli) `--hostname` e `--port` e poi usare questi valori per connetterti al suo server.
 
-L'endpoint [`/tui`](#tui) puo essere usato per pilotare la TUI tramite il server. Per esempio, puoi precompilare o eseguire un prompt. Questa configurazione e usata dai plugin [IDE](/docs/ide) di Hena Agent.
+L'endpoint [`/tui`](#tui) puo essere usato per pilotare la TUI tramite il server. Per esempio, puoi precompilare o eseguire un prompt. Questa configurazione e usata dai plugin [IDE](/docs/ide) di Hena.
 
 ---
 
@@ -80,7 +80,7 @@ Per esempio, `http://localhost:4096/doc`. Usa la spec per generare client o ispe
 
 ## API
 
-Il server hena-agent espone le seguenti API.
+Il server hena espone le seguenti API.
 
 ---
 

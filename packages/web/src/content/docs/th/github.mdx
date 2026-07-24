@@ -1,17 +1,17 @@
 ---
 title: GitHub
-description: ใช้ Hena Agent ในปัญหา GitHub และคำขอแบบดึง
+description: ใช้ Hena ในปัญหา GitHub และคำขอแบบดึง
 ---
 
-Hena Agent ผสานรวมกับเวิร์กโฟลว์ GitHub ของคุณ พูดถึง `/hena-agent` หรือ `/oc` ในความคิดเห็นของคุณ แล้ว Hena Agent จะดำเนินการงานภายใน GitHub Actions runner ของคุณ
+Hena ผสานรวมกับเวิร์กโฟลว์ GitHub ของคุณ พูดถึง `/hena` หรือ `/oc` ในความคิดเห็นของคุณ แล้ว Hena จะดำเนินการงานภายใน GitHub Actions runner ของคุณ
 
 ---
 
 ## คุณสมบัติ
 
-- **Issue Triage**: ขอให้ Hena Agent ตรวจสอบปัญหาและอธิบายให้คุณทราบ
-- **แก้ไขและนำไปใช้**: ขอให้ Hena Agent แก้ไขปัญหาหรือใช้ฟีเจอร์ และมันจะทำงานในสาขาใหม่และส่ง PR พร้อมการเปลี่ยนแปลงทั้งหมด
-- **ปลอดภัย**: Hena Agent ทำงานภายในรันเนอร์ของ GitHub ของคุณ
+- **Issue Triage**: ขอให้ Hena ตรวจสอบปัญหาและอธิบายให้คุณทราบ
+- **แก้ไขและนำไปใช้**: ขอให้ Hena แก้ไขปัญหาหรือใช้ฟีเจอร์ และมันจะทำงานในสาขาใหม่และส่ง PR พร้อมการเปลี่ยนแปลงทั้งหมด
+- **ปลอดภัย**: Hena ทำงานภายในรันเนอร์ของ GitHub ของคุณ
 
 ---
 
@@ -20,7 +20,7 @@ Hena Agent ผสานรวมกับเวิร์กโฟลว์ GitHu
 รันคำสั่งต่อไปนี้ในโปรเจ็กต์ที่อยู่ใน repo GitHub:
 
 ```bash
-hena-agent github install
+hena github install
 ```
 
 ขั้นตอนนี้จะแนะนำคุณตลอดขั้นตอนการติดตั้งแอป GitHub การสร้างเวิร์กโฟลว์ และการตั้งค่าความลับ
@@ -33,14 +33,14 @@ hena-agent github install
 
 1. **ติดตั้งแอป GitHub**
 
-   ไปที่ [**github.com/apps/hena-agent-agent**](https://github.com/apps/hena-agent-agent) ตรวจสอบให้แน่ใจว่าได้ติดตั้งบนที่เก็บเป้าหมายแล้ว
+   ไปที่ [**github.com/apps/hena**](https://github.com/apps/hena) ตรวจสอบให้แน่ใจว่าได้ติดตั้งบนที่เก็บเป้าหมายแล้ว
 
 2. **เพิ่มขั้นตอนการทำงาน**
 
-   เพิ่มไฟล์เวิร์กโฟลว์ต่อไปนี้ไปที่ `.github/workflows/hena-agent.yml` ใน repo ของคุณ ตรวจสอบให้แน่ใจว่าได้ตั้งค่า `model` ที่เหมาะสมและคีย์ API ที่จำเป็นใน `env`
+   เพิ่มไฟล์เวิร์กโฟลว์ต่อไปนี้ไปที่ `.github/workflows/hena.yml` ใน repo ของคุณ ตรวจสอบให้แน่ใจว่าได้ตั้งค่า `model` ที่เหมาะสมและคีย์ API ที่จำเป็นใน `env`
 
-   ```yml title=".github/workflows/hena-agent.yml" {24,26}
-   name: hena-agent
+   ```yml title=".github/workflows/hena.yml" {24,26}
+   name: hena
 
    on:
      issue_comment:
@@ -49,10 +49,10 @@ hena-agent github install
        types: [created]
 
    jobs:
-     hena-agent:
+     hena:
        if: |
          contains(github.event.comment.body, '/oc') ||
-         contains(github.event.comment.body, '/hena-agent')
+         contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:
          id-token: write
@@ -63,7 +63,7 @@ hena-agent github install
               fetch-depth: 1
               persist-credentials: false
 
-          - name: Run Hena Agent
+          - name: Run Hena
            uses: hena-agent/hena/github@latest
            env:
              ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -81,13 +81,13 @@ hena-agent github install
 
 ## การกำหนดค่า
 
-- `model`: โมเดลที่จะใช้กับ Hena Agent ใช้รูปแบบของ `provider/model` นี่คือ **จำเป็น**
+- `model`: โมเดลที่จะใช้กับ Hena ใช้รูปแบบของ `provider/model` นี่คือ **จำเป็น**
 - `agent`: ตัวแทนที่จะใช้ จะต้องเป็นตัวแทนหลัก ย้อนกลับไปที่ `default_agent` จาก config หรือ `"build"` หากไม่พบ
-- `share`: ไม่ว่าจะแชร์เซสชัน Hena Agent หรือไม่ ค่าเริ่มต้นเป็น **จริง** สำหรับที่เก็บข้อมูลสาธารณะ
-- `prompt`: ตัวเลือกที่กำหนดเองพร้อมท์เพื่อแทนที่การทำงานเริ่มต้น ใช้สิ่งนี้เพื่อปรับแต่งวิธีที่ Hena Agent ประมวลผลคำขอ
-- `token`: GitHub Access Token เสริมสำหรับการดำเนินการ เช่น การสร้างความคิดเห็น การยอมรับการเปลี่ยนแปลง และการเปิดคำขอดึง ตามค่าเริ่มต้น Hena Agent จะใช้โทเค็นการเข้าถึงการติดตั้งจาก Hena Agent GitHub App ดังนั้นคอมมิต แสดงความคิดเห็น และคำขอดึงข้อมูลจะปรากฏว่ามาจากแอป
+- `share`: ไม่ว่าจะแชร์เซสชัน Hena หรือไม่ ค่าเริ่มต้นเป็น **จริง** สำหรับที่เก็บข้อมูลสาธารณะ
+- `prompt`: ตัวเลือกที่กำหนดเองพร้อมท์เพื่อแทนที่การทำงานเริ่มต้น ใช้สิ่งนี้เพื่อปรับแต่งวิธีที่ Hena ประมวลผลคำขอ
+- `token`: GitHub Access Token เสริมสำหรับการดำเนินการ เช่น การสร้างความคิดเห็น การยอมรับการเปลี่ยนแปลง และการเปิดคำขอดึง ตามค่าเริ่มต้น Hena จะใช้โทเค็นการเข้าถึงการติดตั้งจาก Hena GitHub App ดังนั้นคอมมิต แสดงความคิดเห็น และคำขอดึงข้อมูลจะปรากฏว่ามาจากแอป
 
-  หรือคุณสามารถใช้ [ในตัว `GITHUB_TOKEN`](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token) ของ GitHub Action runner ได้โดยไม่ต้องติดตั้งแอป Hena Agent GitHub เพียงตรวจสอบให้แน่ใจว่าได้ให้สิทธิ์ที่จำเป็นในขั้นตอนการทำงานของคุณ:
+  หรือคุณสามารถใช้ [ในตัว `GITHUB_TOKEN`](https://docs.github.com/en/actions/tutorials/authenticate-with-github_token) ของ GitHub Action runner ได้โดยไม่ต้องติดตั้งแอป Hena GitHub เพียงตรวจสอบให้แน่ใจว่าได้ให้สิทธิ์ที่จำเป็นในขั้นตอนการทำงานของคุณ:
 
   ```yaml
   permissions:
@@ -103,30 +103,30 @@ hena-agent github install
 
 ## กิจกรรมที่รองรับ
 
-Hena Agent สามารถทริกเกอร์ได้โดยเหตุการณ์ GitHub ต่อไปนี้:
+Hena สามารถทริกเกอร์ได้โดยเหตุการณ์ GitHub ต่อไปนี้:
 
 | ประเภทเหตุการณ์               | กระตุ้นโดย                                                | รายละเอียด                                                                                                        |
 | ----------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | แสดงความคิดเห็นในประเด็นหรือประชาสัมพันธ์                 | พูดถึง `/hena-agent` หรือ `/oc` ในความคิดเห็นของคุณ Hena Agent อ่านบริบทและสามารถสร้างสาขา เปิด PR หรือตอบกลับได้     |
-| `pull_request_review_comment` | แสดงความคิดเห็นเกี่ยวกับบรรทัดรหัสเฉพาะในการประชาสัมพันธ์ | พูดถึง `/hena-agent` หรือ `/oc` ในขณะที่ตรวจสอบโค้ด Hena Agent รับเส้นทางไฟล์ หมายเลขบรรทัด และบริบทที่แตกต่าง        |
-| `issues`                      | ปัญหาเปิดหรือแก้ไข                                        | ทริกเกอร์ Hena Agent โดยอัตโนมัติเมื่อมีการสร้างหรือแก้ไขปัญหา ต้องป้อนข้อมูล `prompt`                              |
-| `pull_request`                | PR เปิดหรืออัปเดตแล้ว                                     | ทริกเกอร์ Hena Agent โดยอัตโนมัติเมื่อมีการเปิด ซิงโครไนซ์ หรือเปิด PR อีกครั้ง มีประโยชน์สำหรับการตรวจสอบอัตโนมัติ |
-| `schedule`                    | กำหนดการตาม Cron                                          | เรียกใช้ Hena Agent ตามกำหนดเวลา ต้องป้อนข้อมูล `prompt` เอาต์พุตไปที่บันทึกและ PR (ไม่มีปัญหาในการแสดงความคิดเห็น) |
-| `workflow_dispatch`           | ทริกเกอร์ด้วยตนเองจาก GitHub UI                           | ทริกเกอร์ Hena Agent ตามความต้องการผ่านแท็บการดำเนินการ ต้องป้อนข้อมูล `prompt` เอาต์พุตไปที่บันทึกและ PR           |
+| `issue_comment`               | แสดงความคิดเห็นในประเด็นหรือประชาสัมพันธ์                 | พูดถึง `/hena` หรือ `/oc` ในความคิดเห็นของคุณ Hena อ่านบริบทและสามารถสร้างสาขา เปิด PR หรือตอบกลับได้     |
+| `pull_request_review_comment` | แสดงความคิดเห็นเกี่ยวกับบรรทัดรหัสเฉพาะในการประชาสัมพันธ์ | พูดถึง `/hena` หรือ `/oc` ในขณะที่ตรวจสอบโค้ด Hena รับเส้นทางไฟล์ หมายเลขบรรทัด และบริบทที่แตกต่าง        |
+| `issues`                      | ปัญหาเปิดหรือแก้ไข                                        | ทริกเกอร์ Hena โดยอัตโนมัติเมื่อมีการสร้างหรือแก้ไขปัญหา ต้องป้อนข้อมูล `prompt`                              |
+| `pull_request`                | PR เปิดหรืออัปเดตแล้ว                                     | ทริกเกอร์ Hena โดยอัตโนมัติเมื่อมีการเปิด ซิงโครไนซ์ หรือเปิด PR อีกครั้ง มีประโยชน์สำหรับการตรวจสอบอัตโนมัติ |
+| `schedule`                    | กำหนดการตาม Cron                                          | เรียกใช้ Hena ตามกำหนดเวลา ต้องป้อนข้อมูล `prompt` เอาต์พุตไปที่บันทึกและ PR (ไม่มีปัญหาในการแสดงความคิดเห็น) |
+| `workflow_dispatch`           | ทริกเกอร์ด้วยตนเองจาก GitHub UI                           | ทริกเกอร์ Hena ตามความต้องการผ่านแท็บการดำเนินการ ต้องป้อนข้อมูล `prompt` เอาต์พุตไปที่บันทึกและ PR           |
 
 ### ตัวอย่างกำหนดการ
 
-เรียกใช้ Hena Agent ตามกำหนดเวลาเพื่อทำงานอัตโนมัติ:
+เรียกใช้ Hena ตามกำหนดเวลาเพื่อทำงานอัตโนมัติ:
 
-```yaml title=".github/workflows/hena-agent-scheduled.yml"
-name: Scheduled Hena Agent Task
+```yaml title=".github/workflows/hena-scheduled.yml"
+name: Scheduled Hena Task
 
 on:
   schedule:
     - cron: "0 9 * * 1" # Every Monday at 9am UTC
 
 jobs:
-  hena-agent:
+  hena:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -139,7 +139,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run Hena Agent
+      - name: Run Hena
         uses: hena-agent/hena/github@latest
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -150,7 +150,7 @@ jobs:
             If you find issues worth addressing, open an issue to track them.
 ```
 
-สำหรับกิจกรรมที่กำหนดเวลาไว้ อินพุต `prompt` เป็นสิ่งที่จำเป็น\*\* เนื่องจากไม่มีความคิดเห็นที่จะดึงคำแนะนำออกมา เวิร์กโฟลว์ตามกำหนดการทำงานโดยไม่มีบริบทผู้ใช้ในการตรวจสอบสิทธิ์ ดังนั้นเวิร์กโฟลว์จะต้องให้สิทธิ์ `contents: write` และ `pull-requests: write` หากคุณคาดหวังให้ Hena Agent สร้างสาขาหรือ PR
+สำหรับกิจกรรมที่กำหนดเวลาไว้ อินพุต `prompt` เป็นสิ่งที่จำเป็น\*\* เนื่องจากไม่มีความคิดเห็นที่จะดึงคำแนะนำออกมา เวิร์กโฟลว์ตามกำหนดการทำงานโดยไม่มีบริบทผู้ใช้ในการตรวจสอบสิทธิ์ ดังนั้นเวิร์กโฟลว์จะต้องให้สิทธิ์ `contents: write` และ `pull-requests: write` หากคุณคาดหวังให้ Hena สร้างสาขาหรือ PR
 
 ---
 
@@ -158,8 +158,8 @@ jobs:
 
 ตรวจสอบ PR โดยอัตโนมัติเมื่อมีการเปิดหรืออัปเดต:
 
-```yaml title=".github/workflows/hena-agent-review.yml"
-name: hena-agent-review
+```yaml title=".github/workflows/hena-review.yml"
+name: hena-review
 
 on:
   pull_request:
@@ -191,7 +191,7 @@ jobs:
             - Suggest improvements
 ```
 
-สำหรับกิจกรรม `pull_request` หากไม่มีการระบุ `prompt` Hena Agent จะใช้ค่าเริ่มต้นในการตรวจสอบคำขอดึง
+สำหรับกิจกรรม `pull_request` หากไม่มีการระบุ `prompt` Hena จะใช้ค่าเริ่มต้นในการตรวจสอบคำขอดึง
 
 ---
 
@@ -199,7 +199,7 @@ jobs:
 
 คัดแยกปัญหาใหม่โดยอัตโนมัติ ตัวอย่างนี้กรองไปยังบัญชีที่มีอายุมากกว่า 30 วันเพื่อลดสแปม:
 
-```yaml title=".github/workflows/hena-agent-triage.yml"
+```yaml title=".github/workflows/hena-triage.yml"
 name: Issue Triage
 
 on:
@@ -252,9 +252,9 @@ jobs:
 
 ## ข้อความแจ้งที่กำหนดเอง
 
-แทนที่ข้อความแจ้งเริ่มต้นเพื่อปรับแต่งการทำงานของ Hena Agent สำหรับเวิร์กโฟลว์ของคุณ
+แทนที่ข้อความแจ้งเริ่มต้นเพื่อปรับแต่งการทำงานของ Hena สำหรับเวิร์กโฟลว์ของคุณ
 
-```yaml title=".github/workflows/hena-agent.yml"
+```yaml title=".github/workflows/hena.yml"
 - uses: hena-agent/hena/github@latest
   with:
     model: anthropic/claude-sonnet-4-5
@@ -271,27 +271,27 @@ jobs:
 
 ## ตัวอย่าง
 
-นี่คือตัวอย่างบางส่วนของวิธีที่คุณสามารถใช้ Hena Agent ใน GitHub
+นี่คือตัวอย่างบางส่วนของวิธีที่คุณสามารถใช้ Hena ใน GitHub
 
 - **อธิบายปัญหา**
 
   เพิ่มความคิดเห็นนี้ในปัญหา GitHub
 
   ```
-  /hena-agent explain this issue
+  /hena explain this issue
   ```
 
-  Hena Agent จะอ่านกระทู้ทั้งหมด รวมถึงความคิดเห็นทั้งหมด และตอบกลับพร้อมคำอธิบายที่ชัดเจน
+  Hena จะอ่านกระทู้ทั้งหมด รวมถึงความคิดเห็นทั้งหมด และตอบกลับพร้อมคำอธิบายที่ชัดเจน
 
 - **แก้ไขปัญหา**
 
   ในปัญหา GitHub ให้พูดว่า:
 
   ```
-  /hena-agent fix this
+  /hena fix this
   ```
 
-  และ Hena Agent จะสร้างสาขาใหม่ ดำเนินการเปลี่ยนแปลง และเปิด PR ที่มีการเปลี่ยนแปลง
+  และ Hena จะสร้างสาขาใหม่ ดำเนินการเปลี่ยนแปลง และเปิด PR ที่มีการเปลี่ยนแปลง
 
 - **ตรวจสอบ PR และทำการเปลี่ยนแปลง**
 
@@ -301,18 +301,18 @@ jobs:
   Delete the attachment from S3 when the note is removed /oc
   ```
 
-  Hena Agent จะดำเนินการเปลี่ยนแปลงที่ร้องขอและส่งมอบให้กับ PR เดียวกัน
+  Hena จะดำเนินการเปลี่ยนแปลงที่ร้องขอและส่งมอบให้กับ PR เดียวกัน
 
 - **ตรวจสอบบรรทัดรหัสเฉพาะ**
 
-  แสดงความคิดเห็นโดยตรงบนบรรทัดโค้ดในแท็บ "ไฟล์" ของ PR Hena Agent จะตรวจจับไฟล์ หมายเลขบรรทัด และบริบทต่างโดยอัตโนมัติเพื่อให้การตอบสนองที่แม่นยำ
+  แสดงความคิดเห็นโดยตรงบนบรรทัดโค้ดในแท็บ "ไฟล์" ของ PR Hena จะตรวจจับไฟล์ หมายเลขบรรทัด และบริบทต่างโดยอัตโนมัติเพื่อให้การตอบสนองที่แม่นยำ
 
   ```
   [Comment on specific lines in Files tab]
   /oc add error handling here
   ```
 
-  เมื่อแสดงความคิดเห็นในบรรทัดใดบรรทัดหนึ่ง Hena Agent จะได้รับ:
+  เมื่อแสดงความคิดเห็นในบรรทัดใดบรรทัดหนึ่ง Hena จะได้รับ:
   - กำลังตรวจสอบไฟล์ที่แน่นอน
   - บรรทัดโค้ดเฉพาะ
   - บริบทที่แตกต่างโดยรอบ

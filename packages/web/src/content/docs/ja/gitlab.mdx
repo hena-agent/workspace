@@ -1,68 +1,34 @@
 ---
 title: GitLab
-description: GitLab の問題とマージリクエストで Hena Agent を使用します。
+description: GitLab の問題とマージリクエストで Hena を使用します。
 ---
 
-Hena Agent は、GitLab CI/CD パイプラインまたは GitLab Duo を通じて GitLab ワークフローと統合します。
+Hena は、GitLab CI/CD パイプラインまたは GitLab Duo を通じて GitLab ワークフローと統合します。
 
-どちらの場合も、Hena Agent は GitLab ランナー上で実行されます。
-
----
-
-## GitLab CI
-
-Hena Agent は通常の GitLab パイプラインで動作します。 [CI コンポーネント](https://docs.gitlab.com/ee/ci/components/) としてパイプラインに組み込むことができます。
-
-ここでは、コミュニティが作成した Hena Agent 用の CI/CD コンポーネント — [nagyv/gitlab-opencode](https://gitlab.com/nagyv/gitlab-opencode).
+どちらの場合も、Hena は GitLab ランナー上で実行されます。
 
 ---
 
-### 機能
-
-- **ジョブごとにカスタム設定を使用する**: カスタム設定ディレクトリ (`./config/#custom-directory` など) を使用して Hena Agent を構成し、Hena Agent の呼び出しごとに機能を有効または無効にします。
-- **最小限のセットアップ**: CI コンポーネントはバックグラウンドで Hena Agent をセットアップします。必要なのは、Hena Agent 設定と初期プロンプトを作成することだけです。
-- **柔軟性**: CI コンポーネントは、動作をカスタマイズするための複数の入力をサポートしています。
-
----
-
-### 設定
-
-1. Hena Agent 認証 JSON をファイルタイプ CI 環境変数として [**設定**] > [**CI/CD**] > [**変数**] に保存します。必ず「マスクして非表示」としてマークしてください。
-2. 以下を `.gitlab-ci.yml` ファイルに追加します。
-
-   ```yaml title=".gitlab-ci.yml"
-   include:
-     - component: $CI_SERVER_FQDN/nagyv/gitlab-opencode/opencode@2
-       inputs:
-         config_dir: ${CI_PROJECT_DIR}/hena-agent-config
-         auth_json: $HENA_AGENT_AUTH_JSON # The variable name for your Hena Agent authentication JSON
-         command: optional-custom-command
-         message: "Your prompt here"
-   ```
-
-さらに多くの入力と使用例については、このコンポーネントの [ドキュメント](https://gitlab.com/explore/catalog/nagyv/gitlab-opencode) をチェックしてください。
-
----
 
 ## GitLab Duo
 
-Hena Agent は GitLab ワークフローと統合します。
-コメントで `@hena-agent` に言及すると、Hena Agent が GitLab CI パイプライン内でタスクを実行します。
+Hena は GitLab ワークフローと統合します。
+コメントで `@hena` に言及すると、Hena が GitLab CI パイプライン内でタスクを実行します。
 
 ---
 
 ### 機能
 
-- **問題のトリアージ**: Hena Agent に問題を調べて説明してもらいます。
-- **修正と実装**: Hena Agent に問題の修正または機能の実装を依頼します。
+- **問題のトリアージ**: Hena に問題を調べて説明してもらいます。
+- **修正と実装**: Hena に問題の修正または機能の実装を依頼します。
   新しいブランチを作成し、変更を加えたマージリクエストを発行します。
-- **安全**: Hena Agent は GitLab ランナー上で実行されます。
+- **安全**: Hena は GitLab ランナー上で実行されます。
 
 ---
 
 ### 設定
 
-Hena Agent は GitLab CI/CD パイプラインで実行されます。セットアップするには次のものが必要です。
+Hena は GitLab CI/CD パイプラインで実行されます。セットアップするには次のものが必要です。
 
 :::tip
 最新の手順については、[**GitLab ドキュメント**](https://docs.gitlab.com/user/duo_agent_platform/agent_assistant/) を参照してください。
@@ -82,19 +48,19 @@ Hena Agent は GitLab CI/CD パイプラインで実行されます。セット�
     ```yaml
     image: node:22-slim
     commands:
-      - echo "Installing hena-agent"
-      - npm install --global hena-agent
+      - echo "Installing hena"
+      - npm install --global hena
       - echo "Installing glab"
-      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA_AGENT
+      - export GITLAB_TOKEN=$GITLAB_TOKEN_HENA
       - apt-get update --quiet && apt-get install --yes curl wget gpg git && rm --recursive --force /var/lib/apt/lists/*
       - curl --silent --show-error --location "https://raw.githubusercontent.com/upciti/wakemeops/main/assets/install_repository" | bash
       - apt-get install --yes glab
       - echo "Configuring glab"
       - echo $GITLAB_HOST
-      - echo "Creating Hena Agent auth configuration"
-      - mkdir --parents ~/.local/share/hena-agent
+      - echo "Creating Hena auth configuration"
+      - mkdir --parents ~/.local/share/hena
       - |
-        cat > ~/.local/share/hena-agent/auth.json << EOF
+        cat > ~/.local/share/hena/auth.json << EOF
         {
           "anthropic": {
             "type": "api",
@@ -103,13 +69,13 @@ Hena Agent は GitLab CI/CD パイプラインで実行されます。セット�
         }
         EOF
       - echo "Configuring git"
-      - git config --global user.email "hena-agent@gitlab.com"
-      - git config --global user.name "Hena Agent"
+      - git config --global user.email "hena@gitlab.com"
+      - git config --global user.name "Hena"
       - echo "Testing glab"
       - glab issue list
-      - echo "Running Hena Agent"
+      - echo "Running Hena"
       - |
-        hena-agent run "
+        hena run "
         You are an AI assistant helping with GitLab operations.
 
         Context: $AI_FLOW_CONTEXT
@@ -146,7 +112,7 @@ Hena Agent は GitLab CI/CD パイプラインで実行されます。セット�
         fi
     variables:
       - ANTHROPIC_API_KEY
-      - GITLAB_TOKEN_HENA_AGENT
+      - GITLAB_TOKEN_HENA
       - GITLAB_HOST
     ```
 
@@ -158,10 +124,10 @@ Hena Agent は GitLab CI/CD パイプラインで実行されます。セット�
 
 ### 例
 
-GitLab で Hena Agent を使用する方法の例をいくつか示します。
+GitLab で Hena を使用する方法の例をいくつか示します。
 
 :::tip
-`@hena-agent` とは異なるトリガーフレーズを使用するように設定できます。
+`@hena` とは異なるトリガーフレーズを使用するように設定できます。
 :::
 
 - **問題の説明**
@@ -169,27 +135,27 @@ GitLab で Hena Agent を使用する方法の例をいくつか示します。
 このコメントを GitLab の問題に追加します。
 
 ```
-  @hena-agent explain this issue
+  @hena explain this issue
 ```
 
-Hena Agent は問題を読み、明確な説明を返信します。
+Hena は問題を読み、明確な説明を返信します。
 
 - **問題を修正**
 
 GitLab の問題では、次のように言います。
 
 ```
-  @hena-agent fix this
+  @hena fix this
 ```
 
-Hena Agent は新しいブランチを作成し、変更を実装し、変更を含むマージリクエストを開きます。
+Hena は新しいブランチを作成し、変更を実装し、変更を含むマージリクエストを開きます。
 
 - **マージリクエストを確認する**
 
 GitLab マージリクエストに次のコメントを残してください。
 
 ```
-  @hena-agent review this merge request
+  @hena review this merge request
 ```
 
-Hena Agent はマージリクエストをレビューし、フィードバックを提供します。
+Hena はマージリクエストをレビューし、フィードバックを提供します。

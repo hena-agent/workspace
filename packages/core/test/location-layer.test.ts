@@ -2,21 +2,21 @@ import fs from "fs/promises"
 import path from "path"
 import { describe, expect } from "bun:test"
 import { DateTime, Effect, Equal, Hash, Schema } from "effect"
-import { Tool } from "@hena-agent/core/tool/tool"
-import { define } from "@hena-agent/plugin/v2/effect"
-import { AgentV2 } from "@hena-agent/core/agent"
-import { Catalog } from "@hena-agent/core/catalog"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { LocationServiceMap } from "@hena-agent/core/location-services"
-import { Location } from "@hena-agent/core/location"
-import { PluginV2 } from "@hena-agent/core/plugin"
-import { ModelV2 } from "@hena-agent/core/model"
-import { ProjectV2 } from "@hena-agent/core/project"
-import { ProviderV2 } from "@hena-agent/core/provider"
-import { AbsolutePath } from "@hena-agent/core/schema"
-import { SessionV2 } from "@hena-agent/core/session"
-import { SessionRunnerModel } from "@hena-agent/core/session/runner/model"
+import { Tool } from "@hena/core/tool/tool"
+import { define } from "@hena/plugin/v2/effect"
+import { AgentV2 } from "@hena/core/agent"
+import { Catalog } from "@hena/core/catalog"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { LocationServiceMap } from "@hena/core/location-services"
+import { Location } from "@hena/core/location"
+import { PluginV2 } from "@hena/core/plugin"
+import { ModelV2 } from "@hena/core/model"
+import { ProjectV2 } from "@hena/core/project"
+import { ProviderV2 } from "@hena/core/provider"
+import { AbsolutePath } from "@hena/core/schema"
+import { SessionV2 } from "@hena/core/session"
+import { SessionRunnerModel } from "@hena/core/session/runner/model"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 import { toolDefinitions } from "./lib/tool"
@@ -78,7 +78,7 @@ describe("LocationServiceMap", () => {
           })
           yield* Effect.promise(() =>
             fs.writeFile(
-              path.join(blocked.path, "hena-agent.json"),
+              path.join(blocked.path, "hena.json"),
               JSON.stringify({
                 experimental: { policies: [{ effect: "deny", action: "provider.use", resource: "test" }] },
               }),
@@ -150,7 +150,7 @@ describe("LocationServiceMap", () => {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           yield* Effect.promise(() =>
             fs.writeFile(
-              path.join(dir.path, "hena-agent.json"),
+              path.join(dir.path, "hena.json"),
               JSON.stringify({
                 providers: {
                   unavailable: {

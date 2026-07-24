@@ -18,18 +18,18 @@ import { useTuiConfig } from "./config"
 import { TuiKeybind } from "./config/keybind"
 
 export const LEADER_TOKEN = "leader"
-export const HENA_AGENT_BASE_MODE = "base"
+export const HENA_BASE_MODE = "base"
 export const COMMAND_PALETTE_COMMAND = "command.palette.show"
 
-const HENA_AGENT_MODE_KEY = "hena-agent.mode"
+const HENA_MODE_KEY = "hena.mode"
 
-export const HenaAgentKeymapProvider = KeymapProvider
-export const useHenaAgentKeymap = useKeymap
+export const HenaKeymapProvider = KeymapProvider
+export const useHenaKeymap = useKeymap
 
 export { useBindings, useKeymapSelector }
 
 export type OpenTuiKeymap = ReturnType<typeof useKeymap>
-type HenaAgentModeStack = ReturnType<typeof createHenaAgentModeStack>
+type HenaModeStack = ReturnType<typeof createHenaModeStack>
 type CommandSlashEntry = {
   display: string
   description?: string
@@ -44,18 +44,18 @@ type BindingLookup = {
 type FormatConfig = { keybinds: BindingLookup }
 type ResolvedKeymapConfig = FormatConfig & { leader_timeout: number }
 
-const modeStacks = new WeakMap<OpenTuiKeymap, HenaAgentModeStack>()
+const modeStacks = new WeakMap<OpenTuiKeymap, HenaModeStack>()
 
 function isVisiblePaletteCommand(command: Command) {
   return command.hidden !== true && command.name !== COMMAND_PALETTE_COMMAND
 }
 
-export function createHenaAgentModeStack(keymap: OpenTuiKeymap) {
-  keymap.setData(HENA_AGENT_MODE_KEY, HENA_AGENT_BASE_MODE)
+export function createHenaModeStack(keymap: OpenTuiKeymap) {
+  keymap.setData(HENA_MODE_KEY, HENA_BASE_MODE)
 
   const offFields = keymap.registerLayerFields({
     mode(value, ctx) {
-      ctx.require(HENA_AGENT_MODE_KEY, value)
+      ctx.require(HENA_MODE_KEY, value)
     },
   })
 
@@ -63,12 +63,12 @@ export function createHenaAgentModeStack(keymap: OpenTuiKeymap) {
   let disposed = false
 
   const update = () => {
-    keymap.setData(HENA_AGENT_MODE_KEY, stack.at(-1)?.mode ?? HENA_AGENT_BASE_MODE)
+    keymap.setData(HENA_MODE_KEY, stack.at(-1)?.mode ?? HENA_BASE_MODE)
   }
 
   const stackApi = {
     current() {
-      return stack.at(-1)?.mode ?? HENA_AGENT_BASE_MODE
+      return stack.at(-1)?.mode ?? HENA_BASE_MODE
     },
     push(mode: string) {
       if (disposed) return () => {}
@@ -90,7 +90,7 @@ export function createHenaAgentModeStack(keymap: OpenTuiKeymap) {
       disposed = true
       stack.length = 0
       offFields()
-      keymap.setData(HENA_AGENT_MODE_KEY, undefined)
+      keymap.setData(HENA_MODE_KEY, undefined)
       modeStacks.delete(keymap)
     },
   }
@@ -99,13 +99,13 @@ export function createHenaAgentModeStack(keymap: OpenTuiKeymap) {
   return stackApi
 }
 
-export function useHenaAgentModeStack() {
-  return getHenaAgentModeStack(useHenaAgentKeymap())
+export function useHenaModeStack() {
+  return getHenaModeStack(useHenaKeymap())
 }
 
-export function getHenaAgentModeStack(keymap: OpenTuiKeymap) {
+export function getHenaModeStack(keymap: OpenTuiKeymap) {
   const value = modeStacks.get(keymap)
-  if (!value) throw new Error("Hena Agent mode stack is not registered for this keymap")
+  if (!value) throw new Error("Hena mode stack is not registered for this keymap")
   return value
 }
 
@@ -211,8 +211,8 @@ export function formatKeyBindings(bindings: Parameters<typeof formatCommandBindi
   return formatCommandBindingsExtra(bindings, formatOptions(config))
 }
 
-export function registerHenaAgentKeymap(keymap: OpenTuiKeymap, renderer: CliRenderer, config: ResolvedKeymapConfig) {
-  const modeStack = createHenaAgentModeStack(keymap)
+export function registerHenaKeymap(keymap: OpenTuiKeymap, renderer: CliRenderer, config: ResolvedKeymapConfig) {
+  const modeStack = createHenaModeStack(keymap)
   const offCommaBindings = registerCommaBindings(keymap)
   const offAliasExpander = registerKeyAliases(keymap)
   const offBaseLayout = registerBaseLayoutFallback(keymap)
@@ -258,7 +258,7 @@ export function useCommandShortcut(command: string): Accessor<string> {
 }
 
 export function useCommandSlashes(): Accessor<readonly CommandSlashEntry[]> {
-  const keymap = useHenaAgentKeymap()
+  const keymap = useHenaKeymap()
   const entries = useKeymapSelector((keymap: OpenTuiKeymap) =>
     keymap.getCommandEntries({
       visibility: "reachable",

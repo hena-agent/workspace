@@ -1,10 +1,10 @@
-import { Location } from "@hena-agent/core/location"
-import { ProjectCopy } from "@hena-agent/core/project/copy"
-import { Git } from "@hena-agent/core/git"
+import { Location } from "@hena/core/location"
+import { ProjectCopy } from "@hena/core/project/copy"
+import { Git } from "@hena/core/git"
 import { Effect } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
 import { Api } from "../api"
-import { ProjectCopyError } from "@hena-agent/protocol/groups/project-copy"
+import { ProjectCopyError } from "@hena/protocol/groups/project-copy"
 
 export const ProjectCopyHandler = HttpApiBuilder.group(Api, "server.projectCopy", (handlers) =>
   Effect.succeed(

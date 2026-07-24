@@ -1,28 +1,28 @@
 ---
 title: Web
-description: Korišćenje Hena Agent u vašem pretraživaču.
+description: Korišćenje Hena u vašem pretraživaču.
 ---
 
-Hena Agent može raditi kao web aplikacija u vašem pretraživaču, pružajući isto moćno iskustvo AI kodiranja bez potrebe za terminalom.
+Hena može raditi kao web aplikacija u vašem pretraživaču, pružajući isto moćno iskustvo AI kodiranja bez potrebe za terminalom.
 
-![Hena Agent Web - Nova sesija](../../../assets/web/web-homepage-new-session.png)
+![Hena Web - Nova sesija](../../../assets/web/web-homepage-new-session.png)
 
 ## Početak rada
 
 Pokrenite web interfejs tako što ćete pokrenuti:
 
 ```bash
-hena-agent web
+hena web
 ```
 
-Ovo pokreće lokalni server na `127.0.0.1` sa nasumičnim dostupnim portom i automatski otvara Hena Agent u vašem podrazumevanom pretraživaču.
+Ovo pokreće lokalni server na `127.0.0.1` sa nasumičnim dostupnim portom i automatski otvara Hena u vašem podrazumevanom pretraživaču.
 
 :::caution
-Ako `HENA_AGENT_SERVER_PASSWORD` nije postavljen, server će biti nezaštićen. Ovo je u redu za lokalnu upotrebu, ali bi trebalo biti postavljeno za pristup mreži.
+Ako `HENA_SERVER_PASSWORD` nije postavljen, server će biti nezaštićen. Ovo je u redu za lokalnu upotrebu, ali bi trebalo biti postavljeno za pristup mreži.
 :::
 
 :::tip[Windows korisnici]
-Za najbolje iskustvo, pokrenite `hena-agent web` iz [WSL](/docs/windows-wsl) umjesto PowerShell-a. Ovo osigurava pravilan pristup sistemu datoteka i integraciju terminala.
+Za najbolje iskustvo, pokrenite `hena web` iz [WSL](/docs/windows-wsl) umjesto PowerShell-a. Ovo osigurava pravilan pristup sistemu datoteka i integraciju terminala.
 :::
 
 ---
@@ -33,21 +33,21 @@ Možete konfigurirati web server koristeći oznake komandne linije ili u vašoj 
 
 ### Port
 
-Hena Agent podrazumevano bira dostupni port. Možete odrediti port:
+Hena podrazumevano bira dostupni port. Možete odrediti port:
 
 ```bash
-hena-agent web --port 4096
+hena web --port 4096
 ```
 
 ### Ime hosta
 
-Podrazumevano, server se vezuje za `127.0.0.1` (samo lokalni host). Da biste Hena Agent učinili dostupnim na vašoj mreži:
+Podrazumevano, server se vezuje za `127.0.0.1` (samo lokalni host). Da biste Hena učinili dostupnim na vašoj mreži:
 
 ```bash
-hena-agent web --hostname 0.0.0.0
+hena web --hostname 0.0.0.0
 ```
 
-Kada koristite `0.0.0.0`, Hena Agent će prikazati i lokalne i mrežne adrese:
+Kada koristite `0.0.0.0`, Hena će prikazati i lokalne i mrežne adrese:
 
 ```
   Local access:       http://localhost:4096
@@ -59,15 +59,15 @@ Kada koristite `0.0.0.0`, Hena Agent će prikazati i lokalne i mrežne adrese:
 Omogućite mDNS kako bi vaš server bio vidljiv na lokalnoj mreži:
 
 ```bash
-hena-agent web --mdns
+hena web --mdns
 ```
 
-Ovo automatski postavlja ime hosta na `0.0.0.0` i oglašava server kao `hena-agent.local`.
+Ovo automatski postavlja ime hosta na `0.0.0.0` i oglašava server kao `hena.local`.
 
 Možete prilagoditi ime mDNS domene za pokretanje više instanci na istoj mreži:
 
 ```bash
-hena-agent web --mdns --mdns-domain myproject.local
+hena web --mdns --mdns-domain myproject.local
 ```
 
 ### CORS
@@ -75,36 +75,36 @@ hena-agent web --mdns --mdns-domain myproject.local
 Da biste omogućili dodatne domene za CORS (korisno za prilagođene frontendove):
 
 ```bash
-hena-agent web --cors https://example.com
+hena web --cors https://example.com
 ```
 
 ### Autentifikacija
 
-Da biste zaštitili pristup, postavite lozinku koristeći varijablu okruženja `HENA_AGENT_SERVER_PASSWORD`:
+Da biste zaštitili pristup, postavite lozinku koristeći varijablu okruženja `HENA_SERVER_PASSWORD`:
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=secret hena-agent web
+HENA_SERVER_PASSWORD=secret hena web
 ```
 
-Korisničko ime podrazumevano je `hena-agent`, ali se može promeniti sa `HENA_AGENT_SERVER_USERNAME`.
+Korisničko ime podrazumevano je `hena`, ali se može promeniti sa `HENA_SERVER_USERNAME`.
 
 ---
 
 ## Korištenje web sučelja
 
-Jednom pokrenut, web sučelje pruža pristup vašim Hena Agent sesijama.
+Jednom pokrenut, web sučelje pruža pristup vašim Hena sesijama.
 
 ### Sesije
 
 Pregledajte i upravljajte svojim sesijama sa početne stranice. Možete vidjeti aktivne sesije i započeti nove.
 
-![Hena Agent Web - aktivna sesija](../../../assets/web/web-homepage-active-session.png)
+![Hena Web - aktivna sesija](../../../assets/web/web-homepage-active-session.png)
 
 ### Status servera
 
 Kliknite "Pogledajte servere" da vidite povezane servere i njihov status.
 
-![Hena Agent Web - Vidi servere](../../../assets/web/web-homepage-see-servers.png)
+![Hena Web - Vidi servere](../../../assets/web/web-homepage-see-servers.png)
 
 ---
 
@@ -114,10 +114,10 @@ Možete priključiti TUI terminala na aktivni web server:
 
 ```bash
 # Start the web server
-hena-agent web --port 4096
+hena web --port 4096
 
 # In another terminal, attach the TUI
-hena-agent attach http://localhost:4096
+hena attach http://localhost:4096
 ```
 
 Ovo vam omogućava da istovremeno koristite i web sučelje i terminal, dijeleći iste sesije i stanje.
@@ -126,7 +126,7 @@ Ovo vam omogućava da istovremeno koristite i web sučelje i terminal, dijeleći
 
 ## Konfiguracioni fajl
 
-Također možete konfigurirati postavke servera u svom `hena-agent.json` konfiguracijskom fajlu:
+Također možete konfigurirati postavke servera u svom `hena.json` konfiguracijskom fajlu:
 
 ```json
 {

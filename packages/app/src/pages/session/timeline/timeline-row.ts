@@ -1,5 +1,5 @@
-import type { SnapshotFileDiff } from "@hena-agent/sdk/v2"
-import type { PartGroup } from "@hena-agent/session-ui/message-part"
+import type { SnapshotFileDiff } from "@hena/sdk/v2"
+import type { PartGroup } from "@hena/session-ui/message-part"
 import { Data, Equal } from "effect"
 
 export type SummaryDiff = SnapshotFileDiff & { file: string }

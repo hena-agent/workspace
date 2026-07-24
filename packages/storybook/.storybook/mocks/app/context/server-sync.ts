@@ -1,4 +1,4 @@
-import type { ProviderAuthMethod } from "@hena-agent/sdk/v2/client"
+import type { ProviderAuthMethod } from "@hena/sdk/v2/client"
 
 const data = {
   provider: {

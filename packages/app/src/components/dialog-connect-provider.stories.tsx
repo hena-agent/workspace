@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { Button } from "@hena-agent/ui/button"
-import { useDialog } from "@hena-agent/ui/context/dialog"
+import { Button } from "@hena/ui/button"
+import { useDialog } from "@hena/ui/context/dialog"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { mockProviderAuth } from "@/context/server-sync"
 import { onCleanup, onMount } from "solid-js"
@@ -61,7 +61,7 @@ export const ApiKey = {
 }
 
 export const HenaZen = {
-  render: renderConnection("hena-agent", [{ type: "api", label: "API key" }]),
+  render: renderConnection("hena", [{ type: "api", label: "API key" }]),
 }
 
 export const LoginMethods = {

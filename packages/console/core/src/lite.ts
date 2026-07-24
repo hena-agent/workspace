@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { fn } from "./util/fn"
-import { Resource } from "@hena-agent/console-resource"
+import { Resource } from "@hena/console-resource"
 import { Subscription } from "./subscription"
 
 export namespace LiteData {

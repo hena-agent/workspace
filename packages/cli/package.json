@@ -1,11 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@hena-agent/cli",
+  "name": "@hena/cli",
   "version": "1.18.4",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "hena-agent": "./bin/hena-agent.cjs"
+    "hena": "./bin/hena.cjs"
   },
   "files": [
     "bin"
@@ -17,10 +17,10 @@
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
-    "@hena-agent/core": "workspace:*",
-    "@hena-agent/sdk": "workspace:*",
-    "@hena-agent/server": "workspace:*",
-    "@hena-agent/tui": "workspace:*",
+    "@hena/core": "workspace:*",
+    "@hena/sdk": "workspace:*",
+    "@hena/server": "workspace:*",
+    "@hena/tui": "workspace:*",
     "@opentui/core": "catalog:",
     "@opentui/solid": "catalog:",
     "@parcel/watcher": "2.5.1",
@@ -28,7 +28,7 @@
     "solid-js": "catalog:"
   },
   "devDependencies": {
-    "@hena-agent/script": "workspace:*",
+    "@hena/script": "workspace:*",
     "@tsconfig/bun": "catalog:",
     "@types/bun": "catalog:",
     "@typescript/native-preview": "catalog:"

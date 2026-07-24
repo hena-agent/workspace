@@ -1,7 +1,7 @@
 import { usePlatform } from "@/context/platform"
-import { Button } from "@hena-agent/ui/button"
-import { useDialog } from "@hena-agent/ui/context/dialog"
-import { Dialog } from "@hena-agent/ui/dialog"
+import { Button } from "@hena/ui/button"
+import { useDialog } from "@hena/ui/context/dialog"
+import { Dialog } from "@hena/ui/dialog"
 import { JSX } from "solid-js"
 
 export type DialogGoUpsellProps = {

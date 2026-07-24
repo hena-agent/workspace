@@ -1,5 +1,5 @@
 import { Meta, Title } from "@solidjs/meta"
-import { ProviderIcon } from "@hena-agent/ui/provider-icon"
+import { ProviderIcon } from "@hena/ui/provider-icon"
 import { geoEquirectangular, geoPath } from "d3-geo"
 import { scaleSqrt } from "d3-scale"
 import countryCodesSource from "i18n-iso-countries/codes.json?raw"
@@ -12,7 +12,7 @@ import {
   type ModelUsagePoint,
   type StatsModelData,
   type UsageRange,
-} from "@hena-agent/stats-core/domain/home"
+} from "@hena/stats-core/domain/home"
 import { createAsync, query, useParams } from "@solidjs/router"
 import { createMemo, createSignal, createUniqueId, For, onMount, Show, type JSX } from "solid-js"
 import { getRequestEvent } from "solid-js/web"
@@ -163,7 +163,7 @@ export default function StatsModel() {
       <Meta name="description" content={modelDescription()} />
       <LocaleLinks path={modelPath()} />
       <Meta property="og:type" content="website" />
-      <Meta property="og:site_name" content="Hena Agent" />
+      <Meta property="og:site_name" content="Hena" />
       <Meta property="og:title" content={modelTitle()} />
       <Meta property="og:description" content={modelDescription()} />
       <Meta property="og:url" content={modelUrl()} />

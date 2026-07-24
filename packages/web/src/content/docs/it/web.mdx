@@ -1,28 +1,28 @@
 ---
 title: Web
-description: Usa Hena Agent nel browser.
+description: Usa Hena nel browser.
 ---
 
-Hena Agent puo funzionare come applicazione web nel browser, offrendo la stessa potente esperienza di coding AI senza bisogno di un terminale.
+Hena puo funzionare come applicazione web nel browser, offrendo la stessa potente esperienza di coding AI senza bisogno di un terminale.
 
-![Hena Agent Web - Nuova sessione](../../../assets/web/web-homepage-new-session.png)
+![Hena Web - Nuova sessione](../../../assets/web/web-homepage-new-session.png)
 
 ## Per iniziare
 
 Avvia l'interfaccia web eseguendo:
 
 ```bash
-hena-agent web
+hena web
 ```
 
-Questo avvia un server locale su `127.0.0.1` con una porta disponibile scelta a caso e apre automaticamente Hena Agent nel browser predefinito.
+Questo avvia un server locale su `127.0.0.1` con una porta disponibile scelta a caso e apre automaticamente Hena nel browser predefinito.
 
 :::caution
-Se `HENA_AGENT_SERVER_PASSWORD` non e impostata, il server non sara protetto. Va bene per l'uso locale, ma va impostata per l'accesso in rete.
+Se `HENA_SERVER_PASSWORD` non e impostata, il server non sara protetto. Va bene per l'uso locale, ma va impostata per l'accesso in rete.
 :::
 
 :::tip[Utenti Windows]
-Per la migliore esperienza, esegui `hena-agent web` da [WSL](/docs/windows-wsl) invece che da PowerShell. Questo garantisce accesso corretto al file system e integrazione col terminale.
+Per la migliore esperienza, esegui `hena web` da [WSL](/docs/windows-wsl) invece che da PowerShell. Questo garantisce accesso corretto al file system e integrazione col terminale.
 :::
 
 ---
@@ -33,21 +33,21 @@ Puoi configurare il server web con i flag della riga di comando o nel tuo [file 
 
 ### Porta
 
-Per impostazione predefinita, Hena Agent sceglie una porta disponibile. Puoi specificare una porta:
+Per impostazione predefinita, Hena sceglie una porta disponibile. Puoi specificare una porta:
 
 ```bash
-hena-agent web --port 4096
+hena web --port 4096
 ```
 
 ### Nome host
 
-Per impostazione predefinita, il server si lega a `127.0.0.1` (solo localhost). Per rendere Hena Agent accessibile sulla rete:
+Per impostazione predefinita, il server si lega a `127.0.0.1` (solo localhost). Per rendere Hena accessibile sulla rete:
 
 ```bash
-hena-agent web --hostname 0.0.0.0
+hena web --hostname 0.0.0.0
 ```
 
-Usando `0.0.0.0`, Hena Agent mostrera sia l'indirizzo locale sia quello di rete:
+Usando `0.0.0.0`, Hena mostrera sia l'indirizzo locale sia quello di rete:
 
 ```
   Local access:       http://localhost:4096
@@ -59,15 +59,15 @@ Usando `0.0.0.0`, Hena Agent mostrera sia l'indirizzo locale sia quello di rete:
 Abilita mDNS per rendere il server individuabile sulla rete locale:
 
 ```bash
-hena-agent web --mdns
+hena web --mdns
 ```
 
-Questo imposta automaticamente l'hostname a `0.0.0.0` e pubblicizza il server come `hena-agent.local`.
+Questo imposta automaticamente l'hostname a `0.0.0.0` e pubblicizza il server come `hena.local`.
 
 Puoi personalizzare il nome di dominio mDNS per eseguire piu istanze sulla stessa rete:
 
 ```bash
-hena-agent web --mdns --mdns-domain myproject.local
+hena web --mdns --mdns-domain myproject.local
 ```
 
 ### CORS
@@ -75,36 +75,36 @@ hena-agent web --mdns --mdns-domain myproject.local
 Per consentire domini aggiuntivi per CORS (utile per frontend personalizzati):
 
 ```bash
-hena-agent web --cors https://example.com
+hena web --cors https://example.com
 ```
 
 ### Autenticazione
 
-Per proteggere l'accesso, imposta una password usando la variabile d'ambiente `HENA_AGENT_SERVER_PASSWORD`:
+Per proteggere l'accesso, imposta una password usando la variabile d'ambiente `HENA_SERVER_PASSWORD`:
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=secret hena-agent web
+HENA_SERVER_PASSWORD=secret hena web
 ```
 
-Lo username predefinito e `hena-agent`, ma puo essere cambiato con `HENA_AGENT_SERVER_USERNAME`.
+Lo username predefinito e `hena`, ma puo essere cambiato con `HENA_SERVER_USERNAME`.
 
 ---
 
 ## Usa l'interfaccia web
 
-Una volta avviata, l'interfaccia web ti da accesso alle tue sessioni Hena Agent.
+Una volta avviata, l'interfaccia web ti da accesso alle tue sessioni Hena.
 
 ### Sessioni
 
 Visualizza e gestisci le sessioni dalla homepage. Puoi vedere le sessioni attive e avviarne di nuove.
 
-![Hena Agent Web - Sessione attiva](../../../assets/web/web-homepage-active-session.png)
+![Hena Web - Sessione attiva](../../../assets/web/web-homepage-active-session.png)
 
 ### Stato del server
 
 Fai clic su "See Servers" per vedere i server connessi e il loro stato.
 
-![Hena Agent Web - See Servers](../../../assets/web/web-homepage-see-servers.png)
+![Hena Web - See Servers](../../../assets/web/web-homepage-see-servers.png)
 
 ---
 
@@ -114,10 +114,10 @@ Puoi collegare una TUI da terminale a un server web gia in esecuzione:
 
 ```bash
 # Avvia il web server
-hena-agent web --port 4096
+hena web --port 4096
 
 # In un altro terminale, collega la TUI
-hena-agent attach http://localhost:4096
+hena attach http://localhost:4096
 ```
 
 Questo ti permette di usare contemporaneamente interfaccia web e terminale, condividendo le stesse sessioni e lo stesso stato.
@@ -126,7 +126,7 @@ Questo ti permette di usare contemporaneamente interfaccia web e terminale, cond
 
 ## File di configurazione
 
-Puoi anche configurare le impostazioni del server nel file di config `hena-agent.json`:
+Puoi anche configurare le impostazioni del server nel file di config `hena.json`:
 
 ```json
 {

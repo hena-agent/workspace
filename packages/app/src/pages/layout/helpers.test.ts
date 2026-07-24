@@ -6,7 +6,7 @@ import {
   parseDeepLink,
   parseNewSessionDeepLink,
 } from "./deep-links"
-import { type Session } from "@hena-agent/sdk/v2/client"
+import { type Session } from "@hena/sdk/v2/client"
 import {
   childSessionOnPath,
   closeHomeProject,
@@ -38,24 +38,24 @@ const session = (input: Partial<Session> & Pick<Session, "id" | "directory">) =>
 
 describe("layout deep links", () => {
   test("parses open-project deep links", () => {
-    expect(parseDeepLink("hena-agent://open-project?directory=/tmp/demo")).toBe("/tmp/demo")
+    expect(parseDeepLink("hena://open-project?directory=/tmp/demo")).toBe("/tmp/demo")
   })
 
   test("ignores non-project deep links", () => {
-    expect(parseDeepLink("hena-agent://other?directory=/tmp/demo")).toBeUndefined()
+    expect(parseDeepLink("hena://other?directory=/tmp/demo")).toBeUndefined()
     expect(parseDeepLink("https://example.com")).toBeUndefined()
   })
 
   test("ignores malformed deep links safely", () => {
-    expect(() => parseDeepLink("hena-agent://open-project/%E0%A4%A%")).not.toThrow()
-    expect(parseDeepLink("hena-agent://open-project/%E0%A4%A%")).toBeUndefined()
+    expect(() => parseDeepLink("hena://open-project/%E0%A4%A%")).not.toThrow()
+    expect(parseDeepLink("hena://open-project/%E0%A4%A%")).toBeUndefined()
   })
 
   test("parses links when URL.canParse is unavailable", () => {
     const original = Object.getOwnPropertyDescriptor(URL, "canParse")
     Object.defineProperty(URL, "canParse", { configurable: true, value: undefined })
     try {
-      expect(parseDeepLink("hena-agent://open-project?directory=/tmp/demo")).toBe("/tmp/demo")
+      expect(parseDeepLink("hena://open-project?directory=/tmp/demo")).toBe("/tmp/demo")
     } finally {
       if (original) Object.defineProperty(URL, "canParse", original)
       if (!original) Reflect.deleteProperty(URL, "canParse")
@@ -63,49 +63,49 @@ describe("layout deep links", () => {
   })
 
   test("ignores open-project deep links without directory", () => {
-    expect(parseDeepLink("hena-agent://open-project")).toBeUndefined()
-    expect(parseDeepLink("hena-agent://open-project?directory=")).toBeUndefined()
+    expect(parseDeepLink("hena://open-project")).toBeUndefined()
+    expect(parseDeepLink("hena://open-project?directory=")).toBeUndefined()
   })
 
   test("collects only valid open-project directories", () => {
     const result = collectOpenProjectDeepLinks([
-      "hena-agent://open-project?directory=/a",
-      "hena-agent://other?directory=/b",
-      "hena-agent://open-project?directory=/c",
+      "hena://open-project?directory=/a",
+      "hena://other?directory=/b",
+      "hena://open-project?directory=/c",
     ])
     expect(result).toEqual(["/a", "/c"])
   })
 
   test("parses new-session deep links with optional prompt", () => {
-    expect(parseNewSessionDeepLink("hena-agent://new-session?directory=/tmp/demo")).toEqual({ directory: "/tmp/demo" })
-    expect(parseNewSessionDeepLink("hena-agent://new-session?directory=/tmp/demo&prompt=hello%20world")).toEqual({
+    expect(parseNewSessionDeepLink("hena://new-session?directory=/tmp/demo")).toEqual({ directory: "/tmp/demo" })
+    expect(parseNewSessionDeepLink("hena://new-session?directory=/tmp/demo&prompt=hello%20world")).toEqual({
       directory: "/tmp/demo",
       prompt: "hello world",
     })
   })
 
   test("ignores new-session deep links without directory", () => {
-    expect(parseNewSessionDeepLink("hena-agent://new-session")).toBeUndefined()
-    expect(parseNewSessionDeepLink("hena-agent://new-session?directory=")).toBeUndefined()
+    expect(parseNewSessionDeepLink("hena://new-session")).toBeUndefined()
+    expect(parseNewSessionDeepLink("hena://new-session?directory=")).toBeUndefined()
   })
 
   test("collects only valid new-session deep links", () => {
     const result = collectNewSessionDeepLinks([
-      "hena-agent://new-session?directory=/a",
-      "hena-agent://open-project?directory=/b",
-      "hena-agent://new-session?directory=/c&prompt=ship%20it",
+      "hena://new-session?directory=/a",
+      "hena://open-project?directory=/b",
+      "hena://new-session?directory=/c&prompt=ship%20it",
     ])
     expect(result).toEqual([{ directory: "/a" }, { directory: "/c", prompt: "ship it" }])
   })
 
   test("drains global deep links once", () => {
     const target = {
-      __HENA_AGENT__: {
-        deepLinks: ["hena-agent://open-project?directory=/a"],
+      __HENA__: {
+        deepLinks: ["hena://open-project?directory=/a"],
       },
-    } as unknown as Window & { __HENA_AGENT__?: { deepLinks?: string[] } }
+    } as unknown as Window & { __HENA__?: { deepLinks?: string[] } }
 
-    expect(drainPendingDeepLinks(target)).toEqual(["hena-agent://open-project?directory=/a"])
+    expect(drainPendingDeepLinks(target)).toEqual(["hena://open-project?directory=/a"])
     expect(drainPendingDeepLinks(target)).toEqual([])
   })
 })

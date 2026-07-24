@@ -1,6 +1,6 @@
 import { parseDiffFromFile, parsePatchFiles, type FileDiffMetadata } from "@pierre/diffs"
 import { parsePatch } from "diff"
-import type { SnapshotFileDiff, VcsFileDiff } from "@hena-agent/sdk/v2"
+import type { SnapshotFileDiff, VcsFileDiff } from "@hena/sdk/v2"
 
 type LegacyDiff = {
   file: string

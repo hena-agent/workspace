@@ -1,19 +1,19 @@
 import type { APIEvent } from "@solidjs/start/server"
-import { and, Database, eq, isNull, lt, or, sql } from "@hena-agent/console-core/drizzle/index.js"
-import { KeyTable } from "@hena-agent/console-core/schema/key.sql.js"
-import { BillingTable, LiteTable, SubscriptionTable, UsageTable } from "@hena-agent/console-core/schema/billing.sql.js"
-import { centsToMicroCents } from "@hena-agent/console-core/util/price.js"
-import { getMonthlyBounds, getWeekBounds } from "@hena-agent/console-core/util/date.js"
-import { Identifier } from "@hena-agent/console-core/identifier.js"
-import { Billing } from "@hena-agent/console-core/billing.js"
-import { Actor } from "@hena-agent/console-core/actor.js"
-import { WorkspaceTable } from "@hena-agent/console-core/schema/workspace.sql.js"
-import { ZenData } from "@hena-agent/console-core/model.js"
-import { Subscription } from "@hena-agent/console-core/subscription.js"
-import { BlackData } from "@hena-agent/console-core/black.js"
-import { UserTable } from "@hena-agent/console-core/schema/user.sql.js"
-import { ModelTable } from "@hena-agent/console-core/schema/model.sql.js"
-import { ProviderTable } from "@hena-agent/console-core/schema/provider.sql.js"
+import { and, Database, eq, isNull, lt, or, sql } from "@hena/console-core/drizzle/index.js"
+import { KeyTable } from "@hena/console-core/schema/key.sql.js"
+import { BillingTable, LiteTable, SubscriptionTable, UsageTable } from "@hena/console-core/schema/billing.sql.js"
+import { centsToMicroCents } from "@hena/console-core/util/price.js"
+import { getMonthlyBounds, getWeekBounds } from "@hena/console-core/util/date.js"
+import { Identifier } from "@hena/console-core/identifier.js"
+import { Billing } from "@hena/console-core/billing.js"
+import { Actor } from "@hena/console-core/actor.js"
+import { WorkspaceTable } from "@hena/console-core/schema/workspace.sql.js"
+import { ZenData } from "@hena/console-core/model.js"
+import { Subscription } from "@hena/console-core/subscription.js"
+import { BlackData } from "@hena/console-core/black.js"
+import { UserTable } from "@hena/console-core/schema/user.sql.js"
+import { ModelTable } from "@hena/console-core/schema/model.sql.js"
+import { ProviderTable } from "@hena/console-core/schema/provider.sql.js"
 import { logger } from "./logger"
 import {
   AuthError,
@@ -42,15 +42,15 @@ import { createRateLimiter as createIpRateLimiter } from "./ipRateLimiter"
 import { createRateLimiter as createKeyRateLimiter } from "./keyRateLimiter"
 import { createTrialLimiter } from "./trialLimiter"
 import { createStickyTracker } from "./stickyProviderTracker"
-import { LiteData } from "@hena-agent/console-core/lite.js"
-import { Resource } from "@hena-agent/console-resource"
+import { LiteData } from "@hena/console-core/lite.js"
+import { Resource } from "@hena/console-resource"
 import { i18n, type Key } from "~/i18n"
 import { localeFromRequest } from "~/lib/language"
 import { createModelTpmLimiter } from "./modelTpmLimiter"
 import { createModelTpsLimiter } from "./modelTpsLimiter"
 import { createProviderBudgetTracker } from "./providerBudgetTracker"
 import { accumulateUsage, HOT_WORKSPACES } from "./usageBatcher"
-import { Workspace } from "@hena-agent/console-core/workspace.js"
+import { Workspace } from "@hena/console-core/workspace.js"
 import { countryFromRequest } from "~/lib/request-country"
 
 type ZenData = Awaited<ReturnType<typeof ZenData.list>>
@@ -105,10 +105,10 @@ export async function handler(
     const ip = rawIp.includes(":") ? rawIp.split(":").slice(0, 4).join(":") : rawIp
     const rawZenApiKey = opts.parseApiKey(input.request.headers)
     const zenApiKey = rawZenApiKey === "public" ? undefined : rawZenApiKey
-    const sessionId = input.request.headers.get("x-hena-agent-session") ?? ""
-    const requestId = input.request.headers.get("x-hena-agent-request") ?? ""
-    const ocClient = input.request.headers.get("x-hena-agent-client") ?? ""
-    const projectId = input.request.headers.get("x-hena-agent-project") ?? ""
+    const sessionId = input.request.headers.get("x-hena-session") ?? ""
+    const requestId = input.request.headers.get("x-hena-request") ?? ""
+    const ocClient = input.request.headers.get("x-hena-client") ?? ""
+    const projectId = input.request.headers.get("x-hena-project") ?? ""
     const userAgent = input.request.headers.get("user-agent") ?? ""
     logger.metric({
       is_stream: isStream,
@@ -235,10 +235,10 @@ export async function handler(
             })
             headers.delete("host")
             headers.delete("content-length")
-            headers.delete("x-hena-agent-request")
-            headers.delete("x-hena-agent-session")
-            headers.delete("x-hena-agent-project")
-            headers.delete("x-hena-agent-client")
+            headers.delete("x-hena-request")
+            headers.delete("x-hena-session")
+            headers.delete("x-hena-project")
+            headers.delete("x-hena-client")
             return headers
           })(),
           body: reqBody,
@@ -250,8 +250,8 @@ export async function handler(
       )
 
       if (isNewInference) {
-        const resEndpointId = res.headers.get("x-hena-agent-endpoint-id")
-        const resEndpointModelId = res.headers.get("x-hena-agent-upstream-model-id")
+        const resEndpointId = res.headers.get("x-hena-endpoint-id")
+        const resEndpointModelId = res.headers.get("x-hena-upstream-model-id")
         if (resEndpointId && resEndpointModelId)
           logger.metric({
             provider: resEndpointId,

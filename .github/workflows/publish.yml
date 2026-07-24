@@ -46,21 +46,21 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          hena-agent-app-id: ${{ vars.HENA_AGENT_APP_ID }}
-          hena-agent-app-secret: ${{ secrets.HENA_AGENT_APP_SECRET }}
+          hena-app-id: ${{ vars.HENA_APP_ID }}
+          hena-app-secret: ${{ secrets.HENA_APP_SECRET }}
 
-      - name: Install Hena Agent
+      - name: Install Hena
         if: inputs.bump || inputs.version
-        run: bun i -g hena-agent
+        run: bun i -g hena
 
       - id: version
         run: |
           ./script/version.ts
         env:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
-          HENA_AGENT_BUMP: ${{ inputs.bump }}
-          HENA_AGENT_VERSION: ${{ inputs.version }}
-          HENA_AGENT_API_KEY: ${{ secrets.HENA_AGENT_API_KEY }}
+          HENA_BUMP: ${{ inputs.bump }}
+          HENA_VERSION: ${{ inputs.version }}
+          HENA_API_KEY: ${{ secrets.HENA_API_KEY }}
           GH_REPO: ${{ github.repository }}
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -83,35 +83,35 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          hena-agent-app-id: ${{ vars.HENA_AGENT_APP_ID }}
-          hena-agent-app-secret: ${{ secrets.HENA_AGENT_APP_SECRET }}
+          hena-app-id: ${{ vars.HENA_APP_ID }}
+          hena-app-secret: ${{ secrets.HENA_APP_SECRET }}
 
       - name: Build
         id: build
         run: |
-          ./packages/hena-agent/script/build.ts ${{ (github.ref_name == 'beta' && '--sourcemaps') || '' }}
+          ./packages/hena/script/build.ts ${{ (github.ref_name == 'beta' && '--sourcemaps') || '' }}
           ./packages/cli/script/build.ts ${{ (github.ref_name == 'beta' && '--sourcemaps') || '' }}
         env:
-          HENA_AGENT_VERSION: ${{ needs.version.outputs.version }}
-          HENA_AGENT_RELEASE: ${{ needs.version.outputs.release }}
+          HENA_VERSION: ${{ needs.version.outputs.version }}
+          HENA_RELEASE: ${{ needs.version.outputs.release }}
           GH_REPO: ${{ needs.version.outputs.repo }}
           GH_TOKEN: ${{ steps.committer.outputs.token }}
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: hena-agent-cli
+          name: hena-cli
           path: |
-            packages/hena-agent/dist/hena-agent-darwin*
-            packages/hena-agent/dist/hena-agent-linux*
+            packages/hena/dist/hena-darwin*
+            packages/hena/dist/hena-linux*
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: hena-agent-cli-windows
-          path: packages/hena-agent/dist/hena-agent-windows*
+          name: hena-cli-windows
+          path: packages/hena/dist/hena-windows*
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: hena-agent-preview-cli
+          name: hena-preview-cli
           path: packages/cli/dist/cli-*
 
     outputs:
@@ -135,15 +135,15 @@ jobs:
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: hena-agent-cli-windows
-          path: packages/hena-agent/dist
+          name: hena-cli-windows
+          path: packages/hena/dist
 
       - name: Setup git committer
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          hena-agent-app-id: ${{ vars.HENA_AGENT_APP_ID }}
-          hena-agent-app-secret: ${{ secrets.HENA_AGENT_APP_SECRET }}
+          hena-app-id: ${{ vars.HENA_APP_ID }}
+          hena-app-secret: ${{ secrets.HENA_APP_SECRET }}
 
       - name: Azure login
         uses: azure/login@a457da9ea143d694b1b9c7c869ebb04ebe844ef5 # v2.3.0
@@ -158,9 +158,9 @@ jobs:
           signing-account-name: ${{ env.AZURE_TRUSTED_SIGNING_ACCOUNT_NAME }}
           certificate-profile-name: ${{ env.AZURE_TRUSTED_SIGNING_CERTIFICATE_PROFILE }}
           files: |
-            ${{ github.workspace }}\packages\hena-agent\dist\hena-agent-windows-arm64\bin\hena-agent.exe
-            ${{ github.workspace }}\packages\hena-agent\dist\hena-agent-windows-x64\bin\hena-agent.exe
-            ${{ github.workspace }}\packages\hena-agent\dist\hena-agent-windows-x64-baseline\bin\hena-agent.exe
+            ${{ github.workspace }}\packages\hena\dist\hena-windows-arm64\bin\hena.exe
+            ${{ github.workspace }}\packages\hena\dist\hena-windows-x64\bin\hena.exe
+            ${{ github.workspace }}\packages\hena\dist\hena-windows-x64-baseline\bin\hena.exe
           exclude-environment-credential: true
           exclude-workload-identity-credential: true
           exclude-managed-identity-credential: true
@@ -176,9 +176,9 @@ jobs:
         shell: pwsh
         run: |
           $files = @(
-            "${{ github.workspace }}\packages\hena-agent\dist\hena-agent-windows-arm64\bin\hena-agent.exe",
-            "${{ github.workspace }}\packages\hena-agent\dist\hena-agent-windows-x64\bin\hena-agent.exe",
-            "${{ github.workspace }}\packages\hena-agent\dist\hena-agent-windows-x64-baseline\bin\hena-agent.exe"
+            "${{ github.workspace }}\packages\hena\dist\hena-windows-arm64\bin\hena.exe",
+            "${{ github.workspace }}\packages\hena\dist\hena-windows-x64\bin\hena.exe",
+            "${{ github.workspace }}\packages\hena\dist\hena-windows-x64-baseline\bin\hena.exe"
           )
 
           foreach ($file in $files) {
@@ -189,12 +189,12 @@ jobs:
           }
 
       - name: Repack Windows CLI archives
-        working-directory: packages/hena-agent/dist
+        working-directory: packages/hena/dist
         shell: pwsh
         run: |
-          Compress-Archive -Path "hena-agent-windows-arm64\bin\*" -DestinationPath "hena-agent-windows-arm64.zip" -Force
-          Compress-Archive -Path "hena-agent-windows-x64\bin\*" -DestinationPath "hena-agent-windows-x64.zip" -Force
-          Compress-Archive -Path "hena-agent-windows-x64-baseline\bin\*" -DestinationPath "hena-agent-windows-x64-baseline.zip" -Force
+          Compress-Archive -Path "hena-windows-arm64\bin\*" -DestinationPath "hena-windows-arm64.zip" -Force
+          Compress-Archive -Path "hena-windows-x64\bin\*" -DestinationPath "hena-windows-x64.zip" -Force
+          Compress-Archive -Path "hena-windows-x64-baseline\bin\*" -DestinationPath "hena-windows-x64-baseline.zip" -Force
 
       - name: Upload signed Windows CLI release assets
         if: needs.version.outputs.release != ''
@@ -203,19 +203,19 @@ jobs:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
         run: |
           gh release upload "v${{ needs.version.outputs.version }}" `
-            "${{ github.workspace }}\packages\hena-agent\dist\hena-agent-windows-arm64.zip" `
-            "${{ github.workspace }}\packages\hena-agent\dist\hena-agent-windows-x64.zip" `
-            "${{ github.workspace }}\packages\hena-agent\dist\hena-agent-windows-x64-baseline.zip" `
+            "${{ github.workspace }}\packages\hena\dist\hena-windows-arm64.zip" `
+            "${{ github.workspace }}\packages\hena\dist\hena-windows-x64.zip" `
+            "${{ github.workspace }}\packages\hena\dist\hena-windows-x64-baseline.zip" `
             --clobber `
             --repo "${{ needs.version.outputs.repo }}"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: hena-agent-cli-signed-windows
+          name: hena-cli-signed-windows
           path: |
-            packages/hena-agent/dist/hena-agent-windows-arm64
-            packages/hena-agent/dist/hena-agent-windows-x64
-            packages/hena-agent/dist/hena-agent-windows-x64-baseline
+            packages/hena/dist/hena-windows-arm64
+            packages/hena/dist/hena-windows-x64
+            packages/hena/dist/hena-windows-x64-baseline
 
   build-electron:
     needs:
@@ -307,16 +307,16 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          hena-agent-app-id: ${{ vars.HENA_AGENT_APP_ID }}
-          hena-agent-app-secret: ${{ secrets.HENA_AGENT_APP_SECRET }}
+          hena-app-id: ${{ vars.HENA_APP_ID }}
+          hena-app-secret: ${{ secrets.HENA_APP_SECRET }}
 
       - name: Prepare
         run: bun ./scripts/prepare.ts
         working-directory: packages/desktop
         env:
-          HENA_AGENT_VERSION: ${{ needs.version.outputs.version }}
-          HENA_AGENT_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
-          HENA_AGENT_CLI_ARTIFACT: ${{ (runner.os == 'Windows' && 'hena-agent-cli-windows') || 'hena-agent-cli' }}
+          HENA_VERSION: ${{ needs.version.outputs.version }}
+          HENA_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
+          HENA_CLI_ARTIFACT: ${{ (runner.os == 'Windows' && 'hena-cli-windows') || 'hena-cli' }}
           RUST_TARGET: ${{ matrix.settings.target }}
           GH_TOKEN: ${{ github.token }}
           GITHUB_RUN_ID: ${{ github.run_id }}
@@ -326,7 +326,7 @@ jobs:
         working-directory: packages/desktop
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-          HENA_AGENT_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
+          HENA_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ vars.WEB_SENTRY_PROJECT }}
@@ -341,7 +341,7 @@ jobs:
         working-directory: packages/desktop
         timeout-minutes: 60
         env:
-          HENA_AGENT_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
+          HENA_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           CSC_LINK: ${{ secrets.APPLE_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -355,7 +355,7 @@ jobs:
         working-directory: packages/desktop
         timeout-minutes: 60
         env:
-          HENA_AGENT_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
+          HENA_CHANNEL: ${{ (github.ref_name == 'beta' && 'beta') || 'prod' }}
 
       - name: Create macOS .app.tar.gz
         if: runner.os == 'macOS' && needs.version.outputs.release
@@ -363,10 +363,10 @@ jobs:
         run: |
           if [[ "${{ matrix.settings.target }}" == "x86_64-apple-darwin" ]]; then
             APP_DIR="mac"
-            OUT_NAME="hena-agent-desktop-mac-x64.app.tar.gz"
+            OUT_NAME="hena-desktop-mac-x64.app.tar.gz"
           elif [[ "${{ matrix.settings.target }}" == "aarch64-apple-darwin" ]]; then
             APP_DIR="mac-arm64"
-            OUT_NAME="hena-agent-desktop-mac-arm64.app.tar.gz"
+            OUT_NAME="hena-desktop-mac-arm64.app.tar.gz"
           else
             echo "Unknown macOS target: ${{ matrix.settings.target }}"
             exit 1
@@ -385,7 +385,7 @@ jobs:
           $files = @()
           $files += Get-ChildItem "${{ github.workspace }}\packages\desktop\dist\*.exe" | Select-Object -ExpandProperty FullName
           $files += Get-ChildItem "${{ github.workspace }}\packages\desktop\dist\*unpacked\*.exe" | Select-Object -ExpandProperty FullName
-          $files += Get-ChildItem "${{ github.workspace }}\packages\desktop\dist\*unpacked\resources\hena-agent-cli.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+          $files += Get-ChildItem "${{ github.workspace }}\packages\desktop\dist\*unpacked\resources\hena-cli.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
 
           foreach ($file in $files | Select-Object -Unique) {
             $sig = Get-AuthenticodeSignature $file
@@ -396,7 +396,7 @@ jobs:
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: hena-agent-desktop-${{ matrix.settings.target }}
+          name: hena-desktop-${{ matrix.settings.target }}
           path: packages/desktop/dist/*
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -438,22 +438,22 @@ jobs:
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: hena-agent-cli
-          path: packages/hena-agent/dist
+          name: hena-cli
+          path: packages/hena/dist
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: hena-agent-cli-windows
-          path: packages/hena-agent/dist
+          name: hena-cli-windows
+          path: packages/hena/dist
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: hena-agent-cli-signed-windows
-          path: packages/hena-agent/dist
+          name: hena-cli-signed-windows
+          path: packages/hena/dist
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: hena-agent-preview-cli
+          name: hena-preview-cli
           path: packages/cli/dist
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -465,7 +465,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: needs.version.outputs.release
         with:
-          pattern: hena-agent-desktop-*
+          pattern: hena-desktop-*
           path: /tmp/desktop
           merge-multiple: true
 
@@ -473,8 +473,8 @@ jobs:
         id: committer
         uses: ./.github/actions/setup-git-committer
         with:
-          hena-agent-app-id: ${{ vars.HENA_AGENT_APP_ID }}
-          hena-agent-app-secret: ${{ secrets.HENA_AGENT_APP_SECRET }}
+          hena-app-id: ${{ vars.HENA_APP_ID }}
+          hena-app-secret: ${{ secrets.HENA_APP_SECRET }}
 
       - name: Cache apt packages (AUR)
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -492,7 +492,7 @@ jobs:
           echo "${{ secrets.AUR_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           git config --global user.email "github@hena.dev"
-          git config --global user.name "hena-agent"
+          git config --global user.name "hena"
           ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts || true
 
       - name: Upload desktop release assets
@@ -510,8 +510,8 @@ jobs:
 
       - run: ./script/publish.ts
         env:
-          HENA_AGENT_VERSION: ${{ needs.version.outputs.version }}
-          HENA_AGENT_RELEASE: ${{ needs.version.outputs.release }}
+          HENA_VERSION: ${{ needs.version.outputs.version }}
+          HENA_RELEASE: ${{ needs.version.outputs.release }}
           AUR_KEY: ${{ secrets.AUR_KEY }}
           GITHUB_TOKEN: ${{ steps.committer.outputs.token }}
           GH_REPO: ${{ needs.version.outputs.repo }}

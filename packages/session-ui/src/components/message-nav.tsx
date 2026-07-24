@@ -1,8 +1,8 @@
-import { UserMessage } from "@hena-agent/sdk/v2"
+import { UserMessage } from "@hena/sdk/v2"
 import { HoverCard } from "@kobalte/core/hover-card"
 import { ComponentProps, For, Match, Show, createSignal, splitProps, Switch } from "solid-js"
-import { DiffChanges } from "@hena-agent/ui/diff-changes"
-import { useI18n } from "@hena-agent/ui/context/i18n"
+import { DiffChanges } from "@hena/ui/diff-changes"
+import { useI18n } from "@hena/ui/context/i18n"
 
 export function MessageNav(
   props: ComponentProps<"ul"> & {

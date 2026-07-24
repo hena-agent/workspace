@@ -1,5 +1,5 @@
 import { BrowserWindow } from "electron"
-import type { DesktopMenuAction } from "@hena-agent/app/desktop-menu"
+import type { DesktopMenuAction } from "@hena/app/desktop-menu"
 import { createMainWindow, updateTitlebar } from "./windows"
 
 export type DesktopMenuActionHandlers = Partial<{

@@ -1,6 +1,6 @@
-# @hena-agent/slack
+# @hena/slack
 
-Slack bot integration for hena-agent that creates threaded conversations.
+Slack bot integration for hena that creates threaded conversations.
 
 ## Setup
 
@@ -24,4 +24,4 @@ Slack bot integration for hena-agent that creates threaded conversations.
 bun dev
 ```
 
-The bot will respond to messages in channels where it's added, creating separate hena-agent sessions for each thread.
+The bot will respond to messages in channels where it's added, creating separate hena sessions for each thread.

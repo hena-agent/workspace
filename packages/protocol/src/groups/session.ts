@@ -1,10 +1,10 @@
-import { SessionMessage } from "@hena-agent/schema/session-message"
-import { SessionInput } from "@hena-agent/schema/session-input"
-import { PromptInput } from "@hena-agent/schema/prompt-input"
-import { Session } from "@hena-agent/schema/session"
-import { Project } from "@hena-agent/schema/project"
-import { AbsolutePath, NonNegativeInt, PositiveInt, RelativePath, statics } from "@hena-agent/schema/schema"
-import { Workspace } from "@hena-agent/schema/workspace"
+import { SessionMessage } from "@hena/schema/session-message"
+import { SessionInput } from "@hena/schema/session-input"
+import { PromptInput } from "@hena/schema/prompt-input"
+import { Session } from "@hena/schema/session"
+import { Project } from "@hena/schema/project"
+import { AbsolutePath, NonNegativeInt, PositiveInt, RelativePath, statics } from "@hena/schema/schema"
+import { Workspace } from "@hena/schema/workspace"
 import { Context, Effect, Encoding, Result, Schema, Struct } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import {
@@ -16,11 +16,11 @@ import {
   SessionNotFoundError,
   UnknownError,
 } from "../errors"
-import { Agent } from "@hena-agent/schema/agent"
-import { Model } from "@hena-agent/schema/model"
-import { Location } from "@hena-agent/schema/location"
-import { Revert } from "@hena-agent/schema/revert"
-import { SessionEvent } from "@hena-agent/schema/session-event"
+import { Agent } from "@hena/schema/agent"
+import { Model } from "@hena/schema/model"
+import { Location } from "@hena/schema/location"
+import { Revert } from "@hena/schema/revert"
+import { SessionEvent } from "@hena/schema/session-event"
 
 const SessionsQueryFields = {
   workspace: Workspace.ID.pipe(Schema.optional),
@@ -150,7 +150,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
           identifier: "v2.session.active",
           summary: "List active sessions",
           description:
-            "Retrieve foreground Session drains currently owned by this Hena Agent process. Sessions absent from the result are inactive.",
+            "Retrieve foreground Session drains currently owned by this Hena process. Sessions absent from the result are inactive.",
         }),
       ),
     )
@@ -352,7 +352,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
           OpenApi.annotations({
             identifier: "v2.session.interrupt",
             summary: "Interrupt session execution",
-            description: "Interrupt active execution owned by this Hena Agent process. Idle interruption is a no-op.",
+            description: "Interrupt active execution owned by this Hena process. Idle interruption is a no-op.",
           }),
         ),
     )

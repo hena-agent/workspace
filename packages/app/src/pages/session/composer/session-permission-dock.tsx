@@ -1,8 +1,8 @@
 import { For, Show } from "solid-js"
-import type { PermissionRequest } from "@hena-agent/sdk/v2"
-import { Button } from "@hena-agent/ui/button"
-import { DockPrompt } from "@hena-agent/session-ui/dock-prompt"
-import { Icon } from "@hena-agent/ui/icon"
+import type { PermissionRequest } from "@hena/sdk/v2"
+import { Button } from "@hena/ui/button"
+import { DockPrompt } from "@hena/session-ui/dock-prompt"
+import { Icon } from "@hena/ui/icon"
 import { useLanguage } from "@/context/language"
 
 export function SessionPermissionDock(props: {

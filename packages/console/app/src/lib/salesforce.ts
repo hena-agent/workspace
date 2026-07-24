@@ -1,4 +1,4 @@
-import { Resource } from "@hena-agent/console-resource"
+import { Resource } from "@hena/console-resource"
 
 async function login() {
   const url = Resource.SALESFORCE_INSTANCE_URL.value.replace(/\/$/, "")

@@ -3,7 +3,7 @@ declare module "*.mp3" {
   export default path
 }
 
-declare module "@hena-agent/ui/audio/*.mp3" {
+declare module "@hena/ui/audio/*.mp3" {
   const path: string
   export default path
 }

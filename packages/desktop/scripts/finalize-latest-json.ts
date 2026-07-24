@@ -16,11 +16,11 @@ const dryRun = values["dry-run"]
 const repo = process.env.GH_REPO
 if (!repo) throw new Error("GH_REPO is required")
 
-const releaseId = process.env.HENA_AGENT_RELEASE
-if (!releaseId) throw new Error("HENA_AGENT_RELEASE is required")
+const releaseId = process.env.HENA_RELEASE
+if (!releaseId) throw new Error("HENA_RELEASE is required")
 
-const version = process.env.HENA_AGENT_VERSION
-if (!version) throw new Error("HENA_AGENT_VERSION is required")
+const version = process.env.HENA_VERSION
+if (!version) throw new Error("HENA_VERSION is required")
 
 const dir = process.env.LATEST_YML_DIR
 if (!dir) throw new Error("LATEST_YML_DIR is required")
@@ -160,8 +160,8 @@ const out: Record<string, { url: string; signature: string }> = {}
 const winxexe = pick(winx?.files ?? [], [".exe"])
 const winaexe = pick(wina?.files ?? [], [".exe"])
 
-const macxTarGz = "hena-agent-desktop-mac-x64.app.tar.gz"
-const macaTarGz = "hena-agent-desktop-mac-arm64.app.tar.gz"
+const macxTarGz = "hena-desktop-mac-x64.app.tar.gz"
+const macaTarGz = "hena-desktop-mac-arm64.app.tar.gz"
 
 const linxDeb = pick(linx?.files ?? [], [".deb"])
 const linxRpm = pick(linx?.files ?? [], [".rpm"])

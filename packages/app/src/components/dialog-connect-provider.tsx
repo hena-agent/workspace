@@ -1,17 +1,17 @@
-import type { ProviderAuthAuthorization, ProviderAuthMethod } from "@hena-agent/sdk/v2/client"
-import { Button } from "@hena-agent/ui/button"
-import { useDialog } from "@hena-agent/ui/context/dialog"
-import { Dialog } from "@hena-agent/ui/dialog"
-import { Icon } from "@hena-agent/ui/icon"
-import { IconButton } from "@hena-agent/ui/icon-button"
-import { List, type ListRef } from "@hena-agent/ui/list"
-import { ProviderIcon } from "@hena-agent/ui/provider-icon"
-import { Spinner } from "@hena-agent/ui/spinner"
-import { Tag } from "@hena-agent/ui/tag"
-import { TextField } from "@hena-agent/ui/text-field"
-import { ButtonV2 } from "@hena-agent/ui/v2/button-v2"
-import { DialogBody, DialogHeader, DialogTitle, DialogV2 } from "@hena-agent/ui/v2/dialog-v2"
-import { TextInputV2 } from "@hena-agent/ui/v2/text-input-v2"
+import type { ProviderAuthAuthorization, ProviderAuthMethod } from "@hena/sdk/v2/client"
+import { Button } from "@hena/ui/button"
+import { useDialog } from "@hena/ui/context/dialog"
+import { Dialog } from "@hena/ui/dialog"
+import { Icon } from "@hena/ui/icon"
+import { IconButton } from "@hena/ui/icon-button"
+import { List, type ListRef } from "@hena/ui/list"
+import { ProviderIcon } from "@hena/ui/provider-icon"
+import { Spinner } from "@hena/ui/spinner"
+import { Tag } from "@hena/ui/tag"
+import { TextField } from "@hena/ui/text-field"
+import { ButtonV2 } from "@hena/ui/v2/button-v2"
+import { DialogBody, DialogHeader, DialogTitle, DialogV2 } from "@hena/ui/v2/dialog-v2"
+import { TextInputV2 } from "@hena/ui/v2/text-input-v2"
 import { showToast } from "@/utils/toast"
 import {
   type Accessor,
@@ -163,7 +163,7 @@ function ProviderPicker(props: {
     if (id === "anthropic") return language.t("dialog.provider.anthropic.note")
     if (id === "openai") return language.t("dialog.provider.openai.note")
     if (id.startsWith("github-copilot")) return language.t("dialog.provider.copilot.note")
-    if (id === "hena-agent-go") return language.t("dialog.provider.hena-agentGo.tagline")
+    if (id === "hena-go") return language.t("dialog.provider.henaGo.tagline")
     return undefined
   }
 
@@ -202,17 +202,17 @@ function ProviderPicker(props: {
         <div class="px-1.25 w-full flex items-center gap-x-3">
           <ProviderIcon data-slot="list-item-extra-icon" id={i.id} />
           <span>{i.name}</span>
-          <Show when={i.id === "hena-agent"}>
-            <div class="text-14-regular text-text-weak">{language.t("dialog.provider.hena-agent.tagline")}</div>
+          <Show when={i.id === "hena"}>
+            <div class="text-14-regular text-text-weak">{language.t("dialog.provider.hena.tagline")}</div>
           </Show>
           <Show when={i.id === CUSTOM_ID}>
             <Tag>{language.t("settings.providers.tag.custom")}</Tag>
           </Show>
-          <Show when={i.id === "hena-agent"}>
+          <Show when={i.id === "hena"}>
             <Tag>{language.t("dialog.provider.tag.recommended")}</Tag>
           </Show>
           <Show when={note(i.id)}>{(value) => <div class="text-14-regular text-text-weak">{value()}</div>}</Show>
-          <Show when={i.id === "hena-agent-go"}>
+          <Show when={i.id === "hena-go"}>
             <Tag>{language.t("dialog.provider.tag.recommended")}</Tag>
           </Show>
         </div>
@@ -235,7 +235,7 @@ function ProviderPickerV2(props: {
     active: undefined as string | undefined,
     connecting: undefined as string | undefined,
   })
-  const featured = ["hena-agent", "hena-agent-go", "anthropic", "openai", "google", "openrouter", "vercel"]
+  const featured = ["hena", "hena-go", "anthropic", "openai", "google", "openrouter", "vercel"]
   const custom = () => ({ id: CUSTOM_ID, name: language.t("dialog.provider.custom.label") })
   const all = createMemo(() => {
     language.locale()
@@ -344,12 +344,12 @@ function ProviderPickerV2(props: {
                       >
                         <ProviderIcon id={provider.id} class="size-4 shrink-0 text-v2-icon-icon-base" />
                         <span class="min-w-0 truncate font-[530] text-v2-text-text-base">{provider.name}</span>
-                        <Show when={provider.id === "hena-agent" || provider.id === "hena-agent-go"}>
+                        <Show when={provider.id === "hena" || provider.id === "hena-go"}>
                           <span class="min-w-0 truncate font-[440] text-v2-text-text-muted">
                             {language.t(
-                              provider.id === "hena-agent"
-                                ? "dialog.provider.hena-agent.tagline"
-                                : "dialog.provider.hena-agentGo.tagline",
+                              provider.id === "hena"
+                                ? "dialog.provider.hena.tagline"
+                                : "dialog.provider.henaGo.tagline",
                             )}
                           </span>
                           <span class="flex h-4 shrink-0 items-center rounded-xs border-[0.5px] border-v2-border-border-base bg-v2-background-bg-layer-03 px-1 text-[11px] font-[530] leading-none tracking-[0.05px] text-v2-text-text-muted">
@@ -866,21 +866,21 @@ function ProviderConnection(props: {
       return (
         <div class="flex flex-col gap-5 px-3 text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-muted">
           <Show
-            when={provider().id === "hena-agent"}
+            when={provider().id === "hena"}
             fallback={language.t("provider.connect.apiKey.description", { provider: provider().name })}
           >
             <div class="flex flex-col gap-5">
-              <div>{language.t("provider.connect.hena-agentZen.line1")}</div>
-              <div>{language.t("provider.connect.hena-agentZen.line2")}</div>
+              <div>{language.t("provider.connect.henaZen.line1")}</div>
+              <div>{language.t("provider.connect.henaZen.line2")}</div>
               <div>
-                {language.t("provider.connect.hena-agentZen.visit.prefix")}
+                {language.t("provider.connect.henaZen.visit.prefix")}
                 <Link
                   href="https://hena.dev/zen"
                   class="text-v2-text-text-base focus-visible:rounded-xs focus-visible:outline-2 focus-visible:outline-v2-border-border-focus"
                 >
-                  {language.t("provider.connect.hena-agentZen.visit.link")}
+                  {language.t("provider.connect.henaZen.visit.link")}
                 </Link>
-                {language.t("provider.connect.hena-agentZen.visit.suffix")}
+                {language.t("provider.connect.henaZen.visit.suffix")}
               </div>
             </div>
           </Show>
@@ -917,16 +917,16 @@ function ProviderConnection(props: {
     return (
       <div class="flex flex-col gap-6">
         <Switch>
-          <Match when={provider().id === "hena-agent"}>
+          <Match when={provider().id === "hena"}>
             <div class="flex flex-col gap-4">
-              <div class="text-14-regular text-text-base">{language.t("provider.connect.hena-agentZen.line1")}</div>
-              <div class="text-14-regular text-text-base">{language.t("provider.connect.hena-agentZen.line2")}</div>
+              <div class="text-14-regular text-text-base">{language.t("provider.connect.henaZen.line1")}</div>
+              <div class="text-14-regular text-text-base">{language.t("provider.connect.henaZen.line2")}</div>
               <div class="text-14-regular text-text-base">
-                {language.t("provider.connect.hena-agentZen.visit.prefix")}
+                {language.t("provider.connect.henaZen.visit.prefix")}
                 <Link href="https://hena.dev/zen" tabIndex={-1}>
-                  {language.t("provider.connect.hena-agentZen.visit.link")}
+                  {language.t("provider.connect.henaZen.visit.link")}
                 </Link>
-                {language.t("provider.connect.hena-agentZen.visit.suffix")}
+                {language.t("provider.connect.henaZen.visit.suffix")}
               </div>
             </div>
           </Match>

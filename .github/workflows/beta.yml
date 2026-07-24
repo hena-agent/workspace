@@ -24,14 +24,14 @@ jobs:
         id: setup-git-committer
         uses: ./.github/actions/setup-git-committer
         with:
-          hena-agent-app-id: ${{ vars.HENA_AGENT_APP_ID }}
-          hena-agent-app-secret: ${{ secrets.HENA_AGENT_APP_SECRET }}
+          hena-app-id: ${{ vars.HENA_APP_ID }}
+          hena-app-secret: ${{ secrets.HENA_APP_SECRET }}
 
-      - name: Install Hena Agent
-        run: bun i -g hena-agent
+      - name: Install Hena
+        run: bun i -g hena
 
       - name: Sync beta branch
         env:
           GH_TOKEN: ${{ steps.setup-git-committer.outputs.token }}
-          HENA_AGENT_API_KEY: ${{ secrets.HENA_AGENT_API_KEY }}
+          HENA_API_KEY: ${{ secrets.HENA_API_KEY }}
         run: bun script/beta.ts

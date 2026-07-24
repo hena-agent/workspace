@@ -1,4 +1,4 @@
-import { Resource } from "@hena-agent/console-resource"
+import { Resource } from "@hena/console-resource"
 import { Redis } from "@upstash/redis/cloudflare"
 
 let redis: Redis | undefined

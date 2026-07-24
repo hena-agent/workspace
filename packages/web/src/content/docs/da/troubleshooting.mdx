@@ -3,7 +3,7 @@ title: Fejlfinding
 description: Almindelige problemer, og hvordan de løses.
 ---
 
-For at fejlfinde problemer med Hena Agent, start med at tjekke logfilerne og de lokale data, den gemmer på disken.
+For at fejlfinde problemer med Hena, start med at tjekke logfilerne og de lokale data, den gemmer på disken.
 
 ---
 
@@ -11,21 +11,21 @@ For at fejlfinde problemer med Hena Agent, start med at tjekke logfilerne og de 
 
 Logfiler skrives til:
 
-- **macOS/Linux**: `~/.local/share/hena-agent/log/`
-- **Windows**: Tryk `WIN+R` og indsæt `%USERPROFILE%\.local\share\hena-agent\log`
+- **macOS/Linux**: `~/.local/share/hena/log/`
+- **Windows**: Tryk `WIN+R` og indsæt `%USERPROFILE%\.local\share\hena\log`
 
 Logfiler navngives med tidsstempler (f.eks. `2025-01-09T123456.log`) og de sidste 10 logfiler beholdes.
 
-Du kan angive logniveauet med kommandolinjeflaget `--log-level` for at få mere detaljeret fejlfindingsinformation. For eksempel `hena-agent --log-level DEBUG`.
+Du kan angive logniveauet med kommandolinjeflaget `--log-level` for at få mere detaljeret fejlfindingsinformation. For eksempel `hena --log-level DEBUG`.
 
 ---
 
 ## Lagring
 
-hena-agent gemmer sessionsdata og andre applikationsdata på disken på:
+hena gemmer sessionsdata og andre applikationsdata på disken på:
 
-- **macOS/Linux**: `~/.local/share/hena-agent/`
-- **Windows**: Tryk `WIN+R` og indsæt `%USERPROFILE%\.local\share\hena-agent`
+- **macOS/Linux**: `~/.local/share/hena/`
+- **Windows**: Tryk `WIN+R` og indsæt `%USERPROFILE%\.local\share\hena`
 
 Denne mappe indeholder:
 
@@ -39,13 +39,13 @@ Denne mappe indeholder:
 
 ## Desktop-app
 
-Hena Agent Desktop kører en lokal Hena Agent-server (`hena-agent-cli` sidevognen) i baggrunden. De fleste problemer er forårsaget af et plugin, der fungerer dårligt, en ødelagt cache eller en dårlig serverindstilling.
+Hena Desktop kører en lokal Hena-server (`hena-cli` sidevognen) i baggrunden. De fleste problemer er forårsaget af et plugin, der fungerer dårligt, en ødelagt cache eller en dårlig serverindstilling.
 
 ### Hurtige tjek
 
 - Afslut og start appen på ny.
 - Hvis appen viser en fejlskærm, klikker du på **Start på ny** og kopierer fejldetaljerne.
-- Kun macOS: `Hena Agent`-menu -> **Genindlæs webvisning** (hjælper hvis UI er tom/frosset).
+- Kun macOS: `Hena`-menu -> **Genindlæs webvisning** (hjælper hvis UI er tom/frosset).
 
 ---
 
@@ -57,9 +57,9 @@ Hvis skrivebordsappen går ned ved opstart, hænger eller opfører sig mærkelig
 
 Åbn den globale konfigurationsfil og se efter en `plugin`-nøgle.
 
-- **macOS/Linux**: `~/.config/hena-agent/hena.jsonc` (eller `~/.config/hena-agent/hena.json`)
-- **macOS/Linux** (ældre installationer): `~/.local/share/hena-agent/hena.jsonc`
-- **Windows**: Tryk `WIN+R` og indsæt `%USERPROFILE%\.config\hena-agent\hena-agent.jsonc`
+- **macOS/Linux**: `~/.config/hena/hena.jsonc` (eller `~/.config/hena/hena.json`)
+- **macOS/Linux** (ældre installationer): `~/.local/share/hena/hena.jsonc`
+- **Windows**: Tryk `WIN+R` og indsæt `%USERPROFILE%\.config\hena\hena.jsonc`
 
 Hvis du har konfigureret plugins, deaktiver dem midlertidigt ved at fjerne nøglen eller sætte den til et tomt array:
 
@@ -72,13 +72,13 @@ Hvis du har konfigureret plugins, deaktiver dem midlertidigt ved at fjerne nøgl
 
 #### Tjek plugin-mapper
 
-Hena Agent kan også indlæse lokale plugins fra disken. Flyt disse midlertidigt væk (eller giv mappen nyt navn) og start skrivebordsappen på ny:
+Hena kan også indlæse lokale plugins fra disken. Flyt disse midlertidigt væk (eller giv mappen nyt navn) og start skrivebordsappen på ny:
 
 - **Globale plugins**
-  - **macOS/Linux**: `~/.config/hena-agent/plugins/`
-  - **Windows**: Tryk `WIN+R` og indsæt `%USERPROFILE%\.config\hena-agent\plugins`
+  - **macOS/Linux**: `~/.config/hena/plugins/`
+  - **Windows**: Tryk `WIN+R` og indsæt `%USERPROFILE%\.config\hena\plugins`
 - **Projektplugins** (kun hvis du bruger konfiguration per projekt)
-  - `<your-project>/.hena-agent/plugins/`
+  - `<your-project>/.hena/plugins/`
 
 Hvis appen begynder at fungere igen, aktiverer du plugins én ad gangen for at finde ud af, hvilken som forårsager problemet.
 
@@ -86,22 +86,22 @@ Hvis appen begynder at fungere igen, aktiverer du plugins én ad gangen for at f
 
 ### Ryd cachen
 
-Hvis deaktivering af plugins ikke hjælper (eller en plugin-installation sidder fast), tøm cachen så Hena Agent kan genopbygge den.
+Hvis deaktivering af plugins ikke hjælper (eller en plugin-installation sidder fast), tøm cachen så Hena kan genopbygge den.
 
-1. Afslut Hena Agent Desktop helt.
+1. Afslut Hena Desktop helt.
 2. Slet cache-mappen:
 
-- **macOS**: Finder -> `Cmd+Shift+G` -> indsæt `~/.cache/hena-agent`
-- **Linux**: slet `~/.cache/hena-agent` (eller kør `rm -rf ~/.cache/hena-agent`)
-- **Windows**: Tryk `WIN+R` og indsæt `%USERPROFILE%\.cache\hena-agent`
+- **macOS**: Finder -> `Cmd+Shift+G` -> indsæt `~/.cache/hena`
+- **Linux**: slet `~/.cache/hena` (eller kør `rm -rf ~/.cache/hena`)
+- **Windows**: Tryk `WIN+R` og indsæt `%USERPROFILE%\.cache\hena`
 
-3. Start Hena Agent Desktop på ny.
+3. Start Hena Desktop på ny.
 
 ---
 
 ### Løs problemer med serverforbindelse
 
-Hena Agent Desktop kan enten starte sin egen lokale server (standard) eller forbinde til en server URL, du har konfigureret.
+Hena Desktop kan enten starte sin egen lokale server (standard) eller forbinde til en server URL, du har konfigureret.
 
 Hvis du ser en **"Forbindelse mislykkedes"**-dialogboks (eller appen kommer aldrig forbi splash-skærmen), se efter en brugerdefineret server URL.
 
@@ -111,13 +111,13 @@ Fra startskærmen klikker du på servernavnet (med statusprikken) for at åbne s
 
 #### Fjern `server.port` / `server.hostname` fra din konfiguration
 
-Hvis `hena-agent.json(c)` indeholder en `server`-del, fjern den midlertidigt og start skrivebordsappen på ny.
+Hvis `hena.json(c)` indeholder en `server`-del, fjern den midlertidigt og start skrivebordsappen på ny.
 
 #### Tjek miljøvariabler
 
-Hvis du har `HENA_AGENT_PORT` sat i dit miljø, vil skrivebordsappen prøve at bruge den port for den lokale server.
+Hvis du har `HENA_PORT` sat i dit miljø, vil skrivebordsappen prøve at bruge den port for den lokale server.
 
-- Deaktiver `HENA_AGENT_PORT` (eller vælg en ledig port) og start på ny.
+- Deaktiver `HENA_PORT` (eller vælg en ledig port) og start på ny.
 
 ---
 
@@ -132,21 +132,21 @@ På Linux kan nogle Wayland-opsætninger forårsage tomme vinduer eller komposit
 
 ### Windows: WebView2-runtime
 
-På Windows kræver Hena Agent Desktop Microsoft Edge **WebView2 Runtime**. Hvis appen åbnes i et tomt vindue eller ikke starter, installer/opdater WebView2 og prøv igen.
+På Windows kræver Hena Desktop Microsoft Edge **WebView2 Runtime**. Hvis appen åbnes i et tomt vindue eller ikke starter, installer/opdater WebView2 og prøv igen.
 
 ---
 
 ### Windows: Generelle ydeevneproblemer
 
-Hvis du oplever langsom ydeevne, problemer med filadgang eller terminalproblemer på Windows, kan du prøve at bruge [WSL (Windows Subsystem for Linux)](/docs/windows-wsl). WSL giver et Linux-miljø som fungerer mere sømløst med funktionerne i Hena Agent.
+Hvis du oplever langsom ydeevne, problemer med filadgang eller terminalproblemer på Windows, kan du prøve at bruge [WSL (Windows Subsystem for Linux)](/docs/windows-wsl). WSL giver et Linux-miljø som fungerer mere sømløst med funktionerne i Hena.
 
 ---
 
 ### Meddelelser vises ikke
 
-Hena Agent Desktop viser kun systemvarsler når:
+Hena Desktop viser kun systemvarsler når:
 
-- varsler er aktiveret for Hena Agent i dine OS-indstillinger, og
+- varsler er aktiveret for Hena i dine OS-indstillinger, og
 - appvinduet ikke er fokuseret.
 
 ---
@@ -155,11 +155,11 @@ Hena Agent Desktop viser kun systemvarsler når:
 
 Hvis appen ikke starter og du ikke kan slette indstillingerne fra UI, nulstil skrivebordsappens gemte tilstand.
 
-1. Afslut Hena Agent Desktop.
-2. Find og slet disse filer (de findes i Hena Agent Desktop-appens datamappe):
+1. Afslut Hena Desktop.
+2. Find og slet disse filer (de findes i Hena Desktop-appens datamappe):
 
-- `hena-agent.settings.dat` (skrivebordsstandardserver URL)
-- `hena-agent.global.dat` og `hena-agent.workspace.*.dat` (UI tilstand som nylige servere/projekter)
+- `hena.settings.dat` (skrivebordsstandardserver URL)
+- `hena.global.dat` og `hena.workspace.*.dat` (UI tilstand som nylige servere/projekter)
 
 Sådan finder du mappen hurtigt:
 
@@ -171,7 +171,7 @@ Sådan finder du mappen hurtigt:
 
 ## Få hjælp
 
-Hvis du oplever problemer med Hena Agent:
+Hvis du oplever problemer med Hena:
 
 1. **Rapporter problemer på GitHub**
 
@@ -195,11 +195,11 @@ Her er nogle almindelige problemer og hvordan du kan løse dem.
 
 ---
 
-### Hena Agent vil ikke starte
+### Hena vil ikke starte
 
 1. Tjek logfilerne for fejlmeddelelser
 2. Prøv at køre med `--print-logs` for at se output i terminalen
-3. Sørg for at du har den nyeste version med `hena-agent upgrade`
+3. Sørg for at du har den nyeste version med `hena upgrade`
 
 ---
 
@@ -225,9 +225,9 @@ Eksempler:
 
 - `openai/gpt-4.1`
 - `openrouter/google/gemini-2.5-flash`
-- `hena-agent/kimi-k2`
+- `hena/kimi-k2`
 
-For at finde ud af hvilke modeller du har adgang til, kør `hena-agent models`
+For at finde ud af hvilke modeller du har adgang til, kør `hena models`
 
 ---
 
@@ -241,10 +241,10 @@ For at løse dette:
 2. Hvis problemet vedvarer, prøv at tømme den gemte konfiguration:
 
    ```bash
-   rm -rf ~/.local/share/hena-agent
+   rm -rf ~/.local/share/hena
    ```
 
-   På Windows, tryk `WIN+R` og slet: `%USERPROFILE%\.local\share\hena-agent`
+   På Windows, tryk `WIN+R` og slet: `%USERPROFILE%\.local\share\hena`
 
 3. Godkend på ny med din udbyder ved at bruge kommandoen `/connect` i TUI.
 
@@ -252,21 +252,21 @@ For at løse dette:
 
 ### AI_APICallError og udbyderpakkeproblemer
 
-Hvis du støder på API-kaldsfejl, kan dette skyldes forældede udbyderpakker. hena-agent installerer dynamisk udbyderpakker (OpenAI, Anthropic, Google, etc.) efter behov og cacher dem lokalt.
+Hvis du støder på API-kaldsfejl, kan dette skyldes forældede udbyderpakker. hena installerer dynamisk udbyderpakker (OpenAI, Anthropic, Google, etc.) efter behov og cacher dem lokalt.
 
 For at løse problemer med udbyderpakke:
 
 1. Tøm udbyderens pakkecache:
 
    ```bash
-   rm -rf ~/.cache/hena-agent
+   rm -rf ~/.cache/hena
    ```
 
-   På Windows, tryk `WIN+R` og slet: `%USERPROFILE%\.cache\hena-agent`
+   På Windows, tryk `WIN+R` og slet: `%USERPROFILE%\.cache\hena`
 
-2. Start hena-agent på ny for at installere de nyeste udbyderpakker på ny
+2. Start hena på ny for at installere de nyeste udbyderpakker på ny
 
-Dette vil tvinge hena-agent til at downloade de nyeste versioner af udbyderpakkerne, som ofte løser kompatibilitetsproblemer med modelparametre og API-ændringer.
+Dette vil tvinge hena til at downloade de nyeste versioner af udbyderpakkerne, som ofte løser kompatibilitetsproblemer med modelparametre og API-ændringer.
 
 ---
 
@@ -297,4 +297,4 @@ Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
 export DISPLAY=:99.0
 ```
 
-hena-agent vil opdage om du bruger Wayland og foretrække `wl-clipboard`, ellers vil den prøve at finde udklipsholderværktøjer i rækkefølgen: `xclip` og `xsel`.
+hena vil opdage om du bruger Wayland og foretrække `wl-clipboard`, ellers vil den prøve at finde udklipsholderværktøjer i rækkefølgen: `xclip` og `xsel`.

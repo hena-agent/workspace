@@ -3,8 +3,8 @@ import { resolveChannel } from "./utils"
 const arg = process.argv[2]
 const channel = arg === "dev" || arg === "beta" || arg === "prod" ? arg : resolveChannel()
 
-const appId = channel === "prod" ? "ai.hena-agent.desktop" : `ai.hena-agent.desktop.${channel}`
-const productName = channel === "prod" ? "Hena Agent" : `Hena Agent ${channel.charAt(0).toUpperCase() + channel.slice(1)}`
+const appId = channel === "prod" ? "dev.hena.desktop" : `dev.hena.desktop.${channel}`
+const productName = channel === "prod" ? "Hena" : `Hena ${channel.charAt(0).toUpperCase() + channel.slice(1)}`
 const summary = `Open source AI coding agent${channel !== "prod" ? ` (${channel})` : ""}`
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -23,7 +23,7 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
 
   <description>
     <p>
-      Hena Agent is an open source agent that helps you write and run code with any AI model.
+      Hena is an open source agent that helps you write and run code with any AI model.
     </p>
   </description>
 

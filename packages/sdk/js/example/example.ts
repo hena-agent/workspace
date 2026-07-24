@@ -1,8 +1,8 @@
-import { createHenaAgentClient, createHenaAgentServer } from "@hena-agent/sdk"
+import { createHenaClient, createHenaServer } from "@hena/sdk"
 import { pathToFileURL } from "bun"
 
-const server = await createHenaAgentServer()
-const client = createHenaAgentClient({ baseUrl: server.url })
+const server = await createHenaServer()
+const client = createHenaClient({ baseUrl: server.url })
 
 const input = await Array.fromAsync(new Bun.Glob("packages/core/*.ts").scan())
 

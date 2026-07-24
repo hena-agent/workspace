@@ -1,9 +1,9 @@
 import "@pierre/trees/web-components"
 import { FileTree } from "@pierre/trees"
-import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@hena-agent/ui/v2/dialog-v2"
-import { ButtonV2 } from "@hena-agent/ui/v2/button-v2"
-import { TextInputV2 } from "@hena-agent/ui/v2/text-input-v2"
-import { useDialog } from "@hena-agent/ui/context/dialog"
+import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@hena/ui/v2/dialog-v2"
+import { ButtonV2 } from "@hena/ui/v2/button-v2"
+import { TextInputV2 } from "@hena/ui/v2/text-input-v2"
+import { useDialog } from "@hena/ui/context/dialog"
 import { createEffect, createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import { useGlobal } from "@/context/global"
 import { useLanguage } from "@/context/language"
@@ -27,7 +27,7 @@ import {
   pickerRoot,
 } from "./directory-picker-domain"
 import "./dialog-select-directory-v2.css"
-import { DividerV2 } from "@hena-agent/ui/v2/divider-v2"
+import { DividerV2 } from "@hena/ui/v2/divider-v2"
 
 interface DialogSelectDirectoryV2Props {
   title?: string

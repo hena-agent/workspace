@@ -1,6 +1,6 @@
 // @ts-nocheck
 import * as mod from "./dock-prompt"
-import { create } from "@hena-agent/ui/storybook/scaffold"
+import { create } from "@hena/ui/storybook/scaffold"
 
 const docs = `### Overview
 Docked prompt layout for questions and permission requests.

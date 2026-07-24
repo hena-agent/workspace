@@ -1,9 +1,9 @@
 import fs from "fs/promises"
 import os from "os"
 import { Effect } from "effect"
-import { AppNodeBuilder } from "@hena-agent/core/effect/app-node-builder"
-import { EffectFlock } from "@hena-agent/core/util/effect-flock"
-import { Global } from "@hena-agent/core/global"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { EffectFlock } from "@hena/core/util/effect-flock"
+import { Global } from "@hena/core/global"
 
 type Msg = {
   key: string

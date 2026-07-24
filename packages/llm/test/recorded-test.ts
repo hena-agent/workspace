@@ -1,6 +1,6 @@
 import { NodeFileSystem } from "@effect/platform-node"
-import { HttpRecorder } from "@hena-agent/http-recorder"
-import { HttpRecorderInternal } from "@hena-agent/http-recorder/internal"
+import { HttpRecorder } from "@hena/http-recorder"
+import { HttpRecorderInternal } from "@hena/http-recorder/internal"
 import { Layer } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
 import * as path from "node:path"

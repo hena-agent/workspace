@@ -1,15 +1,15 @@
 ---
 title: Formattere
-description: Hena Agent bruker språkspesifikke formattere.
+description: Hena bruker språkspesifikke formattere.
 ---
 
-Hena Agent formaterer automatisk filer etter at de er skrevet eller redigert ved hjelp av språkspesifikke formattere. Dette sikrer at koden som genereres følger kodestilene til prosjektet ditt.
+Hena formaterer automatisk filer etter at de er skrevet eller redigert ved hjelp av språkspesifikke formattere. Dette sikrer at koden som genereres følger kodestilene til prosjektet ditt.
 
 ---
 
 ## Innebygde formattere
 
-Hena Agent kommer med flere innebygde formattere for populære språk og rammeverk. Nedenfor er en liste over formattere, støttede filendelser og kommandoer eller konfigurasjonsalternativer den krever.
+Hena kommer med flere innebygde formattere for populære språk og rammeverk. Nedenfor er en liste over formattere, støttede filendelser og kommandoer eller konfigurasjonsalternativer den krever.
 
 | Formatter              | Filendelser                                                                                             | Krav                                                                                                    |
 | ---------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
@@ -39,13 +39,13 @@ Hena Agent kommer med flere innebygde formattere for populære språk og rammeve
 | oxfmt (Eksperimentell) | .js, .jsx, .ts, .tsx                                                                                    | `oxfmt` avhengighet i `package.json` og et [eksperimentelt env variabel flagg](/docs/cli/#experimental) |
 | ormolu                 | .hs                                                                                                     | `ormolu` kommando tilgjengelig                                                                          |
 
-Så hvis prosjektet ditt har `prettier` i `package.json`, vil Hena Agent automatisk bruke det.
+Så hvis prosjektet ditt har `prettier` i `package.json`, vil Hena automatisk bruke det.
 
 ---
 
 ## Slik fungerer det
 
-Når Hena Agent skriver eller redigerer en fil, gjør den:
+Når Hena skriver eller redigerer en fil, gjør den:
 
 1. Kontrollerer filtypen mot alle aktiverte formattere.
 2. Kjører riktig formateringskommando på filen.
@@ -57,9 +57,9 @@ Denne prosessen skjer i bakgrunnen, og sikrer at kodestilene dine opprettholdes 
 
 ## Konfigurasjon
 
-Du kan tilpasse formattere gjennom `formatter`-delen i Hena Agent-konfigurasjonen.
+Du kan tilpasse formattere gjennom `formatter`-delen i Hena-konfigurasjonen.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {}
@@ -83,7 +83,7 @@ La oss se på noen eksempler.
 
 For å deaktivere **alle** formattere globalt, sett `formatter` til `false`:
 
-```json title="hena-agent.json" {3}
+```json title="hena.json" {3}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": false
@@ -92,7 +92,7 @@ For å deaktivere **alle** formattere globalt, sett `formatter` til `false`:
 
 For å deaktivere en **spesifikk** formatter, sett `disabled` til `true`:
 
-```json title="hena-agent.json" {5}
+```json title="hena.json" {5}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {
@@ -109,7 +109,7 @@ For å deaktivere en **spesifikk** formatter, sett `disabled` til `true`:
 
 Du kan overstyre de innebygde formatterne eller legge til nye ved å spesifisere kommandoen, miljøvariablene og filtypene:
 
-```json title="hena-agent.json" {4-14}
+```json title="hena.json" {4-14}
 {
   "$schema": "https://hena.dev/config.json",
   "formatter": {

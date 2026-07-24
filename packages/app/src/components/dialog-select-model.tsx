@@ -12,19 +12,19 @@ import {
 } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/context/local"
-import { useDialog } from "@hena-agent/ui/context/dialog"
+import { useDialog } from "@hena/ui/context/dialog"
 import { popularProviders } from "@/hooks/use-providers"
-import { Button } from "@hena-agent/ui/button"
-import { IconButton } from "@hena-agent/ui/icon-button"
-import { ScrollView } from "@hena-agent/ui/scroll-view"
-import { Tag } from "@hena-agent/ui/tag"
-import { Dialog } from "@hena-agent/ui/dialog"
-import { List } from "@hena-agent/ui/list"
-import { Tooltip } from "@hena-agent/ui/tooltip"
-import { Icon } from "@hena-agent/ui/v2/icon"
-import { Tag as TagV2 } from "@hena-agent/ui/v2/badge-v2"
-import { MenuV2 } from "@hena-agent/ui/v2/menu-v2"
-import { TooltipV2 } from "@hena-agent/ui/v2/tooltip-v2"
+import { Button } from "@hena/ui/button"
+import { IconButton } from "@hena/ui/icon-button"
+import { ScrollView } from "@hena/ui/scroll-view"
+import { Tag } from "@hena/ui/tag"
+import { Dialog } from "@hena/ui/dialog"
+import { List } from "@hena/ui/list"
+import { Tooltip } from "@hena/ui/tooltip"
+import { Icon } from "@hena/ui/v2/icon"
+import { Tag as TagV2 } from "@hena/ui/v2/badge-v2"
+import { MenuV2 } from "@hena/ui/v2/menu-v2"
+import { TooltipV2 } from "@hena/ui/v2/tooltip-v2"
 import { ModelTooltip } from "./model-tooltip"
 import { useLanguage } from "@/context/language"
 import { decode64 } from "@/utils/base64"
@@ -33,7 +33,7 @@ import { createEventListener } from "@solid-primitives/event-listener"
 import { matchesModelSearch } from "./dialog-select-model-search"
 
 const isFree = (provider: string, cost: { input: number } | undefined) =>
-  provider === "hena-agent" && (!cost || cost.input === 0)
+  provider === "hena" && (!cost || cost.input === 0)
 
 type ModelState = ReturnType<typeof useLocal>["model"]
 type ModelItem = ReturnType<ModelState["list"]>[number]

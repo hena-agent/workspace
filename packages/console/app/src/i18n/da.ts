@@ -15,7 +15,7 @@ export const dict = {
   "nav.home": "Hjem",
   "nav.openMenu": "Åbn menu",
   "nav.getStartedFree": "Kom i gang gratis",
-  "nav.logoAlt": "Hena Agent",
+  "nav.logoAlt": "Hena",
 
   "nav.context.copyLogo": "Kopier logo som SVG",
   "nav.context.copyWordmark": "Kopier wordmark som SVG",
@@ -37,14 +37,14 @@ export const dict = {
   "email.subscribe": "Tilmeld",
   "email.success": "Næsten færdig - tjek din indbakke og bekræft din e-mailadresse",
 
-  "notFound.title": "Ikke fundet | hena-agent",
+  "notFound.title": "Ikke fundet | hena",
   "notFound.heading": "404 - Siden blev ikke fundet",
   "notFound.home": "Hjem",
   "notFound.docs": "Dokumentation",
   "notFound.github": "GitHub",
   "notFound.discord": "Discord",
-  "notFound.logoLightAlt": "hena-agent logo light",
-  "notFound.logoDarkAlt": "hena-agent logo dark",
+  "notFound.logoLightAlt": "hena logo light",
+  "notFound.logoDarkAlt": "hena logo dark",
 
   "user.logout": "Log ud",
 
@@ -81,25 +81,25 @@ export const dict = {
   "error.reloadAmountMin": "Genopfyldningsbeløb skal være mindst ${{amount}}",
   "error.reloadTriggerMin": "Saldogrænse skal være mindst ${{amount}}",
 
-  "app.meta.description": "Hena Agent - Den open source kodningsagent.",
+  "app.meta.description": "Hena - Den open source kodningsagent.",
 
-  "home.title": "Hena Agent | Den open source AI-kodningsagent",
+  "home.title": "Hena | Den open source AI-kodningsagent",
 
-  "temp.title": "hena-agent | AI-kodningsagent bygget til terminalen",
+  "temp.title": "hena | AI-kodningsagent bygget til terminalen",
   "temp.hero.title": "AI-kodningsagenten bygget til terminalen",
-  "temp.zen": "hena-agent zen",
+  "temp.zen": "hena zen",
   "temp.getStarted": "Kom i gang",
   "temp.feature.native.title": "Native TUI",
   "temp.feature.native.body": "En responsiv, native, tema-bar terminal-UI",
   "temp.feature.zen.beforeLink": "En",
   "temp.feature.zen.link": "kurateret liste over modeller",
-  "temp.feature.zen.afterLink": "leveret af hena-agent",
+  "temp.feature.zen.afterLink": "leveret af hena",
   "temp.feature.models.beforeLink": "Understøtter 75+ LLM-udbydere gennem",
   "temp.feature.models.afterLink": ", inklusive lokale modeller",
-  "temp.screenshot.caption": "hena-agent TUI med tokyonight-temaet",
-  "temp.screenshot.alt": "hena-agent TUI med tokyonight-temaet",
-  "temp.logoLightAlt": "hena-agent logo light",
-  "temp.logoDarkAlt": "hena-agent logo dark",
+  "temp.screenshot.caption": "hena TUI med tokyonight-temaet",
+  "temp.screenshot.alt": "hena TUI med tokyonight-temaet",
+  "temp.logoLightAlt": "hena logo light",
+  "temp.logoDarkAlt": "hena logo dark",
 
   "home.banner.badge": "Ny",
   "home.banner.text": "Introduktion af Tabs til Desktop.",
@@ -117,9 +117,9 @@ export const dict = {
 
   "home.install.ariaLabel": "Installationsmuligheder",
 
-  "home.what.title": "Hvad er Hena Agent?",
+  "home.what.title": "Hvad er Hena?",
   "home.what.body":
-    "Hena Agent er en open source agent, der hjælper dig med at skrive kode i din terminal, IDE eller desktop.",
+    "Hena er en open source agent, der hjælper dig med at skrive kode i din terminal, IDE eller desktop.",
   "home.what.lsp.title": "LSP aktiveret",
   "home.what.lsp.body": "Indlæser automatisk de rigtige LSP'er til LLM'en",
   "home.what.multiSession.title": "Multi-session",
@@ -138,51 +138,51 @@ export const dict = {
 
   "home.growth.title": "Den open source AI-kodningsagent",
   "home.growth.body":
-    "Med over <strong>{{stars}}</strong> GitHub-stjerner, <strong>{{contributors}}</strong> bidragsydere og over <strong>{{commits}}</strong> commits bruges Hena Agent af over <strong>{{monthlyUsers}}</strong> udviklere hver måned.",
+    "Med over <strong>{{stars}}</strong> GitHub-stjerner, <strong>{{contributors}}</strong> bidragsydere og over <strong>{{commits}}</strong> commits bruges Hena af over <strong>{{monthlyUsers}}</strong> udviklere hver måned.",
   "home.growth.githubStars": "GitHub-stjerner",
   "home.growth.contributors": "Bidragsydere",
   "home.growth.monthlyDevs": "Månedlige udviklere",
 
   "home.privacy.title": "Bygget med privatliv først",
   "home.privacy.body":
-    "Hena Agent gemmer ikke din kode eller kontekstdata, så den kan bruges i privatlivsfølsomme miljøer.",
+    "Hena gemmer ikke din kode eller kontekstdata, så den kan bruges i privatlivsfølsomme miljøer.",
   "home.privacy.learnMore": "Læs mere om",
   "home.privacy.link": "privatliv",
 
-  "home.faq.q1": "Hvad er Hena Agent?",
+  "home.faq.q1": "Hvad er Hena?",
   "home.faq.a1":
-    "Hena Agent er en open source agent, der hjælper dig med at skrive og køre kode med enhver AI-model. Den er tilgængelig som terminal-interface, desktop-app eller IDE-udvidelse.",
-  "home.faq.q2": "Hvordan bruger jeg Hena Agent?",
+    "Hena er en open source agent, der hjælper dig med at skrive og køre kode med enhver AI-model. Den er tilgængelig som terminal-interface, desktop-app eller IDE-udvidelse.",
+  "home.faq.q2": "Hvordan bruger jeg Hena?",
   "home.faq.a2.before": "Den nemmeste måde at komme i gang på er at læse",
   "home.faq.a2.link": "introen",
-  "home.faq.q3": "Skal jeg have ekstra AI-abonnementer for at bruge Hena Agent?",
+  "home.faq.q3": "Skal jeg have ekstra AI-abonnementer for at bruge Hena?",
   "home.faq.a3.p1":
-    "Ikke nødvendigvis. Hena Agent kommer med gratis modeller, som du kan bruge uden at oprette en konto.",
+    "Ikke nødvendigvis. Hena kommer med gratis modeller, som du kan bruge uden at oprette en konto.",
   "home.faq.a3.p2.beforeZen": "Derudover kan du bruge populære kodningsmodeller ved at oprette en",
   "home.faq.a3.p2.afterZen": " konto.",
   "home.faq.a3.p3":
-    "Vi opfordrer til at bruge Zen, men Hena Agent virker også med populære udbydere som OpenAI, Anthropic, xAI osv.",
+    "Vi opfordrer til at bruge Zen, men Hena virker også med populære udbydere som OpenAI, Anthropic, xAI osv.",
   "home.faq.a3.p4.beforeLocal": "Du kan endda forbinde dine",
   "home.faq.a3.p4.localLink": "lokale modeller",
-  "home.faq.q4": "Kan jeg bruge mine eksisterende AI-abonnementer med Hena Agent?",
+  "home.faq.q4": "Kan jeg bruge mine eksisterende AI-abonnementer med Hena?",
   "home.faq.a4.p1":
-    "Ja. Hena Agent understøtter abonnementer fra alle store udbydere. Du kan bruge Claude Pro/Max, ChatGPT Plus/Pro eller GitHub Copilot.",
-  "home.faq.q5": "Kan jeg kun bruge Hena Agent i terminalen?",
-  "home.faq.a5.beforeDesktop": "Ikke længere! Hena Agent er nu tilgængelig som en app til",
+    "Ja. Hena understøtter abonnementer fra alle store udbydere. Du kan bruge Claude Pro/Max, ChatGPT Plus/Pro eller GitHub Copilot.",
+  "home.faq.q5": "Kan jeg kun bruge Hena i terminalen?",
+  "home.faq.a5.beforeDesktop": "Ikke længere! Hena er nu tilgængelig som en app til",
   "home.faq.a5.desktop": "desktop",
   "home.faq.a5.and": "og",
   "home.faq.a5.web": "web",
-  "home.faq.q6": "Hvad koster Hena Agent?",
+  "home.faq.q6": "Hvad koster Hena?",
   "home.faq.a6":
-    "Hena Agent er 100% gratis at bruge. Det kommer også med et sæt gratis modeller. Der kan være ekstra omkostninger, hvis du forbinder en anden udbyder.",
+    "Hena er 100% gratis at bruge. Det kommer også med et sæt gratis modeller. Der kan være ekstra omkostninger, hvis du forbinder en anden udbyder.",
   "home.faq.q7": "Hvad med data og privatliv?",
   "home.faq.a7.p1": "Dine data gemmes kun, når du bruger vores gratis modeller eller opretter delbare links.",
   "home.faq.a7.p2.beforeModels": "Læs mere om",
   "home.faq.a7.p2.modelsLink": "vores modeller",
   "home.faq.a7.p2.and": "og",
   "home.faq.a7.p2.shareLink": "delingssider",
-  "home.faq.q8": "Er Hena Agent open source?",
-  "home.faq.a8.p1": "Ja, Hena Agent er fuldt open source. Kildekoden er offentlig på",
+  "home.faq.q8": "Er Hena open source?",
+  "home.faq.a8.p1": "Ja, Hena er fuldt open source. Kildekoden er offentlig på",
   "home.faq.a8.p2": "under",
   "home.faq.a8.mitLicense": "MIT-licensen",
   "home.faq.a8.p3":
@@ -190,23 +190,23 @@ export const dict = {
 
   "home.zenCta.title": "Få adgang til pålidelige, optimerede modeller til kodningsagenter",
   "home.zenCta.body":
-    "Zen giver dig adgang til et håndplukket sæt AI-modeller, som Hena Agent har testet og benchmarked specifikt til kodningsagenter. Du behøver ikke bekymre dig om svingende performance og kvalitet på tværs af udbydere: brug validerede modeller, der virker.",
+    "Zen giver dig adgang til et håndplukket sæt AI-modeller, som Hena har testet og benchmarked specifikt til kodningsagenter. Du behøver ikke bekymre dig om svingende performance og kvalitet på tværs af udbydere: brug validerede modeller, der virker.",
   "home.zenCta.link": "Læs om Zen",
 
   "zen.title": "Hena Zen | Et kurateret sæt af pålidelige, optimerede modeller til kodningsagenter",
   "zen.hero.title": "Pålidelige optimerede modeller til kodningsagenter",
   "zen.hero.body":
-    "Zen giver dig adgang til et kurateret sæt AI-modeller, som Hena Agent har testet og benchmarked specifikt til kodningsagenter. Du behøver ikke bekymre dig om svingende performance og kvalitet: brug validerede modeller, der virker.",
+    "Zen giver dig adgang til et kurateret sæt AI-modeller, som Hena har testet og benchmarked specifikt til kodningsagenter. Du behøver ikke bekymre dig om svingende performance og kvalitet: brug validerede modeller, der virker.",
 
   "zen.faq.q1": "Hvad er Hena Zen?",
   "zen.faq.a1":
-    "Zen er et kurateret sæt AI-modeller testet og benchmarked til kodningsagenter, skabt af teamet bag Hena Agent.",
+    "Zen er et kurateret sæt AI-modeller testet og benchmarked til kodningsagenter, skabt af teamet bag Hena.",
   "zen.faq.q2": "Hvad gør Zen mere præcis?",
   "zen.faq.a2":
     "Zen tilbyder kun modeller, der er testet og benchmarked specifikt til kodningsagenter. Du ville ikke bruge en smørkniv til at skære steak; brug ikke dårlige modeller til kodning.",
   "zen.faq.q3": "Er Zen billigere?",
   "zen.faq.a3":
-    "Zen er ikke for profit. Zen videregiver omkostningerne fra modeludbyderne til dig. Jo mere Zen bruges, desto mere kan Hena Agent forhandle bedre priser og give dem videre til dig.",
+    "Zen er ikke for profit. Zen videregiver omkostningerne fra modeludbyderne til dig. Jo mere Zen bruges, desto mere kan Hena forhandle bedre priser og give dem videre til dig.",
   "zen.faq.q4": "Hvad koster Zen?",
   "zen.faq.a4.p1.beforePricing": "Zen",
   "zen.faq.a4.p1.pricingLink": "opkræver per request",
@@ -214,7 +214,7 @@ export const dict = {
   "zen.faq.a4.p2.beforeAccount": "Din samlede pris afhænger af brug, og du kan sætte månedlige udgiftsgrænser i din",
   "zen.faq.a4.p2.accountLink": "konto",
   "zen.faq.a4.p3":
-    "For at dække omkostninger tilføjer Hena Agent kun et lille betalingsgebyr på $1.23 per $20 saldo-opfyldning.",
+    "For at dække omkostninger tilføjer Hena kun et lille betalingsgebyr på $1.23 per $20 saldo-opfyldning.",
   "zen.faq.q5": "Hvad med data og privatliv?",
   "zen.faq.a5.beforeExceptions":
     "Alle Zen-modeller hostes i USA. Udbydere følger en zero-retention-policy og bruger ikke dine data til modeltræning, med de",
@@ -225,7 +225,7 @@ export const dict = {
   "zen.faq.a7": "Ja, du kan deaktivere betaling når som helst og bruge din resterende saldo.",
   "zen.faq.q8": "Kan jeg bruge Zen med andre kodningsagenter?",
   "zen.faq.a8":
-    "Selvom Zen fungerer godt med Hena Agent, kan du bruge Zen med enhver agent. Følg opsætningsinstruktionerne i din foretrukne kodningsagent.",
+    "Selvom Zen fungerer godt med Hena, kan du bruge Zen med enhver agent. Følg opsætningsinstruktionerne i din foretrukne kodningsagent.",
 
   "zen.cta.start": "Kom godt i gang med Zen",
   "zen.pricing.title": "Tilføj $20 Pay as you go-saldo",
@@ -234,12 +234,12 @@ export const dict = {
   "zen.problem.title": "Hvilket problem løser Zen?",
   "zen.problem.body":
     "Der er så mange modeller tilgængelige, men kun få fungerer godt med kodningsagenter. De fleste udbydere konfigurerer dem anderledes med forskellige resultater.",
-  "zen.problem.subtitle": "Vi løser dette for alle, ikke kun Hena Agent-brugere.",
+  "zen.problem.subtitle": "Vi løser dette for alle, ikke kun Hena-brugere.",
   "zen.problem.item1": "Test af udvalgte modeller og høring af deres teams",
   "zen.problem.item2": "Samarbejde med udbydere for at sikre, at de bliver leveret korrekt",
   "zen.problem.item3": "Benchmarking af alle model-udbyder kombinationer, vi anbefaler",
   "zen.how.title": "Hvordan Zen virker",
-  "zen.how.body": "Selvom vi foreslår, at du bruger Zen med Hena Agent, kan du bruge Zen med enhver agent.",
+  "zen.how.body": "Selvom vi foreslår, at du bruger Zen med Hena, kan du bruge Zen med enhver agent.",
   "zen.how.step1.title": "Tilmeld dig og tilføj saldo på $20",
   "zen.how.step1.beforeLink": "følg",
   "zen.how.step1.link": "opsætningsinstruktioner",
@@ -277,7 +277,7 @@ export const dict = {
 
   "go.testimonials.brand.zen": "Zen",
   "go.testimonials.brand.go": "Go",
-  "go.testimonials.handle": "@Hena Agent",
+  "go.testimonials.handle": "@Hena",
   "go.testimonials.dax.name": "Dax Raad",
   "go.testimonials.dax.title": "ex-CEO, Terminal Products",
   "go.testimonials.dax.quoteAfter": "har været livsændrende, det er virkelig en no-brainer.",
@@ -298,7 +298,7 @@ export const dict = {
   "go.testimonials.frank.quote": "Jeg ville ønske, jeg stadig var hos Nvidia.",
   "go.problem.title": "Hvilket problem løser Go?",
   "go.problem.body":
-    "Vi fokuserer på at bringe Hena Agent-oplevelsen ud til så mange som muligt. Hena Go er et lavprisabonnement: $5 for den første måned, derefter $10/måned. Det giver generøse grænser og pålidelig adgang til de mest kapable open source-modeller.",
+    "Vi fokuserer på at bringe Hena-oplevelsen ud til så mange som muligt. Hena Go er et lavprisabonnement: $5 for den første måned, derefter $10/måned. Det giver generøse grænser og pålidelig adgang til de mest kapable open source-modeller.",
   "go.problem.subtitle": " ",
   "go.problem.item1": "Lavpris abonnementspriser",
   "go.problem.item2": "Generøse grænser og pålidelig adgang",
@@ -307,7 +307,7 @@ export const dict = {
     "Inkluderer Grok 4.5, GLM-5.2, GLM-5.1, Kimi K3, Kimi K2.7 Code, Kimi K2.6, MiMo-V2.5-Pro, MiMo-V2.5, Qwen3.7 Max, Qwen3.7 Plus, Qwen3.6 Plus, MiniMax M2.7, MiniMax M3, DeepSeek V4 Pro, DeepSeek V4 Flash og Hy3",
   "go.how.title": "Hvordan Go virker",
   "go.how.body":
-    "Go starter ved $5 for den første måned, derefter $10/måned. Du kan bruge det med Hena Agent eller enhver agent.",
+    "Go starter ved $5 for den første måned, derefter $10/måned. Du kan bruge det med Hena eller enhver agent.",
   "go.how.step1.title": "Opret en konto",
   "go.how.step1.beforeLink": "følg",
   "go.how.step1.link": "opsætningsinstruktionerne",
@@ -451,15 +451,15 @@ export const dict = {
     "Få adgang til modeller konfigureret til optimal ydeevne - ingen nedgraderinger eller routing til billigere udbydere.",
   "workspace.newUser.feature.lockin.title": "Ingen indlåsning",
   "workspace.newUser.feature.lockin.body":
-    "Brug Zen med en hvilken som helst kodningsagent, og fortsæt med at bruge andre udbydere med hena-agent, når du vil.",
+    "Brug Zen med en hvilken som helst kodningsagent, og fortsæt med at bruge andre udbydere med hena, når du vil.",
   "workspace.newUser.copyApiKey": "Kopiér API-nøgle",
   "workspace.newUser.copyKey": "Kopier nøgle",
   "workspace.newUser.copied": "Kopieret!",
   "workspace.newUser.step.enableBilling": "Aktiver fakturering",
   "workspace.newUser.step.login.before": "Kør",
-  "workspace.newUser.step.login.after": "og vælg hena-agent",
+  "workspace.newUser.step.login.after": "og vælg hena",
   "workspace.newUser.step.pasteKey": "Indsæt din API-nøgle",
-  "workspace.newUser.step.models.before": "Start hena-agent og kør",
+  "workspace.newUser.step.models.before": "Start hena og kør",
   "workspace.newUser.step.models.after": "for at vælge en model",
 
   "workspace.models.title": "Modeller",
@@ -505,10 +505,10 @@ export const dict = {
   "workspace.cost.subscriptionShort": "sub",
 
   "workspace.keys.title": "API-nøgler",
-  "workspace.keys.subtitle": "Administrer dine API-nøgler for at få adgang til hena-agent-tjenester.",
+  "workspace.keys.subtitle": "Administrer dine API-nøgler for at få adgang til hena-tjenester.",
   "workspace.keys.create": "Opret API-nøgle",
   "workspace.keys.placeholder": "Indtast nøglenavn",
-  "workspace.keys.empty": "Opret en hena-agent Gateway API-nøgle",
+  "workspace.keys.empty": "Opret en hena Gateway API-nøgle",
   "workspace.keys.table.name": "Navn",
   "workspace.keys.table.key": "Nøgle",
   "workspace.keys.table.createdBy": "Oprettet af",
@@ -657,7 +657,7 @@ export const dict = {
   "workspace.lite.subscription.resetsIn": "Nulstiller i",
   "workspace.lite.subscription.useBalance": "Brug din tilgængelige saldo, når du har nået forbrugsgrænserne",
   "workspace.lite.subscription.selectProvider":
-    'Vælg "Hena Go" som udbyder i din hena-agent-konfiguration for at bruge Go-modeller.',
+    'Vælg "Hena Go" som udbyder i din hena-konfiguration for at bruge Go-modeller.',
   "workspace.lite.providers.title": "Udbydere",
   "workspace.lite.providers.description": "Styr, hvilke udbydere der bruges til routing.",
   "workspace.lite.providers.useChina": "Aktivér modeller hostet i Kina",
@@ -709,15 +709,15 @@ export const dict = {
   "workspace.referral.apply.confirmBody": "Brug {{amount}} til at reducere dette workspaces nuværende forbrug.",
   "workspace.referral.apply.confirmAction": "Brug",
 
-  "download.title": "Hena Agent | Download",
-  "download.meta.description": "Download Hena Agent til macOS, Windows og Linux",
-  "download.hero.title": "Download Hena Agent Desktop",
+  "download.title": "Hena | Download",
+  "download.meta.description": "Download Hena til macOS, Windows og Linux",
+  "download.hero.title": "Download Hena Desktop",
   "download.hero.subtitle": "Tilgængelig i beta til macOS, Windows og Linux",
   "download.hero.button": "Download til {{os}}",
-  "download.section.terminal": "Hena Agent Terminal",
-  "download.section.desktop": "Hena Agent Desktop",
-  "download.section.extensions": "Hena Agent Extensions",
-  "download.section.integrations": "Hena Agent Integrations",
+  "download.section.terminal": "Hena Terminal",
+  "download.section.desktop": "Hena Desktop",
+  "download.section.extensions": "Hena Extensions",
+  "download.section.integrations": "Hena Integrations",
   "download.action.download": "Download",
   "download.action.install": "Installer",
 
@@ -728,25 +728,25 @@ export const dict = {
   "download.platform.linuxRpm": "Linux (.rpm)",
 
   "download.faq.a3.beforeLocal":
-    "Ikke nødvendigvis, men sandsynligvis. Du skal bruge et AI-abonnement hvis du vil forbinde Hena Agent til en betalt udbyder, men du kan arbejde med",
+    "Ikke nødvendigvis, men sandsynligvis. Du skal bruge et AI-abonnement hvis du vil forbinde Hena til en betalt udbyder, men du kan arbejde med",
   "download.faq.a3.localLink": "lokale modeller",
   "download.faq.a3.afterLocal.beforeZen": "gratis. Selvom vi opfordrer brugere til at bruge",
-  "download.faq.a3.afterZen": ", fungerer Hena Agent med alle populære udbydere som OpenAI, Anthropic, xAI osv.",
+  "download.faq.a3.afterZen": ", fungerer Hena med alle populære udbydere som OpenAI, Anthropic, xAI osv.",
 
-  "download.faq.a5.p1": "Hena Agent er 100% gratis at bruge.",
+  "download.faq.a5.p1": "Hena er 100% gratis at bruge.",
   "download.faq.a5.p2.beforeZen":
-    "Eventuelle ekstra omkostninger kommer fra dit abonnement hos en modeludbyder. Selvom Hena Agent fungerer med enhver modeludbyder, anbefaler vi at bruge",
+    "Eventuelle ekstra omkostninger kommer fra dit abonnement hos en modeludbyder. Selvom Hena fungerer med enhver modeludbyder, anbefaler vi at bruge",
   "download.faq.a5.p2.afterZen": ".",
 
-  "download.faq.a6.p1": "Dine data og oplysninger gemmes kun når du opretter delbare links i Hena Agent.",
+  "download.faq.a6.p1": "Dine data og oplysninger gemmes kun når du opretter delbare links i Hena.",
   "download.faq.a6.p2.beforeShare": "Læs mere om",
   "download.faq.a6.shareLink": "delingssider",
 
-  "enterprise.title": "Hena Agent | Enterprise-løsninger til din organisation",
-  "enterprise.meta.description": "Kontakt Hena Agent for enterprise-løsninger",
+  "enterprise.title": "Hena | Enterprise-løsninger til din organisation",
+  "enterprise.meta.description": "Kontakt Hena for enterprise-løsninger",
   "enterprise.hero.title": "Din kode er din egen",
   "enterprise.hero.body1":
-    "Hena Agent fungerer sikkert inde i din organisation uden at lagre data eller kontekst og uden licensbegrænsninger eller ejerskabskrav. Start en prøveperiode med dit team, og udrul det derefter i hele din organisation ved at integrere det med dit SSO og din interne AI-gateway.",
+    "Hena fungerer sikkert inde i din organisation uden at lagre data eller kontekst og uden licensbegrænsninger eller ejerskabskrav. Start en prøveperiode med dit team, og udrul det derefter i hele din organisation ved at integrere det med dit SSO og din interne AI-gateway.",
   "enterprise.hero.body2": "Fortæl os, hvordan vi kan hjælpe.",
   "enterprise.form.name.label": "Fulde navn",
   "enterprise.form.name.placeholder": "Jeff Bezos",
@@ -768,29 +768,29 @@ export const dict = {
   "enterprise.form.error.invalidEmailFormat": "Ugyldigt e-mailformat.",
   "enterprise.form.error.internalServer": "Intern serverfejl.",
   "enterprise.faq.title": "FAQ",
-  "enterprise.faq.q1": "Hvad er Hena Agent Enterprise?",
+  "enterprise.faq.q1": "Hvad er Hena Enterprise?",
   "enterprise.faq.a1":
-    "Hena Agent Enterprise er til organisationer, der vil sikre, at deres kode og data aldrig forlader deres infrastruktur. Det kan gøres med en central konfiguration, der integrerer med dit SSO og din interne AI-gateway.",
-  "enterprise.faq.q2": "Hvordan kommer jeg i gang med Hena Agent Enterprise?",
+    "Hena Enterprise er til organisationer, der vil sikre, at deres kode og data aldrig forlader deres infrastruktur. Det kan gøres med en central konfiguration, der integrerer med dit SSO og din interne AI-gateway.",
+  "enterprise.faq.q2": "Hvordan kommer jeg i gang med Hena Enterprise?",
   "enterprise.faq.a2":
-    "Start blot med en intern prøveperiode med dit team. Hena Agent gemmer som standard ikke din kode eller kontekstdata, hvilket gør det nemt at komme i gang. Kontakt os derefter for at tale om priser og implementeringsmuligheder.",
+    "Start blot med en intern prøveperiode med dit team. Hena gemmer som standard ikke din kode eller kontekstdata, hvilket gør det nemt at komme i gang. Kontakt os derefter for at tale om priser og implementeringsmuligheder.",
   "enterprise.faq.q3": "Hvordan fungerer enterprise-priser?",
   "enterprise.faq.a3":
     "Vi tilbyder enterprise-priser pr. bruger. Hvis du har din egen LLM-gateway, opkræver vi ikke for brugte tokens. Kontakt os for flere detaljer og et tilbud tilpasset din organisations behov.",
-  "enterprise.faq.q4": "Er mine data sikre med Hena Agent Enterprise?",
+  "enterprise.faq.q4": "Er mine data sikre med Hena Enterprise?",
   "enterprise.faq.a4":
-    "Ja. Hena Agent gemmer ikke din kode eller kontekstdata. Al behandling sker lokalt eller via direkte API-kald til din AI-udbyder. Med central konfiguration og SSO-integration forbliver dine data sikre inden for din organisations infrastruktur.",
+    "Ja. Hena gemmer ikke din kode eller kontekstdata. Al behandling sker lokalt eller via direkte API-kald til din AI-udbyder. Med central konfiguration og SSO-integration forbliver dine data sikre inden for din organisations infrastruktur.",
 
-  "brand.title": "Hena Agent | Brand",
-  "brand.meta.description": "Hena Agent brandretningslinjer",
+  "brand.title": "Hena | Brand",
+  "brand.meta.description": "Hena brandretningslinjer",
   "brand.heading": "Brandretningslinjer",
-  "brand.subtitle": "Ressourcer og assets, der hjælper dig med at arbejde med Hena Agent-brandet.",
+  "brand.subtitle": "Ressourcer og assets, der hjælper dig med at arbejde med Hena-brandet.",
   "brand.downloadAll": "Download alle assets",
 
-  "changelog.title": "Hena Agent | Changelog",
-  "changelog.meta.description": "Hena Agent versionsnoter og changelog",
+  "changelog.title": "Hena | Changelog",
+  "changelog.meta.description": "Hena versionsnoter og changelog",
   "changelog.hero.title": "Changelog",
-  "changelog.hero.subtitle": "Nye opdateringer og forbedringer til Hena Agent",
+  "changelog.hero.subtitle": "Nye opdateringer og forbedringer til Hena",
   "changelog.empty": "Ingen changelog-indlæg fundet.",
   "changelog.viewJson": "Se JSON",
 

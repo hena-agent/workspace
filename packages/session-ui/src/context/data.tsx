@@ -1,5 +1,5 @@
-import type { Message, Session, Part, SnapshotFileDiff, SessionStatus, Provider } from "@hena-agent/sdk/v2"
-import { createSimpleContext } from "@hena-agent/ui/context"
+import type { Message, Session, Part, SnapshotFileDiff, SessionStatus, Provider } from "@hena/sdk/v2"
+import { createSimpleContext } from "@hena/ui/context"
 import { PreloadMultiFileDiffResult } from "@pierre/diffs/ssr"
 
 export type NormalizedProviderListResponse = {

@@ -3,7 +3,7 @@ import { tmpdir as osTmpdir } from "os"
 import path from "path"
 
 export const tmpdir = async () => {
-  const dir = await fs.realpath(await fs.mkdtemp(path.join(osTmpdir(), "hena-agent-core-test-")))
+  const dir = await fs.realpath(await fs.mkdtemp(path.join(osTmpdir(), "hena-core-test-")))
   return {
     path: dir,
     async [Symbol.asyncDispose]() {

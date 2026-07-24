@@ -1,8 +1,8 @@
 import { For, Show, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Button } from "@hena-agent/ui/button"
-import { DockTray } from "@hena-agent/ui/dock-surface"
-import { IconButton } from "@hena-agent/ui/icon-button"
+import { Button } from "@hena/ui/button"
+import { DockTray } from "@hena/ui/dock-surface"
+import { IconButton } from "@hena/ui/icon-button"
 import { useLanguage } from "@/context/language"
 
 export function SessionFollowupDock(props: {

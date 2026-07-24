@@ -24,9 +24,9 @@ const words = [
 const serverKey = "http://127.0.0.1:4096"
 const sourceID = "ses_smoke_source"
 const targetID = "ses_smoke_target"
-const directory = "C:/Hena Agent/SmokeProject"
+const directory = "C:/Hena/SmokeProject"
 const projectID = "proj_smoke_timeline"
-const model = { providerID: "hena-agent", modelID: "claude-opus-4-6", variant: "max" }
+const model = { providerID: "hena", modelID: "claude-opus-4-6", variant: "max" }
 
 type MessageInfo = Record<string, unknown> & { id: string; role: "user" | "assistant" }
 type MessagePart = Record<string, unknown> & { id: string; type: string; text?: string; tool?: string }
@@ -253,13 +253,13 @@ export const fixture = {
   provider: {
     all: [
       {
-        id: "hena-agent",
-        name: "Hena Agent",
+        id: "hena",
+        name: "Hena",
         models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
       },
     ],
-    connected: ["hena-agent"],
-    default: { providerID: "hena-agent", modelID: "claude-opus-4-6" },
+    connected: ["hena"],
+    default: { providerID: "hena", modelID: "claude-opus-4-6" },
   },
   sessions: [
     {

@@ -3,13 +3,13 @@ title: Modelle
 description: Konfigurieren eines LLM-Anbieters und -Modells.
 ---
 
-Hena Agent verwendet [AI SDK](https://ai-sdk.dev/) und [Models.dev](https://models.dev) zur Unterstützung von **75+ LLM-Anbietern** und unterstützt die Ausführung lokaler Modelle.
+Hena verwendet [AI SDK](https://ai-sdk.dev/) und [Models.dev](https://models.dev) zur Unterstützung von **75+ LLM-Anbietern** und unterstützt die Ausführung lokaler Modelle.
 
 ---
 
 ## Anbieter
 
-Die meisten gängigen Anbieter sind standardmäßig vorinstalliert. Wenn Sie die Anmeldeinformationen für einen Anbieter über den Befehl `/connect` hinzugefügt haben, sind diese verfügbar, wenn Sie Hena Agent starten.
+Die meisten gängigen Anbieter sind standardmäßig vorinstalliert. Wenn Sie die Anmeldeinformationen für einen Anbieter über den Befehl `/connect` hinzugefügt haben, sind diese verfügbar, wenn Sie Hena starten.
 
 Erfahren Sie mehr über [providers](/docs/providers).
 
@@ -35,7 +35,7 @@ Erwägen Sie die Verwendung eines der von uns empfohlenen Modelle.
 
 Allerdings gibt es nur wenige von ihnen, die sowohl gut darin sind, Code zu generieren als auch Tools aufzurufen.
 
-Hier sind mehrere Modelle, die gut mit Hena Agent funktionieren, in keiner bestimmten Reihenfolge. (Dies ist weder eine vollständige noch eine unbedingt aktuelle Liste):
+Hier sind mehrere Modelle, die gut mit Hena funktionieren, in keiner bestimmten Reihenfolge. (Dies ist weder eine vollständige noch eine unbedingt aktuelle Liste):
 
 - GPT 5.2
 - GPT 5.1 Kodex
@@ -49,16 +49,16 @@ Hier sind mehrere Modelle, die gut mit Hena Agent funktionieren, in keiner besti
 ## Standard festlegen
 
 Um eines davon als Standardmodell festzulegen, können Sie den Schlüssel `model` in Ihrem festlegen
-Hena Agent config.
+Hena config.
 
-```json title="hena-agent.json" {3}
+```json title="hena.json" {3}
 {
   "$schema": "https://hena.dev/config.json",
   "model": "lmstudio/google/gemma-3n-e4b"
 }
 ```
 
-Hier ist der vollständige ID `provider_id/model_id`. Wenn Sie beispielsweise [Hena Zen](/docs/zen) verwenden, würden Sie `hena-agent/gpt-5.1-codex` für GPT 5.1 Codex verwenden.
+Hier ist der vollständige ID `provider_id/model_id`. Wenn Sie beispielsweise [Hena Zen](/docs/zen) verwenden, würden Sie `hena/gpt-5.1-codex` für GPT 5.1 Codex verwenden.
 
 Wenn Sie einen [custom provider](/docs/providers#custom) konfiguriert haben, ist `provider_id` der Schlüssel aus dem `provider`-Teil Ihrer Konfiguration und `model_id` der Schlüssel aus `provider.models`.
 
@@ -68,7 +68,7 @@ Wenn Sie einen [custom provider](/docs/providers#custom) konfiguriert haben, ist
 
 Sie können die Optionen eines Modells global über die Konfiguration konfigurieren.
 
-```jsonc title="hena-agent.jsonc" {7-12,19-24}
+```jsonc title="hena.jsonc" {7-12,19-24}
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -107,11 +107,11 @@ Sie können diese Optionen auch für alle von Ihnen verwendeten Agenten konfigur
 
 Sie können auch benutzerdefinierte Varianten definieren, die integrierte Varianten erweitern. Mit Varianten können Sie unterschiedliche Einstellungen für dasselbe Modell konfigurieren, ohne doppelte Einträge zu erstellen:
 
-```jsonc title="hena-agent.jsonc" {6-21}
+```jsonc title="hena.jsonc" {6-21}
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
-    "hena-agent": {
+    "hena": {
       "models": {
         "gpt-5": {
           "variants": {
@@ -137,11 +137,11 @@ Sie können auch benutzerdefinierte Varianten definieren, die integrierte Varian
 
 ## Varianten
 
-Viele Modelle unterstützen mehrere Varianten mit unterschiedlichen Konfigurationen. Hena Agent wird mit integrierten Standardvarianten für beliebte Anbieter ausgeliefert.
+Viele Modelle unterstützen mehrere Varianten mit unterschiedlichen Konfigurationen. Hena wird mit integrierten Standardvarianten für beliebte Anbieter ausgeliefert.
 
 ### Integrierte Varianten
 
-Hena Agent wird für viele Anbieter mit Standardvarianten ausgeliefert:
+Hena wird für viele Anbieter mit Standardvarianten ausgeliefert:
 
 **Anthropic**:
 
@@ -172,7 +172,7 @@ Diese Liste ist nicht vollständig. Viele andere Anbieter verfügen ebenfalls ü
 
 Sie können vorhandene Varianten überschreiben oder eigene hinzufügen:
 
-```jsonc title="hena-agent.jsonc" {7-18}
+```jsonc title="hena.jsonc" {7-18}
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -203,13 +203,13 @@ Verwenden Sie die Tastenkombination `variant_cycle`, um schnell zwischen Variant
 
 ## Laden von Modellen
 
-Wenn Hena Agent startet, sucht es nach Modellen in der folgenden Prioritätsreihenfolge:
+Wenn Hena startet, sucht es nach Modellen in der folgenden Prioritätsreihenfolge:
 
 1. Das Befehlszeilenflag `--model` oder `-m`. Das Format ist das gleiche wie in der Konfigurationsdatei: `provider_id/model_id`.
 
-2. Die Modellliste in der Hena Agent-Konfiguration.
+2. Die Modellliste in der Hena-Konfiguration.
 
-   ```json title="hena-agent.json"
+   ```json title="hena.json"
    {
      "$schema": "https://hena.dev/config.json",
      "model": "anthropic/claude-sonnet-4-20250514"

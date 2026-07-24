@@ -1,9 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { LayerNode } from "@hena-agent/core/effect/layer-node"
-import { PtyID } from "@hena-agent/core/pty/schema"
-import { PtyTicket } from "@hena-agent/core/pty/ticket"
-import { WorkspaceV2 } from "@hena-agent/core/workspace"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { PtyID } from "@hena/core/pty/schema"
+import { PtyTicket } from "@hena/core/pty/ticket"
+import { WorkspaceV2 } from "@hena/core/workspace"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(LayerNode.compile(PtyTicket.node))

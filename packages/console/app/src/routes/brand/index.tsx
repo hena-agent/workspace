@@ -5,31 +5,31 @@ import { Footer } from "~/component/footer"
 import { Legal } from "~/component/legal"
 import { useI18n } from "~/context/i18n"
 import { LocaleLinks } from "~/component/locale-links"
-import previewLogoLight from "../../asset/brand/preview-hena-agent-logo-light.png"
-import previewLogoDark from "../../asset/brand/preview-hena-agent-logo-dark.png"
-import previewLogoLightSquare from "../../asset/brand/preview-hena-agent-logo-light-square.png"
-import previewLogoDarkSquare from "../../asset/brand/preview-hena-agent-logo-dark-square.png"
-import previewWordmarkLight from "../../asset/brand/preview-hena-agent-wordmark-light.png"
-import previewWordmarkDark from "../../asset/brand/preview-hena-agent-wordmark-dark.png"
-import previewWordmarkSimpleLight from "../../asset/brand/preview-hena-agent-wordmark-simple-light.png"
-import previewWordmarkSimpleDark from "../../asset/brand/preview-hena-agent-wordmark-simple-dark.png"
-import logoLightPng from "../../asset/brand/hena-agent-logo-light.png"
-import logoDarkPng from "../../asset/brand/hena-agent-logo-dark.png"
-import logoLightSquarePng from "../../asset/brand/hena-agent-logo-light-square.png"
-import logoDarkSquarePng from "../../asset/brand/hena-agent-logo-dark-square.png"
-import wordmarkLightPng from "../../asset/brand/hena-agent-wordmark-light.png"
-import wordmarkDarkPng from "../../asset/brand/hena-agent-wordmark-dark.png"
-import wordmarkSimpleLightPng from "../../asset/brand/hena-agent-wordmark-simple-light.png"
-import wordmarkSimpleDarkPng from "../../asset/brand/hena-agent-wordmark-simple-dark.png"
-import logoLightSvg from "../../asset/brand/hena-agent-logo-light.svg"
-import logoDarkSvg from "../../asset/brand/hena-agent-logo-dark.svg"
-import logoLightSquareSvg from "../../asset/brand/hena-agent-logo-light-square.svg"
-import logoDarkSquareSvg from "../../asset/brand/hena-agent-logo-dark-square.svg"
-import wordmarkLightSvg from "../../asset/brand/hena-agent-wordmark-light.svg"
-import wordmarkDarkSvg from "../../asset/brand/hena-agent-wordmark-dark.svg"
-import wordmarkSimpleLightSvg from "../../asset/brand/hena-agent-wordmark-simple-light.svg"
-import wordmarkSimpleDarkSvg from "../../asset/brand/hena-agent-wordmark-simple-dark.svg"
-const brandAssets = "/hena-agent-brand-assets.zip"
+import previewLogoLight from "../../asset/brand/preview-hena-logo-light.png"
+import previewLogoDark from "../../asset/brand/preview-hena-logo-dark.png"
+import previewLogoLightSquare from "../../asset/brand/preview-hena-logo-light-square.png"
+import previewLogoDarkSquare from "../../asset/brand/preview-hena-logo-dark-square.png"
+import previewWordmarkLight from "../../asset/brand/preview-hena-wordmark-light.png"
+import previewWordmarkDark from "../../asset/brand/preview-hena-wordmark-dark.png"
+import previewWordmarkSimpleLight from "../../asset/brand/preview-hena-wordmark-simple-light.png"
+import previewWordmarkSimpleDark from "../../asset/brand/preview-hena-wordmark-simple-dark.png"
+import logoLightPng from "../../asset/brand/hena-logo-light.png"
+import logoDarkPng from "../../asset/brand/hena-logo-dark.png"
+import logoLightSquarePng from "../../asset/brand/hena-logo-light-square.png"
+import logoDarkSquarePng from "../../asset/brand/hena-logo-dark-square.png"
+import wordmarkLightPng from "../../asset/brand/hena-wordmark-light.png"
+import wordmarkDarkPng from "../../asset/brand/hena-wordmark-dark.png"
+import wordmarkSimpleLightPng from "../../asset/brand/hena-wordmark-simple-light.png"
+import wordmarkSimpleDarkPng from "../../asset/brand/hena-wordmark-simple-dark.png"
+import logoLightSvg from "../../asset/brand/hena-logo-light.svg"
+import logoDarkSvg from "../../asset/brand/hena-logo-dark.svg"
+import logoLightSquareSvg from "../../asset/brand/hena-logo-light-square.svg"
+import logoDarkSquareSvg from "../../asset/brand/hena-logo-dark-square.svg"
+import wordmarkLightSvg from "../../asset/brand/hena-wordmark-light.svg"
+import wordmarkDarkSvg from "../../asset/brand/hena-wordmark-dark.svg"
+import wordmarkSimpleLightSvg from "../../asset/brand/hena-wordmark-simple-light.svg"
+import wordmarkSimpleDarkSvg from "../../asset/brand/hena-wordmark-simple-dark.svg"
+const brandAssets = "/hena-brand-assets.zip"
 
 export default function Brand() {
   const i18n = useI18n()
@@ -74,7 +74,7 @@ export default function Brand() {
             <p>{i18n.t("brand.subtitle")}</p>
             <button
               data-component="download-button"
-              onClick={() => downloadFile(brandAssets, "hena-agent-brand-assets.zip")}
+              onClick={() => downloadFile(brandAssets, "hena-brand-assets.zip")}
             >
               {i18n.t("brand.downloadAll")}
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -91,7 +91,7 @@ export default function Brand() {
               <div>
                 <img src={previewLogoLight} alt={alt} />
                 <div data-component="actions">
-                  <button onClick={() => downloadFile(logoLightPng, "hena-agent-logo-light.png")}>
+                  <button onClick={() => downloadFile(logoLightPng, "hena-logo-light.png")}>
                     PNG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -102,7 +102,7 @@ export default function Brand() {
                       />
                     </svg>
                   </button>
-                  <button onClick={() => downloadFile(logoLightSvg, "hena-agent-logo-light.svg")}>
+                  <button onClick={() => downloadFile(logoLightSvg, "hena-logo-light.svg")}>
                     SVG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -118,7 +118,7 @@ export default function Brand() {
               <div>
                 <img src={previewLogoDark} alt={alt} />
                 <div data-component="actions">
-                  <button onClick={() => downloadFile(logoDarkPng, "hena-agent-logo-dark.png")}>
+                  <button onClick={() => downloadFile(logoDarkPng, "hena-logo-dark.png")}>
                     PNG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -129,7 +129,7 @@ export default function Brand() {
                       />
                     </svg>
                   </button>
-                  <button onClick={() => downloadFile(logoDarkSvg, "hena-agent-logo-dark.svg")}>
+                  <button onClick={() => downloadFile(logoDarkSvg, "hena-logo-dark.svg")}>
                     SVG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -145,7 +145,7 @@ export default function Brand() {
               <div>
                 <img src={previewLogoLightSquare} alt={alt} />
                 <div data-component="actions">
-                  <button onClick={() => downloadFile(logoLightSquarePng, "hena-agent-logo-light-square.png")}>
+                  <button onClick={() => downloadFile(logoLightSquarePng, "hena-logo-light-square.png")}>
                     PNG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -156,7 +156,7 @@ export default function Brand() {
                       />
                     </svg>
                   </button>
-                  <button onClick={() => downloadFile(logoLightSquareSvg, "hena-agent-logo-light-square.svg")}>
+                  <button onClick={() => downloadFile(logoLightSquareSvg, "hena-logo-light-square.svg")}>
                     SVG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -172,7 +172,7 @@ export default function Brand() {
               <div>
                 <img src={previewLogoDarkSquare} alt={alt} />
                 <div data-component="actions">
-                  <button onClick={() => downloadFile(logoDarkSquarePng, "hena-agent-logo-dark-square.png")}>
+                  <button onClick={() => downloadFile(logoDarkSquarePng, "hena-logo-dark-square.png")}>
                     PNG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -183,7 +183,7 @@ export default function Brand() {
                       />
                     </svg>
                   </button>
-                  <button onClick={() => downloadFile(logoDarkSquareSvg, "hena-agent-logo-dark-square.svg")}>
+                  <button onClick={() => downloadFile(logoDarkSquareSvg, "hena-logo-dark-square.svg")}>
                     SVG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -199,7 +199,7 @@ export default function Brand() {
               <div>
                 <img src={previewWordmarkLight} alt={alt} />
                 <div data-component="actions">
-                  <button onClick={() => downloadFile(wordmarkLightPng, "hena-agent-wordmark-light.png")}>
+                  <button onClick={() => downloadFile(wordmarkLightPng, "hena-wordmark-light.png")}>
                     PNG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -210,7 +210,7 @@ export default function Brand() {
                       />
                     </svg>
                   </button>
-                  <button onClick={() => downloadFile(wordmarkLightSvg, "hena-agent-wordmark-light.svg")}>
+                  <button onClick={() => downloadFile(wordmarkLightSvg, "hena-wordmark-light.svg")}>
                     SVG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -226,7 +226,7 @@ export default function Brand() {
               <div>
                 <img src={previewWordmarkDark} alt={alt} />
                 <div data-component="actions">
-                  <button onClick={() => downloadFile(wordmarkDarkPng, "hena-agent-wordmark-dark.png")}>
+                  <button onClick={() => downloadFile(wordmarkDarkPng, "hena-wordmark-dark.png")}>
                     PNG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -237,7 +237,7 @@ export default function Brand() {
                       />
                     </svg>
                   </button>
-                  <button onClick={() => downloadFile(wordmarkDarkSvg, "hena-agent-wordmark-dark.svg")}>
+                  <button onClick={() => downloadFile(wordmarkDarkSvg, "hena-wordmark-dark.svg")}>
                     SVG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -253,7 +253,7 @@ export default function Brand() {
               <div>
                 <img src={previewWordmarkSimpleLight} alt={alt} />
                 <div data-component="actions">
-                  <button onClick={() => downloadFile(wordmarkSimpleLightPng, "hena-agent-wordmark-simple-light.png")}>
+                  <button onClick={() => downloadFile(wordmarkSimpleLightPng, "hena-wordmark-simple-light.png")}>
                     PNG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -264,7 +264,7 @@ export default function Brand() {
                       />
                     </svg>
                   </button>
-                  <button onClick={() => downloadFile(wordmarkSimpleLightSvg, "hena-agent-wordmark-simple-light.svg")}>
+                  <button onClick={() => downloadFile(wordmarkSimpleLightSvg, "hena-wordmark-simple-light.svg")}>
                     SVG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -280,7 +280,7 @@ export default function Brand() {
               <div>
                 <img src={previewWordmarkSimpleDark} alt={alt} />
                 <div data-component="actions">
-                  <button onClick={() => downloadFile(wordmarkSimpleDarkPng, "hena-agent-wordmark-simple-dark.png")}>
+                  <button onClick={() => downloadFile(wordmarkSimpleDarkPng, "hena-wordmark-simple-dark.png")}>
                     PNG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path
@@ -291,7 +291,7 @@ export default function Brand() {
                       />
                     </svg>
                   </button>
-                  <button onClick={() => downloadFile(wordmarkSimpleDarkSvg, "hena-agent-wordmark-simple-dark.svg")}>
+                  <button onClick={() => downloadFile(wordmarkSimpleDarkSvg, "hena-wordmark-simple-dark.svg")}>
                     SVG
                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path

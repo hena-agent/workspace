@@ -1,6 +1,6 @@
 import { useFile } from "@/context/file"
-import { FileIcon } from "@hena-agent/ui/file-icon"
-import "@hena-agent/ui/v2/file-tree-v2.css"
+import { FileIcon } from "@hena/ui/file-icon"
+import "@hena/ui/v2/file-tree-v2.css"
 import {
   createEffect,
   createMemo,
@@ -12,8 +12,8 @@ import {
   type ParentProps,
 } from "solid-js"
 import { Dynamic } from "solid-js/web"
-import type { FileNode } from "@hena-agent/sdk/v2"
-import { Icon } from "@hena-agent/ui/v2/icon"
+import type { FileNode } from "@hena/sdk/v2"
+import { Icon } from "@hena/ui/v2/icon"
 import { pathToFileUrl, withFileDragImage, type Kind } from "@/components/file-tree"
 import { createVirtualizer, defaultRangeExtractor } from "@tanstack/solid-virtual"
 import {

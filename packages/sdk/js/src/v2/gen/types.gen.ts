@@ -1644,7 +1644,7 @@ export type GlobalEvent = {
 export type LogLevel = "DEBUG" | "INFO" | "WARN" | "ERROR"
 
 /**
- * Server configuration for hena-agent serve and web commands
+ * Server configuration for hena serve and web commands
  */
 export type ServerConfig = {
   port?: number

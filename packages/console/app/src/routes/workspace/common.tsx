@@ -1,11 +1,11 @@
-import { Resource } from "@hena-agent/console-resource"
-import { Actor } from "@hena-agent/console-core/actor.js"
+import { Resource } from "@hena/console-resource"
+import { Actor } from "@hena/console-core/actor.js"
 import { action, json, query } from "@solidjs/router"
 import { withActor } from "~/context/auth.withActor"
-import { Billing } from "@hena-agent/console-core/billing.js"
-import { and, Database, desc, eq, isNull } from "@hena-agent/console-core/drizzle/index.js"
-import { WorkspaceTable } from "@hena-agent/console-core/schema/workspace.sql.js"
-import { UserTable } from "@hena-agent/console-core/schema/user.sql.js"
+import { Billing } from "@hena/console-core/billing.js"
+import { and, Database, desc, eq, isNull } from "@hena/console-core/drizzle/index.js"
+import { WorkspaceTable } from "@hena/console-core/schema/workspace.sql.js"
+import { UserTable } from "@hena/console-core/schema/user.sql.js"
 
 export function formatDateForTable(date: Date) {
   const options: Intl.DateTimeFormatOptions = {

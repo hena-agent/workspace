@@ -1,8 +1,8 @@
-import { SessionV2 } from "@hena-agent/core/session"
+import { SessionV2 } from "@hena/core/session"
 import { DateTime, Effect, Stream } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
 import { Api } from "../api"
-import { SessionsCursor } from "@hena-agent/protocol/groups/session"
+import { SessionsCursor } from "@hena/protocol/groups/session"
 import {
   ConflictError,
   InvalidCursorError,
@@ -10,8 +10,8 @@ import {
   ServiceUnavailableError,
   SessionNotFoundError,
   UnknownError,
-} from "@hena-agent/protocol/errors"
-import { AbsolutePath } from "@hena-agent/core/schema"
+} from "@hena/protocol/errors"
+import { AbsolutePath } from "@hena/core/schema"
 
 const DefaultSessionsLimit = 50
 const DefaultSessionHistoryLimit = 50

@@ -16,8 +16,8 @@ import type {
   SnapshotFileDiff,
   Todo,
   VcsInfo,
-} from "@hena-agent/sdk/v2/client"
-import { NormalizedProviderListResponse } from "@hena-agent/session-ui/context"
+} from "@hena/sdk/v2/client"
+import { NormalizedProviderListResponse } from "@hena/session-ui/context"
 import type { Accessor } from "solid-js"
 import type { SetStoreFunction, Store } from "solid-js/store"
 

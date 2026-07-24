@@ -1154,7 +1154,7 @@ class Event extends _HeyApiClient {
   }
 }
 
-export class HenaAgentClient extends _HeyApiClient {
+export class HenaClient extends _HeyApiClient {
   /**
    * Respond to a permission request
    */

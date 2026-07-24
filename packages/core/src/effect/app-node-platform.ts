@@ -1,5 +1,5 @@
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
-import { LLMClient, RequestExecutor } from "@hena-agent/llm/route"
+import { LLMClient, RequestExecutor } from "@hena/llm/route"
 import { FileSystem, Path } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
 import { HttpClient } from "effect/unstable/http"

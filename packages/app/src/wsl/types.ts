@@ -23,7 +23,7 @@ export type WslDistroProbe = {
   error: string | null
 }
 
-export type WslHenaAgentCheck = {
+export type WslHenaCheck = {
   distro: string
   resolvedPath: string | null
   version: string | null
@@ -54,14 +54,14 @@ export type WslJob =
   | { kind: "install-wsl"; startedAt: number }
   | { kind: "install-distro"; distro: string; startedAt: number }
   | { kind: "probe-addable"; distros: string[]; startedAt: number }
-  | { kind: "install-hena-agent"; distro: string; startedAt: number }
+  | { kind: "install-hena"; distro: string; startedAt: number }
 
 export type WslServersState = {
   runtime: WslRuntimeCheck | null
   installed: WslInstalledDistro[]
   online: WslOnlineDistro[]
   distroProbes: Record<string, WslDistroProbe>
-  henaAgentChecks: Record<string, WslHenaAgentCheck>
+  henaChecks: Record<string, WslHenaCheck>
   pendingRestart: boolean
   servers: WslServerItem[]
   job: WslJob | null
@@ -77,7 +77,7 @@ export type WslServersPlatform = {
   installWsl(): Promise<void>
   installDistro(name: string): Promise<void>
   probeAddable(distros: string[]): Promise<void>
-  installHenaAgent(name: string): Promise<void>
+  installHena(name: string): Promise<void>
   openTerminal(name: string): Promise<void>
   addServer(distro: string): Promise<WslServerConfig>
   removeServer(id: string): Promise<void>

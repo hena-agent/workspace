@@ -1,15 +1,15 @@
 ;(function () {
-  var key = "hena-agent-theme-id"
+  var key = "hena-theme-id"
   var themeId = localStorage.getItem(key) || "oc-2"
 
   if (themeId === "oc-1") {
     themeId = "oc-2"
     localStorage.setItem(key, themeId)
-    localStorage.removeItem("hena-agent-theme-css-light")
-    localStorage.removeItem("hena-agent-theme-css-dark")
+    localStorage.removeItem("hena-theme-css-light")
+    localStorage.removeItem("hena-theme-css-dark")
   }
 
-  var scheme = localStorage.getItem("hena-agent-color-scheme") || "system"
+  var scheme = localStorage.getItem("hena-color-scheme") || "system"
   var isDark = scheme === "dark" || (scheme === "system" && matchMedia("(prefers-color-scheme: dark)").matches)
   var mode = isDark ? "dark" : "light"
 
@@ -23,7 +23,7 @@
 
   if (themeId === "oc-2") return
 
-  var cssKey = "hena-agent-theme-css-" + mode
+  var cssKey = "hena-theme-css-" + mode
   var css = localStorage.getItem(cssKey)
   if (css) {
     var style = document.createElement("style")

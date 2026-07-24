@@ -1,18 +1,18 @@
 export * from "./client.js"
 export * from "./server.js"
 
-import { createHenaAgentClient } from "./client.js"
-import { createHenaAgentServer } from "./server.js"
+import { createHenaClient } from "./client.js"
+import { createHenaServer } from "./server.js"
 import type { ServerOptions } from "./server.js"
 
 export * as data from "./data.js"
 
-export async function createHenaAgent(options?: ServerOptions) {
-  const server = await createHenaAgentServer({
+export async function createHena(options?: ServerOptions) {
+  const server = await createHenaServer({
     ...options,
   })
 
-  const client = createHenaAgentClient({
+  const client = createHenaClient({
     baseUrl: server.url,
   })
 

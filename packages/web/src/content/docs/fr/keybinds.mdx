@@ -3,9 +3,9 @@ title: Raccourcis clavier
 description: Personnalisez vos raccourcis clavier.
 ---
 
-Hena Agent a une liste de raccourcis clavier que vous pouvez personnaliser via la configuration Hena Agent.
+Hena a une liste de raccourcis clavier que vous pouvez personnaliser via la configuration Hena.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "keybinds": {
@@ -109,7 +109,7 @@ Hena Agent a une liste de raccourcis clavier que vous pouvez personnaliser via l
 
 ## Touche Leader
 
-Hena Agent utilise une touche `leader` pour la plupart des raccourcis clavier. Cela évite les conflits dans votre terminal.
+Hena utilise une touche `leader` pour la plupart des raccourcis clavier. Cela évite les conflits dans votre terminal.
 
 Par défaut, `ctrl+x` est la touche leader et la plupart des actions nécessitent que vous appuyiez d'abord sur la touche leader, puis sur le raccourci. Par exemple, pour démarrer une nouvelle session, appuyez d'abord sur `ctrl+x`, puis sur `n`.
 
@@ -121,7 +121,7 @@ Vous n'avez pas besoin d'utiliser une touche leader pour vos raccourcis clavier,
 
 Vous pouvez désactiver un raccourci clavier en ajoutant la clé à votre configuration avec la valeur `none`.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "keybinds": {
@@ -134,7 +134,7 @@ Vous pouvez désactiver un raccourci clavier en ajoutant la clé à votre config
 
 ## Raccourcis de saisie desktop
 
-Le champ de saisie de l'application de bureau Hena Agent prend en charge les raccourcis courants de style Readline/Emacs pour l'édition de texte. Ceux-ci sont intégrés et actuellement non configurables via `hena-agent.json`.
+Le champ de saisie de l'application de bureau Hena prend en charge les raccourcis courants de style Readline/Emacs pour l'édition de texte. Ceux-ci sont intégrés et actuellement non configurables via `hena.json`.
 
 | Raccourci | Actions                                                   |
 | --------- | --------------------------------------------------------- |

@@ -1,5 +1,5 @@
 import { Meta, Title } from "@solidjs/meta"
-import { ProviderIcon } from "@hena-agent/ui/provider-icon"
+import { ProviderIcon } from "@hena/ui/provider-icon"
 import {
   getStatsLabData,
   getStatsHomeData,
@@ -8,7 +8,7 @@ import {
   type ModelUsagePoint,
   type StatsHomeData,
   type StatsLabData,
-} from "@hena-agent/stats-core/domain/home"
+} from "@hena/stats-core/domain/home"
 import { createAsync, query, useParams } from "@solidjs/router"
 import { createMemo, createSignal, createUniqueId, For, onMount, Show, type JSX } from "solid-js"
 import { getRequestEvent } from "solid-js/web"
@@ -121,7 +121,7 @@ export default function StatsLab() {
       <Meta name="description" content={labDescription()} />
       <LocaleLinks path={labPath()} />
       <Meta property="og:type" content="website" />
-      <Meta property="og:site_name" content="Hena Agent" />
+      <Meta property="og:site_name" content="Hena" />
       <Meta property="og:title" content={labTitle()} />
       <Meta property="og:description" content={labDescription()} />
       <Meta property="og:url" content={labUrl()} />

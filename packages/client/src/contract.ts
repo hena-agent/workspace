@@ -1,13 +1,13 @@
-import { makeDefaultApi } from "@hena-agent/protocol/api"
-import { InvalidRequestError, SessionNotFoundError } from "@hena-agent/protocol/errors"
+import { makeDefaultApi } from "@hena/protocol/api"
+import { InvalidRequestError, SessionNotFoundError } from "@hena/protocol/errors"
 import { HttpApiMiddleware } from "effect/unstable/httpapi"
 
 class LocationMiddleware extends HttpApiMiddleware.Service<LocationMiddleware>()(
-  "@hena-agent/client/LocationMiddleware",
+  "@hena/client/LocationMiddleware",
 ) {}
 
 class SessionLocationMiddleware extends HttpApiMiddleware.Service<SessionLocationMiddleware>()(
-  "@hena-agent/client/SessionLocationMiddleware",
+  "@hena/client/SessionLocationMiddleware",
   { error: [InvalidRequestError, SessionNotFoundError] },
 ) {}
 

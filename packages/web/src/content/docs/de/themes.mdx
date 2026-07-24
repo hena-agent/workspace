@@ -3,9 +3,9 @@ title: Themes
 description: Waehle ein eingebautes Theme oder erstelle eins.
 ---
 
-Mit Hena Agent kannst du ein eingebautes Theme waehlen, ein an dein Terminal angepasstes Theme nutzen oder ein eigenes Theme definieren.
+Mit Hena kannst du ein eingebautes Theme waehlen, ein an dein Terminal angepasstes Theme nutzen oder ein eigenes Theme definieren.
 
-Standardmaessig verwendet Hena Agent das `hena-agent`-Theme.
+Standardmaessig verwendet Hena das `hena`-Theme.
 
 ---
 
@@ -24,7 +24,7 @@ Ohne truecolor werden Farben weniger exakt dargestellt oder auf eine 256-Farben-
 
 ## Eingebaute Themes
 
-Hena Agent liefert mehrere eingebaute Themes mit.
+Hena liefert mehrere eingebaute Themes mit.
 
 | Name                   | Description                                                                  |
 | ---------------------- | ---------------------------------------------------------------------------- |
@@ -55,7 +55,7 @@ Im Gegensatz zu Themes mit festen Farben gilt beim _system_-Theme:
 
 Das System-Theme ist ideal fuer Nutzer, die:
 
-- Hena Agent optisch ans Terminal anpassen wollen
+- Hena optisch ans Terminal anpassen wollen
 - eigene Terminal-Farbschemata nutzen
 - ein konsistentes Erscheinungsbild in Terminal-Apps bevorzugen
 
@@ -65,7 +65,7 @@ Das System-Theme ist ideal fuer Nutzer, die:
 
 Du kannst ein Theme ueber `/theme` auswaehlen oder direkt in der [Konfiguration](/docs/config) setzen.
 
-```json title="hena-agent.json" {3}
+```json title="hena.json" {3}
 {
   "$schema": "https://hena.dev/config.json",
   "theme": "tokyonight"
@@ -76,7 +76,7 @@ Du kannst ein Theme ueber `/theme` auswaehlen oder direkt in der [Konfiguration]
 
 ## Eigene Themes
 
-Hena Agent unterstuetzt ein flexibles JSON-basiertes Theme-System.
+Hena unterstuetzt ein flexibles JSON-basiertes Theme-System.
 Damit lassen sich Themes einfach erstellen und anpassen.
 
 ---
@@ -86,9 +86,9 @@ Damit lassen sich Themes einfach erstellen und anpassen.
 Themes werden aus mehreren Verzeichnissen in folgender Reihenfolge geladen, wobei spaetere Verzeichnisse fruehere ueberschreiben:
 
 1. **Eingebaute Themes** - Diese sind im Binary eingebettet
-2. **Benutzer-Config-Verzeichnis** - Definiert in `~/.config/hena-agent/themes/*.json` oder `$XDG_CONFIG_HOME/hena-agent/themes/*.json`
-3. **Projekt-Root-Verzeichnis** - Definiert in `<project-root>/.hena-agent/themes/*.json`
-4. **Aktuelles Arbeitsverzeichnis** - Definiert in `./.hena-agent/themes/*.json`
+2. **Benutzer-Config-Verzeichnis** - Definiert in `~/.config/hena/themes/*.json` oder `$XDG_CONFIG_HOME/hena/themes/*.json`
+3. **Projekt-Root-Verzeichnis** - Definiert in `<project-root>/.hena/themes/*.json`
+4. **Aktuelles Arbeitsverzeichnis** - Definiert in `./.hena/themes/*.json`
 
 Wenn mehrere Verzeichnisse ein Theme mit demselben Namen enthalten, wird das Theme aus dem Verzeichnis mit der hoeheren Prioritaet verwendet.
 
@@ -101,15 +101,15 @@ Um ein eigenes Theme zu erstellen, lege eine JSON-Datei in einem der Theme-Verze
 Fuer benutzerweite Themes:
 
 ```bash no-frame
-mkdir -p ~/.config/hena-agent/themes
-vim ~/.config/hena-agent/themes/my-theme.json
+mkdir -p ~/.config/hena/themes
+vim ~/.config/hena/themes/my-theme.json
 ```
 
 Und fuer projektspezifische Themes:
 
 ```bash no-frame
-mkdir -p .hena-agent/themes
-vim .hena-agent/themes/my-theme.json
+mkdir -p .hena/themes
+vim .hena/themes/my-theme.json
 ```
 
 ---

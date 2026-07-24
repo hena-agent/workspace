@@ -1,8 +1,8 @@
 "use server"
 
-import { Database, and, eq, isNull, sql } from "@hena-agent/console-core/drizzle/index.js"
-import { AuthTable } from "@hena-agent/console-core/schema/auth.sql.js"
-import { UserTable } from "@hena-agent/console-core/schema/user.sql.js"
+import { Database, and, eq, isNull, sql } from "@hena/console-core/drizzle/index.js"
+import { AuthTable } from "@hena/console-core/schema/auth.sql.js"
+import { UserTable } from "@hena/console-core/schema/user.sql.js"
 import {
   BillingTable,
   PaymentTable,
@@ -10,15 +10,15 @@ import {
   BlackPlans,
   UsageTable,
   LiteTable,
-} from "@hena-agent/console-core/schema/billing.sql.js"
-import { WorkspaceTable } from "@hena-agent/console-core/schema/workspace.sql.js"
-import { KeyTable } from "@hena-agent/console-core/schema/key.sql.js"
-import { ModelTable } from "@hena-agent/console-core/schema/model.sql.js"
-import { BlackData } from "@hena-agent/console-core/black.js"
-import { LiteData } from "@hena-agent/console-core/lite.js"
-import { Subscription } from "@hena-agent/console-core/subscription.js"
-import { centsToMicroCents } from "@hena-agent/console-core/util/price.js"
-import { getWeekBounds } from "@hena-agent/console-core/util/date.js"
+} from "@hena/console-core/schema/billing.sql.js"
+import { WorkspaceTable } from "@hena/console-core/schema/workspace.sql.js"
+import { KeyTable } from "@hena/console-core/schema/key.sql.js"
+import { ModelTable } from "@hena/console-core/schema/model.sql.js"
+import { BlackData } from "@hena/console-core/black.js"
+import { LiteData } from "@hena/console-core/lite.js"
+import { Subscription } from "@hena/console-core/subscription.js"
+import { centsToMicroCents } from "@hena/console-core/util/price.js"
+import { getWeekBounds } from "@hena/console-core/util/date.js"
 
 export type LookupResult = {
   identifier: string

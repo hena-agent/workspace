@@ -1,19 +1,19 @@
 ---
 title: Server
-description: Interact with hena-agent server over HTTP.
+description: Interact with hena server over HTTP.
 ---
 
 import config from "../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-The `hena-agent serve` command runs a headless HTTP server that exposes an OpenAPI endpoint that an hena-agent client can use.
+The `hena serve` command runs a headless HTTP server that exposes an OpenAPI endpoint that an hena client can use.
 
 ---
 
 ### Usage
 
 ```bash
-hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
+hena serve [--port <number>] [--hostname <string>] [--cors <origin>]
 ```
 
 #### Options
@@ -23,41 +23,41 @@ hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
 | `--port`        | Port to listen on                   | `4096`           |
 | `--hostname`    | Hostname to listen on               | `127.0.0.1`      |
 | `--mdns`        | Enable mDNS discovery               | `false`          |
-| `--mdns-domain` | Custom domain name for mDNS service | `hena-agent.local` |
+| `--mdns-domain` | Custom domain name for mDNS service | `hena.local` |
 | `--cors`        | Additional browser origins to allow | `[]`             |
 
 `--cors` can be passed multiple times:
 
 ```bash
-hena-agent serve --cors http://localhost:5173 --cors https://app.example.com
+hena serve --cors http://localhost:5173 --cors https://app.example.com
 ```
 
 ---
 
 ### Authentication
 
-Set `HENA_AGENT_SERVER_PASSWORD` to protect the server with HTTP basic auth. The username defaults to `hena-agent`, or set `HENA_AGENT_SERVER_USERNAME` to override it. This applies to both `hena-agent serve` and `hena-agent web`.
+Set `HENA_SERVER_PASSWORD` to protect the server with HTTP basic auth. The username defaults to `hena`, or set `HENA_SERVER_USERNAME` to override it. This applies to both `hena serve` and `hena web`.
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve
+HENA_SERVER_PASSWORD=your-password hena serve
 ```
 
 ---
 
 ### How it works
 
-When you run `hena-agent` it starts a TUI and a server. Where the TUI is the
+When you run `hena` it starts a TUI and a server. Where the TUI is the
 client that talks to the server. The server exposes an OpenAPI 3.1 spec
 endpoint. This endpoint is also used to generate an [SDK](/docs/sdk).
 
 :::tip
-Use the hena-agent server to interact with hena-agent programmatically.
+Use the hena server to interact with hena programmatically.
 :::
 
-This architecture lets hena-agent support multiple clients and allows you to interact with hena-agent programmatically.
+This architecture lets hena support multiple clients and allows you to interact with hena programmatically.
 
-You can run `hena-agent serve` to start a standalone server. If you have the
-hena-agent TUI running, `hena-agent serve` will start a new server.
+You can run `hena serve` to start a standalone server. If you have the
+hena TUI running, `hena serve` will start a new server.
 
 ---
 
@@ -65,7 +65,7 @@ hena-agent TUI running, `hena-agent serve` will start a new server.
 
 When you start the TUI it randomly assigns a port and hostname. You can instead pass in the `--hostname` and `--port` [flags](/docs/cli). Then use this to connect to its server.
 
-The [`/tui`](#tui) endpoint can be used to drive the TUI through the server. For example, you can prefill or run a prompt. This setup is used by the Hena Agent [IDE](/docs/ide) plugins.
+The [`/tui`](#tui) endpoint can be used to drive the TUI through the server. For example, you can prefill or run a prompt. This setup is used by the Hena [IDE](/docs/ide) plugins.
 
 ---
 
@@ -83,7 +83,7 @@ For example, `http://localhost:4096/doc`. Use the spec to generate clients or in
 
 ## APIs
 
-The hena-agent server exposes the following APIs.
+The hena server exposes the following APIs.
 
 ---
 

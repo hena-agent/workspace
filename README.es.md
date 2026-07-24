@@ -3,14 +3,14 @@
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena Agent logo">
+      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena logo">
     </picture>
   </a>
 </p>
 <p align="center">El agente de programación con IA de código abierto.</p>
 <p align="center">
   <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
+  <a href="https://www.npmjs.com/package/hena"><img alt="npm" src="https://img.shields.io/npm/v/hena?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
 
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
+[![Hena Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -50,14 +50,14 @@
 curl -fsSL https://hena.dev/install | bash
 
 # Gestores de paquetes
-npm i -g hena-agent@latest        # o bun/pnpm/yarn
-scoop install hena-agent             # Windows
-choco install hena-agent             # Windows
-brew install hena-agent/tap/hena-agent # macOS y Linux (recomendado, siempre al día)
-brew install hena-agent              # macOS y Linux (fórmula oficial de brew, se actualiza menos)
-sudo pacman -S hena-agent            # Arch Linux (Stable)
-paru -S hena-agent-bin               # Arch Linux (Latest from AUR)
-mise use -g hena-agent               # cualquier sistema
+npm i -g hena@latest        # o bun/pnpm/yarn
+scoop install hena             # Windows
+choco install hena             # Windows
+brew install hena-agent/tap/hena # macOS y Linux (recomendado, siempre al día)
+brew install hena              # macOS y Linux (fórmula oficial de brew, se actualiza menos)
+sudo pacman -S hena            # Arch Linux (Stable)
+paru -S hena-bin               # Arch Linux (Latest from AUR)
+mise use -g hena               # cualquier sistema
 nix run github:hena-agent/hena           # o github:hena-agent/hena para la rama dev más reciente
 ```
 
@@ -66,40 +66,40 @@ nix run github:hena-agent/hena           # o github:hena-agent/hena para la rama
 
 ### App de escritorio (BETA)
 
-Hena Agent también está disponible como aplicación de escritorio. Descárgala directamente desde la [página de releases](https://github.com/hena-agent/hena/releases) o desde [hena.dev/download](https://hena.dev/download).
+Hena también está disponible como aplicación de escritorio. Descárgala directamente desde la [página de releases](https://github.com/hena-agent/hena/releases) o desde [hena.dev/download](https://hena.dev/download).
 
 | Plataforma            | Descarga                           |
 | --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `hena-agent-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `hena-agent-desktop-mac-x64.dmg`     |
-| Windows               | `hena-agent-desktop-windows-x64.exe` |
+| macOS (Apple Silicon) | `hena-desktop-mac-arm64.dmg`   |
+| macOS (Intel)         | `hena-desktop-mac-x64.dmg`     |
+| Windows               | `hena-desktop-windows-x64.exe` |
 | Linux                 | `.deb`, `.rpm`, o AppImage         |
 
 ```bash
 # macOS (Homebrew)
-brew install --cask hena-agent
+brew install --cask hena
 # Windows (Scoop)
-scoop bucket add extras; scoop install hena-agent
+scoop bucket add extras; scoop install hena
 ```
 
 #### Directorio de instalación
 
 El script de instalación respeta el siguiente orden de prioridad para la ruta de instalación:
 
-1. `$HENA_AGENT_INSTALL_DIR` - Directorio de instalación personalizado
+1. `$HENA_INSTALL_DIR` - Directorio de instalación personalizado
 2. `$XDG_BIN_DIR` - Ruta compatible con la especificación XDG Base Directory
 3. `$HOME/bin` - Directorio binario estándar del usuario (si existe o se puede crear)
-4. `$HOME/.hena-agent/bin` - Alternativa por defecto
+4. `$HOME/.hena/bin` - Alternativa por defecto
 
 ```bash
 # Ejemplos
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+HENA_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
 XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agentes
 
-Hena Agent incluye dos agentes integrados que puedes alternar con la tecla `Tab`.
+Hena incluye dos agentes integrados que puedes alternar con la tecla `Tab`.
 
 - **build** - Por defecto, agente con acceso completo para tareas de desarrollo
 - **plan** - Agente de solo lectura para análisis y exploración de código
@@ -114,15 +114,15 @@ Más información sobre [agentes](https://hena.dev/docs/agents).
 
 ### Documentación
 
-Para más información sobre cómo configurar Hena Agent, [**ve a nuestra documentación**](https://hena.dev/docs).
+Para más información sobre cómo configurar Hena, [**ve a nuestra documentación**](https://hena.dev/docs).
 
 ### Contribuir
 
-Si te interesa contribuir a Hena Agent, lee nuestras [docs de contribución](./CONTRIBUTING.md) antes de enviar un pull request.
+Si te interesa contribuir a Hena, lee nuestras [docs de contribución](./CONTRIBUTING.md) antes de enviar un pull request.
 
-### Proyectos basados en Hena Agent
+### Proyectos basados en Hena
 
-Si estás trabajando en un proyecto basado en Hena Agent y usas "hena-agent" como parte del nombre, por ejemplo, "hena-agent-dashboard" u "hena-agent-mobile", agrega una nota en tu README para aclarar que no está hecho por el equipo de Hena Agent y que no está afiliado con nosotros de ninguna manera.
+Si estás trabajando en un proyecto basado en Hena y usas "hena" como parte del nombre, por ejemplo, "hena-dashboard" u "hena-mobile", agrega una nota en tu README para aclarar que no está hecho por el equipo de Hena y que no está afiliado con nosotros de ninguna manera.
 
 ---
 

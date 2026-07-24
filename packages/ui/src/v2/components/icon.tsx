@@ -151,8 +151,8 @@ const icons = {
   },
 }
 
-const spriteID = "hena-agent-v2-icon-sprite"
-const symbol = (name: keyof typeof icons) => `hena-agent-v2-icon-${name}`
+const spriteID = "hena-v2-icon-sprite"
+const symbol = (name: keyof typeof icons) => `hena-v2-icon-${name}`
 let spriteInserted = false
 
 function ensureSprite() {

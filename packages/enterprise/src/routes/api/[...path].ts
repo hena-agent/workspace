@@ -18,9 +18,9 @@ app
     openAPIRouteHandler(app, {
       documentation: {
         info: {
-          title: "HenaAgent Enterprise API",
+          title: "Hena Enterprise API",
           version: "1.0.0",
-          description: "HenaAgent Enterprise API endpoints",
+          description: "Hena Enterprise API endpoints",
         },
         openapi: "3.1.1",
       },

@@ -1,14 +1,14 @@
 ---
 title: Windows (WSL)
-description: Esegui Hena Agent su Windows con WSL per la migliore esperienza.
+description: Esegui Hena su Windows con WSL per la migliore esperienza.
 ---
 
 import { Steps } from "@astrojs/starlight/components"
 
-Anche se Hena Agent puo essere eseguito direttamente su Windows, consigliamo di usare [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) per la migliore esperienza. WSL fornisce un ambiente Linux che funziona in modo ottimale con le funzionalita di Hena Agent.
+Anche se Hena puo essere eseguito direttamente su Windows, consigliamo di usare [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) per la migliore esperienza. WSL fornisce un ambiente Linux che funziona in modo ottimale con le funzionalita di Hena.
 
 :::tip[Perche WSL?]
-WSL offre prestazioni migliori del file system, supporto completo del terminale e compatibilita con gli strumenti di sviluppo su cui Hena Agent fa affidamento.
+WSL offre prestazioni migliori del file system, supporto completo del terminale e compatibilita con gli strumenti di sviluppo su cui Hena fa affidamento.
 :::
 
 ---
@@ -21,21 +21,21 @@ WSL offre prestazioni migliori del file system, supporto completo del terminale 
 
    Se non l'hai ancora fatto, [installa WSL](https://learn.microsoft.com/en-us/windows/wsl/install) seguendo la guida ufficiale Microsoft.
 
-2. **Installa Hena Agent in WSL**
+2. **Installa Hena in WSL**
 
-   Dopo aver configurato WSL, apri il terminale WSL e installa Hena Agent usando uno dei [metodi di installazione](/docs/).
+   Dopo aver configurato WSL, apri il terminale WSL e installa Hena usando uno dei [metodi di installazione](/docs/).
 
    ```bash
    curl -fsSL https://hena.dev/install | bash
    ```
 
-3. **Usa Hena Agent da WSL**
+3. **Usa Hena da WSL**
 
-   Vai nella directory del progetto (accedi ai file Windows tramite `/mnt/c/`, `/mnt/d/`, ecc.) ed esegui Hena Agent.
+   Vai nella directory del progetto (accedi ai file Windows tramite `/mnt/c/`, `/mnt/d/`, ecc.) ed esegui Hena.
 
    ```bash
    cd /mnt/c/Users/YourName/project
-   hena-agent
+   hena
    ```
 
 </Steps>
@@ -44,12 +44,12 @@ WSL offre prestazioni migliori del file system, supporto completo del terminale 
 
 ## App desktop + server WSL
 
-Se preferisci usare l'app desktop di Hena Agent ma vuoi eseguire il server in WSL:
+Se preferisci usare l'app desktop di Hena ma vuoi eseguire il server in WSL:
 
 1. **Avvia il server in WSL** con `--hostname 0.0.0.0` per consentire connessioni esterne:
 
    ```bash
-   hena-agent serve --hostname 0.0.0.0 --port 4096
+   hena serve --hostname 0.0.0.0 --port 4096
    ```
 
 2. **Collega l'app desktop** a `http://localhost:4096`
@@ -59,10 +59,10 @@ Se `localhost` non funziona nella tua configurazione, usa l'indirizzo IP di WSL 
 :::
 
 :::caution
-Quando usi `--hostname 0.0.0.0`, imposta `HENA_AGENT_SERVER_PASSWORD` per proteggere il server.
+Quando usi `--hostname 0.0.0.0`, imposta `HENA_SERVER_PASSWORD` per proteggere il server.
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve --hostname 0.0.0.0
+HENA_SERVER_PASSWORD=your-password hena serve --hostname 0.0.0.0
 ```
 
 :::
@@ -73,15 +73,15 @@ HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve --hostname 0.0.0.0
 
 Per la migliore esperienza web su Windows:
 
-1. **Esegui `hena-agent web` nel terminale WSL** invece che in PowerShell:
+1. **Esegui `hena web` nel terminale WSL** invece che in PowerShell:
 
    ```bash
-   hena-agent web --hostname 0.0.0.0
+   hena web --hostname 0.0.0.0
    ```
 
-2. **Accedi dal browser Windows** su `http://localhost:<port>` (Hena Agent stampa l'URL)
+2. **Accedi dal browser Windows** su `http://localhost:<port>` (Hena stampa l'URL)
 
-Eseguire `hena-agent web` da WSL garantisce accesso corretto al file system e integrazione del terminale, restando comunque accessibile dal browser Windows.
+Eseguire `hena web` da WSL garantisce accesso corretto al file system e integrazione del terminale, restando comunque accessibile dal browser Windows.
 
 ---
 
@@ -97,17 +97,17 @@ Esempio:
 
 ```bash
 cd /mnt/c/Users/YourName/Documents/project
-hena-agent
+hena
 ```
 
 :::tip
-Per un'esperienza piu fluida, valuta di clonare o copiare il repository nel file system di WSL (per esempio in `~/code/`) ed eseguire Hena Agent li.
+Per un'esperienza piu fluida, valuta di clonare o copiare il repository nel file system di WSL (per esempio in `~/code/`) ed eseguire Hena li.
 :::
 
 ---
 
 ## Suggerimenti
 
-- Tieni Hena Agent in esecuzione su WSL per i progetti salvati su unita Windows: l'accesso ai file e immediato
-- Usa l'[estensione WSL di VS Code](https://code.visualstudio.com/docs/remote/wsl) insieme a Hena Agent per un flusso di lavoro integrato
-- Configurazione e sessioni di Hena Agent sono salvate nell'ambiente WSL in `~/.local/share/hena-agent/`
+- Tieni Hena in esecuzione su WSL per i progetti salvati su unita Windows: l'accesso ai file e immediato
+- Usa l'[estensione WSL di VS Code](https://code.visualstudio.com/docs/remote/wsl) insieme a Hena per un flusso di lavoro integrato
+- Configurazione e sessioni di Hena sono salvate nell'ambiente WSL in `~/.local/share/hena/`

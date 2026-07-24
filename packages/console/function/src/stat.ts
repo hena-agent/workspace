@@ -1,5 +1,5 @@
-import { and, Database, inArray } from "@hena-agent/console-core/drizzle/index.js"
-import { ModelTpsRateLimitTable } from "@hena-agent/console-core/schema/ip.sql.js"
+import { and, Database, inArray } from "@hena/console-core/drizzle/index.js"
+import { ModelTpsRateLimitTable } from "@hena/console-core/schema/ip.sql.js"
 
 type Result = Record<string, { interval: number; qualify: number; unqualify: number }[]>
 

@@ -1,30 +1,30 @@
 ---
 title: CLI
-description: Hena Agent CLI のオプションとコマンド。
+description: Hena CLI のオプションとコマンド。
 ---
 
 import { Tabs, TabItem } from "@astrojs/starlight/components"
 
-Hena Agent CLI は、引数なしで実行すると、デフォルトで [TUI](/docs/tui) を開始します。
+Hena CLI は、引数なしで実行すると、デフォルトで [TUI](/docs/tui) を開始します。
 
 ```bash
-hena-agent
+hena
 ```
 
-ただし、このページに記載されているようにコマンドも受け入れます。これにより、Hena Agent をプログラム的に操作できるようになります。
+ただし、このページに記載されているようにコマンドも受け入れます。これにより、Hena をプログラム的に操作できるようになります。
 
 ```bash
-hena-agent run "Explain how closures work in JavaScript"
+hena run "Explain how closures work in JavaScript"
 ```
 
 ---
 
 ### tui
 
-Hena Agent ターミナルユーザーインターフェイスを開始します。
+Hena ターミナルユーザーインターフェイスを開始します。
 
 ```bash
-hena-agent [project]
+hena [project]
 ```
 
 #### フラグ
@@ -44,36 +44,36 @@ hena-agent [project]
 
 ## コマンド
 
-Hena Agent CLI には次のコマンドもあります。
+Hena CLI には次のコマンドもあります。
 
 ---
 
 ### agent
 
-Hena Agent のエージェントを管理します。
+Hena のエージェントを管理します。
 
 ```bash
-hena-agent agent [command]
+hena agent [command]
 ```
 
 ---
 
 ### attach
 
-`serve` または `web` コマンドを使用して起動された、すでに実行中の Hena Agent バックエンドサーバーにターミナルを接続します。
+`serve` または `web` コマンドを使用して起動された、すでに実行中の Hena バックエンドサーバーにターミナルを接続します。
 
 ```bash
-hena-agent attach [url]
+hena attach [url]
 ```
 
-これにより、リモート Hena Agent バックエンドで TUI を使用できるようになります。例えば：
+これにより、リモート Hena バックエンドで TUI を使用できるようになります。例えば：
 
 ```bash
 # Start the backend server for web/mobile access
-hena-agent web --port 4096 --hostname 0.0.0.0
+hena web --port 4096 --hostname 0.0.0.0
 
 # In another terminal, attach the TUI to the running backend
-hena-agent attach http://10.20.30.40:4096
+hena attach http://10.20.30.40:4096
 ```
 
 #### フラグ
@@ -84,8 +84,8 @@ hena-agent attach http://10.20.30.40:4096
 | <nobr><code>{"--continue"}</code></nobr> | `-c`     | 最後のセッションを続行                                                            |
 | <nobr><code>{"--session"}</code></nobr>  | `-s`     | 続行するセッション ID                                                             |
 | <nobr><code>{"--fork"}</code></nobr>     |          | 続行時にセッションをフォーク（`--continue` または `--session` と使用）            |
-| <nobr><code>{"--password"}</code></nobr> | `-p`     | Basic 認証パスワード（デフォルトは `HENA_AGENT_SERVER_PASSWORD`）                   |
-| <nobr><code>{"--username"}</code></nobr> | `-u`     | Basic 認証ユーザー名（デフォルトは `HENA_AGENT_SERVER_USERNAME` または `hena-agent`） |
+| <nobr><code>{"--password"}</code></nobr> | `-p`     | Basic 認証パスワード（デフォルトは `HENA_SERVER_PASSWORD`）                   |
+| <nobr><code>{"--username"}</code></nobr> | `-u`     | Basic 認証ユーザー名（デフォルトは `HENA_SERVER_USERNAME` または `hena`） |
 
 ---
 
@@ -94,7 +94,7 @@ hena-agent attach http://10.20.30.40:4096
 カスタム構成で新しいエージェントを作成します。
 
 ```bash
-hena-agent agent create
+hena agent create
 ```
 
 このコマンドは、カスタムシステムプロンプトとツール構成を使用して新しいエージェントを作成する手順を示します。
@@ -106,7 +106,7 @@ hena-agent agent create
 利用可能なエージェントをすべてリストします。
 
 ```bash
-hena-agent agent list
+hena agent list
 ```
 
 ---
@@ -116,20 +116,20 @@ hena-agent agent list
 プロバイダーの資格情報とログインを管理するコマンド。
 
 ```bash
-hena-agent auth [command]
+hena auth [command]
 ```
 
 ---
 
 #### login
 
-Hena Agent は [Models.dev](https://models.dev) のプロバイダーリストを利用しているため、`hena-agent auth login` を使用して、使用したいプロバイダーの API キーを構成できます。これは `~/.local/share/hena-agent/auth.json` に保存されます。
+Hena は [Models.dev](https://models.dev) のプロバイダーリストを利用しているため、`hena auth login` を使用して、使用したいプロバイダーの API キーを構成できます。これは `~/.local/share/hena/auth.json` に保存されます。
 
 ```bash
-hena-agent auth login
+hena auth login
 ```
 
-Hena Agent が起動すると、認証情報ファイルからプロバイダーがロードされます。また、環境またはプロジェクト内の `.env` ファイルで定義されたキーがあるかどうかも確認します。
+Hena が起動すると、認証情報ファイルからプロバイダーがロードされます。また、環境またはプロジェクト内の `.env` ファイルで定義されたキーがあるかどうかも確認します。
 
 ---
 
@@ -138,13 +138,13 @@ Hena Agent が起動すると、認証情報ファイルからプロバイダー
 認証情報ファイルに保存されているすべての認証されたプロバイダーをリストします。
 
 ```bash
-hena-agent auth list
+hena auth list
 ```
 
 またはショートバージョン。
 
 ```bash
-hena-agent auth ls
+hena auth ls
 ```
 
 ---
@@ -154,7 +154,7 @@ hena-agent auth ls
 資格情報ファイルからプロバイダーをクリアすることで、プロバイダーからログアウトします。
 
 ```bash
-hena-agent auth logout
+hena auth logout
 ```
 
 ---
@@ -164,7 +164,7 @@ hena-agent auth logout
 リポジトリ自動化のための GitHub エージェントを管理します。
 
 ```bash
-hena-agent github [command]
+hena github [command]
 ```
 
 ---
@@ -174,7 +174,7 @@ hena-agent github [command]
 GitHub エージェントをリポジトリにインストールします。
 
 ```bash
-hena-agent github install
+hena github install
 ```
 
 これにより、必要な GitHub Actions ワークフローが設定され、構成プロセスがガイドされます。 [詳細はこちら](/docs/github)。
@@ -186,7 +186,7 @@ hena-agent github install
 GitHub エージェントを実行します。これは通常、GitHub Actions で使用されます。
 
 ```bash
-hena-agent github run
+hena github run
 ```
 
 ##### フラグ
@@ -203,7 +203,7 @@ hena-agent github run
 モデルコンテキストプロトコルサーバーを管理します。
 
 ```bash
-hena-agent mcp [command]
+hena mcp [command]
 ```
 
 ---
@@ -213,7 +213,7 @@ hena-agent mcp [command]
 MCP サーバーを構成に追加します。
 
 ```bash
-hena-agent mcp add
+hena mcp add
 ```
 
 このコマンドは、ローカルまたはリモートの MCP サーバーを追加する手順を示します。
@@ -225,13 +225,13 @@ hena-agent mcp add
 構成されているすべての MCP サーバーとその接続ステータスをリストします。
 
 ```bash
-hena-agent mcp list
+hena mcp list
 ```
 
 または、短いバージョンを使用してください。
 
 ```bash
-hena-agent mcp ls
+hena mcp ls
 ```
 
 ---
@@ -241,7 +241,7 @@ hena-agent mcp ls
 OAuth 対応の MCP サーバーで認証します。
 
 ```bash
-hena-agent mcp auth [name]
+hena mcp auth [name]
 ```
 
 サーバー名を指定しない場合は、利用可能な OAuth 対応サーバーから選択するように求められます。
@@ -249,13 +249,13 @@ hena-agent mcp auth [name]
 OAuth 対応サーバーとその認証ステータスを一覧表示することもできます。
 
 ```bash
-hena-agent mcp auth list
+hena mcp auth list
 ```
 
 または、短いバージョンを使用してください。
 
 ```bash
-hena-agent mcp auth ls
+hena mcp auth ls
 ```
 
 ---
@@ -265,7 +265,7 @@ hena-agent mcp auth ls
 MCP サーバーの OAuth 資格情報を削除します。
 
 ```bash
-hena-agent mcp logout [name]
+hena mcp logout [name]
 ```
 
 ---
@@ -275,7 +275,7 @@ hena-agent mcp logout [name]
 MCP サーバーの OAuth 接続の問題をデバッグします。
 
 ```bash
-hena-agent mcp debug <name>
+hena mcp debug <name>
 ```
 
 ---
@@ -285,7 +285,7 @@ hena-agent mcp debug <name>
 構成されたプロバイダーから利用可能なすべてのモデルをリストします。
 
 ```bash
-hena-agent models [provider]
+hena models [provider]
 ```
 
 このコマンドは、構成されたプロバイダー全体で利用可能なすべてのモデルを `provider/model` の形式で表示します。
@@ -295,7 +295,7 @@ hena-agent models [provider]
 オプションでプロバイダー ID を渡して、そのプロバイダーによってモデルをフィルターできます。
 
 ```bash
-hena-agent models anthropic
+hena models anthropic
 ```
 
 #### フラグ
@@ -305,36 +305,36 @@ hena-agent models anthropic
 | <nobr><code>{"--refresh"}</code></nobr> | models.dev からモデルキャッシュを更新します。                   |
 | <nobr><code>{"--verbose"}</code></nobr> | より詳細なモデル出力を使用します (コストなどのメタデータを含む) |
 
-`--refresh` フラグを使用して、キャッシュされたモデルリストを更新します。これは、新しいモデルがプロバイダーに追加され、それを Hena Agent で確認したい場合に便利です。
+`--refresh` フラグを使用して、キャッシュされたモデルリストを更新します。これは、新しいモデルがプロバイダーに追加され、それを Hena で確認したい場合に便利です。
 
 ```bash
-hena-agent models --refresh
+hena models --refresh
 ```
 
 ---
 
 ### run
 
-プロンプトを直接渡して、非対話モードで hena-agent を実行します。
+プロンプトを直接渡して、非対話モードで hena を実行します。
 
 ```bash
-hena-agent run [message..]
+hena run [message..]
 ```
 
 これは、スクリプト作成、自動化、または完全な TUI を起動せずに迅速な回答が必要な場合に便利です。例えば。
 
-```bash "hena-agent run"
-hena-agent run Explain the use of context in Go
+```bash "hena run"
+hena run Explain the use of context in Go
 ```
 
-実行中の `hena-agent serve` インスタンスにアタッチして、実行ごとの MCP サーバーのコールドブート時間を回避することもできます。
+実行中の `hena serve` インスタンスにアタッチして、実行ごとの MCP サーバーのコールドブート時間を回避することもできます。
 
 ```bash
 # Start a headless server in one terminal
-hena-agent serve
+hena serve
 
 # In another terminal, run commands that attach to it
-hena-agent run --attach http://localhost:4096 "Explain async/await in JavaScript"
+hena run --attach http://localhost:4096 "Explain async/await in JavaScript"
 ```
 
 #### フラグ
@@ -351,9 +351,9 @@ hena-agent run --attach http://localhost:4096 "Explain async/await in JavaScript
 | <nobr><code>{"--file"}</code></nobr>     | `-f`     | メッセージに添付するファイル                                                              |
 | <nobr><code>{"--format"}</code></nobr>   |          | 形式: デフォルト (フォーマット済み) または json (生の JSON イベント)                      |
 | <nobr><code>{"--title"}</code></nobr>    |          | セッションのタイトル (値が指定されていない場合は、切り詰められたプロンプトが使用されます) |
-| <nobr><code>{"--attach"}</code></nobr>   |          | 実行中の hena-agent サーバー (http://localhost:4096 など) に接続します。                    |
-| <nobr><code>{"--password"}</code></nobr> | `-p`     | Basic 認証パスワード（デフォルトは `HENA_AGENT_SERVER_PASSWORD`）                           |
-| <nobr><code>{"--username"}</code></nobr> | `-u`     | Basic 認証ユーザー名（デフォルトは `HENA_AGENT_SERVER_USERNAME` または `hena-agent`）         |
+| <nobr><code>{"--attach"}</code></nobr>   |          | 実行中の hena サーバー (http://localhost:4096 など) に接続します。                    |
+| <nobr><code>{"--password"}</code></nobr> | `-p`     | Basic 認証パスワード（デフォルトは `HENA_SERVER_PASSWORD`）                           |
+| <nobr><code>{"--username"}</code></nobr> | `-u`     | Basic 認証ユーザー名（デフォルトは `HENA_SERVER_USERNAME` または `hena`）         |
 | <nobr><code>{"--dir"}</code></nobr>      |          | 実行ディレクトリ、またはアタッチ時のリモートサーバー上のパス                              |
 | <nobr><code>{"--variant"}</code></nobr>  |          | モデルバリアント（プロバイダー固有の推論レベル）                                          |
 | <nobr><code>{"--thinking"}</code></nobr> |          | 思考ブロックを表示                                                                        |
@@ -363,13 +363,13 @@ hena-agent run --attach http://localhost:4096 "Explain async/await in JavaScript
 
 ### serve
 
-API アクセスのためにヘッドレス Hena Agent サーバーを起動します。完全な HTTP インターフェイスについては、[サーバーのドキュメント](/docs/server) を確認してください。
+API アクセスのためにヘッドレス Hena サーバーを起動します。完全な HTTP インターフェイスについては、[サーバーのドキュメント](/docs/server) を確認してください。
 
 ```bash
-hena-agent serve
+hena serve
 ```
 
-これにより、TUI インターフェイスを使用せずに hena-agent 機能への API アクセスを提供する HTTP サーバーが起動します。 `HENA_AGENT_SERVER_PASSWORD` を設定して HTTP 基本認証を有効にします (ユーザー名のデフォルトは `hena-agent`)。
+これにより、TUI インターフェイスを使用せずに hena 機能への API アクセスを提供する HTTP サーバーが起動します。 `HENA_SERVER_PASSWORD` を設定して HTTP 基本認証を有効にします (ユーザー名のデフォルトは `hena`)。
 
 #### フラグ
 
@@ -384,20 +384,20 @@ hena-agent serve
 
 ### session
 
-Hena Agent セッションを管理します。
+Hena セッションを管理します。
 
 ```bash
-hena-agent session [command]
+hena session [command]
 ```
 
 ---
 
 #### list
 
-すべての Hena Agent セッションをリストします。
+すべての Hena セッションをリストします。
 
 ```bash
-hena-agent session list
+hena session list
 ```
 
 ##### フラグ
@@ -411,10 +411,10 @@ hena-agent session list
 
 ### stats
 
-Hena Agent セッションのトークンの使用状況とコストの統計を表示します。
+Hena セッションのトークンの使用状況とコストの統計を表示します。
 
 ```bash
-hena-agent stats
+hena stats
 ```
 
 #### フラグ
@@ -433,7 +433,7 @@ hena-agent stats
 セッションデータを JSON としてエクスポートします。
 
 ```bash
-hena-agent export [sessionID]
+hena export [sessionID]
 ```
 
 セッション ID を指定しない場合は、利用可能なセッションから選択するように求められます。
@@ -442,30 +442,30 @@ hena-agent export [sessionID]
 
 ### import
 
-JSON ファイルまたは Hena Agent 共有 URL からセッションデータをインポートします。
+JSON ファイルまたは Hena 共有 URL からセッションデータをインポートします。
 
 ```bash
-hena-agent import <file>
+hena import <file>
 ```
 
-ローカルファイルまたは Hena Agent 共有 URL からインポートできます。
+ローカルファイルまたは Hena 共有 URL からインポートできます。
 
 ```bash
-hena-agent import session.json
-hena-agent import https://hena.dev/s/abc123
+hena import session.json
+hena import https://hena.dev/s/abc123
 ```
 
 ---
 
 ### web
 
-Web インターフェイスを使用してヘッドレス Hena Agent サーバーを起動します。
+Web インターフェイスを使用してヘッドレス Hena サーバーを起動します。
 
 ```bash
-hena-agent web
+hena web
 ```
 
-これにより、HTTP サーバーが起動し、Web ブラウザが開き、Web インターフェイスを通じて Hena Agent にアクセスします。 `HENA_AGENT_SERVER_PASSWORD` を設定して HTTP 基本認証を有効にします (ユーザー名のデフォルトは `hena-agent`)。
+これにより、HTTP サーバーが起動し、Web ブラウザが開き、Web インターフェイスを通じて Hena にアクセスします。 `HENA_SERVER_PASSWORD` を設定して HTTP 基本認証を有効にします (ユーザー名のデフォルトは `hena`)。
 
 #### フラグ
 
@@ -483,7 +483,7 @@ hena-agent web
 ACP (エージェントクライアントプロトコル) サーバーを起動します。
 
 ```bash
-hena-agent acp
+hena acp
 ```
 
 このコマンドは、nd-JSON を使用して stdin/stdout 経由で通信する ACP サーバーを起動します。
@@ -500,10 +500,10 @@ hena-agent acp
 
 ### uninstall
 
-Hena Agent をアンインストールし、関連ファイルをすべて削除します。
+Hena をアンインストールし、関連ファイルをすべて削除します。
 
 ```bash
-hena-agent uninstall
+hena uninstall
 ```
 
 #### フラグ
@@ -519,22 +519,22 @@ hena-agent uninstall
 
 ### upgrade
 
-hena-agent を最新バージョンまたは特定のバージョンに更新します。
+hena を最新バージョンまたは特定のバージョンに更新します。
 
 ```bash
-hena-agent upgrade [target]
+hena upgrade [target]
 ```
 
 最新バージョンにアップグレードするには。
 
 ```bash
-hena-agent upgrade
+hena upgrade
 ```
 
 特定のバージョンにアップグレードするには。
 
 ```bash
-hena-agent upgrade v0.1.48
+hena upgrade v0.1.48
 ```
 
 #### フラグ
@@ -547,7 +547,7 @@ hena-agent upgrade v0.1.48
 
 ## グローバルフラグ
 
-hena-agent CLI は次のグローバルフラグを受け取ります。
+hena CLI は次のグローバルフラグを受け取ります。
 
 | フラグ                                     | ショート | 説明                                  |
 | ------------------------------------------ | -------- | ------------------------------------- |
@@ -560,33 +560,33 @@ hena-agent CLI は次のグローバルフラグを受け取ります。
 
 ## 環境変数
 
-Hena Agent は環境変数を使用して構成できます。
+Hena は環境変数を使用して構成できます。
 
 | 変数                                  | タイプ   | 説明                                                                |
 | ------------------------------------- | -------- | ------------------------------------------------------------------- |
-| `HENA_AGENT_AUTO_SHARE`                 | ブール値 | セッションを自動的に共有する                                        |
-| `HENA_AGENT_GIT_BASH_PATH`              | 文字列   | Windows 上で実行可能な Git Bash へのパス                            |
-| `HENA_AGENT_CONFIG`                     | 文字列   | 構成ファイルへのパス                                                |
-| `HENA_AGENT_CONFIG_DIR`                 | 文字列   | config ディレクトリへのパス                                         |
-| `HENA_AGENT_CONFIG_CONTENT`             | 文字列   | インライン JSON 構成コンテンツ                                      |
-| `HENA_AGENT_DISABLE_AUTOUPDATE`         | ブール値 | 自動更新チェックを無効にする                                        |
-| `HENA_AGENT_DISABLE_PRUNE`              | ブール値 | 古いデータのプルーニングを無効にする                                |
-| `HENA_AGENT_DISABLE_TERMINAL_TITLE`     | ブール値 | ターミナルタイトルの自動更新を無効にする                            |
-| `HENA_AGENT_PERMISSION`                 | 文字列   | インライン化された json 権限設定                                    |
-| `HENA_AGENT_DISABLE_DEFAULT_PLUGINS`    | ブール値 | デフォルトのプラグインを無効にする                                  |
-| `HENA_AGENT_DISABLE_LSP_DOWNLOAD`       | ブール値 | LSP サーバーの自動ダウンロードを無効にする                          |
-| `HENA_AGENT_ENABLE_EXPERIMENTAL_MODELS` | ブール値 | 実験モデルを有効にする                                              |
-| `HENA_AGENT_DISABLE_AUTOCOMPACT`        | ブール値 | 自動コンテキスト圧縮を無効にする                                    |
-| `HENA_AGENT_DISABLE_CLAUDE_CODE`        | ブール値 | `.claude` からの読み取りを無効にする (プロンプト + スキル)          |
-| `HENA_AGENT_DISABLE_CLAUDE_CODE_PROMPT` | ブール値 | `~/.claude/CLAUDE.md` の読み取りを無効にする                        |
-| `HENA_AGENT_DISABLE_CLAUDE_CODE_SKILLS` | ブール値 | `.claude/skills` のロードを無効にする                               |
-| `HENA_AGENT_DISABLE_MODELS_FETCH`       | ブール値 | リモートソースからのモデルの取得を無効にする                        |
-| `HENA_AGENT_FAKE_VCS`                   | 文字列   | テスト目的の偽の VCS プロバイダー                                   |
-| `HENA_AGENT_CLIENT`                     | 文字列   | クライアント識別子 (デフォルトは `cli`)                             |
-| `HENA_AGENT_ENABLE_EXA`                 | ブール値 | Exa Web 検索ツールを有効にする                                      |
-| `HENA_AGENT_SERVER_PASSWORD`            | 文字列   | `serve`/`web` の基本認証を有効にする                                |
-| `HENA_AGENT_SERVER_USERNAME`            | 文字列   | 基本認証ユーザー名 (デフォルト `hena-agent`) をオーバーライドします。 |
-| `HENA_AGENT_MODELS_URL`                 | 文字列   | モデル設定を取得するためのカスタム URL                              |
+| `HENA_AUTO_SHARE`                 | ブール値 | セッションを自動的に共有する                                        |
+| `HENA_GIT_BASH_PATH`              | 文字列   | Windows 上で実行可能な Git Bash へのパス                            |
+| `HENA_CONFIG`                     | 文字列   | 構成ファイルへのパス                                                |
+| `HENA_CONFIG_DIR`                 | 文字列   | config ディレクトリへのパス                                         |
+| `HENA_CONFIG_CONTENT`             | 文字列   | インライン JSON 構成コンテンツ                                      |
+| `HENA_DISABLE_AUTOUPDATE`         | ブール値 | 自動更新チェックを無効にする                                        |
+| `HENA_DISABLE_PRUNE`              | ブール値 | 古いデータのプルーニングを無効にする                                |
+| `HENA_DISABLE_TERMINAL_TITLE`     | ブール値 | ターミナルタイトルの自動更新を無効にする                            |
+| `HENA_PERMISSION`                 | 文字列   | インライン化された json 権限設定                                    |
+| `HENA_DISABLE_DEFAULT_PLUGINS`    | ブール値 | デフォルトのプラグインを無効にする                                  |
+| `HENA_DISABLE_LSP_DOWNLOAD`       | ブール値 | LSP サーバーの自動ダウンロードを無効にする                          |
+| `HENA_ENABLE_EXPERIMENTAL_MODELS` | ブール値 | 実験モデルを有効にする                                              |
+| `HENA_DISABLE_AUTOCOMPACT`        | ブール値 | 自動コンテキスト圧縮を無効にする                                    |
+| `HENA_DISABLE_CLAUDE_CODE`        | ブール値 | `.claude` からの読み取りを無効にする (プロンプト + スキル)          |
+| `HENA_DISABLE_CLAUDE_CODE_PROMPT` | ブール値 | `~/.claude/CLAUDE.md` の読み取りを無効にする                        |
+| `HENA_DISABLE_CLAUDE_CODE_SKILLS` | ブール値 | `.claude/skills` のロードを無効にする                               |
+| `HENA_DISABLE_MODELS_FETCH`       | ブール値 | リモートソースからのモデルの取得を無効にする                        |
+| `HENA_FAKE_VCS`                   | 文字列   | テスト目的の偽の VCS プロバイダー                                   |
+| `HENA_CLIENT`                     | 文字列   | クライアント識別子 (デフォルトは `cli`)                             |
+| `HENA_ENABLE_EXA`                 | ブール値 | Exa Web 検索ツールを有効にする                                      |
+| `HENA_SERVER_PASSWORD`            | 文字列   | `serve`/`web` の基本認証を有効にする                                |
+| `HENA_SERVER_USERNAME`            | 文字列   | 基本認証ユーザー名 (デフォルト `hena`) をオーバーライドします。 |
+| `HENA_MODELS_URL`                 | 文字列   | モデル設定を取得するためのカスタム URL                              |
 
 ---
 
@@ -596,21 +596,21 @@ Hena Agent は環境変数を使用して構成できます。
 
 | 変数                                            | タイプ   | 説明                                             |
 | ----------------------------------------------- | -------- | ------------------------------------------------ |
-| `HENA_AGENT_EXPERIMENTAL`                         | ブール値 | アンブレラフラグ配下の実験的機能を有効にする     |
-| `HENA_AGENT_EXPERIMENTAL_ICON_DISCOVERY`          | ブール値 | アイコン検出を有効にする                         |
-| `HENA_AGENT_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | ブール値 | TUI で選択時のコピーを無効にする                 |
-| `HENA_AGENT_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | 数値     | bash コマンドのデフォルトのタイムアウト (ミリ秒) |
-| `HENA_AGENT_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | 数値     | LLM 応答の最大出力トークン                       |
-| `HENA_AGENT_EXPERIMENTAL_FILEWATCHER`             | ブール値 | ディレクトリ全体のファイル監視を有効にする       |
-| `HENA_AGENT_EXPERIMENTAL_OXFMT`                   | ブール値 | oxfmt フォーマッタを有効にする                   |
-| `HENA_AGENT_EXPERIMENTAL_LSP_TOOL`                | ブール値 | 実験的な LSP ツールを有効にする                  |
-| `HENA_AGENT_EXPERIMENTAL_DISABLE_FILEWATCHER`     | ブール値 | ファイルウォッチャーを無効にする                 |
-| `HENA_AGENT_EXPERIMENTAL_EXA`                     | ブール値 | 実験的な Exa 機能を有効にする                    |
-| `HENA_AGENT_EXPERIMENTAL_LSP_TY`                  | ブール値 | python ファイルの TY LSP を有効にする            |
-| `HENA_AGENT_EXPERIMENTAL_PLAN_MODE`               | ブール値 | プランモードを有効にする                         |
-| `HENA_AGENT_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | ブール値 | バックグラウンド subagent タスクを有効にする     |
-| `HENA_AGENT_EXPERIMENTAL_EVENT_SYSTEM`            | ブール値 | 実験的なイベントシステムを有効にする             |
-| `HENA_AGENT_EXPERIMENTAL_NATIVE_LLM`              | ブール値 | ネイティブ LLM リクエスト経路を有効にする        |
-| `HENA_AGENT_EXPERIMENTAL_PARALLEL`                | ブール値 | 並列 Web 検索実行を有効にする                    |
-| `HENA_AGENT_EXPERIMENTAL_SCOUT`                   | ブール値 | Scout subagent を有効にする                      |
-| `HENA_AGENT_EXPERIMENTAL_WORKSPACES`              | ブール値 | ワークスペースサポートを有効にする               |
+| `HENA_EXPERIMENTAL`                         | ブール値 | アンブレラフラグ配下の実験的機能を有効にする     |
+| `HENA_EXPERIMENTAL_ICON_DISCOVERY`          | ブール値 | アイコン検出を有効にする                         |
+| `HENA_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | ブール値 | TUI で選択時のコピーを無効にする                 |
+| `HENA_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | 数値     | bash コマンドのデフォルトのタイムアウト (ミリ秒) |
+| `HENA_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | 数値     | LLM 応答の最大出力トークン                       |
+| `HENA_EXPERIMENTAL_FILEWATCHER`             | ブール値 | ディレクトリ全体のファイル監視を有効にする       |
+| `HENA_EXPERIMENTAL_OXFMT`                   | ブール値 | oxfmt フォーマッタを有効にする                   |
+| `HENA_EXPERIMENTAL_LSP_TOOL`                | ブール値 | 実験的な LSP ツールを有効にする                  |
+| `HENA_EXPERIMENTAL_DISABLE_FILEWATCHER`     | ブール値 | ファイルウォッチャーを無効にする                 |
+| `HENA_EXPERIMENTAL_EXA`                     | ブール値 | 実験的な Exa 機能を有効にする                    |
+| `HENA_EXPERIMENTAL_LSP_TY`                  | ブール値 | python ファイルの TY LSP を有効にする            |
+| `HENA_EXPERIMENTAL_PLAN_MODE`               | ブール値 | プランモードを有効にする                         |
+| `HENA_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | ブール値 | バックグラウンド subagent タスクを有効にする     |
+| `HENA_EXPERIMENTAL_EVENT_SYSTEM`            | ブール値 | 実験的なイベントシステムを有効にする             |
+| `HENA_EXPERIMENTAL_NATIVE_LLM`              | ブール値 | ネイティブ LLM リクエスト経路を有効にする        |
+| `HENA_EXPERIMENTAL_PARALLEL`                | ブール値 | 並列 Web 検索実行を有効にする                    |
+| `HENA_EXPERIMENTAL_SCOUT`                   | ブール値 | Scout subagent を有効にする                      |
+| `HENA_EXPERIMENTAL_WORKSPACES`              | ブール値 | ワークスペースサポートを有効にする               |

@@ -9,9 +9,9 @@ export const email = `mailto:${config.email}`
 
 Hena Go is a low cost subscription — **$5 for your first month**, then **$10/month** — that gives you reliable access to popular open coding models.
 
-Go works like any other provider in Hena Agent. You subscribe to Hena Go and
+Go works like any other provider in Hena. You subscribe to Hena Go and
 get your API key. It's **completely optional** and you don't need to use it to
-use Hena Agent.
+use Hena.
 
 It is designed primarily for international users, with models hosted in the US, EU, and Singapore for stable global access.
 
@@ -27,7 +27,7 @@ However, getting reliable, low latency access to them can be difficult. Provider
 vary in quality and availability.
 
 :::tip
-We tested a select group of models and providers that work well with Hena Agent.
+We tested a select group of models and providers that work well with Hena.
 :::
 
 To fix this, we did a couple of things:
@@ -45,7 +45,7 @@ Hena Go gives you access to these models for **$5 for your first month**, then *
 
 ## How it works
 
-Hena Go works like any other provider in Hena Agent.
+Hena Go works like any other provider in Hena.
 
 1. You sign in to **<a href={console}>Hena Zen</a>**, subscribe to Go, and
    copy your API key.
@@ -206,9 +206,9 @@ You can also access Go models through the following API endpoints.
 | Qwen3.6 Plus      | qwen3.6-plus      | `https://hena.dev/zen/go/v1/messages`         | `@ai-sdk/anthropic`         |
 | Hy3               | hy3               | `https://hena.dev/zen/go/v1/chat/completions` | `@ai-sdk/openai-compatible` |
 
-The [model id](/docs/config/#models) in your Hena Agent config
-uses the format `hena-agent-go/<model-id>`. For example, for Kimi K3, you would
-use `hena-agent-go/kimi-k3` in your config.
+The [model id](/docs/config/#models) in your Hena config
+uses the format `hena-go/<model-id>`. For example, for Kimi K3, you would
+use `hena-go/kimi-k3` in your config.
 
 ---
 
@@ -235,4 +235,4 @@ We created Hena Go to:
 1. Make AI coding **accessible** to more people with a low cost subscription.
 2. Provide **reliable** access to the best open coding models.
 3. Curate models that are **tested and benchmarked** for coding agent use.
-4. Have **no lock-in** by allowing you to use any other provider with Hena Agent as well.
+4. Have **no lock-in** by allowing you to use any other provider with Hena as well.

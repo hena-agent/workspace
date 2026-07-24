@@ -1,19 +1,19 @@
-import { Pty } from "@hena-agent/core/pty"
-import { PtyProtocol } from "@hena-agent/core/pty/protocol"
-import { PtyTicket } from "@hena-agent/core/pty/ticket"
-import { Location } from "@hena-agent/core/location"
+import { Pty } from "@hena/core/pty"
+import { PtyProtocol } from "@hena/core/pty/protocol"
+import { PtyTicket } from "@hena/core/pty/ticket"
+import { Location } from "@hena/core/location"
 import { Effect, Queue } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
 import * as Socket from "effect/unstable/socket/Socket"
 import { Api } from "../api"
 import { CorsConfig, isAllowedRequestOrigin } from "../cors"
-import { ForbiddenError, PtyNotFoundError } from "@hena-agent/protocol/errors"
+import { ForbiddenError, PtyNotFoundError } from "@hena/protocol/errors"
 import {
   PTY_CONNECT_TICKET_QUERY,
   PTY_CONNECT_TOKEN_HEADER,
   PTY_CONNECT_TOKEN_HEADER_VALUE,
-} from "@hena-agent/protocol/groups/pty"
+} from "@hena/protocol/groups/pty"
 import { response } from "../location"
 import { PtyEnvironment } from "../pty-environment"
 

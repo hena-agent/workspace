@@ -1,19 +1,19 @@
 ---
 title: Serwer
-description: Interakcja z serwerem hena-agent za pośrednictwem protokołu HTTP.
+description: Interakcja z serwerem hena za pośrednictwem protokołu HTTP.
 ---
 
 import config from "../../../../config.mjs"
 export const typesUrl = `${config.github}/blob/dev/packages/sdk/js/src/gen/types.gen.ts`
 
-Komenda `hena-agent serve` uruchamia bezgłowy serwer HTTP, który udostępnia punkt końcowy OpenAPI, z którego może korzystać klient Hena Agent.
+Komenda `hena serve` uruchamia bezgłowy serwer HTTP, który udostępnia punkt końcowy OpenAPI, z którego może korzystać klient Hena.
 
 ---
 
 ### Użycie
 
 ```bash
-hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
+hena serve [--port <number>] [--hostname <string>] [--cors <origin>]
 ```
 
 #### Opcje
@@ -23,41 +23,41 @@ hena-agent serve [--port <number>] [--hostname <string>] [--cors <origin>]
 | `--port`        | Port nasłuchiwania                           | `4096`           |
 | `--hostname`    | Nazwa hosta do nasłuchiwania                 | `127.0.0.1`      |
 | `--mdns`        | Włącz wykrywanie mDNS                        | `false`          |
-| `--mdns-domain` | Niestandardowa nazwa domeny dla usługi mDNS  | `hena-agent.local` |
+| `--mdns-domain` | Niestandardowa nazwa domeny dla usługi mDNS  | `hena.local` |
 | `--cors`        | Dodatkowe originy przeglądarki do dozwolenia | `[]`             |
 
 `--cors` można przekazać wiele razy:
 
 ```bash
-hena-agent serve --cors http://localhost:5173 --cors https://app.example.com
+hena serve --cors http://localhost:5173 --cors https://app.example.com
 ```
 
 ---
 
 ### Uwierzytelnianie
 
-Ustaw `HENA_AGENT_SERVER_PASSWORD`, aby chronić serwer za pomocą podstawowego uwierzytelniania HTTP. Domyślną nazwą użytkownika jest `hena-agent` lub ustaw `HENA_AGENT_SERVER_USERNAME`, aby ją zastąpić. Dotyczy to zarówno `hena-agent serve`, jak i `hena-agent web`.
+Ustaw `HENA_SERVER_PASSWORD`, aby chronić serwer za pomocą podstawowego uwierzytelniania HTTP. Domyślną nazwą użytkownika jest `hena` lub ustaw `HENA_SERVER_USERNAME`, aby ją zastąpić. Dotyczy to zarówno `hena serve`, jak i `hena web`.
 
 ```bash
-HENA_AGENT_SERVER_PASSWORD=your-password hena-agent serve
+HENA_SERVER_PASSWORD=your-password hena serve
 ```
 
 ---
 
 ### Jak to działa
 
-Kiedy uruchomisz `hena-agent`, uruchomi się TUI i serwer. Gdzie jest TUI
+Kiedy uruchomisz `hena`, uruchomi się TUI i serwer. Gdzie jest TUI
 klient komunikujący się z serwerem. Serwer udostępnia specyfikację OpenAPI 3.1
 punkt końcowy. Ten punkt końcowy jest również używany do generowania [SDK](/docs/sdk).
 
 :::tip
-Użyj serwera hena-agent do programowej interakcji z Hena Agent.
+Użyj serwera hena do programowej interakcji z Hena.
 :::
 
-Ta architektura umożliwia obsługę wielu klientów przez hena-agent i programową interakcję z kodem otwartym.
+Ta architektura umożliwia obsługę wielu klientów przez hena i programową interakcję z kodem otwartym.
 
-Możesz uruchomić `hena-agent serve`, aby uruchomić samodzielny serwer. Jeśli masz
-hena-agent TUI działa, `hena-agent serve` uruchomi nowy serwer.
+Możesz uruchomić `hena serve`, aby uruchomić samodzielny serwer. Jeśli masz
+hena TUI działa, `hena serve` uruchomi nowy serwer.
 
 ---
 
@@ -65,7 +65,7 @@ hena-agent TUI działa, `hena-agent serve` uruchomi nowy serwer.
 
 Po uruchomieniu TUI losowo przypisuje port i nazwę hosta. Zamiast tego możesz przekazać `--hostname` i `--port` [flagi](/docs/cli). Następnie użyj tego, aby połączyć się z serwerem.
 
-Punktu końcowego [`/tui`](#TUI) można użyć do sterowania TUI przez serwer. Można na przykład wstępnie wypełnić lub uruchomić monit. Ta konfiguracja jest używana przez wtyczki hena-agent [IDE](/docs/ide).
+Punktu końcowego [`/tui`](#TUI) można użyć do sterowania TUI przez serwer. Można na przykład wstępnie wypełnić lub uruchomić monit. Ta konfiguracja jest używana przez wtyczki hena [IDE](/docs/ide).
 
 ---
 
@@ -83,7 +83,7 @@ Na przykład `http://localhost:4096/doc`. Użyj specyfikacji, aby wygenerować k
 
 ## API
 
-Serwer hena-agent udostępnia następujące interfejsy API.
+Serwer hena udostępnia następujące interfejsy API.
 
 ---
 

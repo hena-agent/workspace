@@ -1,6 +1,6 @@
-import { AgentV2 } from "@hena-agent/core/agent"
-import { SessionMessage } from "@hena-agent/core/session/message"
-import { ToolRegistry } from "@hena-agent/core/tool/registry"
+import { AgentV2 } from "@hena/core/agent"
+import { SessionMessage } from "@hena/core/session/message"
+import { ToolRegistry } from "@hena/core/tool/registry"
 import { Effect } from "effect"
 
 export const toolIdentity = {

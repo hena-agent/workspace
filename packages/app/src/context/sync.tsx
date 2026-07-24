@@ -1,8 +1,8 @@
-import { Binary } from "@hena-agent/core/util/binary"
+import { Binary } from "@hena/core/util/binary"
 import { createMemo } from "solid-js"
 import { useServerSync } from "./server-sync"
 import { useSDK } from "./sdk"
-import type { Message, Part } from "@hena-agent/sdk/v2/client"
+import type { Message, Part } from "@hena/sdk/v2/client"
 
 const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
 

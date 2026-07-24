@@ -1,13 +1,13 @@
-import { Pty } from "@hena-agent/schema/pty"
-import { PtyTicket } from "@hena-agent/schema/pty-ticket"
-import { Location } from "@hena-agent/schema/location"
+import { Pty } from "@hena/schema/pty"
+import { PtyTicket } from "@hena/schema/pty-ticket"
+import { Location } from "@hena/schema/location"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import { ForbiddenError, PtyNotFoundError } from "../errors"
 import { LocationQuery, locationQueryOpenApi } from "./location"
 
 export const PTY_CONNECT_TICKET_QUERY = "ticket"
-export const PTY_CONNECT_TOKEN_HEADER = "x-hena-agent-ticket"
+export const PTY_CONNECT_TOKEN_HEADER = "x-hena-ticket"
 export const PTY_CONNECT_TOKEN_HEADER_VALUE = "1"
 
 const PTY_CONNECT_PATH = /^\/api\/pty\/[^/]+\/connect$/

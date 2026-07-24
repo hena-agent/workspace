@@ -1,30 +1,30 @@
 ---
 title: المزوّدون
-description: استخدام أي موفّر LLM في Hena Agent.
+description: استخدام أي موفّر LLM في Hena.
 ---
 
 import config from "../../../../config.mjs"
 export const console = config.console
 
-يستخدم Hena Agent ‏[AI SDK](https://ai-sdk.dev/) و[Models.dev](https://models.dev) لدعم **أكثر من 75 موفّر LLM**، كما يدعم تشغيل النماذج المحلية.
+يستخدم Hena ‏[AI SDK](https://ai-sdk.dev/) و[Models.dev](https://models.dev) لدعم **أكثر من 75 موفّر LLM**، كما يدعم تشغيل النماذج المحلية.
 
 لإضافة مزوّد تحتاج إلى:
 
 1. أضف مفاتيح API الخاصة بالمزوّد باستخدام الأمر `/connect`.
-2. اضبط المزوّد في ملف إعدادات Hena Agent.
+2. اضبط المزوّد في ملف إعدادات Hena.
 
 ---
 
 ### بيانات الاعتماد
 
 عند إضافة مفاتيح API الخاصة بمزوّد عبر الأمر `/connect`، يتم تخزينها
-في `~/.local/share/hena-agent/auth.json`.
+في `~/.local/share/hena/auth.json`.
 
 ---
 
 ### الإعدادات
 
-يمكنك تخصيص المزوّدات عبر قسم `provider` في ملف إعدادات Hena Agent.
+يمكنك تخصيص المزوّدات عبر قسم `provider` في ملف إعدادات Hena.
 
 ---
 
@@ -32,7 +32,7 @@ export const console = config.console
 
 يمكنك تخصيص عنوان URL الأساسي لأي مزوّد عبر خيار `baseURL`. يفيد ذلك عند استخدام خدمات وسيطة (proxy) أو نقاط نهاية مخصّصة.
 
-```json title="hena-agent.json" {6}
+```json title="hena.json" {6}
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -49,14 +49,14 @@ export const console = config.console
 
 ## Hena Zen
 
-Hena Zen هي قائمة نماذج يوفّرها فريق Hena Agent وقد تم
-اختبارها والتحقق من أنها تعمل بشكل جيد مع Hena Agent. [اعرف المزيد](/docs/zen).
+Hena Zen هي قائمة نماذج يوفّرها فريق Hena وقد تم
+اختبارها والتحقق من أنها تعمل بشكل جيد مع Hena. [اعرف المزيد](/docs/zen).
 
 :::tip
 إذا كنت جديدا، فننصح بالبدء مع Hena Zen.
 :::
 
-1. شغّل الأمر `/connect` في TUI، واختر hena-agent، ثم انتقل إلى [hena.dev/auth](https://hena.dev/auth).
+1. شغّل الأمر `/connect` في TUI، واختر hena، ثم انتقل إلى [hena.dev/auth](https://hena.dev/auth).
 
    ```txt
    /connect
@@ -79,13 +79,13 @@ Hena Zen هي قائمة نماذج يوفّرها فريق Hena Agent وقد ت
    /models
    ```
 
-يعمل مثل أي مزوّد آخر في Hena Agent واستخدامه اختياري بالكامل.
+يعمل مثل أي مزوّد آخر في Hena واستخدامه اختياري بالكامل.
 
 ---
 
 ## Hena Go
 
-Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصولا موثوقا إلى نماذج البرمجة المفتوحة الشهيرة المقدّمة من فريق Hena Agent، والتي تم اختبارها والتحقق من أنها تعمل بشكل جيد مع Hena Agent.
+Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصولا موثوقا إلى نماذج البرمجة المفتوحة الشهيرة المقدّمة من فريق Hena، والتي تم اختبارها والتحقق من أنها تعمل بشكل جيد مع Hena.
 
 1. شغّل الأمر `/connect` في TUI، واختر `Hena Go`، ثم انتقل إلى [hena.dev/auth](https://hena.dev/zen).
 
@@ -110,7 +110,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
    /models
    ```
 
-يعمل مثل أي مزوّد آخر في Hena Agent واستخدامه اختياري بالكامل.
+يعمل مثل أي مزوّد آخر في Hena واستخدامه اختياري بالكامل.
 
 ---
 
@@ -154,7 +154,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
 ### Amazon Bedrock
 
-لاستخدام Amazon Bedrock مع Hena Agent:
+لاستخدام Amazon Bedrock مع Hena:
 
 1. توجّه إلى **Model catalog** في Amazon Bedrock console واطلب
    الوصول إلى النماذج التي تريدها.
@@ -167,17 +167,17 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
    #### متغيرات البيئة (بدء سريع)
 
-   عيّن أحد متغيرات البيئة التالية أثناء تشغيل hena-agent:
+   عيّن أحد متغيرات البيئة التالية أثناء تشغيل hena:
 
    ```bash
    # الخيار 1: استخدام مفاتيح وصول AWS
-   AWS_ACCESS_KEY_ID=XXX AWS_SECRET_ACCESS_KEY=YYY hena-agent
+   AWS_ACCESS_KEY_ID=XXX AWS_SECRET_ACCESS_KEY=YYY hena
 
    # الخيار 2: استخدام ملف تعريف AWS مسمّى
-   AWS_PROFILE=my-profile hena-agent
+   AWS_PROFILE=my-profile hena
 
    # الخيار 3: استخدام رمز Bedrock المميز (bearer token)
-   AWS_BEARER_TOKEN_BEDROCK=XXX hena-agent
+   AWS_BEARER_TOKEN_BEDROCK=XXX hena
    ```
 
    أو أضفها إلى bash profile:
@@ -189,9 +189,9 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
    #### ملف الإعدادات (موصى به)
 
-   للإعداد الخاص بالمشروع أو الإعداد الدائم، استخدم `hena-agent.json`:
+   للإعداد الخاص بالمشروع أو الإعداد الدائم، استخدم `hena.json`:
 
-   ```json title="hena-agent.json"
+   ```json title="hena.json"
    {
      "$schema": "https://hena.dev/config.json",
      "provider": {
@@ -218,7 +218,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
    إذا كنت تستخدم نقاط نهاية VPC لـ Bedrock:
 
-   ```json title="hena-agent.json"
+   ```json title="hena.json"
    {
      "$schema": "https://hena.dev/config.json",
      "provider": {
@@ -261,7 +261,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 :::note
 بالنسبة إلى ملفات تعريف الاستدلال المخصّصة، استخدم اسم النموذج واسم المزوّد في المفتاح وعيّن الخاصية `id` إلى arn. يضمن ذلك التخزين المؤقت الصحيح:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -308,7 +308,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
    ```
 
 :::info
-استخدام اشتراك Claude Pro/Max داخل Hena Agent غير مدعوم رسميا من [Anthropic](https://anthropic.com).
+استخدام اشتراك Claude Pro/Max داخل Hena غير مدعوم رسميا من [Anthropic](https://anthropic.com).
 :::
 
 ##### استخدام مفاتيح API
@@ -321,9 +321,9 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
 ### Atomic Chat
 
-يمكنك تكوين hena-agent لاستخدام النماذج المحلية عبر [Atomic Chat](https://atomic.chat)، وهو تطبيق سطح مكتب يقوم بتشغيل LLMs المحلية خلف خادم API متوافق مع OpenAI (نقطة النهاية الافتراضية `http://127.0.0.1:1337/v1`).
+يمكنك تكوين hena لاستخدام النماذج المحلية عبر [Atomic Chat](https://atomic.chat)، وهو تطبيق سطح مكتب يقوم بتشغيل LLMs المحلية خلف خادم API متوافق مع OpenAI (نقطة النهاية الافتراضية `http://127.0.0.1:1337/v1`).
 
-```json title="hena-agent.json" "atomic-chat" {5, 6, 8, 10-14}
+```json title="hena.json" "atomic-chat" {5, 6, 8, 10-14}
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -370,7 +370,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 2. اذهب إلى [Azure AI Foundry](https://ai.azure.com/) وانشر نموذجا.
 
    :::note
-   يجب أن يطابق اسم النشر اسم النموذج كي يعمل hena-agent بشكل صحيح.
+   يجب أن يطابق اسم النشر اسم النموذج كي يعمل hena بشكل صحيح.
    :::
 
 3. شغّل الأمر `/connect` وابحث عن **Azure**.
@@ -391,7 +391,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 5. عيّن اسم المورد كمتغير بيئة:
 
    ```bash
-   AZURE_RESOURCE_NAME=XXX hena-agent
+   AZURE_RESOURCE_NAME=XXX hena
    ```
 
    أو أضفه إلى bash profile:
@@ -417,7 +417,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 2. اذهب إلى [Azure AI Foundry](https://ai.azure.com/) وانشر نموذجا.
 
    :::note
-   يجب أن يطابق اسم النشر اسم النموذج كي يعمل hena-agent بشكل صحيح.
+   يجب أن يطابق اسم النشر اسم النموذج كي يعمل hena بشكل صحيح.
    :::
 
 3. شغّل الأمر `/connect` وابحث عن **Azure Cognitive Services**.
@@ -438,7 +438,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 5. عيّن اسم المورد كمتغير بيئة:
 
    ```bash
-   AZURE_COGNITIVE_SERVICES_RESOURCE_NAME=XXX hena-agent
+   AZURE_COGNITIVE_SERVICES_RESOURCE_NAME=XXX hena
    ```
 
    أو أضفه إلى bash profile:
@@ -549,9 +549,9 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
    /models
    ```
 
-   يمكنك أيضا إضافة نماذج عبر إعدادات Hena Agent.
+   يمكنك أيضا إضافة نماذج عبر إعدادات Hena.
 
-   ```json title="hena-agent.json"
+   ```json title="hena.json"
    {
      "$schema": "https://hena.dev/config.json",
      "provider": {
@@ -728,7 +728,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
    #### استخدام Personal Access Token 1. اذهب إلى [GitLab User Settings > Access Tokens](https://gitlab.com/-/user_settings/personal_access_tokens)
    2. انقر **Add new token**
-   3. Name: `Hena Agent`، Scopes: `api`
+   3. Name: `Hena`، Scopes: `api`
    4. انسخ الرمز (يبدأ بـ `glpat-`)
    5. أدخله في terminal
 
@@ -745,16 +745,16 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
 :::note
 يمكنك أيضا تعيين متغير البيئة 'GITLAB_TOKEN' إذا لم تكن تريد
-تخزين الرمز في مساحة تخزين مصادقة Hena Agent.
+تخزين الرمز في مساحة تخزين مصادقة Hena.
 :::
 
 ##### GitLab مستضاف ذاتيا
 
 :::note[ملاحظة امتثال]
-يستخدم Hena Agent نموذجا صغيرا لبعض مهام الذكاء الاصطناعي مثل إنشاء عنوان الجلسة.
-تم ضبطه لاستخدام gpt-5-nano افتراضيا، مستضافا عبر Zen. لحصر Hena Agent
+يستخدم Hena نموذجا صغيرا لبعض مهام الذكاء الاصطناعي مثل إنشاء عنوان الجلسة.
+تم ضبطه لاستخدام gpt-5-nano افتراضيا، مستضافا عبر Zen. لحصر Hena
 على استخدام مثيل GitLab المستضاف لديك فقط، أضف ما يلي إلى ملف
-`hena-agent.json` لديك. يوصى أيضا بتعطيل مشاركة الجلسات.
+`hena.json` لديك. يوصى أيضا بتعطيل مشاركة الجلسات.
 
 ```json
 {
@@ -816,9 +816,9 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ##### التهيئة
 
-خصّص عبر `hena-agent.json`:
+خصّص عبر `hena.json`:
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -835,7 +835,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 للوصول إلى أدوات GitLab (merge requests وissues وpipelines وCI/CD وغيرها):
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "plugin": ["opencode-gitlab-plugin"]
@@ -848,7 +848,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ### GitHub Copilot
 
-لاستخدام اشتراك GitHub Copilot مع hena-agent:
+لاستخدام اشتراك GitHub Copilot مع hena:
 
 :::note
 قد تتطلب بعض النماذج اشتراك [Pro+](https://github.com/features/copilot/plans) للاستخدام.
@@ -884,7 +884,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ### Google Vertex AI
 
-لاستخدام Google Vertex AI مع Hena Agent:
+لاستخدام Google Vertex AI مع Hena:
 
 1. توجّه إلى **Model Garden** في Google Cloud Console وتحقق من
    النماذج المتاحة في منطقتك.
@@ -900,10 +900,10 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
      - `GOOGLE_APPLICATION_CREDENTIALS`: مسار ملف مفتاح حساب الخدمة بصيغة JSON
      - المصادقة عبر gcloud CLI: ‏`gcloud auth application-default login`
 
-   عيّنها أثناء تشغيل Hena Agent.
+   عيّنها أثناء تشغيل Hena.
 
    ```bash
-   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id hena-agent
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json GOOGLE_CLOUD_PROJECT=your-project-id hena
    ```
 
    أو أضفها إلى bash profile.
@@ -1013,11 +1013,11 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 #### إعدادات اختيارية
 
-إذا رأيت ميزة أو نموذجا في Helicone لم يتم ضبطه تلقائيا عبر hena-agent، فيمكنك دائما ضبطه بنفسك.
+إذا رأيت ميزة أو نموذجا في Helicone لم يتم ضبطه تلقائيا عبر hena، فيمكنك دائما ضبطه بنفسك.
 
 هذه هي [Helicone's Model Directory](https://helicone.ai/models)، وستحتاجها للحصول على IDs الخاصة بالنماذج التي تريد إضافتها.
 
-```jsonc title="~/.config/hena-agent/hena.jsonc"
+```jsonc title="~/.config/hena/hena.jsonc"
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -1045,7 +1045,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 تدعم Helicone ترويسات مخصّصة لميزات مثل التخزين المؤقت وتتبع المستخدم وإدارة الجلسات. أضفها إلى إعداد المزوّد عبر `options.headers`:
 
-```jsonc title="~/.config/hena-agent/hena.jsonc"
+```jsonc title="~/.config/hena/hena.jsonc"
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -1056,31 +1056,13 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
         "baseURL": "https://ai-gateway.helicone.ai",
         "headers": {
           "Helicone-Cache-Enabled": "true",
-          "Helicone-User-Id": "hena-agent",
+          "Helicone-User-Id": "hena",
         },
       },
     },
   },
 }
 ```
-
-##### تتبع الجلسات
-
-تتيح ميزة [Sessions](https://docs.helicone.ai/features/sessions) في Helicone تجميع طلبات LLM المرتبطة معا. استخدم ملحق [opencode-helicone-session](https://github.com/H2Shami/opencode-helicone-session) لتسجيل كل محادثة Hena Agent تلقائيا كجلسة في Helicone.
-
-```bash
-npm install -g opencode-helicone-session
-```
-
-أضفه إلى إعداداتك.
-
-```json title="hena-agent.json"
-{
-  "plugin": ["opencode-helicone-session"]
-}
-```
-
-يقوم الملحق بحقن ترويسات `Helicone-Session-Id` و`Helicone-Session-Name` ضمن طلباتك. في صفحة Sessions داخل Helicone، سترى كل محادثة Hena Agent مدرجة كجلسة مستقلة.
 
 ##### ترويسات Helicone الشائعة
 
@@ -1097,9 +1079,9 @@ npm install -g opencode-helicone-session
 
 ### llama.cpp
 
-يمكنك ضبط hena-agent لاستخدام نماذج محلية عبر أداة llama-server ضمن [llama.cpp](https://github.com/ggml-org/llama.cpp)
+يمكنك ضبط hena لاستخدام نماذج محلية عبر أداة llama-server ضمن [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
-```json title="hena-agent.json" "llama.cpp" {5, 6, 8, 10-15}
+```json title="hena.json" "llama.cpp" {5, 6, 8, 10-15}
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -1164,9 +1146,9 @@ npm install -g opencode-helicone-session
 
 ### LM Studio
 
-يمكنك ضبط hena-agent لاستخدام نماذج محلية عبر LM Studio.
+يمكنك ضبط hena لاستخدام نماذج محلية عبر LM Studio.
 
-```json title="hena-agent.json" "lmstudio" {5, 6, 8, 10-14}
+```json title="hena.json" "lmstudio" {5, 6, 8, 10-14}
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -1281,13 +1263,9 @@ npm install -g opencode-helicone-session
 
 ### Ollama
 
-يمكنك ضبط hena-agent لاستخدام نماذج محلية عبر Ollama.
+يمكنك ضبط hena لاستخدام نماذج محلية عبر Ollama.
 
-:::tip
-يمكن لـ Ollama ضبط نفسه تلقائيا للعمل مع Hena Agent. راجع [توثيق تكامل Ollama](https://docs.ollama.com/integrations/opencode) للتفاصيل.
-:::
-
-```json title="hena-agent.json" "ollama" {5, 6, 8, 10-14}
+```json title="hena.json" "ollama" {5, 6, 8, 10-14}
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -1323,13 +1301,13 @@ npm install -g opencode-helicone-session
 
 ### Ollama Cloud
 
-لاستخدام Ollama Cloud مع Hena Agent:
+لاستخدام Ollama Cloud مع Hena:
 
 1. توجّه إلى [https://ollama.com/](https://ollama.com/) وسجّل الدخول أو أنشئ حسابا.
 
 2. انتقل إلى **Settings** > **Keys** وانقر **Add API Key** لإنشاء مفتاح API جديد.
 
-3. انسخ مفتاح API لاستخدامه في Hena Agent.
+3. انسخ مفتاح API لاستخدامه في Hena.
 
 4. شغّل الأمر `/connect` وابحث عن **Ollama Cloud**.
 
@@ -1346,7 +1324,7 @@ npm install -g opencode-helicone-session
    └ enter
    ```
 
-6. **مهم**: قبل استخدام نماذج السحابة في Hena Agent، يجب سحب معلومات النموذج محليا:
+6. **مهم**: قبل استخدام نماذج السحابة في Hena، يجب سحب معلومات النموذج محليا:
 
    ```bash
    ollama pull gpt-oss:20b-cloud
@@ -1395,7 +1373,7 @@ npm install -g opencode-helicone-session
 
 ### Hena Zen
 
-Hena Zen هي قائمة من النماذج التي تم اختبارها والتحقق منها مقدّمة من فريق Hena Agent. [اعرف المزيد](/docs/zen).
+Hena Zen هي قائمة من النماذج التي تم اختبارها والتحقق منها مقدّمة من فريق Hena. [اعرف المزيد](/docs/zen).
 
 1. سجّل الدخول إلى **<a href={console}>Hena Zen</a>** وانقر **Create API Key**.
 
@@ -1405,7 +1383,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
    /connect
    ```
 
-3. أدخل مفتاح API الخاص بـ Hena Agent.
+3. أدخل مفتاح API الخاص بـ Hena.
 
    ```txt
    ┌ API key
@@ -1447,9 +1425,9 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
    /models
    ```
 
-   يمكنك أيضا إضافة نماذج إضافية عبر إعدادات Hena Agent.
+   يمكنك أيضا إضافة نماذج إضافية عبر إعدادات Hena.
 
-   ```json title="hena-agent.json" {6}
+   ```json title="hena.json" {6}
    {
      "$schema": "https://hena.dev/config.json",
      "provider": {
@@ -1462,9 +1440,9 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
    }
    ```
 
-5. يمكنك أيضا تخصيصها عبر إعدادات Hena Agent. إليك مثالا على تحديد مزوّد
+5. يمكنك أيضا تخصيصها عبر إعدادات Hena. إليك مثالا على تحديد مزوّد
 
-   ```json title="hena-agent.json"
+   ```json title="hena.json"
    {
      "$schema": "https://hena.dev/config.json",
      "provider": {
@@ -1514,7 +1492,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
    أو عيّن متغير البيئة `AICORE_SERVICE_KEY`:
 
    ```bash
-   AICORE_SERVICE_KEY='{"clientid":"...","clientsecret":"...","url":"...","serviceurls":{"AI_API_URL":"..."}}' hena-agent
+   AICORE_SERVICE_KEY='{"clientid":"...","clientsecret":"...","url":"...","serviceurls":{"AI_API_URL":"..."}}' hena
    ```
 
    أو أضفه إلى bash profile:
@@ -1526,7 +1504,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 4. اختياريا، عيّن deployment ID وresource group:
 
    ```bash
-   AICORE_DEPLOYMENT_ID=your-deployment-id AICORE_RESOURCE_GROUP=your-resource-group hena-agent
+   AICORE_DEPLOYMENT_ID=your-deployment-id AICORE_RESOURCE_GROUP=your-resource-group hena
    ```
 
    :::note
@@ -1603,7 +1581,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 
 ### Scaleway
 
-لاستخدام [Scaleway Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) مع Hena Agent:
+لاستخدام [Scaleway Generative APIs](https://www.scaleway.com/en/docs/generative-apis/) مع Hena:
 
 1. توجّه إلى [Scaleway Console IAM settings](https://console.scaleway.com/iam/api-keys) لإنشاء مفتاح API جديد.
 
@@ -1711,9 +1689,9 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
    /models
    ```
 
-يمكنك أيضا تخصيص النماذج عبر إعدادات Hena Agent. إليك مثالا على تحديد ترتيب توجيه المزوّدات.
+يمكنك أيضا تخصيص النماذج عبر إعدادات Hena. إليك مثالا على تحديد ترتيب توجيه المزوّدات.
 
-```json title="hena-agent.json"
+```json title="hena.json"
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -1821,9 +1799,9 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
    /models
    ```
 
-   يمكنك أيضا إضافة نماذج إضافية عبر إعدادات Hena Agent.
+   يمكنك أيضا إضافة نماذج إضافية عبر إعدادات Hena.
 
-   ```json title="hena-agent.json" {6}
+   ```json title="hena.json" {6}
    {
      "$schema": "https://hena.dev/config.json",
      "provider": {
@@ -1843,7 +1821,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 لإضافة أي مزوّد **OpenAI-compatible** غير موجود ضمن الأمر `/connect`:
 
 :::tip
-يمكنك استخدام أي مزوّد OpenAI-compatible مع Hena Agent. معظم مزوّدي الذكاء الاصطناعي الحديثة يقدّمون APIs متوافقة مع OpenAI.
+يمكنك استخدام أي مزوّد OpenAI-compatible مع Hena. معظم مزوّدي الذكاء الاصطناعي الحديثة يقدّمون APIs متوافقة مع OpenAI.
 :::
 
 1. شغّل الأمر `/connect` ومرّر للأسفل حتى **Other**.
@@ -1882,16 +1860,16 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 
    ┌  Add credential
    │
-   ▲  This only stores a credential for myprovider - you will need to configure it in hena-agent.json, check the docs for examples.
+   ▲  This only stores a credential for myprovider - you will need to configure it in hena.json, check the docs for examples.
    │
    ◇  Enter your API key
    │  sk-...
    └
    ```
 
-4. أنشئ أو حدّث ملف `hena-agent.json` في دليل مشروعك:
+4. أنشئ أو حدّث ملف `hena.json` في دليل مشروعك:
 
-   ```json title="hena-agent.json" ""myprovider"" {5-15}
+   ```json title="hena.json" ""myprovider"" {5-15}
    {
      "$schema": "https://hena.dev/config.json",
      "provider": {
@@ -1929,7 +1907,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 
 إليك مثالا يضبط خيارات `apiKey` و`headers` وخيارات `limit` الخاصة بالنموذج.
 
-```json title="hena-agent.json" {9,11,17-20}
+```json title="hena.json" {9,11,17-20}
 {
   "$schema": "https://hena.dev/config.json",
   "provider": {
@@ -1964,7 +1942,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 - **limit.context**: الحد الأقصى لرموز الإدخال التي يقبلها النموذج.
 - **limit.output**: الحد الأقصى للرموز التي يمكن للنموذج توليدها.
 
-تسمح حقول `limit` لـ Hena Agent بفهم مقدار السياق المتبقي لديك. تسحب المزوّدات القياسية هذه القيم تلقائيا من models.dev.
+تسمح حقول `limit` لـ Hena بفهم مقدار السياق المتبقي لديك. تسحب المزوّدات القياسية هذه القيم تلقائيا من models.dev.
 
 ---
 
@@ -1972,12 +1950,12 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 
 إذا كنت تواجه مشكلة في تهيئة مزوّد، فتحقق مما يلي:
 
-1. **تحقق من إعداد auth**: شغّل `hena-agent auth list` لمعرفة ما إذا كانت بيانات الاعتماد
+1. **تحقق من إعداد auth**: شغّل `hena auth list` لمعرفة ما إذا كانت بيانات الاعتماد
    الخاصة بالمزوّد قد أضيفت إلى إعداداتك.
 
    لا ينطبق هذا على مزوّدات مثل Amazon Bedrock التي تعتمد على متغيرات البيئة لـ auth.
 
-2. للمزوّدات المخصّصة، راجع إعدادات hena-agent وتأكد من:
-   - أن provider ID المستخدم في الأمر `/connect` يطابق الـ ID في إعدادات Hena Agent.
+2. للمزوّدات المخصّصة، راجع إعدادات hena وتأكد من:
+   - أن provider ID المستخدم في الأمر `/connect` يطابق الـ ID في إعدادات Hena.
    - استخدام حزمة npm الصحيحة للمزوّد. على سبيل المثال استخدم `@ai-sdk/cerebras` لـ Cerebras. ولكل المزوّدات الأخرى المتوافقة مع OpenAI استخدم `@ai-sdk/openai-compatible`.
    - استخدام نقطة نهاية API الصحيحة في الحقل `options.baseURL`.

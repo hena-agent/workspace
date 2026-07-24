@@ -1,13 +1,13 @@
 import type {
   Config,
   McpResource,
-  HenaAgentClient,
+  HenaClient,
   Path,
   Project,
   ProviderAuthResponse,
-} from "@hena-agent/sdk/v2/client"
+} from "@hena/sdk/v2/client"
 import { showToast } from "@/utils/toast"
-import { getFilename } from "@hena-agent/core/util/path"
+import { getFilename } from "@hena/core/util/path"
 import { type Accessor, batch, createMemo, getOwner, onCleanup, onMount, untrack } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { useLanguage } from "@/context/language"
@@ -36,12 +36,12 @@ import { createRefreshQueue } from "./global-sync/queue"
 import { directoryKey } from "./global-sync/utils"
 import { PathKey } from "@/utils/path-key"
 import { createDirSyncContext } from "./directory-sync"
-import { createSimpleContext } from "@hena-agent/ui/context"
-import { NormalizedProviderListResponse } from "@hena-agent/session-ui/context"
+import { createSimpleContext } from "@hena/ui/context"
+import { NormalizedProviderListResponse } from "@hena/session-ui/context"
 import { createRefCountMap } from "@/utils/refcount"
 import { useGlobal } from "./global"
 import { ServerConnection, useServer } from "./server"
-import { retry } from "@hena-agent/core/util/retry"
+import { retry } from "@hena/core/util/retry"
 import type { ServerScope } from "@/utils/server-scope"
 import { createHomeSessionIndexCache } from "./global-sync/home-session-index"
 import { persisted } from "@/utils/persist"
@@ -59,20 +59,20 @@ type GlobalStore = {
   reload: undefined | "pending" | "complete"
 }
 
-export const loadMcpQuery = (scope: ServerScope, directory: string, sdk: HenaAgentClient) =>
+export const loadMcpQuery = (scope: ServerScope, directory: string, sdk: HenaClient) =>
   queryOptions({
     queryKey: [scope, directory, "mcp"] as const,
     queryFn: () => sdk.mcp.status().then((r) => r.data ?? {}),
   })
 
-export const loadMcpResourcesQuery = (scope: ServerScope, directory: string, sdk: HenaAgentClient) =>
+export const loadMcpResourcesQuery = (scope: ServerScope, directory: string, sdk: HenaClient) =>
   queryOptions<Record<string, McpResource>>({
     queryKey: [scope, directory, "mcpResources"] as const,
     queryFn: () => sdk.experimental.resource.list().then((r) => r.data ?? {}),
     placeholderData: {},
   })
 
-export const loadLspQuery = (scope: ServerScope, directory: string, sdk: HenaAgentClient) =>
+export const loadLspQuery = (scope: ServerScope, directory: string, sdk: HenaClient) =>
   queryOptions({
     queryKey: [scope, directory, "lsp"] as const,
     queryFn: () => sdk.lsp.status().then((r) => r.data ?? []),
@@ -80,8 +80,8 @@ export const loadLspQuery = (scope: ServerScope, directory: string, sdk: HenaAge
 
 function makeQueryOptionsApi(
   scope: ServerScope,
-  serverSDK: () => HenaAgentClient,
-  sdkFor: (dir: PathKey) => HenaAgentClient,
+  serverSDK: () => HenaClient,
+  sdkFor: (dir: PathKey) => HenaClient,
 ) {
   return {
     globalConfig: () => loadGlobalConfigQuery(scope, serverSDK()),
@@ -105,7 +105,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
   const owner = getOwner()
   if (!owner) throw new Error("ServerSync must be created within owner")
 
-  const sdkCache = new Map<string, HenaAgentClient>()
+  const sdkCache = new Map<string, HenaClient>()
   const booting = new Map<string, Promise<void>>()
   const sessionLoads = new Map<string, Promise<void>>()
   const sessionMeta = new Map<string, { limit: number }>()

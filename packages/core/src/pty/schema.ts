@@ -1,1 +1,1 @@
-export { ID as PtyID } from "@hena-agent/schema/pty"
+export { ID as PtyID } from "@hena/schema/pty"

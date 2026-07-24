@@ -254,7 +254,7 @@ async function installReviewPaneProbe(page: Page, input: { file: string }) {
       samples,
       start: () => {
         started = performance.now()
-        performance.mark("hena-agent.review-pane.click")
+        performance.mark("hena.review-pane.click")
         sample()
       },
       stop: () => {

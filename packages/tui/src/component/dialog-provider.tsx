@@ -8,7 +8,7 @@ import { DialogPrompt } from "../ui/dialog-prompt"
 import { Link } from "../ui/link"
 import { useTheme } from "../context/theme"
 import { TextAttributes } from "@opentui/core"
-import type { ProviderAuthAuthorization, ProviderAuthMethod } from "@hena-agent/sdk/v2"
+import type { ProviderAuthAuthorization, ProviderAuthMethod } from "@hena/sdk/v2"
 import { DialogModel } from "./dialog-model"
 import { useToast } from "../ui/toast"
 import { isConsoleManagedProvider } from "../util/provider-origin"
@@ -17,15 +17,15 @@ import { useBindings } from "../keymap"
 import { useClipboard } from "../context/clipboard"
 
 const PROVIDER_PRIORITY: Record<string, number> = {
-  "hena-agent": 0,
-  "hena-agent-go": 1,
+  "hena": 0,
+  "hena-go": 1,
   openai: 2,
   "github-copilot": 3,
   anthropic: 4,
   google: 5,
 }
 
-const CUSTOM_PROVIDER_OPTION_VALUE = "__hena_agent_custom_provider__"
+const CUSTOM_PROVIDER_OPTION_VALUE = "__hena_custom_provider__"
 const CUSTOM_PROVIDER_ID = /^[a-z0-9][a-z0-9-_]*$/
 
 type ProviderOptionBase = {
@@ -59,10 +59,10 @@ export function providerOptions(list: { id: string; name: string }[]): ProviderO
         value: provider.id,
         providerID: provider.id,
         description: {
-          "hena-agent": "(Recommended)",
+          "hena": "(Recommended)",
           anthropic: "(API key)",
           openai: "(ChatGPT Plus/Pro or API key)",
-          "hena-agent-go": "Low cost subscription for everyone",
+          "hena-go": "Low cost subscription for everyone",
         }[provider.id],
         category: provider.id in PROVIDER_PRIORITY ? "Popular" : "Providers",
       })),
@@ -96,7 +96,7 @@ export function createDialogProviderOptions() {
       placeholder: "Provider id",
       description: () => (
         <text fg={theme.textMuted}>
-          This only stores a credential. Configure the provider in hena-agent.json to use it.
+          This only stores a credential. Configure the provider in hena.json to use it.
         </text>
       ),
     })
@@ -368,7 +368,7 @@ function ApiMethod(props: ApiMethodProps) {
       placeholder="API key"
       description={() =>
         ({
-          "hena-agent": (
+          "hena": (
             <box gap={1}>
               <text fg={theme.textMuted}>
                 Hena Zen gives you access to all the best coding models at the cheapest prices with a single API
@@ -379,7 +379,7 @@ function ApiMethod(props: ApiMethodProps) {
               </text>
             </box>
           ),
-          "hena-agent-go": (
+          "hena-go": (
             <box gap={1}>
               <text fg={theme.textMuted}>
                 Hena Go is a $10 per month subscription that provides reliable access to popular open coding models
@@ -407,7 +407,7 @@ function ApiMethod(props: ApiMethodProps) {
         if (props.custom && !sync.data.provider_next.all.some((provider) => provider.id === props.providerID)) {
           toast.show({
             variant: "info",
-            message: `Saved credential for ${props.providerID}. Configure it in hena-agent.json to use it.`,
+            message: `Saved credential for ${props.providerID}. Configure it in hena.json to use it.`,
           })
           dialog.clear()
           return

@@ -1,10 +1,10 @@
 import * as i18n from "@solid-primitives/i18n"
 import { createEffect, createMemo, createResource } from "solid-js"
 import { createStore } from "solid-js/store"
-import { createSimpleContext } from "@hena-agent/ui/context"
+import { createSimpleContext } from "@hena/ui/context"
 import { Persist, persisted } from "@/utils/persist"
 import { dict as en } from "@/i18n/en"
-import { dict as uiEn } from "@hena-agent/ui/i18n/en"
+import { dict as uiEn } from "@hena/ui/i18n/en"
 
 export type Locale =
   | "en"
@@ -104,23 +104,23 @@ const merge = (app: Promise<Source>, ui: Promise<Source>) =>
   Promise.all([app, ui]).then(([a, b]) => ({ ...base, ...i18n.flatten({ ...a.dict, ...b.dict }) }) as Dictionary)
 
 const loaders: Record<Exclude<Locale, "en">, () => Promise<Dictionary>> = {
-  zh: () => merge(import("@/i18n/zh"), import("@hena-agent/ui/i18n/zh")),
-  zht: () => merge(import("@/i18n/zht"), import("@hena-agent/ui/i18n/zht")),
-  ko: () => merge(import("@/i18n/ko"), import("@hena-agent/ui/i18n/ko")),
-  de: () => merge(import("@/i18n/de"), import("@hena-agent/ui/i18n/de")),
-  es: () => merge(import("@/i18n/es"), import("@hena-agent/ui/i18n/es")),
-  fr: () => merge(import("@/i18n/fr"), import("@hena-agent/ui/i18n/fr")),
-  da: () => merge(import("@/i18n/da"), import("@hena-agent/ui/i18n/da")),
-  ja: () => merge(import("@/i18n/ja"), import("@hena-agent/ui/i18n/ja")),
-  pl: () => merge(import("@/i18n/pl"), import("@hena-agent/ui/i18n/pl")),
-  ru: () => merge(import("@/i18n/ru"), import("@hena-agent/ui/i18n/ru")),
-  uk: () => merge(import("@/i18n/uk"), import("@hena-agent/ui/i18n/uk")),
-  ar: () => merge(import("@/i18n/ar"), import("@hena-agent/ui/i18n/ar")),
-  no: () => merge(import("@/i18n/no"), import("@hena-agent/ui/i18n/no")),
-  br: () => merge(import("@/i18n/br"), import("@hena-agent/ui/i18n/br")),
-  th: () => merge(import("@/i18n/th"), import("@hena-agent/ui/i18n/th")),
-  bs: () => merge(import("@/i18n/bs"), import("@hena-agent/ui/i18n/bs")),
-  tr: () => merge(import("@/i18n/tr"), import("@hena-agent/ui/i18n/tr")),
+  zh: () => merge(import("@/i18n/zh"), import("@hena/ui/i18n/zh")),
+  zht: () => merge(import("@/i18n/zht"), import("@hena/ui/i18n/zht")),
+  ko: () => merge(import("@/i18n/ko"), import("@hena/ui/i18n/ko")),
+  de: () => merge(import("@/i18n/de"), import("@hena/ui/i18n/de")),
+  es: () => merge(import("@/i18n/es"), import("@hena/ui/i18n/es")),
+  fr: () => merge(import("@/i18n/fr"), import("@hena/ui/i18n/fr")),
+  da: () => merge(import("@/i18n/da"), import("@hena/ui/i18n/da")),
+  ja: () => merge(import("@/i18n/ja"), import("@hena/ui/i18n/ja")),
+  pl: () => merge(import("@/i18n/pl"), import("@hena/ui/i18n/pl")),
+  ru: () => merge(import("@/i18n/ru"), import("@hena/ui/i18n/ru")),
+  uk: () => merge(import("@/i18n/uk"), import("@hena/ui/i18n/uk")),
+  ar: () => merge(import("@/i18n/ar"), import("@hena/ui/i18n/ar")),
+  no: () => merge(import("@/i18n/no"), import("@hena/ui/i18n/no")),
+  br: () => merge(import("@/i18n/br"), import("@hena/ui/i18n/br")),
+  th: () => merge(import("@/i18n/th"), import("@hena/ui/i18n/th")),
+  bs: () => merge(import("@/i18n/bs"), import("@hena/ui/i18n/bs")),
+  tr: () => merge(import("@/i18n/tr"), import("@hena/ui/i18n/tr")),
 }
 
 function loadDict(locale: Locale) {
@@ -183,7 +183,7 @@ export function normalizeLocale(value: string): Locale {
 function readStoredLocale() {
   if (typeof localStorage !== "object") return
   try {
-    const raw = localStorage.getItem("hena-agent.global.dat:language")
+    const raw = localStorage.getItem("hena.global.dat:language")
     if (!raw) return
     const next = JSON.parse(raw) as { locale?: string }
     if (typeof next?.locale !== "string") return

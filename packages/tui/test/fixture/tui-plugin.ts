@@ -1,4 +1,4 @@
-import type { TuiPluginApi } from "@hena-agent/plugin/tui"
+import type { TuiPluginApi } from "@hena/plugin/tui"
 import { RGBA } from "@opentui/core"
 import { createTuiResolvedConfig } from "./tui-runtime"
 

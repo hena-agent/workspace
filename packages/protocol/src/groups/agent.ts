@@ -1,5 +1,5 @@
-import { Agent } from "@hena-agent/schema/agent"
-import { Location } from "@hena-agent/schema/location"
+import { Agent } from "@hena/schema/agent"
+import { Location } from "@hena/schema/location"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { LocationQuery, locationQueryOpenApi } from "./location"

@@ -1,9 +1,9 @@
 import { Effect, Stream } from "effect"
 import { HttpClient } from "effect/unstable/http"
-import { ClientError, HenaAgent } from "./generated"
+import { ClientError, Hena } from "./generated"
 import { Missing } from "./fixture"
 
-export const program = HenaAgent.make().pipe(
+export const program = Hena.make().pipe(
   Effect.map((client) => {
     const health = client.session.health()
     const list = client.session.list()

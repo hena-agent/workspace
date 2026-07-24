@@ -12,7 +12,7 @@ export const KiloPlugin = define({
           if (item.provider.api.url !== "https://api.kilo.ai/api/gateway") continue
           evt.provider.update(item.provider.id, (provider) => {
             provider.request.headers["HTTP-Referer"] = "https://hena.dev/"
-            provider.request.headers["X-Title"] = "hena-agent"
+            provider.request.headers["X-Title"] = "hena"
           })
         }
       }),

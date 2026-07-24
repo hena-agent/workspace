@@ -49,16 +49,16 @@ import { spawnWslSidecar } from "./wsl/sidecar"
 import { cleanupStoreFiles } from "./store-cleanup"
 
 const APP_NAMES: Record<string, string> = {
-  dev: "Hena Agent Dev",
-  beta: "Hena Agent Beta",
-  prod: "Hena Agent",
+  dev: "Hena Dev",
+  beta: "Hena Beta",
+  prod: "Hena",
 }
 const APP_IDS: Record<string, string> = {
-  dev: "ai.hena-agent.desktop.dev",
-  beta: "ai.hena-agent.desktop.beta",
-  prod: "ai.hena-agent.desktop",
+  dev: "dev.hena.desktop.dev",
+  beta: "dev.hena.desktop.beta",
+  prod: "dev.hena.desktop",
 }
-const TEST_ONBOARDING = process.env.HENA_AGENT_TEST_ONBOARDING === "1"
+const TEST_ONBOARDING = process.env.HENA_TEST_ONBOARDING === "1"
 const jsCallStackFeature = "DocumentPolicyIncludeJSCallStacksInCrashReports"
 
 let logger: ReturnType<typeof initLogging>
@@ -76,7 +76,7 @@ function useEnvProxy() {
 }
 
 function emitDeepLinks(urls: string[]) {
-  const accepted = urls.filter((url) => url.startsWith("hena-agent://"))
+  const accepted = urls.filter((url) => url.startsWith("hena://"))
   if (accepted.length === 0) return
   pendingDeepLinks.push(...accepted)
   const win = getLastFocusedWindow()
@@ -118,25 +118,25 @@ const main = Effect.gen(function* () {
     process.chdir(homedir())
   } catch {}
 
-  process.env.HENA_AGENT_DISABLE_EMBEDDED_WEB_UI = "true"
+  process.env.HENA_DISABLE_EMBEDDED_WEB_UI = "true"
 
-  const appId = app.isPackaged ? APP_IDS[CHANNEL] : "ai.hena-agent.desktop.dev"
+  const appId = app.isPackaged ? APP_IDS[CHANNEL] : "dev.hena.desktop.dev"
   const onboardingTestRoot = ((): string | undefined => {
     if (!TEST_ONBOARDING) return
 
-    const root = join(tmpdir(), `hena-agent-onboarding-${randomUUID()}`)
+    const root = join(tmpdir(), `hena-onboarding-${randomUUID()}`)
     rmSync(root, { recursive: true, force: true })
     ;["data", "config", "cache", "state", "desktop", "session"].forEach((dir) =>
       mkdirSync(join(root, dir), { recursive: true }),
     )
-    process.env.HENA_AGENT_DB = ":memory:"
+    process.env.HENA_DB = ":memory:"
     process.env.XDG_DATA_HOME = join(root, "data")
     process.env.XDG_CONFIG_HOME = join(root, "config")
     process.env.XDG_CACHE_HOME = join(root, "cache")
     process.env.XDG_STATE_HOME = join(root, "state")
     return root
   })()
-  app.setName(app.isPackaged ? APP_NAMES[CHANNEL] : "Hena Agent Dev")
+  app.setName(app.isPackaged ? APP_NAMES[CHANNEL] : "Hena Dev")
   app.setAppUserModelId(appId)
   app.setPath(
     "userData",
@@ -201,7 +201,7 @@ const main = Effect.gen(function* () {
   preferAppEnv(app.getPath("userData"))
 
   app.on("second-instance", (_event: Event, argv: string[]) => {
-    const urls = argv.filter((arg: string) => arg.startsWith("hena-agent://"))
+    const urls = argv.filter((arg: string) => arg.startsWith("hena://"))
     if (urls.length) {
       logger.log("deep link received via second-instance", { urls })
       emitDeepLinks(urls)
@@ -265,7 +265,7 @@ const main = Effect.gen(function* () {
       }),
     ),
   )
-  app.setAsDefaultProtocolClient("hena-agent")
+  app.setAsDefaultProtocolClient("hena")
   registerRendererProtocol()
   setDockIcon()
   const updater = setupAutoUpdater(stopSidecars)
@@ -312,7 +312,7 @@ const main = Effect.gen(function* () {
   )
 
   const port = yield* Effect.gen(function* () {
-    const fromEnv = process.env.HENA_AGENT_PORT
+    const fromEnv = process.env.HENA_PORT
     if (fromEnv) {
       const parsed = Number.parseInt(fromEnv, 10)
       if (!Number.isNaN(parsed)) return parsed
@@ -356,7 +356,7 @@ const main = Effect.gen(function* () {
     server = listener
     yield* Deferred.succeed(serverReady, {
       url,
-      username: "hena-agent",
+      username: "hena",
       password,
     })
 

@@ -1,9 +1,9 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js"
-import type { SessionStatus } from "@hena-agent/sdk/v2/client"
-import { useI18n } from "@hena-agent/ui/context/i18n"
-import { Card } from "@hena-agent/ui/card"
-import { Tooltip } from "@hena-agent/ui/tooltip"
-import { Spinner } from "@hena-agent/ui/spinner"
+import type { SessionStatus } from "@hena/sdk/v2/client"
+import { useI18n } from "@hena/ui/context/i18n"
+import { Card } from "@hena/ui/card"
+import { Tooltip } from "@hena/ui/tooltip"
+import { Spinner } from "@hena/ui/spinner"
 
 export function SessionRetry(props: { status: SessionStatus; show?: boolean }) {
   const i18n = useI18n()

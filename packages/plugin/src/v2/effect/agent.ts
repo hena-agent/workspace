@@ -1,4 +1,4 @@
-import type { AgentV2Info } from "@hena-agent/sdk/v2/types"
+import type { AgentV2Info } from "@hena/sdk/v2/types"
 import type { Hooks } from "./registration.js"
 
 export interface AgentDraft {

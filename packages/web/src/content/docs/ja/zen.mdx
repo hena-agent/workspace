@@ -1,15 +1,15 @@
 ---
 title: Hena Zen
-description: Hena Agent によって提供されるモデルの厳選されたリスト。
+description: Hena によって提供されるモデルの厳選されたリスト。
 ---
 
 import config from "../../../../config.mjs"
 export const console = config.console
 export const email = `mailto:${config.email}`
 
-Hena Zen は、Hena Agent チームが提供する、テスト済みかつ検証済みのモデルの一覧です。
+Hena Zen は、Hena チームが提供する、テスト済みかつ検証済みのモデルの一覧です。
 
-Zen は Hena Agent のほかのプロバイダーと同じように動作します。Hena Zen にログインして API キーを取得できます。これは **完全にオプション** であり、Hena Agent を使うために必須ではありません。
+Zen は Hena のほかのプロバイダーと同じように動作します。Hena Zen にログインして API キーを取得できます。これは **完全にオプション** であり、Hena を使うために必須ではありません。
 
 ---
 
@@ -18,7 +18,7 @@ Zen は Hena Agent のほかのプロバイダーと同じように動作しま�
 世の中には非常に多くのモデルがありますが、コーディングエージェントとして十分に機能するものはごく一部です。さらに、ほとんどのプロバイダーは設定が大きく異なるため、得られるパフォーマンスや品質にも大きな差が出ます。
 
 :::tip
-Hena Agent でうまく動作する、厳選したモデルとプロバイダーの組み合わせをテストしました。
+Hena でうまく動作する、厳選したモデルとプロバイダーの組み合わせをテストしました。
 :::
 
 そのため、OpenRouter のようなものを通じてモデルを使っている場合、欲しいモデルの最適なバージョンを本当に使えているかを判断するのは困難です。
@@ -35,7 +35,7 @@ Hena Zen は、これらのモデルにアクセスできる AI ゲートウェ�
 
 ## 仕組み
 
-Hena Zen は、Hena Agent のほかのプロバイダーと同じように動作します。
+Hena Zen は、Hena のほかのプロバイダーと同じように動作します。
 
 1. **<a href={console}>Hena Zen</a>** にサインインし、請求情報を追加して、API キーをコピーします。
 2. TUI で `/connect` コマンドを実行し、Hena Zen を選んで API キーを貼り付けます。
@@ -109,7 +109,7 @@ Hena Zen は、Hena Agent のほかのプロバイダーと同じように動作
 | Nemotron 3 Ultra Free  | nemotron-3-ultra-free  | `https://hena.dev/zen/v1/chat/completions`             | `@ai-sdk/openai-compatible` |
 | DeepSeek V4 Flash Free | deepseek-v4-flash-free | `https://hena.dev/zen/v1/chat/completions`             | `@ai-sdk/openai-compatible` |
 
-Hena Agent 設定で使う [model id](/docs/config/#models) は `hena-agent/<model-id>` 形式です。たとえば、GPT 5.5 では設定に `hena-agent/gpt-5.5` を使用します。
+Hena 設定で使う [model id](/docs/config/#models) は `hena/<model-id>` 形式です。たとえば、GPT 5.5 では設定に `hena/gpt-5.5` を使用します。
 
 ---
 
@@ -195,7 +195,7 @@ https://hena.dev/zen/v1/models
 | GPT 5 Codex                       | $1.07  | $8.50   | $0.107      | -            |
 | GPT 5 Nano                        | $0.05  | $0.40   | $0.005      | -            |
 
-使用履歴に Haiku、Nano、Flash などの[低コストモデル](/docs/config/#models)が表示されることがあります。Hena Agent はこれらのモデルをセッションタイトルの生成に使用します。
+使用履歴に Haiku、Nano、Flash などの[低コストモデル](/docs/config/#models)が表示されることがあります。Hena はこれらのモデルをセッションタイトルの生成に使用します。
 
 :::note
 クレジットカード手数料は実費で転嫁されます（各取引につき 4.4% + $0.30）。それ以外の上乗せはありません。
@@ -203,12 +203,12 @@ https://hena.dev/zen/v1/models
 
 無料モデル:
 
-- DeepSeek V4 Flash Free は期間限定で Hena Agent で利用できます。チームはこの期間中にフィードバックを集め、モデルを改善しています。
-- MiMo-V2.5 Free は期間限定で Hena Agent で利用できます。チームはこの期間中にフィードバックを集め、モデルを改善しています。
-- Laguna S 2.1 Free は期間限定で Hena Agent で利用できます。チームはこの期間中にフィードバックを集め、モデルを改善しています。
-- North Mini Code Free は期間限定で Hena Agent で利用できます。チームはこの期間中にフィードバックを集め、モデルを改善しています。
-- Nemotron 3 Ultra Free は期間限定で Hena Agent で利用できます。チームはこの期間中にフィードバックを集め、モデルを改善しています。
-- Big Pickle はステルスモデルで、期間限定で Hena Agent で無料提供されています。チームはこの期間中にフィードバックを集め、モデルを改善しています。
+- DeepSeek V4 Flash Free は期間限定で Hena で利用できます。チームはこの期間中にフィードバックを集め、モデルを改善しています。
+- MiMo-V2.5 Free は期間限定で Hena で利用できます。チームはこの期間中にフィードバックを集め、モデルを改善しています。
+- Laguna S 2.1 Free は期間限定で Hena で利用できます。チームはこの期間中にフィードバックを集め、モデルを改善しています。
+- North Mini Code Free は期間限定で Hena で利用できます。チームはこの期間中にフィードバックを集め、モデルを改善しています。
+- Nemotron 3 Ultra Free は期間限定で Hena で利用できます。チームはこの期間中にフィードバックを集め、モデルを改善しています。
+- Big Pickle はステルスモデルで、期間限定で Hena で無料提供されています。チームはこの期間中にフィードバックを集め、モデルを改善しています。
 
 ご不明な点があれば、<a href={email}>お問い合わせください</a>。
 
@@ -318,4 +318,4 @@ Zen のほかのモデルにアクセスしながら、自分の OpenAI また�
 1. コーディングエージェントに最適なモデル/プロバイダーを **Benchmark** すること。
 2. **highest quality** の選択肢にアクセスできるようにし、性能を落としたり、より安価なプロバイダーへルーティングされたりしないこと。
 3. 原価で提供することで **price drops** をそのまま反映し、上乗せは処理手数料のカバー分だけにすること。
-4. ほかのコーディングエージェントでも使えるようにして **no lock-in** を実現し、さらに Hena Agent では常にほかのプロバイダーも使えるようにすること。
+4. ほかのコーディングエージェントでも使えるようにして **no lock-in** を実現し、さらに Hena では常にほかのプロバイダーも使えるようにすること。

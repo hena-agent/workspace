@@ -42,7 +42,7 @@ export async function loadChangelog(): Promise<ChangelogData> {
   const response = await fetch("https://api.github.com/repos/hena-agent/hena/releases?per_page=20", {
     headers: {
       Accept: "application/vnd.github.v3+json",
-      "User-Agent": "Hena Agent-Console",
+      "User-Agent": "Hena-Console",
     },
     cf: {
       // best-effort edge caching (ignored outside Cloudflare)

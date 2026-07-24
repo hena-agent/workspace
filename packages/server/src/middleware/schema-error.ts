@@ -1,8 +1,8 @@
 import { Effect } from "effect"
 import { HttpApiMiddleware } from "effect/unstable/httpapi"
-import { InvalidRequestError } from "@hena-agent/protocol/errors"
-import { SchemaErrorMiddleware } from "@hena-agent/protocol/middleware/schema-error"
-export { SchemaErrorMiddleware } from "@hena-agent/protocol/middleware/schema-error"
+import { InvalidRequestError } from "@hena/protocol/errors"
+import { SchemaErrorMiddleware } from "@hena/protocol/middleware/schema-error"
+export { SchemaErrorMiddleware } from "@hena/protocol/middleware/schema-error"
 
 const REASON_LIMIT = 1024
 

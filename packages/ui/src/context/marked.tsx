@@ -6,8 +6,8 @@ import { createSimpleContext } from "./helper"
 import { markedCodeSpanBoundary } from "./marked-code-span"
 import { getSharedHighlighter, registerCustomTheme, ThemeRegistrationResolved } from "@pierre/diffs"
 
-export const HenaAgentTheme = {
-  name: "Hena Agent",
+export const HenaTheme = {
+  name: "Hena",
   bg: "var(--color-background-stronger)",
   fg: "var(--text-base)",
   colors: {
@@ -377,7 +377,7 @@ export const HenaAgentTheme = {
   },
 } as unknown as ThemeRegistrationResolved
 
-registerCustomTheme("Hena Agent", () => Promise.resolve(HenaAgentTheme))
+registerCustomTheme("Hena", () => Promise.resolve(HenaTheme))
 
 function renderMathInText(text: string): string {
   let result = text
@@ -482,7 +482,7 @@ async function highlightCodeBlocks(html: string): Promise<string> {
   if (matches.length === 0) return html
 
   const highlighter = await getSharedHighlighter({
-    themes: ["Hena Agent"],
+    themes: ["Hena"],
     langs: [],
     preferredHighlighter: "shiki-wasm",
   })
@@ -507,7 +507,7 @@ async function highlightCodeBlocks(html: string): Promise<string> {
 
     const highlighted = highlighter.codeToHtml(code, {
       lang: language,
-      theme: "Hena Agent",
+      theme: "Hena",
       tabindex: false,
     })
     result = result.replace(fullMatch, () => highlighted)
@@ -535,7 +535,7 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
       markedShiki({
         async highlight(code, lang) {
           const highlighter = await getSharedHighlighter({
-            themes: ["Hena Agent"],
+            themes: ["Hena"],
             langs: [],
             preferredHighlighter: "shiki-wasm",
           })
@@ -547,7 +547,7 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
           }
           return highlighter.codeToHtml(code, {
             lang: lang || "text",
-            theme: "Hena Agent",
+            theme: "Hena",
             tabindex: false,
           })
         },

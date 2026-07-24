@@ -1,8 +1,8 @@
 import { describe, expect } from "bun:test"
 import { Effect, Exit, Fiber } from "effect"
-import { define } from "@hena-agent/plugin/v2/effect"
-import { AgentV2 } from "@hena-agent/core/agent"
-import { PluginV2 } from "@hena-agent/core/plugin"
+import { define } from "@hena/plugin/v2/effect"
+import { AgentV2 } from "@hena/core/agent"
+import { PluginV2 } from "@hena/core/plugin"
 import { testEffect } from "./lib/effect"
 import { PluginTestLayer } from "./plugin/fixture"
 

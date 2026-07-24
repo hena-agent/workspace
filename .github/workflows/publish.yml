@@ -491,7 +491,7 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.AUR_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          git config --global user.email "github@hena.ai"
+          git config --global user.email "github@hena.dev"
           git config --global user.name "hena-agent"
           ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts || true
 

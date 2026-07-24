@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://hena.ai">
+  <a href="https://hena.dev">
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
@@ -9,7 +9,7 @@
 </p>
 <p align="center">オープンソースのAIコーディングエージェント。</p>
 <p align="center">
-  <a href="https://hena.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
+  <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.ai)
+[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -47,7 +47,7 @@
 
 ```bash
 # YOLO
-curl -fsSL https://hena.ai/install | bash
+curl -fsSL https://hena.dev/install | bash
 
 # パッケージマネージャー
 npm i -g hena-agent@latest        # bun/pnpm/yarn でもOK
@@ -66,7 +66,7 @@ nix run github:hena-agent/hena           # または github:hena-agent/hena で�
 
 ### デスクトップアプリ (BETA)
 
-Hena Agent はデスクトップアプリとしても利用できます。[releases page](https://github.com/hena-agent/hena/releases) から直接ダウンロードするか、[hena.ai/download](https://hena.ai/download) を利用してください。
+Hena Agent はデスクトップアプリとしても利用できます。[releases page](https://github.com/hena-agent/hena/releases) から直接ダウンロードするか、[hena.dev/download](https://hena.dev/download) を利用してください。
 
 | プラットフォーム      | ダウンロード                       |
 | --------------------- | ---------------------------------- |
@@ -93,8 +93,8 @@ scoop bucket add extras; scoop install hena-agent
 
 ```bash
 # 例
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.ai/install | bash
+HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agents
@@ -110,11 +110,11 @@ Hena Agent には組み込みの Agent が2つあり、`Tab` キーで切り替�
 また、複雑な検索やマルチステップのタスク向けに **general** サブ Agent も含まれています。
 内部的に使用されており、メッセージで `@general` と入力して呼び出せます。
 
-[agents](https://hena.ai/docs/agents) の詳細はこちら。
+[agents](https://hena.dev/docs/agents) の詳細はこちら。
 
 ### ドキュメント
 
-Hena Agent の設定については [**ドキュメント**](https://hena.ai/docs) を参照してください。
+Hena Agent の設定については [**ドキュメント**](https://hena.dev/docs) を参照してください。
 
 ### コントリビュート
 
@@ -126,4 +126,4 @@ Hena Agent に関連するプロジェクトで、名前に "hena-agent"（例: 
 
 ---
 
-**コミュニティに参加** [Discord](https://hena.ai/discord) | [X.com](https://hena.ai)
+**コミュニティに参加** [Discord](https://hena.dev/discord) | [X.com](https://hena.dev)

@@ -3,7 +3,7 @@
  */
 export const config = {
   // Base URL
-  baseUrl: "https://hena.ai",
+  baseUrl: "https://hena.dev",
 
   // GitHub
   github: {

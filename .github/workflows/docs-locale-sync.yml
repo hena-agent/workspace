@@ -50,7 +50,7 @@ jobs:
 
       - name: Install Hena Agent
         if: steps.changes.outputs.has_changes == 'true'
-        run: curl -fsSL https://hena.ai/install | bash
+        run: curl -fsSL https://hena.dev/install | bash
 
       - name: Sync locale docs with Hena Agent
         if: steps.changes.outputs.has_changes == 'true'

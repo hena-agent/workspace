@@ -96,7 +96,7 @@ export async function tmpdir<T>(options?: TmpDirOptions<T>) {
     await Bun.write(
       path.join(dirpath, "hena-agent.json"),
       JSON.stringify({
-        $schema: "https://hena.ai/config.json",
+        $schema: "https://hena.dev/config.json",
         ...options.config,
       }),
     )
@@ -154,7 +154,7 @@ export function tmpdirScoped<E = never, R = never>(options?: {
       yield* Effect.promise(() =>
         fs.writeFile(
           path.join(dir, "hena-agent.json"),
-          JSON.stringify({ $schema: "https://hena.ai/config.json", ...resolved }),
+          JSON.stringify({ $schema: "https://hena.dev/config.json", ...resolved }),
         ),
       )
     }

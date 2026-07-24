@@ -240,7 +240,7 @@ describe("SessionStatus.Info", () => {
         title: "Free limit reached",
         message: "Subscribe to Hena Go.",
         label: "subscribe",
-        link: "https://hena.ai/go",
+        link: "https://hena.dev/go",
       },
       next: 500,
     }

@@ -130,7 +130,7 @@ export const dict = {
   "provider.connect.hena-agentZen.line2":
     "Z jednym kluczem API uzyskasz dostęp do modeli takich jak Claude, GPT, Gemini, GLM i więcej.",
   "provider.connect.hena-agentZen.visit.prefix": "Odwiedź ",
-  "provider.connect.hena-agentZen.visit.link": "hena.ai/zen",
+  "provider.connect.hena-agentZen.visit.link": "hena.dev/zen",
   "provider.connect.hena-agentZen.visit.suffix": ", aby odebrać swój klucz API.",
   "provider.connect.oauth.code.visit.prefix": "Odwiedź ",
   "provider.connect.oauth.code.visit.link": "ten link",

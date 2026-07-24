@@ -4,8 +4,8 @@ import stripAnsi from "strip-ansi"
 import { defaultConsoleUrl, formatAccountLabel, formatOrgLine } from "../../src/cli/cmd/account"
 
 describe("console account display", () => {
-  test("uses console.hena.ai as the default login URL", () => {
-    expect(defaultConsoleUrl).toBe("https://console.hena.ai")
+  test("uses console.hena.dev as the default login URL", () => {
+    expect(defaultConsoleUrl).toBe("https://console.hena.dev")
   })
 
   test("includes the account url in account labels", () => {

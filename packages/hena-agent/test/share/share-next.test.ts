@@ -107,7 +107,7 @@ describe("ShareNext", () => {
         Effect.gen(function* () {
           const req = yield* svc.request()
 
-          expect(req.baseUrl).toBe("https://hena.ai")
+          expect(req.baseUrl).toBe("https://hena.dev")
           expect(req.api.create).toBe("/api/share")
           expect(req.headers).toEqual({})
         }),

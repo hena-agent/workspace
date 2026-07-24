@@ -11,7 +11,7 @@ export const NvidiaPlugin = define({
           if (item.provider.api.package !== "@ai-sdk/openai-compatible") continue
           if (item.provider.api.url !== "https://integrate.api.nvidia.com/v1") continue
           evt.provider.update(item.provider.id, (provider) => {
-            provider.request.headers["HTTP-Referer"] = "https://hena.ai/"
+            provider.request.headers["HTTP-Referer"] = "https://hena.dev/"
             provider.request.headers["X-Title"] = "hena-agent"
             provider.request.headers["X-BILLING-INVOKE-ORIGIN"] ??= "Hena Agent"
           })

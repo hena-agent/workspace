@@ -142,7 +142,7 @@ export const dict = {
   "provider.connect.hena-agentZen.line2":
     "Med en enkelt API-nøgle får du adgang til modeller som Claude, GPT, Gemini, GLM og flere.",
   "provider.connect.hena-agentZen.visit.prefix": "Besøg ",
-  "provider.connect.hena-agentZen.visit.link": "hena.ai/zen",
+  "provider.connect.hena-agentZen.visit.link": "hena.dev/zen",
   "provider.connect.hena-agentZen.visit.suffix": " for at hente din API-nøgle.",
   "provider.connect.oauth.code.visit.prefix": "Besøg ",
   "provider.connect.oauth.code.visit.link": "dette link",

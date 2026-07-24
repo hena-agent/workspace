@@ -41,7 +41,7 @@ function withProject<A, E, R>(source: string, self: Effect.Effect<A, E, R>) {
             path.join(test.directory, "hena-agent.json"),
             JSON.stringify(
               {
-                $schema: "https://hena.ai/config.json",
+                $schema: "https://hena.dev/config.json",
                 plugin: [pathToFileURL(file).href],
               },
               null,

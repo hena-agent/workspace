@@ -51,7 +51,7 @@ Hena Agent は [AI SDK](https://ai-sdk.dev/) および [Models.dev](https://mode
 
 ```json title="hena-agent.json" {3}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "model": "lmstudio/google/gemma-3n-e4b"
 }
 ```
@@ -68,7 +68,7 @@ config を通じてモデルのオプションをグローバルに設定でき�
 
 ```jsonc title="hena-agent.jsonc" {7-12,19-24}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -107,7 +107,7 @@ config を通じてモデルのオプションをグローバルに設定でき�
 
 ```jsonc title="hena-agent.jsonc" {6-21}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "hena-agent": {
       "models": {
@@ -172,7 +172,7 @@ Hena Agent には、多くのプロバイダーのデフォルトのバリアン
 
 ```jsonc title="hena-agent.jsonc" {7-18}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -209,7 +209,7 @@ Hena Agent が起動すると、次の優先順位でモデルがチェックさ
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "model": "anthropic/claude-sonnet-4-20250514"
    }
    ```

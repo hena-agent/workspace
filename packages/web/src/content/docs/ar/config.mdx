@@ -13,7 +13,7 @@ description: استخدام ملف إعدادات Hena Agent بصيغة JSON.
 
 ```jsonc title="hena-agent.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   // إعدادات السمة
   "theme": "hena-agent",
   "model": "anthropic/claude-sonnet-4-5",
@@ -145,7 +145,7 @@ hena-agent run "Hello world"
 
 ## المخطط
 
-يحتوي ملف الإعدادات على مخطط مُعرَّف في [**`hena.ai/config.json`**](https://hena.ai/config.json).
+يحتوي ملف الإعدادات على مخطط مُعرَّف في [**`hena.dev/config.json`**](https://hena.dev/config.json).
 
 يفترض أن يتمكن محررك من التحقق والإكمال التلقائي اعتمادًا على هذا المخطط.
 
@@ -157,7 +157,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "tui": {
     "scroll_speed": 3,
     "scroll_acceleration": {
@@ -184,7 +184,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "server": {
     "port": 4096,
     "hostname": "0.0.0.0",
@@ -213,7 +213,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "tools": {
     "write": false,
     "bash": false
@@ -231,7 +231,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {},
   "model": "anthropic/claude-sonnet-4-5",
   "small_model": "anthropic/claude-haiku-4-5"
@@ -244,7 +244,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -273,7 +273,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "amazon-bedrock": {
       "options": {
@@ -304,7 +304,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "theme": ""
 }
 ```
@@ -319,7 +319,7 @@ hena-agent run "Hello world"
 
 ```jsonc title="hena-agent.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "agent": {
     "code-reviewer": {
       "description": "Reviews code for best practices and potential issues",
@@ -345,7 +345,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "default_agent": "plan"
 }
 ```
@@ -362,7 +362,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "share": "manual"
 }
 ```
@@ -383,7 +383,7 @@ hena-agent run "Hello world"
 
 ```jsonc title="hena-agent.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "command": {
     "test": {
       "template": "Run the full test suite with coverage report and show any failures.\nFocus on the failing tests and suggest fixes.",
@@ -409,7 +409,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "keybinds": {}
 }
 ```
@@ -424,7 +424,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "autoupdate": false
 }
 ```
@@ -440,7 +440,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "formatter": {
     "prettier": {
       "disabled": true
@@ -468,7 +468,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "permission": {
     "edit": "ask",
     "bash": "ask"
@@ -486,7 +486,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "compaction": {
     "auto": true,
     "prune": false
@@ -506,7 +506,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "watcher": {
     "ignore": ["node_modules/**", "dist/**", ".git/**"]
   }
@@ -523,7 +523,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "mcp": {}
 }
 ```
@@ -540,7 +540,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "plugin": ["opencode-helicone-session", "@my-org/custom-plugin"]
 }
 ```
@@ -555,7 +555,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
 }
 ```
@@ -571,7 +571,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "disabled_providers": ["openai", "gemini"]
 }
 ```
@@ -594,7 +594,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "enabled_providers": ["anthropic", "openai"]
 }
 ```
@@ -615,7 +615,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "experimental": {}
 }
 ```
@@ -638,7 +638,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "model": "{env:HENA_AGENT_MODEL}",
   "provider": {
     "anthropic": {
@@ -661,7 +661,7 @@ hena-agent run "Hello world"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "instructions": ["./custom-instructions.md"],
   "provider": {
     "openai": {

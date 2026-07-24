@@ -9,7 +9,7 @@
 
 ## Local Dev
 
-- `hena-agent dev web` proxies `https://app.hena.ai`, so local UI/CSS changes will not show there.
+- `hena-agent dev web` proxies `https://app.hena.dev`, so local UI/CSS changes will not show there.
 - For local UI changes, run the backend and app dev servers separately.
 - Backend (from `packages/hena-agent`): `bun run --conditions=browser ./src/index.ts serve --port 4096`
 - App (from `packages/app`): `bun dev -- --port 4444`

@@ -147,7 +147,7 @@ export namespace User {
             // @ts-ignore
             InviteEmail({
               inviter: emailInfo.inviterEmail,
-              assetsUrl: `https://hena.ai/email`,
+              assetsUrl: `https://hena.dev/email`,
               workspaceID: workspaceID,
               workspaceName: emailInfo.workspaceName,
             }),

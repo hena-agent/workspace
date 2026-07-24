@@ -35,7 +35,7 @@ config.
 
 ```json title="hena-agent.json" {6}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -57,7 +57,7 @@ Hena Agent で適切に動作することがテストおよび検証されてい
 初めての方は、Hena Zen から始めることをお勧めします。
 :::
 
-1. TUI で `/connect` コマンドを実行し、`Hena Zen` を選択して、[hena.ai/zen](https://hena.ai/zen) にアクセスします。
+1. TUI で `/connect` コマンドを実行し、`Hena Zen` を選択して、[hena.dev/zen](https://hena.dev/zen) にアクセスします。
 
    ```txt
    /connect
@@ -88,7 +88,7 @@ Hena Agent で適切に動作することがテストおよび検証されてい
 
 Hena Go は、Hena Agent チームによって提供される、人気のあるオープンコーディングモデルへの信頼性の高いアクセスを提供する低コストのサブスクリプションプランです。これらは Hena Agent でうまく機能することがテストおよび検証されています。
 
-1. TUI で `/connect` コマンドを実行し、`Hena Go` を選択して、[hena.ai/zen](https://hena.ai/zen) にアクセスします。
+1. TUI で `/connect` コマンドを実行し、`Hena Go` を選択して、[hena.dev/zen](https://hena.dev/zen) にアクセスします。
 
    ```txt
    /connect
@@ -197,7 +197,7 @@ Hena Agent で Amazon Bedrock を使用するには:
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -226,7 +226,7 @@ Hena Agent で Amazon Bedrock を使用するには:
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -275,7 +275,7 @@ Hena Agent で Amazon Bedrock を使用するには:
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -335,7 +335,7 @@ hena-agent は、OpenAI 互換の API サーバーの背後でローカル LLM �
 
 ```json title="hena-agent.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -563,7 +563,7 @@ Hena Agent 設定を通じてモデルを追加することもできます。
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "cloudflare-ai-gateway": {
       "models": {
@@ -865,7 +865,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -882,7 +882,7 @@ GitLab ツール (マージリクエスト、問題、パイプライン、CI/CD
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "plugin": ["opencode-gitlab-plugin"]
 }
 ```
@@ -1066,7 +1066,7 @@ Hena Agent を通じて自動的に構成されていない Helicone の機能�
 
 ```jsonc title="~/.config/hena-agent/hena.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1094,7 +1094,7 @@ Helicone は、キャッシュ、ユーザー追跡、セッション管理な�
 
 ```jsonc title="~/.config/hena-agent/hena.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1148,7 +1148,7 @@ npm install -g opencode-helicone-session
 
 ```json title="hena-agent.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1215,7 +1215,7 @@ LM Studio を通じてローカルモデルを使用するように hena-agent �
 
 ```json title="hena-agent.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1336,7 +1336,7 @@ Ollama は Hena Agent 用に自動的に構成できます。詳細について�
 
 ```json title="hena-agent.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1498,7 +1498,7 @@ Hena Agent 設定を通じて追加のモデルを追加することもできま
 
 ```json title="hena-agent.json" {6}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "openrouter": {
       "models": {
@@ -1513,7 +1513,7 @@ Hena Agent 設定を通じて追加のモデルを追加することもできま
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1729,7 +1729,7 @@ Hena Agent 設定を通じてモデルをカスタマイズすることもでき
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1839,7 +1839,7 @@ Hena Agent 設定を通じて追加のモデルを追加することもできま
 
 ```json title="hena-agent.json" {6}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "zenmux": {
       "models": {
@@ -1907,7 +1907,7 @@ OpenAI と互換性のある任意のプロバイダーを Hena Agent で使用�
 
    ```json title="hena-agent.json" ""myprovider"" {5-15}
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "myprovider": {
          "npm": "@ai-sdk/openai-compatible",
@@ -1946,7 +1946,7 @@ OpenAI と互換性のある任意のプロバイダーを Hena Agent で使用�
 
 ```json title="hena-agent.json" {9,11,17-20}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",

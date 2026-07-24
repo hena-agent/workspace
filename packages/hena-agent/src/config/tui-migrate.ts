@@ -8,7 +8,7 @@ import { Global } from "@/global"
 import { Filesystem } from "@/util/filesystem"
 import * as ConfigPaths from "@/config/paths"
 
-const TUI_SCHEMA_URL = "https://hena.ai/tui.json"
+const TUI_SCHEMA_URL = "https://hena.dev/tui.json"
 
 const decodeTheme = Schema.decodeUnknownOption(Schema.String)
 const decodeRecord = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown))

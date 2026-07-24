@@ -46,7 +46,7 @@ describe("LLMGatewayPlugin", () => {
       yield* addPlugin()
       expect((yield* catalog.provider.get(ProviderV2.ID.make("llmgateway")))?.request.headers).toEqual({
         Existing: "value",
-        "HTTP-Referer": "https://hena.ai/",
+        "HTTP-Referer": "https://hena.dev/",
         "X-Title": "hena-agent",
         "X-Source": "hena-agent",
       })

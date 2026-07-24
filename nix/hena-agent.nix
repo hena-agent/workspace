@@ -101,7 +101,7 @@ stdenvNoCC.mkDerivation (finalAttrs: {
 
   meta = {
     description = "The open source coding agent";
-    homepage = "https://hena.ai";
+    homepage = "https://hena.dev";
     license = lib.licenses.mit;
     mainProgram = "hena-agent";
     inherit (node_modules.meta) platforms;

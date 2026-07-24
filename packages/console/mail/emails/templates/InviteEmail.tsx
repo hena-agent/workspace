@@ -15,7 +15,7 @@ import {
   buttonText,
 } from "../styles"
 
-const CONSOLE_URL = "https://hena.ai/"
+const CONSOLE_URL = "https://hena.dev/"
 
 interface InviteEmailProps {
   inviter: string

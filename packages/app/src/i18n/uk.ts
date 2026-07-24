@@ -142,7 +142,7 @@ export const dict = {
   "provider.connect.hena-agentZen.line2":
     "З одним ключем API ви отримаєте доступ до таких моделей, як Claude, GPT, Gemini, GLM та інших.",
   "provider.connect.hena-agentZen.visit.prefix": "Відвідайте ",
-  "provider.connect.hena-agentZen.visit.link": "hena.ai/zen",
+  "provider.connect.hena-agentZen.visit.link": "hena.dev/zen",
   "provider.connect.hena-agentZen.visit.suffix": ", щоб отримати ключ API.",
   "provider.connect.oauth.code.visit.prefix": "Відвідайте ",
   "provider.connect.oauth.code.visit.link": "це посилання",

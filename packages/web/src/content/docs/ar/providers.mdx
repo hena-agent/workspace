@@ -34,7 +34,7 @@ export const console = config.console
 
 ```json title="hena-agent.json" {6}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -56,7 +56,7 @@ Hena Zen هي قائمة نماذج يوفّرها فريق Hena Agent وقد ت
 إذا كنت جديدا، فننصح بالبدء مع Hena Zen.
 :::
 
-1. شغّل الأمر `/connect` في TUI، واختر hena-agent، ثم انتقل إلى [hena.ai/auth](https://hena.ai/auth).
+1. شغّل الأمر `/connect` في TUI، واختر hena-agent، ثم انتقل إلى [hena.dev/auth](https://hena.dev/auth).
 
    ```txt
    /connect
@@ -87,7 +87,7 @@ Hena Zen هي قائمة نماذج يوفّرها فريق Hena Agent وقد ت
 
 Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصولا موثوقا إلى نماذج البرمجة المفتوحة الشهيرة المقدّمة من فريق Hena Agent، والتي تم اختبارها والتحقق من أنها تعمل بشكل جيد مع Hena Agent.
 
-1. شغّل الأمر `/connect` في TUI، واختر `Hena Go`، ثم انتقل إلى [hena.ai/auth](https://hena.ai/zen).
+1. شغّل الأمر `/connect` في TUI، واختر `Hena Go`، ثم انتقل إلى [hena.dev/auth](https://hena.dev/zen).
 
    ```txt
    /connect
@@ -193,7 +193,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -220,7 +220,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -263,7 +263,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -325,7 +325,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
 ```json title="hena-agent.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -553,7 +553,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "cloudflare-ai-gateway": {
          "models": {
@@ -758,7 +758,7 @@ Hena Go هي خطة اشتراك منخفضة التكلفة توفّر وصول
 
 ```json
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "small_model": "gitlab/duo-chat-haiku-4-5",
   "share": "disabled"
 }
@@ -820,7 +820,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -837,7 +837,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "plugin": ["opencode-gitlab-plugin"]
 }
 ```
@@ -1019,7 +1019,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```jsonc title="~/.config/hena-agent/hena.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1047,7 +1047,7 @@ export GITLAB_OAUTH_CLIENT_ID=your_application_id_here
 
 ```jsonc title="~/.config/hena-agent/hena.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1101,7 +1101,7 @@ npm install -g opencode-helicone-session
 
 ```json title="hena-agent.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1168,7 +1168,7 @@ npm install -g opencode-helicone-session
 
 ```json title="hena-agent.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1289,7 +1289,7 @@ npm install -g opencode-helicone-session
 
 ```json title="hena-agent.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1451,7 +1451,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 
    ```json title="hena-agent.json" {6}
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1466,7 +1466,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1715,7 +1715,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1825,7 +1825,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 
    ```json title="hena-agent.json" {6}
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "zenmux": {
          "models": {
@@ -1893,7 +1893,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 
    ```json title="hena-agent.json" ""myprovider"" {5-15}
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "myprovider": {
          "npm": "@ai-sdk/openai-compatible",
@@ -1931,7 +1931,7 @@ Hena Zen هي قائمة من النماذج التي تم اختبارها وا
 
 ```json title="hena-agent.json" {9,11,17-20}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",

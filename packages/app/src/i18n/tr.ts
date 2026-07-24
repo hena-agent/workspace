@@ -146,7 +146,7 @@ export const dict = {
   "provider.connect.hena-agentZen.line2":
     "Tek bir API anahtarıyla Claude, GPT, Gemini, GLM ve daha fazlası gibi modellere erişebilirsiniz.",
   "provider.connect.hena-agentZen.visit.prefix": "",
-  "provider.connect.hena-agentZen.visit.link": "hena.ai/zen",
+  "provider.connect.hena-agentZen.visit.link": "hena.dev/zen",
   "provider.connect.hena-agentZen.visit.suffix": " adresini ziyaret ederek API anahtarınızı alın.",
   "provider.connect.oauth.code.visit.prefix": "Yetkilendirme kodunuzu almak için ",
   "provider.connect.oauth.code.visit.link": "bu bağlantıya",

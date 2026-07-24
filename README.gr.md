@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://hena.ai">
+  <a href="https://hena.dev">
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
@@ -9,7 +9,7 @@
 </p>
 <p align="center">Ο πράκτορας τεχνητής νοημοσύνης ανοικτού κώδικα για προγραμματισμό.</p>
 <p align="center">
-  <a href="https://hena.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
+  <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.ai)
+[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -47,7 +47,7 @@
 
 ```bash
 # YOLO
-curl -fsSL https://hena.ai/install | bash
+curl -fsSL https://hena.dev/install | bash
 
 # Διαχειριστές πακέτων
 npm i -g hena-agent@latest        # ή bun/pnpm/yarn
@@ -66,7 +66,7 @@ nix run github:hena-agent/hena           # ή github:hena-agent/hena με βάσ
 
 ### Εφαρμογή Desktop (BETA)
 
-Το Hena Agent είναι επίσης διαθέσιμο ως εφαρμογή. Κατέβασε το απευθείας από τη [σελίδα εκδόσεων](https://github.com/hena-agent/hena/releases) ή το [hena.ai/download](https://hena.ai/download).
+Το Hena Agent είναι επίσης διαθέσιμο ως εφαρμογή. Κατέβασε το απευθείας από τη [σελίδα εκδόσεων](https://github.com/hena-agent/hena/releases) ή το [hena.dev/download](https://hena.dev/download).
 
 | Πλατφόρμα             | Λήψη                               |
 | --------------------- | ---------------------------------- |
@@ -93,8 +93,8 @@ scoop bucket add extras; scoop install hena-agent
 
 ```bash
 # Παραδείγματα
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.ai/install | bash
+HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Πράκτορες
@@ -110,11 +110,11 @@ XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.ai/install | bash
 Περιλαμβάνεται επίσης ένας **general** υποπράκτορας για σύνθετες αναζητήσεις και πολυβηματικές διεργασίες.
 Χρησιμοποιείται εσωτερικά και μπορεί να κληθεί χρησιμοποιώντας `@general` στα μηνύματα.
 
-Μάθετε περισσότερα για τους [πράκτορες](https://hena.ai/docs/agents).
+Μάθετε περισσότερα για τους [πράκτορες](https://hena.dev/docs/agents).
 
 ### Οδηγός Χρήσης
 
-Για περισσότερες πληροφορίες σχετικά με τη ρύθμιση του Hena Agent, [**πλοηγήσου στον οδηγό χρήσης μας**](https://hena.ai/docs).
+Για περισσότερες πληροφορίες σχετικά με τη ρύθμιση του Hena Agent, [**πλοηγήσου στον οδηγό χρήσης μας**](https://hena.dev/docs).
 
 ### Συνεισφορά
 
@@ -126,4 +126,4 @@ XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.ai/install | bash
 
 ---
 
-**Γίνε μέλος της κοινότητάς μας** [Discord](https://hena.ai/discord) | [X.com](https://hena.ai)
+**Γίνε μέλος της κοινότητάς μας** [Discord](https://hena.dev/discord) | [X.com](https://hena.dev)

@@ -275,7 +275,7 @@ export default function Enterprise() {
               </li>
               <li>
                 <Faq question={i18n.t("enterprise.faq.q5")}>
-                  {i18n.t("enterprise.faq.a5.before")} <a href="https://trust.hena.ai">trust.hena.ai</a>{" "}
+                  {i18n.t("enterprise.faq.a5.before")} <a href="https://trust.hena.dev">trust.hena.dev</a>{" "}
                   {i18n.t("enterprise.faq.a5.after")}
                 </Faq>
               </li>

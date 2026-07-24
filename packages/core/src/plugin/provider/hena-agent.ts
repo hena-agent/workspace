@@ -14,7 +14,7 @@ import { ConfigProviderOptionsV1 } from "../../v1/config/provider-options"
 import { ConfigV1 } from "../../v1/config/config"
 import { environment } from "../../flag/flag"
 
-const defaultServer = "https://console.hena.ai"
+const defaultServer = "https://console.hena.dev"
 const clientID = "hena-agent-cli"
 const methodID = Integration.MethodID.make("device")
 const RemoteResponse = Schema.Struct({ config: ConfigV1.Info })

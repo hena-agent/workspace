@@ -363,7 +363,7 @@ function useIssueId() {
 }
 
 function useShareUrl() {
-  return isMock() ? "https://dev.hena.ai" : "https://hena.ai"
+  return isMock() ? "https://dev.hena.dev" : "https://hena.dev"
 }
 
 async function getAccessToken() {
@@ -374,7 +374,7 @@ async function getAccessToken() {
 
   let response
   if (isMock()) {
-    response = await fetch("https://api.hena.ai/exchange_github_app_token_with_pat", {
+    response = await fetch("https://api.hena.dev/exchange_github_app_token_with_pat", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${useEnvMock().mockToken}`,
@@ -383,7 +383,7 @@ async function getAccessToken() {
     })
   } else {
     const oidcToken = await core.getIDToken("hena-agent-github-action")
-    response = await fetch("https://api.hena.ai/exchange_github_app_token", {
+    response = await fetch("https://api.hena.dev/exchange_github_app_token", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${oidcToken}`,

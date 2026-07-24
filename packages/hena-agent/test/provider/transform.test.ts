@@ -2723,7 +2723,7 @@ describe("ProviderTransform.message - strip openai metadata when store=false", (
       providerID: "hena-agent",
       api: {
         id: "hena-agent-test",
-        url: "https://api.hena.ai",
+        url: "https://api.hena.dev",
         npm: "@ai-sdk/openai-compatible",
       },
     }
@@ -2757,7 +2757,7 @@ describe("ProviderTransform.message - strip openai metadata when store=false", (
       providerID: "hena-agent",
       api: {
         id: "hena-agent-test",
-        url: "https://api.hena.ai",
+        url: "https://api.hena.dev",
         npm: "@ai-sdk/openai-compatible",
       },
     }

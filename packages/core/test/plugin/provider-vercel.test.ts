@@ -32,7 +32,7 @@ describe("VercelPlugin", () => {
       yield* addPlugin()
       expect((yield* catalog.provider.get(ProviderV2.ID.make("vercel")))?.request.headers).toEqual({
         Existing: "1",
-        "http-referer": "https://hena.ai/",
+        "http-referer": "https://hena.dev/",
         "x-title": "hena-agent",
       })
     }),

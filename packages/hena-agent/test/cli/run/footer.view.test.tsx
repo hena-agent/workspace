@@ -59,7 +59,7 @@ function model(input: {
     providerID: "hena-agent",
     api: {
       id: "hena-agent",
-      url: "https://hena.ai",
+      url: "https://hena.dev",
       npm: "@ai-sdk/openai-compatible",
     },
     name: input.name,

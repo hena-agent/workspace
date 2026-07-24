@@ -129,7 +129,7 @@ export const dict = {
     "Hena Zenは、コーディングエージェント向けに最適化された信頼性の高いモデルへのアクセスを提供します。",
   "provider.connect.hena-agentZen.line2": "1つのAPIキーで、Claude、GPT、Gemini、GLMなどのモデルにアクセスできます。",
   "provider.connect.hena-agentZen.visit.prefix": " ",
-  "provider.connect.hena-agentZen.visit.link": "hena.ai/zen",
+  "provider.connect.hena-agentZen.visit.link": "hena.dev/zen",
   "provider.connect.hena-agentZen.visit.suffix": " にアクセスしてAPIキーを取得してください。",
   "provider.connect.oauth.code.visit.prefix": " ",
   "provider.connect.oauth.code.visit.link": "このリンク",

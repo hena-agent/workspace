@@ -48,7 +48,7 @@ Hena Agent config.
 
 ```json title="hena-agent.json" {3}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "model": "lmstudio/google/gemma-3n-e4b"
 }
 ```
@@ -64,7 +64,7 @@ Možete globalno konfigurirati opcije modela kroz config.
 
 ```jsonc title="hena-agent.jsonc" {7-12,19-24}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -101,7 +101,7 @@ Također možete definirati prilagođene varijante koje proširuju ugrađene. Va
 
 ```jsonc title="hena-agent.jsonc" {6-21}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "hena-agent": {
       "models": {
@@ -159,7 +159,7 @@ Možete nadjačati postojeće varijante ili dodati svoje:
 
 ```jsonc title="hena-agent.jsonc" {7-18}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "openai": {
       "models": {
@@ -193,7 +193,7 @@ Kada se Hena Agent pokrene, on provjerava modele u sljedećem prioritetnom redos
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "model": "anthropic/claude-sonnet-4-20250514"
 }
 ```

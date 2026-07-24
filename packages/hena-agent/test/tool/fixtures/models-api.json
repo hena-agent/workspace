@@ -33607,9 +33607,9 @@
     "id": "hena-agent-go",
     "env": ["HENA_AGENT_API_KEY"],
     "npm": "@ai-sdk/openai-compatible",
-    "api": "https://hena.ai/zen/go/v1",
+    "api": "https://hena.dev/zen/go/v1",
     "name": "Hena Go",
-    "doc": "https://hena.ai/docs/zen",
+    "doc": "https://hena.dev/docs/zen",
     "models": {
       "deepseek-v4-flash": {
         "id": "deepseek-v4-flash",
@@ -90323,9 +90323,9 @@
     "id": "hena-agent",
     "env": ["HENA_AGENT_API_KEY"],
     "npm": "@ai-sdk/openai-compatible",
-    "api": "https://hena.ai/zen/v1",
+    "api": "https://hena.dev/zen/v1",
     "name": "Hena Zen",
-    "doc": "https://hena.ai/docs/zen",
+    "doc": "https://hena.dev/docs/zen",
     "models": {
       "ring-2.6-1t-free": {
         "id": "ring-2.6-1t-free",

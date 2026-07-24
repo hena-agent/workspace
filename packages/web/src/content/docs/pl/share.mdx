@@ -17,7 +17,7 @@ Kiedy udostępniasz rozmowę, hena-agent:
 
 1. Tworzy unikalny publiczny adres URL sesji
 2. Synchronizuje historię rozmów z naszymi serwerami
-3. Udostępnia rozmowę za pośrednictwem łącza do udostępniania — `hena.ai/s/<share-id>`
+3. Udostępnia rozmowę za pośrednictwem łącza do udostępniania — `hena.dev/s/<share-id>`
 
 ---
 
@@ -41,7 +41,7 @@ Aby jawnie ustawić tryb ręczny w [pliku konfiguracyjnym] (./config):
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "share": "manual"
 }
 ```
@@ -54,7 +54,7 @@ Możesz włączyć automatyczne udostępnianie dla wszystkich nowych rozmów, us
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "share": "auto"
 }
 ```
@@ -69,7 +69,7 @@ Możesz całkowicie wyłączyć udostępnianie, ustawiając opcję `share` na `"
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "share": "disabled"
 }
 ```

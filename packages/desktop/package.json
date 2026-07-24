@@ -4,10 +4,10 @@
   "version": "1.18.4",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://hena.ai",
+  "homepage": "https://hena.dev",
   "author": {
     "name": "Hena Agent",
-    "email": "hello@hena.ai"
+    "email": "hello@hena.dev"
   },
   "scripts": {
     "typecheck": "tsgo -b",

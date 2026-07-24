@@ -51,7 +51,7 @@ jobs:
 
       - name: Configure git identity
         run: |
-          git config --global user.email "bot@hena.ai"
+          git config --global user.email "bot@hena.dev"
           git config --global user.name "hena-agent"
 
       - name: Cache Turbo

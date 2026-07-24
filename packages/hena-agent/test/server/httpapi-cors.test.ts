@@ -71,14 +71,14 @@ describe("HttpApi CORS", () => {
       const response = yield* Effect.promise(() =>
         handler(
           new Request(new URL("/global/config", "http://localhost"), {
-            headers: { origin: "https://app.hena.ai" },
+            headers: { origin: "https://app.hena.dev" },
           }),
           HttpApiApp.context,
         ),
       )
 
       expect(response.status).toBe(401)
-      expect(response.headers.get("access-control-allow-origin")).toBe("https://app.hena.ai")
+      expect(response.headers.get("access-control-allow-origin")).toBe("https://app.hena.dev")
     }),
   )
 

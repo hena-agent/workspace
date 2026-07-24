@@ -74,7 +74,7 @@ describe("plugin.workspace", () => {
           path.join(dir, "hena-agent.json"),
           JSON.stringify(
             {
-              $schema: "https://hena.ai/config.json",
+              $schema: "https://hena.dev/config.json",
               plugin: [pathToFileURL(file).href],
             },
             null,

@@ -678,7 +678,7 @@ export function NewHome() {
             clearNotifications={clearNotifications}
             unseenCount={unseenCount}
             openSettings={openSettings}
-            openHelp={() => platform.openLink("https://hena.ai/desktop-feedback")}
+            openHelp={() => platform.openLink("https://hena.dev/desktop-feedback")}
             language={language}
             onWheel={(event) => {
               if (sessionViewport) containHomeWheel(event, sessionViewport)
@@ -785,7 +785,7 @@ export function NewHome() {
           <HomeUtilityNav
             class="flex lg:hidden"
             openSettings={openSettings}
-            openHelp={() => platform.openLink("https://hena.ai/desktop-feedback")}
+            openHelp={() => platform.openLink("https://hena.dev/desktop-feedback")}
             language={language}
           />
         </div>

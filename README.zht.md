@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://hena.ai">
+  <a href="https://hena.dev">
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
@@ -9,7 +9,7 @@
 </p>
 <p align="center">開源的 AI Coding Agent。</p>
 <p align="center">
-  <a href="https://hena.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
+  <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.ai)
+[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -47,7 +47,7 @@
 
 ```bash
 # 直接安裝 (YOLO)
-curl -fsSL https://hena.ai/install | bash
+curl -fsSL https://hena.dev/install | bash
 
 # 套件管理員
 npm i -g hena-agent@latest        # 也可使用 bun/pnpm/yarn
@@ -66,7 +66,7 @@ nix run github:hena-agent/hena           # 或使用 github:hena-agent/hena 以�
 
 ### 桌面應用程式 (BETA)
 
-Hena Agent 也提供桌面版應用程式。您可以直接從 [發佈頁面 (releases page)](https://github.com/hena-agent/hena/releases) 或 [hena.ai/download](https://hena.ai/download) 下載。
+Hena Agent 也提供桌面版應用程式。您可以直接從 [發佈頁面 (releases page)](https://github.com/hena-agent/hena/releases) 或 [hena.dev/download](https://hena.dev/download) 下載。
 
 | 平台                  | 下載連結                           |
 | --------------------- | ---------------------------------- |
@@ -93,8 +93,8 @@ scoop bucket add extras; scoop install hena-agent
 
 ```bash
 # 範例
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.ai/install | bash
+HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agents
@@ -109,11 +109,11 @@ Hena Agent 內建了兩種 Agent，您可以使用 `Tab` 鍵快速切換。
 
 此外，Hena Agent 還包含一個 **general** 子 Agent，用於處理複雜搜尋與多步驟任務。此 Agent 供系統內部使用，亦可透過在訊息中輸入 `@general` 來呼叫。
 
-了解更多關於 [Agents](https://hena.ai/docs/agents) 的資訊。
+了解更多關於 [Agents](https://hena.dev/docs/agents) 的資訊。
 
 ### 線上文件
 
-關於如何設定 Hena Agent 的詳細資訊，請參閱我們的 [**官方文件**](https://hena.ai/docs)。
+關於如何設定 Hena Agent 的詳細資訊，請參閱我們的 [**官方文件**](https://hena.dev/docs)。
 
 ### 參與貢獻
 
@@ -125,4 +125,4 @@ Hena Agent 內建了兩種 Agent，您可以使用 `Tab` 鍵快速切換。
 
 ---
 
-**加入我們的社群** [飞书](https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=52ao9352-5623-4fa0-b7dd-3407c392c1af&qr_code=true) | [X.com](https://hena.ai)
+**加入我們的社群** [飞书](https://applink.feishu.cn/client/chat/chatter/add_by_link?link_token=52ao9352-5623-4fa0-b7dd-3407c392c1af&qr_code=true) | [X.com](https://hena.dev)

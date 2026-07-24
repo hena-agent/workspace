@@ -142,7 +142,7 @@ export const dict = {
   "provider.connect.hena-agentZen.line2":
     "Sa jednim API ključem dobijaš pristup modelima kao što su Claude, GPT, Gemini, GLM i drugi.",
   "provider.connect.hena-agentZen.visit.prefix": "Posjeti ",
-  "provider.connect.hena-agentZen.visit.link": "hena.ai/zen",
+  "provider.connect.hena-agentZen.visit.link": "hena.dev/zen",
   "provider.connect.hena-agentZen.visit.suffix": " da preuzmeš svoj API ključ.",
   "provider.connect.oauth.code.visit.prefix": "Posjeti ",
   "provider.connect.oauth.code.visit.link": "ovaj link",

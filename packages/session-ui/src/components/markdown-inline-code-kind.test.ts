@@ -38,9 +38,9 @@ describe("inlineCodeKind", () => {
   })
 
   test("detects urls", () => {
-    expect(inlineCodeKind(`https://hena.ai/docs`)).toBe("url")
+    expect(inlineCodeKind(`https://hena.dev/docs`)).toBe("url")
     expect(inlineCodeKind(`http://localhost:4444`)).toBe("url")
     expect(inlineCodeKind(`file:///tmp/hena-agent`)).toBeUndefined()
-    expect(inlineCodeKind(`ftp://hena.ai/docs`)).toBeUndefined()
+    expect(inlineCodeKind(`ftp://hena.dev/docs`)).toBeUndefined()
   })
 })

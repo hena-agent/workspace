@@ -305,7 +305,7 @@ describe("session.retry.retryable", () => {
 
     expect(SessionRetry.retryable(error, "hena-agent-go")).toEqual({
       message:
-        "5 hour usage limit reached. It will reset in 5 hours 23 minutes. To continue using this model now, enable usage from your available balance - https://hena.ai/workspace/wrk_01K6XGM22R6FM8JVABE9XDQXGH/go",
+        "5 hour usage limit reached. It will reset in 5 hours 23 minutes. To continue using this model now, enable usage from your available balance - https://hena.dev/workspace/wrk_01K6XGM22R6FM8JVABE9XDQXGH/go",
       action: {
         reason: "account_rate_limit",
         provider: "hena-agent-go",
@@ -313,7 +313,7 @@ describe("session.retry.retryable", () => {
         message:
           "5 hour usage limit reached. It will reset in 5 hours 23 minutes. To continue using this model now, enable usage from your available balance",
         label: "open settings",
-        link: "https://hena.ai/workspace/wrk_01K6XGM22R6FM8JVABE9XDQXGH/go",
+        link: "https://hena.dev/workspace/wrk_01K6XGM22R6FM8JVABE9XDQXGH/go",
       },
     })
   })

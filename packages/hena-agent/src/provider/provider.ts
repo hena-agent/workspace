@@ -458,7 +458,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://hena.ai/",
+            "HTTP-Referer": "https://hena.dev/",
             "X-Title": "Hena Agent",
             "X-Source": "hena-agent",
           },
@@ -469,7 +469,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://hena.ai/",
+            "HTTP-Referer": "https://hena.dev/",
             "X-Title": "Hena Agent",
           },
         },
@@ -479,7 +479,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: provider.source === "config",
         options: {
           headers: {
-            "HTTP-Referer": "https://hena.ai/",
+            "HTTP-Referer": "https://hena.dev/",
             "X-Title": "Hena Agent",
             "X-BILLING-INVOKE-ORIGIN": "Hena Agent",
           },
@@ -490,7 +490,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "http-referer": "https://hena.ai/",
+            "http-referer": "https://hena.dev/",
             "x-title": "Hena Agent",
           },
         },
@@ -596,7 +596,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://hena.ai/",
+            "HTTP-Referer": "https://hena.dev/",
             "X-Title": "Hena Agent",
           },
         },
@@ -854,7 +854,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://hena.ai/",
+            "HTTP-Referer": "https://hena.dev/",
             "X-Title": "Hena Agent",
           },
         },

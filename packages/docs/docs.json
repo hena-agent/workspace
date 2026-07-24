@@ -16,7 +16,7 @@
           {
             "group": "Getting started",
             "pages": ["index", "quickstart", "development"],
-            "openapi": "https://hena.ai/openapi.json"
+            "openapi": "https://hena.dev/openapi.json"
           }
         ]
       }

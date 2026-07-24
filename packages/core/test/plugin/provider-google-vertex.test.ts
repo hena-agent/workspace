@@ -95,7 +95,7 @@ describe("GoogleVertexPlugin", () => {
           provider.api = {
             type: "aisdk",
             package: "@ai-sdk/openai-compatible",
-            url: "https://hena.ai/zen/v1",
+            url: "https://hena.dev/zen/v1",
           }
         }),
       )

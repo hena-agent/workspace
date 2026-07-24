@@ -1,6 +1,6 @@
 # Hena Agent GitHub Action
 
-A GitHub Action that integrates [Hena Agent](https://hena.ai) directly into your GitHub workflow.
+A GitHub Action that integrates [Hena Agent](https://hena.dev) directly into your GitHub workflow.
 
 Mention `/hena-agent` in your comment, and Hena Agent will execute tasks within your GitHub Actions runner.
 

@@ -17,7 +17,7 @@ Når du deler en samtale, Hena Agent:
 
 1. Opreter en unik offentlig URL for sessionen din
 2. Synkroniserer samtaleloggen din til serverne våre
-3. Gør samtalen tilgængelig via den delbare lenken — `hena.ai/s/<share-id>`
+3. Gør samtalen tilgængelig via den delbare lenken — `hena.dev/s/<share-id>`
 
 ---
 
@@ -41,7 +41,7 @@ For at eksplisitt angi manuell modus i [konfigurasjonsfilen](/docs/config):
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "share": "manual"
 }
 ```
@@ -54,7 +54,7 @@ Du kan aktivere automatisk deling for alle nye samtaler ved at sette alternative
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "share": "auto"
 }
 ```
@@ -69,7 +69,7 @@ Du kan deaktivere deling helt ved at sette alternativet `share` til `"disabled"`
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "share": "disabled"
 }
 ```

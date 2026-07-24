@@ -875,7 +875,7 @@ function ProviderConnection(props: {
               <div>
                 {language.t("provider.connect.hena-agentZen.visit.prefix")}
                 <Link
-                  href="https://hena.ai/zen"
+                  href="https://hena.dev/zen"
                   class="text-v2-text-text-base focus-visible:rounded-xs focus-visible:outline-2 focus-visible:outline-v2-border-border-focus"
                 >
                   {language.t("provider.connect.hena-agentZen.visit.link")}
@@ -923,7 +923,7 @@ function ProviderConnection(props: {
               <div class="text-14-regular text-text-base">{language.t("provider.connect.hena-agentZen.line2")}</div>
               <div class="text-14-regular text-text-base">
                 {language.t("provider.connect.hena-agentZen.visit.prefix")}
-                <Link href="https://hena.ai/zen" tabIndex={-1}>
+                <Link href="https://hena.dev/zen" tabIndex={-1}>
                   {language.t("provider.connect.hena-agentZen.visit.link")}
                 </Link>
                 {language.t("provider.connect.hena-agentZen.visit.suffix")}

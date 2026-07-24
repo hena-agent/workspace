@@ -16,7 +16,7 @@ is wrong. The shapes below cover the common surface area, but they are a
 The authoritative list of every config option — with field types, enums,
 defaults, and descriptions — lives in the published JSON Schema:
 
-**<https://hena.ai/config.json>**
+**<https://hena.dev/config.json>**
 
 If a field is not documented in this skill, or you need to confirm an exact
 shape before writing config, **fetch that URL and read the schema directly**
@@ -24,7 +24,7 @@ rather than guessing. Hena Agent hard-fails on invalid config, so the cost of a
 wrong shape is a broken startup.
 
 Independently, every `hena-agent.json` should declare
-`"$schema": "https://hena.ai/config.json"` so the user's editor catches
+`"$schema": "https://hena.dev/config.json"` so the user's editor catches
 mistakes as they type.
 
 ## Applying changes
@@ -58,7 +58,7 @@ Every field is optional.
 
 ```json
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "username": "string",
   "model": "provider/model-id",
   "small_model": "provider/model-id",
@@ -429,7 +429,7 @@ When a user's config is broken and Hena Agent won't start, these env vars help:
   and start from globals only. Run from the project directory, Hena Agent loads,
   the user edits the broken file, then they restart without the flag.
 - `HENA_AGENT_CONFIG=/path/to/file.json`: load an additional explicit config.
-- `HENA_AGENT_CONFIG_CONTENT='{"$schema":"https://hena.ai/config.json"}'`:
+- `HENA_AGENT_CONFIG_CONTENT='{"$schema":"https://hena.dev/config.json"}'`:
   inject inline JSON as a final local-scope merge.
 - `HENA_AGENT_DISABLE_DEFAULT_PLUGINS=1`: skip default plugins.
 - `HENA_AGENT_PURE=1`: skip external plugins entirely.
@@ -441,7 +441,7 @@ When a user's config is broken and Hena Agent won't start, these env vars help:
 
 - Validate against the schema before writing. If you are unsure of a field's
   exact shape, or the field is not covered in this skill, fetch
-  `https://hena.ai/config.json` and read the schema rather than guessing.
+  `https://hena.dev/config.json` and read the schema rather than guessing.
 - Preserve `$schema` and any existing fields the user did not ask to change.
 - For agent, command, skill, and plugin definitions, prefer creating new files
   in the correct location over inlining everything in `hena-agent.json`.

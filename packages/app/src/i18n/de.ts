@@ -134,7 +134,7 @@ export const dict = {
   "provider.connect.hena-agentZen.line2":
     "Mit einem einzigen API-Schlüssel erhalten Sie Zugriff auf Modelle wie Claude, GPT, Gemini, GLM und mehr.",
   "provider.connect.hena-agentZen.visit.prefix": "Besuchen Sie ",
-  "provider.connect.hena-agentZen.visit.link": "hena.ai/zen",
+  "provider.connect.hena-agentZen.visit.link": "hena.dev/zen",
   "provider.connect.hena-agentZen.visit.suffix": ", um Ihren API-Schlüssel zu erhalten.",
   "provider.connect.oauth.code.visit.prefix": "Besuchen Sie ",
   "provider.connect.oauth.code.visit.link": "diesen Link",

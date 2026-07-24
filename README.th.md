@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://hena.ai">
+  <a href="https://hena.dev">
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
@@ -9,7 +9,7 @@
 </p>
 <p align="center">เอเจนต์การเขียนโค้ดด้วย AI แบบโอเพนซอร์ส</p>
 <p align="center">
-  <a href="https://hena.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
+  <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="สถานะการสร้าง" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.ai)
+[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -47,7 +47,7 @@
 
 ```bash
 # YOLO
-curl -fsSL https://hena.ai/install | bash
+curl -fsSL https://hena.dev/install | bash
 
 # ตัวจัดการแพ็กเกจ
 npm i -g hena-agent@latest        # หรือ bun/pnpm/yarn
@@ -66,7 +66,7 @@ nix run github:hena-agent/hena           # หรือ github:hena-agent/hena �
 
 ### แอปพลิเคชันเดสก์ท็อป (เบต้า)
 
-Hena Agent มีให้ใช้งานเป็นแอปพลิเคชันเดสก์ท็อป ดาวน์โหลดโดยตรงจาก [หน้ารุ่น](https://github.com/hena-agent/hena/releases) หรือ [hena.ai/download](https://hena.ai/download)
+Hena Agent มีให้ใช้งานเป็นแอปพลิเคชันเดสก์ท็อป ดาวน์โหลดโดยตรงจาก [หน้ารุ่น](https://github.com/hena-agent/hena/releases) หรือ [hena.dev/download](https://hena.dev/download)
 
 | แพลตฟอร์ม             | ดาวน์โหลด                          |
 | --------------------- | ---------------------------------- |
@@ -93,8 +93,8 @@ scoop bucket add extras; scoop install hena-agent
 
 ```bash
 # ตัวอย่าง
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.ai/install | bash
+HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### เอเจนต์
@@ -110,11 +110,11 @@ Hena Agent รวมเอเจนต์ในตัวสองตัวที
 นอกจากนี้ยังมีเอเจนต์ย่อย **general** สำหรับการค้นหาที่ซับซ้อนและงานหลายขั้นตอน
 ใช้ภายในและสามารถเรียกใช้ได้โดยใช้ `@general` ในข้อความ
 
-เรียนรู้เพิ่มเติมเกี่ยวกับ [เอเจนต์](https://hena.ai/docs/agents)
+เรียนรู้เพิ่มเติมเกี่ยวกับ [เอเจนต์](https://hena.dev/docs/agents)
 
 ### เอกสารประกอบ
 
-สำหรับข้อมูลเพิ่มเติมเกี่ยวกับวิธีกำหนดค่า Hena Agent [**ไปที่เอกสารของเรา**](https://hena.ai/docs)
+สำหรับข้อมูลเพิ่มเติมเกี่ยวกับวิธีกำหนดค่า Hena Agent [**ไปที่เอกสารของเรา**](https://hena.dev/docs)
 
 ### การมีส่วนร่วม
 
@@ -126,4 +126,4 @@ Hena Agent รวมเอเจนต์ในตัวสองตัวที
 
 ---
 
-**ร่วมชุมชนของเรา** [Discord](https://hena.ai/discord) | [X.com](https://hena.ai)
+**ร่วมชุมชนของเรา** [Discord](https://hena.dev/discord) | [X.com](https://hena.dev)

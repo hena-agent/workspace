@@ -399,7 +399,7 @@ describe("workspace HttpApi", () => {
             "content-type": "application/json",
             "x-hena-agent-workspace": "internal",
           },
-          body: JSON.stringify({ $schema: "https://hena.ai/config.json" }),
+          body: JSON.stringify({ $schema: "https://hena.dev/config.json" }),
         })
 
         const responseBody = yield* response.text
@@ -416,7 +416,7 @@ describe("workspace HttpApi", () => {
               "content-type": "application/json",
               "x-target-auth": "secret",
             }),
-            body: JSON.stringify({ $schema: "https://hena.ai/config.json" }),
+            body: JSON.stringify({ $schema: "https://hena.dev/config.json" }),
           },
         ])
         expect(forwarded[0]?.headers).not.toHaveProperty("x-hena-agent-directory")

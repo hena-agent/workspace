@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://hena.ai">
+  <a href="https://hena.dev">
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
@@ -9,7 +9,7 @@
 </p>
 <p align="center">Otwartoźródłowy agent kodujący AI.</p>
 <p align="center">
-  <a href="https://hena.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
+  <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.ai)
+[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -47,7 +47,7 @@
 
 ```bash
 # YOLO
-curl -fsSL https://hena.ai/install | bash
+curl -fsSL https://hena.dev/install | bash
 
 # Menedżery pakietów
 npm i -g hena-agent@latest        # albo bun/pnpm/yarn
@@ -66,7 +66,7 @@ nix run github:hena-agent/hena           # lub github:hena-agent/hena dla najnow
 
 ### Aplikacja desktopowa (BETA)
 
-Hena Agent jest także dostępny jako aplikacja desktopowa. Pobierz ją bezpośrednio ze strony [releases](https://github.com/hena-agent/hena/releases) lub z [hena.ai/download](https://hena.ai/download).
+Hena Agent jest także dostępny jako aplikacja desktopowa. Pobierz ją bezpośrednio ze strony [releases](https://github.com/hena-agent/hena/releases) lub z [hena.dev/download](https://hena.dev/download).
 
 | Platforma             | Pobieranie                         |
 | --------------------- | ---------------------------------- |
@@ -93,8 +93,8 @@ Skrypt instalacyjny stosuje następujący priorytet wyboru ścieżki instalacji:
 
 ```bash
 # Przykłady
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.ai/install | bash
+HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agents
@@ -110,11 +110,11 @@ Hena Agent zawiera dwóch wbudowanych agentów, między którymi możesz przeł�
 Dodatkowo jest subagent **general** do złożonych wyszukiwań i wieloetapowych zadań.
 Jest używany wewnętrznie i można go wywołać w wiadomościach przez `@general`.
 
-Dowiedz się więcej o [agents](https://hena.ai/docs/agents).
+Dowiedz się więcej o [agents](https://hena.dev/docs/agents).
 
 ### Dokumentacja
 
-Więcej informacji o konfiguracji Hena Agent znajdziesz w [**dokumentacji**](https://hena.ai/docs).
+Więcej informacji o konfiguracji Hena Agent znajdziesz w [**dokumentacji**](https://hena.dev/docs).
 
 ### Współtworzenie
 
@@ -126,4 +126,4 @@ Jeśli pracujesz nad projektem związanym z Hena Agent i używasz "hena-agent" j
 
 ---
 
-**Dołącz do naszej społeczności** [Discord](https://hena.ai/discord) | [X.com](https://hena.ai)
+**Dołącz do naszej społeczności** [Discord](https://hena.dev/discord) | [X.com](https://hena.dev)

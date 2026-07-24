@@ -17,7 +17,7 @@ Kada podijelite razgovor, Hena Agent:
 
 1. Kreira jedinstveni javni URL za vasu sesiju
 2. Sinhronizuje historiju razgovora na nase servere
-3. Cini razgovor dostupnim preko linka za dijeljenje — `hena.ai/s/<share-id>`
+3. Cini razgovor dostupnim preko linka za dijeljenje — `hena.dev/s/<share-id>`
 
 ---
 
@@ -41,7 +41,7 @@ Da eksplicitno postavite rucni nacin u [config datoteci](/docs/config):
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "share": "manual"
 }
 ```
@@ -54,7 +54,7 @@ Mozete ukljuciti automatsko dijeljenje za sve nove razgovore tako sto `share` po
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "share": "auto"
 }
 ```
@@ -69,7 +69,7 @@ Dijeljenje mozete potpuno iskljuciti tako sto `share` postavite na `"disabled"` 
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "share": "disabled"
 }
 ```

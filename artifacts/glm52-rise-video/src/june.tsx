@@ -136,7 +136,7 @@ export function JuneTotals() {
             fontWeight: 500,
           }}
         >
-          <div style={{ color: c.ink }}>hena.ai/data</div>
+          <div style={{ color: c.ink }}>hena.dev/data</div>
         </div>
       </div>
     </AbsoluteFill>

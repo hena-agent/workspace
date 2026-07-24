@@ -37,7 +37,7 @@ jobs:
 
       - name: Install Hena Agent
         if: steps.team-check.outputs.is_team != 'true'
-        run: curl -fsSL https://hena.ai/install | bash
+        run: curl -fsSL https://hena.dev/install | bash
 
       - name: Build prompt
         if: steps.team-check.outputs.is_team != 'true'

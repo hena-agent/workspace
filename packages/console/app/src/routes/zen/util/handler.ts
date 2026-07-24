@@ -141,7 +141,7 @@ export async function handler(
       if (!allowedRegions?.includes("unavailable"))
         throw new RegionError(
           t("zen.api.error.regionNotAllowed", {
-            consoleGoUrl: `https://hena.ai/workspace/${authInfo.workspaceID}/go`,
+            consoleGoUrl: `https://hena.dev/workspace/${authInfo.workspaceID}/go`,
           }),
         )
     }
@@ -552,7 +552,7 @@ export async function handler(
       throw new ModelError(
         `${t("zen.api.error.trialEnded", {
           model: modelData.name,
-          link: "https://hena.ai/go",
+          link: "https://hena.dev/go",
         })}`,
       )
 
@@ -884,7 +884,7 @@ export async function handler(
     // Validate lite subscription billing
     if (opts.modelList === "lite" && authInfo.billing.lite && authInfo.lite) {
       try {
-        const consoleGoUrl = `https://hena.ai/workspace/${authInfo.workspaceID}/go`
+        const consoleGoUrl = `https://hena.dev/workspace/${authInfo.workspaceID}/go`
         const sub = authInfo.lite
         const liteData = LiteData.getLimits()
 
@@ -955,8 +955,8 @@ export async function handler(
 
     // Validate pay as you go billing
     const billing = authInfo.billing
-    const billingUrl = `https://hena.ai/workspace/${authInfo.workspaceID}/billing`
-    const membersUrl = `https://hena.ai/workspace/${authInfo.workspaceID}/members`
+    const billingUrl = `https://hena.dev/workspace/${authInfo.workspaceID}/billing`
+    const membersUrl = `https://hena.dev/workspace/${authInfo.workspaceID}/members`
     if (!billing.paymentMethodID && billing.balance <= 0)
       throw new CreditsError(t("zen.api.error.noPaymentMethod", { billingUrl }))
     if (billing.balance <= 0) throw new CreditsError(t("zen.api.error.insufficientBalance", { billingUrl }))

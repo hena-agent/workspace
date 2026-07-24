@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://hena.ai">
+  <a href="https://hena.dev">
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
@@ -9,7 +9,7 @@
 </p>
 <p align="center">Hena Agent je open source AI agent za programiranje.</p>
 <p align="center">
-  <a href="https://hena.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
+  <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.ai)
+[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -47,7 +47,7 @@
 
 ```bash
 # YOLO
-curl -fsSL https://hena.ai/install | bash
+curl -fsSL https://hena.dev/install | bash
 
 # Package manageri
 npm i -g hena-agent@latest        # ili bun/pnpm/yarn
@@ -66,7 +66,7 @@ nix run github:hena-agent/hena           # ili github:hena-agent/hena za najnovi
 
 ### Desktop aplikacija (BETA)
 
-Hena Agent je dostupan i kao desktop aplikacija. Preuzmi je direktno sa [stranice izdanja](https://github.com/hena-agent/hena/releases) ili sa [hena.ai/download](https://hena.ai/download).
+Hena Agent je dostupan i kao desktop aplikacija. Preuzmi je direktno sa [stranice izdanja](https://github.com/hena-agent/hena/releases) ili sa [hena.dev/download](https://hena.dev/download).
 
 | Platforma             | Preuzimanje                        |
 | --------------------- | ---------------------------------- |
@@ -93,8 +93,8 @@ Instalacijska skripta koristi sljedeći redoslijed prioriteta za putanju instala
 
 ```bash
 # Primjeri
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.ai/install | bash
+HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agenti
@@ -110,11 +110,11 @@ Hena Agent uključuje dva ugrađena agenta između kojih možeš prebacivati tas
 Uključen je i **general** pod-agent za složene pretrage i višekoračne zadatke.
 Koristi se interno i može se pozvati pomoću `@general` u porukama.
 
-Saznaj više o [agentima](https://hena.ai/docs/agents).
+Saznaj više o [agentima](https://hena.dev/docs/agents).
 
 ### Dokumentacija
 
-Za više informacija o konfiguraciji Hena Agent-a, [**pogledaj dokumentaciju**](https://hena.ai/docs).
+Za više informacija o konfiguraciji Hena Agent-a, [**pogledaj dokumentaciju**](https://hena.dev/docs).
 
 ### Doprinosi
 
@@ -126,4 +126,4 @@ Ako radiš na projektu koji je povezan s Hena Agent-om i koristi "hena-agent" ka
 
 ---
 
-**Pridruži se našoj zajednici** [Discord](https://hena.ai/discord) | [X.com](https://hena.ai)
+**Pridruži se našoj zajednici** [Discord](https://hena.dev/discord) | [X.com](https://hena.dev)

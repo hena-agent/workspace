@@ -35,7 +35,7 @@ Možete prilagoditi osnovni URL za bilo kojeg provajdera postavljanjem opcije `b
 
 ```json title="hena-agent.json" {6}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -57,7 +57,7 @@ testirano i potvrđeno da dobro radi sa Hena Agent. [Saznajte više](/docs/zen).
 Ako ste novi, preporučujemo da počnete sa Hena Zen.
 :::
 
-1. Pokrenite naredbu `/connect` u TUI-u, odaberite hena-agent i idite na [hena.ai/auth](https://hena.ai/auth).
+1. Pokrenite naredbu `/connect` u TUI-u, odaberite hena-agent i idite na [hena.dev/auth](https://hena.dev/auth).
 
 ```txt
    /connect
@@ -88,7 +88,7 @@ Radi kao i svaki drugi provajder u Hena Agent i potpuno je opcionalan za korišt
 
 Hena Go je jeftin plan pretplate koji pruža pouzdan pristup popularnim modelima otvorenog kodiranja koje pruža Hena Agent tim i koji su testirani i verificirani da dobro rade s Hena Agent-om.
 
-1. Pokrenite naredbu `/connect` u TUI-u, odaberite `Hena Go` i idite na [hena.ai/auth](https://hena.ai/zen).
+1. Pokrenite naredbu `/connect` u TUI-u, odaberite `Hena Go` i idite na [hena.dev/auth](https://hena.dev/zen).
 
    ```txt
    /connect
@@ -194,7 +194,7 @@ Za konfiguraciju specifičnu za projekat ili trajnu konfiguraciju, koristite `he
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "amazon-bedrock": {
       "options": {
@@ -222,7 +222,7 @@ Ako koristite VPC krajnje tačke za Bedrock:
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "amazon-bedrock": {
       "options": {
@@ -268,7 +268,7 @@ Za prilagođene profile zaključivanja, koristite ime modela i dobavljača u klj
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -330,7 +330,7 @@ Možete konfigurirati hena-agent za korištenje lokalnih modela preko [Atomic Ch
 
 ```json title="hena-agent.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -558,7 +558,7 @@ Također možete dodati modele kroz svoju hena-agent konfiguraciju.
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "cloudflare-ai-gateway": {
       "models": {
@@ -766,7 +766,7 @@ da biste koristili samo svoju vlastitu instancu koju hostuje GitLab, dodajte slj
 
 ```json
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "small_model": "gitlab/duo-chat-haiku-4-5",
   "share": "disabled"
 }
@@ -828,7 +828,7 @@ Prilagodite putem `hena-agent.json`:
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -845,7 +845,7 @@ Za pristup GitLab alatima (zahtjevi za spajanje, problemi, cjevovodi, CI/CD, itd
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "plugin": ["opencode-gitlab-plugin"]
 }
 ```
@@ -1028,7 +1028,7 @@ Evo [Heliconeov katalog modela](https://helicone.ai/models), ovo će vam trebati
 
 ```jsonc title="~/.config/hena-agent/hena.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1056,7 +1056,7 @@ Helicone podržava prilagođena zaglavlja za funkcije kao što su keširanje, pr
 
 ```jsonc title="~/.config/hena-agent/hena.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1110,7 +1110,7 @@ Možete konfigurirati hena-agent za korištenje lokalnih modela putem [llama.cpp
 
 ```json title="hena-agent.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1177,7 +1177,7 @@ Možete konfigurirati hena-agent za korištenje lokalnih modela preko LM Studio.
 
 ```json title="hena-agent.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1298,7 +1298,7 @@ Ollama se može automatski konfigurirati za Hena Agent. Pogledajte [Ollama integ
 
 ```json title="hena-agent.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1460,7 +1460,7 @@ Također možete dodati dodatne modele putem vaše hena-agent konfiguracije.
 
 ```json title="hena-agent.json" {6}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "openrouter": {
       "models": {
@@ -1475,7 +1475,7 @@ Također možete dodati dodatne modele putem vaše hena-agent konfiguracije.
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "openrouter": {
       "models": {
@@ -1724,7 +1724,7 @@ Također možete prilagoditi modele kroz svoju hena-agent konfiguraciju. Evo pri
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1834,7 +1834,7 @@ Također možete dodati dodatne modele putem vaše hena-agent konfiguracije.
 
 ```json title="hena-agent.json" {6}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "zenmux": {
       "models": {
@@ -1902,7 +1902,7 @@ Odaberite ID koji se pamti, to ćete koristiti u svom konfiguracijskom fajlu.
 
 ```json title="hena-agent.json" ""myprovider"" {5-15}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1941,7 +1941,7 @@ Evo primjera postavljanja opcija `apiKey`, `headers` i modela `limit`.
 
 ```json title="hena-agent.json" {9,11,17-20}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",

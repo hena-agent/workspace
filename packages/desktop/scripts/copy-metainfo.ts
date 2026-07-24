@@ -32,7 +32,7 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
   <content_rating type="oars-1.1" />
 
   <url type="bugtracker">https://github.com/hena-agent/hena/issues</url>
-  <url type="homepage">https://hena.ai</url>
+  <url type="homepage">https://hena.dev</url>
   <url type="vcs-browser">https://github.com/hena-agent/hena</url>
 
   <screenshots>

@@ -35,7 +35,7 @@ Puoi personalizzare l'URL base per qualsiasi provider impostando l'opzione `base
 
 ```json title="hena-agent.json" {6}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "anthropic": {
       "options": {
@@ -57,7 +57,7 @@ verificati per funzionare bene con Hena Agent. [Scopri di piu](/docs/zen).
 Se sei all'inizio, ti consigliamo di partire da Hena Zen.
 :::
 
-1. Esegui `/connect` nella TUI, seleziona hena-agent e vai su [hena.ai/auth](https://hena.ai/auth).
+1. Esegui `/connect` nella TUI, seleziona hena-agent e vai su [hena.dev/auth](https://hena.dev/auth).
 
    ```txt
    /connect
@@ -167,7 +167,7 @@ Per usare Amazon Bedrock con Hena Agent:
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -196,7 +196,7 @@ Per usare Amazon Bedrock con Hena Agent:
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "amazon-bedrock": {
          "options": {
@@ -245,7 +245,7 @@ Per profili di inferenza personalizzati, usa il nome del modello e del provider 
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "amazon-bedrock": {
       // ...
@@ -305,7 +305,7 @@ Puoi configurare hena-agent per utilizzare modelli locali tramite [Atomic Chat](
 
 ```json title="hena-agent.json" "atomic-chat" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "atomic-chat": {
       "npm": "@ai-sdk/openai-compatible",
@@ -533,7 +533,7 @@ Cloudflare AI Gateway ti permette di accedere a modelli di OpenAI, Anthropic, Wo
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "cloudflare-ai-gateway": {
          "models": {
@@ -739,7 +739,7 @@ file `hena-agent.json`. Si raccomanda anche di disabilitare la condivisione sess
 
 ```json
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "small_model": "gitlab/duo-chat-haiku-4-5",
   "share": "disabled"
 }
@@ -801,7 +801,7 @@ Personalizza tramite `hena-agent.json`:
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "gitlab": {
       "options": {
@@ -818,7 +818,7 @@ Per accedere agli strumenti GitLab (merge requests, issues, pipelines, CI/CD, ec
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "plugin": ["opencode-gitlab-plugin"]
 }
 ```
@@ -1000,7 +1000,7 @@ Ecco la [Model Directory di Helicone](https://helicone.ai/models), ti servirà p
 
 ```jsonc title="~/.config/hena-agent/hena.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1028,7 +1028,7 @@ Helicone supporta header personalizzati per funzionalità come caching, user tra
 
 ```jsonc title="~/.config/hena-agent/hena.jsonc"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "helicone": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1082,7 +1082,7 @@ Puoi configurare hena-agent per usare modelli locali tramite l'utility llama-ser
 
 ```json title="hena-agent.json" "llama.cpp" {5, 6, 8, 10-15}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1149,7 +1149,7 @@ Puoi configurare hena-agent per usare modelli locali tramite LM Studio.
 
 ```json title="hena-agent.json" "lmstudio" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1270,7 +1270,7 @@ Ollama può auto-configurarsi per Hena Agent. Vedi la [documentazione di integra
 
 ```json title="hena-agent.json" "ollama" {5, 6, 8, 10-14}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "ollama": {
       "npm": "@ai-sdk/openai-compatible",
@@ -1432,7 +1432,7 @@ Hena Zen è una lista di modelli testati e verificati forniti dal team Hena Agen
 
    ```json title="hena-agent.json" {6}
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1447,7 +1447,7 @@ Hena Zen è una lista di modelli testati e verificati forniti dal team Hena Agen
 
    ```json title="hena-agent.json"
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "openrouter": {
          "models": {
@@ -1696,7 +1696,7 @@ Puoi anche personalizzare i modelli tramite la tua configurazione di Hena Agent.
 
 ```json title="hena-agent.json"
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "vercel": {
       "models": {
@@ -1806,7 +1806,7 @@ Alcune opzioni di routing utili:
 
    ```json title="hena-agent.json" {6}
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "zenmux": {
          "models": {
@@ -1874,7 +1874,7 @@ Puoi usare qualsiasi provider OpenAI-compatible con Hena Agent. La maggior parte
 
    ```json title="hena-agent.json" ""myprovider"" {5-15}
    {
-     "$schema": "https://hena.ai/config.json",
+     "$schema": "https://hena.dev/config.json",
      "provider": {
        "myprovider": {
          "npm": "@ai-sdk/openai-compatible",
@@ -1912,7 +1912,7 @@ Ecco un esempio che imposta le opzioni `apiKey`, `headers` e `limit` del modello
 
 ```json title="hena-agent.json" {9,11,17-20}
 {
-  "$schema": "https://hena.ai/config.json",
+  "$schema": "https://hena.dev/config.json",
   "provider": {
     "myprovider": {
       "npm": "@ai-sdk/openai-compatible",

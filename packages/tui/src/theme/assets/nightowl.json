@@ -1,5 +1,5 @@
 {
-  "$schema": "https://hena.ai/theme.json",
+  "$schema": "https://hena.dev/theme.json",
   "defs": {
     "nightOwlBg": "#011627",
     "nightOwlFg": "#d6deeb",

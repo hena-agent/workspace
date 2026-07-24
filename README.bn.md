@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://hena.ai">
+  <a href="https://hena.dev">
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
@@ -9,7 +9,7 @@
 </p>
 <p align="center">ওপেন সোর্স এআই কোডিং এজেন্ট।</p>
 <p align="center">
-  <a href="https://hena.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
+  <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/hena-agent"><img alt="npm" src="https://img.shields.io/npm/v/hena-agent?style=flat-square" /></a>
   <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
 </p>
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.ai)
+[![Hena Agent Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -47,7 +47,7 @@
 
 ```bash
 # YOLO
-curl -fsSL https://hena.ai/install | bash
+curl -fsSL https://hena.dev/install | bash
 
 # Package managers
 npm i -g hena-agent@latest        # or bun/pnpm/yarn
@@ -66,7 +66,7 @@ nix run github:hena-agent/hena           # or github:hena-agent/hena for latest 
 
 ### ডেস্কটপ অ্যাপ (BETA)
 
-Hena Agent ডেস্কটপ অ্যাপ্লিকেশন হিসেবেও উপলব্ধ। সরাসরি [রিলিজ পেজ](https://github.com/hena-agent/hena/releases) অথবা [hena.ai/download](https://hena.ai/download) থেকে ডাউনলোড করুন।
+Hena Agent ডেস্কটপ অ্যাপ্লিকেশন হিসেবেও উপলব্ধ। সরাসরি [রিলিজ পেজ](https://github.com/hena-agent/hena/releases) অথবা [hena.dev/download](https://hena.dev/download) থেকে ডাউনলোড করুন।
 
 | প্ল্যাটফর্ম           | ডাউনলোড                            |
 | --------------------- | ---------------------------------- |
@@ -93,8 +93,8 @@ scoop bucket add extras; scoop install hena-agent
 
 ```bash
 # উদাহরণ
-HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.ai/install | bash
+HENA_AGENT_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### এজেন্টস (Agents)
@@ -110,11 +110,11 @@ Hena Agent এ দুটি বিল্ট-ইন এজেন্ট রয়�
 এছাড়াও জটিল অনুসন্ধান এবং মাল্টিস্টেপ টাস্কের জন্য একটি **general** সাবএজেন্ট অন্তর্ভুক্ত রয়েছে।
 এটি অভ্যন্তরীণভাবে ব্যবহৃত হয় এবং মেসেজে `@general` লিখে ব্যবহার করা যেতে পারে।
 
-এজেন্টদের সম্পর্কে আরও জানুন: [docs](https://hena.ai/docs/agents)।
+এজেন্টদের সম্পর্কে আরও জানুন: [docs](https://hena.dev/docs/agents)।
 
 ### ডকুমেন্টেশন (Documentation)
 
-কিভাবে Hena Agent কনফিগার করবেন সে সম্পর্কে আরও তথ্যের জন্য, [**আমাদের ডকস দেখুন**](https://hena.ai/docs)।
+কিভাবে Hena Agent কনফিগার করবেন সে সম্পর্কে আরও তথ্যের জন্য, [**আমাদের ডকস দেখুন**](https://hena.dev/docs)।
 
 ### অবদান (Contributing)
 
@@ -126,4 +126,4 @@ Hena Agent এ দুটি বিল্ট-ইন এজেন্ট রয়�
 
 ---
 
-**আমাদের কমিউনিটিতে যুক্ত হোন** [Discord](https://hena.ai/discord) | [X.com](https://hena.ai)
+**আমাদের কমিউনিটিতে যুক্ত হোন** [Discord](https://hena.dev/discord) | [X.com](https://hena.dev)

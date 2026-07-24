@@ -1,0 +1,68 @@
+name: _opencode-review
+
+# Reusable workflow: run one opencode PR review under a dedicated GitHub App
+# identity. Called once per model from pr-review.yml. Keeping the shared steps
+# here (token mint + checkout + review) avoids duplicating ~25 lines per job.
+on:
+  workflow_call:
+    inputs:
+      model:
+        description: Provider/model id (e.g., openai/gpt-5.5, anthropic/claude-opus-4-8)
+        required: true
+        type: string
+      variant:
+        description: Model variant (e.g., xhigh, max)
+        required: true
+        type: string
+      app-client-id:
+        description: Client ID of the reviewer's GitHub App (controls the bot identity)
+        required: true
+        type: string
+      prompt:
+        description: Reviewer-specific prompt. Shared read/posting conventions are appended below before the run, so callers only specify what differs between reviewers.
+        required: true
+        type: string
+    secrets:
+      app-private-key:
+        description: Private key of the reviewer's GitHub App
+        required: true
+      opencode-auth-json:
+        description: Contents of ~/.local/share/opencode/auth.json
+        required: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Mint reviewer app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.app-private-key }}
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Review with ${{ inputs.model }} (${{ inputs.variant }})
+        uses: ./.github/actions/run-opencode-review
+        with:
+          model: ${{ inputs.model }}
+          variant: ${{ inputs.variant }}
+          opencode-auth-json: ${{ secrets.opencode-auth-json }}
+          github-token: ${{ steps.app-token.outputs.token }}
+          # The reviewer-specific prompt comes from the caller (pr-review.yml).
+          # The read/posting mechanism is identical for every reviewer, so it
+          # lives here once instead of being copy-pasted into each caller job.
+          prompt: |
+            ${{ inputs.prompt }}
+
+            Leave detailed findings as line-level comments on the PR diff.
+            The final response is posted automatically as one top-level PR comment.

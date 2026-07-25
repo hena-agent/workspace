@@ -47,7 +47,7 @@ runs:
     # install below. Bump intentionally; do not float to latest.
     - name: Pin opencode CLI version
       shell: bash
-      run: echo "OPENCODE_VERSION=1.18.4" >> "$GITHUB_ENV"
+      run: echo "OPENCODE_VERSION=1.18.5" >> "$GITHUB_ENV"
 
     # The review agent shells out to this repo's bun scripts (typecheck, test,
     # lint, etc.), but the ubuntu-latest runner has no bun preinstalled. Install

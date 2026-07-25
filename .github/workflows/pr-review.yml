@@ -44,7 +44,7 @@ jobs:
   claude-review:
     uses: ./.github/workflows/_opencode-review.yml
     with:
-      model: anthropic/claude-opus-4-8
+      model: anthropic/claude-opus-5
       variant: max
       app-client-id: ${{ vars.CLAUDE_REVIEWER_CLIENT_ID }}
       prompt: |

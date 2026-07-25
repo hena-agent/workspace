@@ -7,7 +7,7 @@ on:
   workflow_call:
     inputs:
       model:
-        description: Provider/model id (e.g., openai/gpt-5.5, anthropic/claude-opus-4-8)
+        description: Provider/model id (e.g., openai/gpt-5.5, anthropic/claude-opus-5)
         required: true
         type: string
       variant:

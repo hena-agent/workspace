@@ -25,6 +25,7 @@ type Issue = {
   updated_at: string
   author_association: string
   user: { login: string } | null
+  pull_request?: { url: string }
 }
 
 const headers = {
@@ -72,10 +73,11 @@ async function main() {
 
     const all = (await res.json()) as Issue[]
     if (all.length === 0) break
-    console.log(`Fetched page ${page} ${all.length} issues`)
+    const issues = all.filter((issue) => !issue.pull_request)
+    console.log(`Fetched page ${page} ${issues.length} issues`)
 
     const stale: number[] = []
-    for (const i of all) {
+    for (const i of issues) {
       const updated = new Date(i.updated_at)
       if (updated < cutoff) {
         if (shouldSkip(i)) {

@@ -6,7 +6,7 @@ permissions:
 on:
   workflow_dispatch:
   push:
-    branches: [dev, beta]
+    branches: [develop, beta]
     paths:
       - "bun.lock"
       - "package.json"
@@ -90,7 +90,6 @@ jobs:
 
   update-hashes:
     needs: compute-hash
-    if: github.event_name != 'pull_request'
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:

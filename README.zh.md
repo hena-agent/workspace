@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/hena"><img alt="npm" src="https://img.shields.io/npm/v/hena?style=flat-square" /></a>
-  <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
+  <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=develop" /></a>
 </p>
 
 <p align="center">
@@ -58,7 +58,7 @@ brew install hena              # macOS 和 Linux（官方 brew formula，更新�
 sudo pacman -S hena            # Arch Linux (Stable)
 paru -S hena-bin               # Arch Linux (Latest from AUR)
 mise use -g hena               # 任意系统
-nix run github:hena-agent/hena           # 或用 github:hena-agent/hena 获取最新 dev 分支
+nix run github:hena-agent/hena           # 或用 github:hena-agent/hena 获取最新 develop 分支
 ```
 
 > [!TIP]

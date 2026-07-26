@@ -3,7 +3,7 @@ name: release-github-action
 on:
   push:
     branches:
-      - dev
+      - develop
     paths:
       - "github/**"
 
@@ -19,11 +19,15 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup git committer
+        uses: ./.github/actions/setup-git-committer
+        with:
+          hena-app-id: ${{ vars.HENA_APP_ID }}
+          hena-app-secret: ${{ secrets.HENA_APP_SECRET }}
 
       - run: git fetch --force --tags
 
       - name: Release
-        run: |
-          git config --global user.email "github@hena.dev"
-          git config --global user.name "hena"
-          ./github/script/release
+        run: ./github/script/release

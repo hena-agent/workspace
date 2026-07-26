@@ -37,7 +37,7 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
 
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/hena-agent/hena/dev/packages/web/src/assets/lander/screenshot.png</image>
+      <image>https://raw.githubusercontent.com/hena-agent/hena/develop/packages/web/src/assets/lander/screenshot.png</image>
     </screenshot>
   </screenshots>
 </component>

@@ -10,7 +10,7 @@ Older deep-dive notes in this directory may still be useful, but treat
 this roadmap and the guide as the current entry points.
 
 This is a planning map, not a verified inventory. Before starting a task,
-re-run a targeted `git grep` from current `dev` and update this file if
+re-run a targeted `git grep` from current `develop` and update this file if
 the inventory changed.
 
 ## Priorities

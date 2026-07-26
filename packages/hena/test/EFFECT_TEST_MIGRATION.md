@@ -4,7 +4,7 @@ Move tests that exercise Effect services out of Promise-land and into the
 shared `testEffect` pattern.
 
 This file is guidance, not a live inventory. Before claiming a migration,
-search current `dev` for the exact anti-pattern and update any PR notes
+search current `develop` for the exact anti-pattern and update any PR notes
 with what you actually changed.
 
 ## Target Pattern

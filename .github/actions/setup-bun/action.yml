@@ -1,6 +1,14 @@
 name: "Setup Bun"
 description: "Setup Bun with caching and install dependencies"
 inputs:
+  node-version:
+    description: "Node.js version to install"
+    required: false
+    default: "24"
+  install-dependencies:
+    description: "Whether to install and cache root dependencies"
+    required: false
+    default: "true"
   install-flags:
     description: "Additional flags to pass to 'bun install'"
     required: false
@@ -11,14 +19,16 @@ runs:
     # node-gyp@latest (invoked via bunx for native install scripts) requires Node >=22;
     # some runner images ship an older system Node on PATH
     - name: Setup Node
+      if: inputs.install-dependencies == 'true'
       uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       with:
-        node-version: "24"
+        node-version: ${{ inputs.node-version }}
 
-    - name: Get baseline download URL
+    - name: Get Bun metadata
       id: bun-url
       shell: bash
       run: |
+        echo "package-manager=$(node -p "require('./package.json').packageManager")" >> "$GITHUB_OUTPUT"
         if [ "$RUNNER_ARCH" = "X64" ]; then
           V=$(node -p "require('./package.json').packageManager.split('@')[1]")
           case "$RUNNER_OS" in
@@ -37,23 +47,27 @@ runs:
 
     - name: Get cache directory
       id: cache
+      if: inputs.install-dependencies == 'true'
       shell: bash
       run: echo "dir=$(bun pm cache)" >> "$GITHUB_OUTPUT"
 
     - name: Restore Bun dependencies
       id: bun-cache
+      if: inputs.install-dependencies == 'true'
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ${{ steps.cache.outputs.dir }}
-        key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ steps.bun-url.outputs.package-manager }}-${{ hashFiles('bun.lock') }}
         restore-keys: |
-          ${{ runner.os }}-bun-
+          ${{ runner.os }}-${{ runner.arch }}-bun-${{ steps.bun-url.outputs.package-manager }}-
 
     - name: Install setuptools for distutils compatibility
+      if: inputs.install-dependencies == 'true'
       run: python3 -m pip install setuptools || pip install setuptools || true
       shell: bash
 
     - name: Install dependencies
+      if: inputs.install-dependencies == 'true'
       run: |
         # Workaround for patched peer variants
         # e.g. ./patches/ for standard-openapi
@@ -66,8 +80,8 @@ runs:
       shell: bash
 
     - name: Save Bun dependencies
-      if: steps.bun-cache.outputs.cache-hit != 'true' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
+      if: inputs.install-dependencies == 'true' && steps.bun-cache.outputs.cache-hit != 'true' && github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
       uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ${{ steps.cache.outputs.dir }}
-        key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-bun-${{ steps.bun-url.outputs.package-manager }}-${{ hashFiles('bun.lock') }}

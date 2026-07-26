@@ -2,9 +2,9 @@ name: nix-eval
 
 on:
   push:
-    branches: [dev]
+    branches: [develop]
   pull_request:
-    branches: [dev]
+    branches: [develop]
   workflow_dispatch:
 
 concurrency:
@@ -39,8 +39,8 @@ jobs:
 
           SYSTEMS="x86_64-linux aarch64-linux x86_64-darwin aarch64-darwin"
           PACKAGES="hena"
-          # TODO: move 'desktop' to PACKAGES when #11755 is fixed
-          OPTIONAL_PACKAGES="desktop"
+          # TODO: move 'hena-desktop' to PACKAGES when #11755 is fixed
+          OPTIONAL_PACKAGES="hena-desktop"
 
           echo ""
           echo "=== Evaluating packages for all systems ==="

@@ -160,7 +160,7 @@ export default defineConfig({
         { icon: "discord", label: "Discord", href: config.discord },
       ],
       editLink: {
-        baseUrl: `${config.github}/edit/dev/packages/web/`,
+        baseUrl: `${config.github}/edit/develop/packages/web/`,
       },
       markdown: {
         headingLinks: false,

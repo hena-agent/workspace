@@ -33,9 +33,6 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: ./.github/actions/setup-bun
-        if: steps.author.outputs.skip != 'true'
-
       - name: Install Hena
         if: steps.author.outputs.skip != 'true'
         run: curl -fsSL https://hena.dev/install | bash
@@ -119,7 +116,7 @@ jobs:
 
           [If not compliant:]
           <!-- issue-compliance -->
-          This issue doesn't fully meet our [contributing guidelines](../blob/dev/CONTRIBUTING.md).
+          This issue doesn't fully meet our [contributing guidelines](../blob/develop/CONTRIBUTING.md).
 
           **What needs to be fixed:**
           - [specific reasons]
@@ -166,9 +163,6 @@ jobs:
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
-
-      - uses: ./.github/actions/setup-bun
-        if: steps.author.outputs.skip != 'true'
 
       - name: Install Hena
         if: steps.author.outputs.skip != 'true'

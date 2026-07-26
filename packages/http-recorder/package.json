@@ -10,7 +10,7 @@
     "url": "git+https://github.com/hena-agent/hena.git",
     "directory": "packages/http-recorder"
   },
-  "homepage": "https://github.com/hena-agent/hena/tree/dev/packages/http-recorder",
+  "homepage": "https://github.com/hena-agent/hena/tree/develop/packages/http-recorder",
   "bugs": "https://github.com/hena-agent/hena/issues",
   "keywords": [
     "effect",

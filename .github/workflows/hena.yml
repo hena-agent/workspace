@@ -9,8 +9,6 @@ on:
 jobs:
   hena:
     if: |
-      contains(github.event.comment.body, ' /oc') ||
-      startsWith(github.event.comment.body, '/oc') ||
       contains(github.event.comment.body, ' /hena') ||
       startsWith(github.event.comment.body, '/hena')
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -22,8 +20,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - uses: ./.github/actions/setup-bun
 
       - name: Run Hena
         uses: hena-agent/hena/github@2c14fc5586fe0b88e5c04732d2e846769cc35671 # latest

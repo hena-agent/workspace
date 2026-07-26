@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
   <a href="https://www.npmjs.com/package/hena"><img alt="npm" src="https://img.shields.io/npm/v/hena?style=flat-square" /></a>
-  <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=dev" /></a>
+  <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=develop" /></a>
 </p>
 
 <p align="center">
@@ -58,7 +58,7 @@ brew install hena              # macOS et Linux (formule officielle brew, mise �
 sudo pacman -S hena            # Arch Linux (Stable)
 paru -S hena-bin               # Arch Linux (Latest from AUR)
 mise use -g hena               # n'importe quel OS
-nix run github:hena-agent/hena           # ou github:hena-agent/hena pour la branche dev la plus récente
+nix run github:hena-agent/hena           # ou github:hena-agent/hena pour la branche develop la plus récente
 ```
 
 > [!TIP]

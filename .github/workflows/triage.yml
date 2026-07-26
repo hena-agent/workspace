@@ -32,10 +32,6 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Setup Bun
-        if: steps.author.outputs.skip != 'true'
-        uses: ./.github/actions/setup-bun
-
       - name: Install Hena
         if: steps.author.outputs.skip != 'true'
         run: curl -fsSL https://hena.dev/install | bash

@@ -3,7 +3,7 @@ title: GitHub
 description: GitHub の問題とプルリクエストで Hena を使用します。
 ---
 
-Hena は GitHub ワークフローと統合します。コメントで `/hena` または `/oc` に言及すると、Hena が GitHub Actions ランナー内でタスクを実行します。
+Hena は GitHub ワークフローと統合します。コメントで `/hena` に言及すると、Hena が GitHub Actions ランナー内でタスクを実行します。
 
 ---
 
@@ -51,7 +51,6 @@ hena github install
    jobs:
      hena:
        if: |
-         contains(github.event.comment.body, '/oc') ||
          contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:
@@ -107,8 +106,8 @@ Hena は、次の GitHub イベントによってトリガーできます。
 
 | イベントの種類                | トリガー                            | 詳細                                                                                                                                                        |
 | ----------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | 問題または PR についてコメントする  | コメントで `/hena` または `/oc` について言及してください。 Hena はコンテキストを読み取り、ブランチを作成したり、PR を開いたり、返信したりできます。 |
-| `pull_request_review_comment` | PR 内の特定のコード行にコメントする | コードをレビューするときに、`/hena` または `/oc` について言及します。 Hena は、ファイルパス、行番号、および diff コンテキストを受け取ります。       |
+| `issue_comment`               | 問題または PR についてコメントする  | コメントで `/hena` について言及してください。 Hena はコンテキストを読み取り、ブランチを作成したり、PR を開いたり、返信したりできます。 |
+| `pull_request_review_comment` | PR 内の特定のコード行にコメントする | コードをレビューするときに、`/hena` について言及します。 Hena は、ファイルパス、行番号、および diff コンテキストを受け取ります。       |
 | `issues`                      | 問題がオープンまたは編集されました  | 問題が作成または変更されると、Hena が自動的にトリガーされます。 `prompt` 入力が必要です。                                                               |
 | `pull_request`                | PR がオープンまたは更新されました   | PR が開かれる、同期される、または再度開かれるときに、Hena を自動的にトリガーします。自動レビューに役立ちます。                                          |
 | `schedule`                    | Cron ベースのスケジュール           | スケジュールに従って Hena を実行します。 `prompt` 入力が必要です。出力はログと PR に送られます (コメントする問題はありません)。                         |
@@ -298,7 +297,7 @@ GitHub の問題で次のように言います。
 GitHub PR に次のコメントを残してください。
 
 ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /hena
 ```
 
 Hena は要求された変更を実装し、同じ PR にコミットします。
@@ -309,7 +308,7 @@ PR の「ファイル」タブのコード行に直接コメントを残しま�
 
 ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /hena add error handling here
 ```
 
 特定の行にコメントすると、Hena は以下を受け取ります。

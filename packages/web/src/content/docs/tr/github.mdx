@@ -3,7 +3,7 @@ title: GitHub
 description: GitHub sorunlarında ve çekme isteklerinde hena'u kullanın.
 ---
 
-hena, GitHub iş akışınızla bütünleşir. Yorumunuzda `/hena` veya `/oc`'den bahsedin; hena, GitHub Actions çalıştırıcınızdaki görevleri yürütecektir.
+hena, GitHub iş akışınızla bütünleşir. Yorumunuzda `/hena`'dan bahsedin; hena, GitHub Actions çalıştırıcınızdaki görevleri yürütecektir.
 
 ---
 
@@ -51,7 +51,6 @@ Veya manuel olarak ayarlayabilirsiniz.
    jobs:
      hena:
        if: |
-         contains(github.event.comment.body, '/oc') ||
          contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:
@@ -107,8 +106,8 @@ hena aşağıdaki GitHub olayları tarafından tetiklenebilir:
 
 | Olay Tipi                     | Tetikleyen                                    | Detaylar                                                                                                                                            |
 | ----------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | Bir soruna veya halkla ilişkilere yorum yapın | Yorumunuzda `/hena` veya `/oc`'den bahsedin. hena bağlamı okur ve şubeler oluşturabilir, PR'leri açabilir veya yanıt verebilir.             |
-| `pull_request_review_comment` | PR'deki belirli kod satırlarına yorum yapın   | Kodu incelerken `/hena` veya `/oc`'den bahsedin. hena dosya yolunu, satır numaralarını ve fark içeriğini alır.                              |
+| `issue_comment`               | Bir soruna veya halkla ilişkilere yorum yapın | Yorumunuzda `/hena`'dan bahsedin. hena bağlamı okur ve şubeler oluşturabilir, PR'leri açabilir veya yanıt verebilir.             |
+| `pull_request_review_comment` | PR'deki belirli kod satırlarına yorum yapın   | Kodu incelerken `/hena`'dan bahsedin. hena dosya yolunu, satır numaralarını ve fark içeriğini alır.                              |
 | `issues`                      | Sayı açıldı veya düzenlendi                   | Sorunlar oluşturulduğunda veya değiştirildiğinde hena'u otomatik olarak tetikleyin. `prompt` girişi gerektirir.                                 |
 | `pull_request`                | PR açıldı veya güncellendi                    | PR'ler açıldığında, senkronize edildiğinde veya yeniden açıldığında hena'u otomatik olarak tetikleyin. Otomatik incelemeler için kullanışlıdır. |
 | `schedule`                    | Cron tabanlı program                          | hena'u bir programa göre çalıştırın. `prompt` girişi gerektirir. Çıktı, günlüklere ve PR'lere gider (yorum yapılacak bir sorun yoktur).         |
@@ -298,7 +297,7 @@ GitHub'da hena'u nasıl kullanabileceğinize dair bazı örnekleri burada bulabi
   GitHub PR'a aşağıdaki yorumu bırakın.
 
   ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /hena
   ```
 
   hena istenen değişikliği uygulayacak ve aynı PR'ye uygulayacaktır.
@@ -309,7 +308,7 @@ GitHub'da hena'u nasıl kullanabileceğinize dair bazı örnekleri burada bulabi
 
   ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /hena add error handling here
   ```
 
   Belirli satırlara yorum yaparken hena şunları alır:

@@ -3,7 +3,7 @@ title: GitHub
 description: Brug Hena i GitHub-problemer og Pull Requests.
 ---
 
-Hena integreres med din GitHub arbejdsgang. Nævn `/hena` eller `/oc` i din kommentar, og Hena vil udføre opgaver i din GitHub Actions-løber.
+Hena integreres med din GitHub arbejdsgang. Nævn `/hena` i din kommentar, og Hena vil udføre opgaver i din GitHub Actions-løber.
 
 ---
 
@@ -51,7 +51,6 @@ Eller du kan indstille det manuelt.
    jobs:
      hena:
        if: |
-         contains(github.event.comment.body, '/oc') ||
          contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:
@@ -107,8 +106,8 @@ Hena kan udløses af følgende GitHub hændelser:
 
 | Begivenhedstype               | Udløst af                               | Detaljer                                                                                                                |
 | ----------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | Kommentarer og problemer eller PR       | Nævn `/hena` eller `/oc` i din kommentar. Hena læser kontekst og kan oprette brancher, åbne PR'er eller svare.  |
-| `pull_request_review_comment` | Kommenter specifikke kodelinjer i en PR | Nævn `/hena` eller `/oc`, mens du gennemgår koden. Hena modtager filsti, linjenumre og diff-kontekst.           |
+| `issue_comment`               | Kommentarer og problemer eller PR       | Nævn `/hena` i din kommentar. Hena læser kontekst og kan oprette brancher, åbne PR'er eller svare.  |
+| `pull_request_review_comment` | Kommenter specifikke kodelinjer i en PR | Nævn `/hena`, mens du gennemgår koden. Hena modtager filsti, linjenumre og diff-kontekst.           |
 | `issues`                      | Udgave åbnet eller redigeret            | Udløs automatisk Hena, når problemer oprettes eller ændres. Kræver `prompt` input.                                  |
 | `pull_request`                | PR åbnet eller opdateret                | Udløs automatisk Hena, når PR'er åbnes, synkroniseres eller genåbnes. Nyttigt til automatiserede kodegennemgange.   |
 | `schedule`                    | Cron-baseret tidsplan                   | Kør Hena efter en tidsplan. Kræver `prompt` input. Output går til logfiler og PR'er (intet problem ved kommentere). |
@@ -298,7 +297,7 @@ Her er nogle eksempler på, hvordan du kan bruge Hena i GitHub.
   Efterlad følgende kommentar på en GitHub PR.
 
   ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /hena
   ```
 
   Hena vil implementere den ønskede ændring og forpligtelse til den samme PR.
@@ -309,7 +308,7 @@ Her er nogle eksempler på, hvordan du kan bruge Hena i GitHub.
 
   ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /hena add error handling here
   ```
 
   Når du kommenterer på specifikke linjer, modtager Hena:

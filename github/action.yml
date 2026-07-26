@@ -27,8 +27,9 @@ inputs:
     default: "false"
 
   mentions:
-    description: "Comma-separated trigger phrases. Defaults to '/oc,/hena'."
+    description: "Comma-separated trigger phrases. Defaults to '/hena'."
     required: false
+    default: "/hena"
 
   variant:
     description: "Model variant for provider-specific reasoning effort (e.g., high, max, minimal)"
@@ -50,7 +51,7 @@ runs:
 
     - name: Cache Hena
       id: cache
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: ~/.hena/bin
         key: hena-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}

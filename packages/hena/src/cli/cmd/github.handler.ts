@@ -198,7 +198,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
             `    1. Commit the \`${WORKFLOW_FILE}\` file and push`,
             step2,
             "",
-            "    3. Go to a GitHub issue and comment `/oc summarize` to see the agent in action",
+            "    3. Go to a GitHub issue and comment `/hena summarize` to see the agent in action",
             "",
             "   Learn more about the GitHub agent - https://hena.dev/docs/github/#usage-examples",
           ].join("\n"),
@@ -345,8 +345,6 @@ on:
 jobs:
   hena:
     if: |
-      contains(github.event.comment.body, ' /oc') ||
-      startsWith(github.event.comment.body, '/oc') ||
       contains(github.event.comment.body, ' /hena') ||
       startsWith(github.event.comment.body, '/hena')
     runs-on: ubuntu-latest
@@ -736,7 +734,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       }
 
       const reviewContext = getReviewCommentContext()
-      const mentions = (process.env["MENTIONS"] || "/oc,/hena")
+      const mentions = (process.env["MENTIONS"] || "/hena")
         .split(",")
         .map((m) => m.trim().toLowerCase())
         .filter(Boolean)

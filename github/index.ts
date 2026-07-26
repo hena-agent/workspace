@@ -244,8 +244,8 @@ function createHena() {
 function assertPayloadKeyword() {
   const payload = useContext().payload as IssueCommentEvent | PullRequestReviewCommentEvent
   const body = payload.comment.body.trim()
-  if (!body.match(/(?:^|\s)(?:\/oc|\/hena)(?=$|\s)/)) {
-    throw new Error("Comments must mention `/oc` or `/hena`")
+  if (!body.match(/(?:^|\s)\/hena(?=$|\s)/)) {
+    throw new Error("Comments must mention `/hena`")
   }
 }
 
@@ -418,19 +418,19 @@ async function getUserPrompt() {
 
   let prompt = (() => {
     const body = payload.comment.body.trim()
-    if (["/oc", "/hena"].includes(body)) {
+    if (body === "/hena") {
       if (reviewContext) {
         return `Review this code change and suggest improvements for the commented lines:\n\nFile: ${reviewContext.file}\nLines: ${reviewContext.line}\n\n${reviewContext.diffHunk}`
       }
       return "Summarize this thread"
     }
-    if (["/oc", "/hena"].some((mention) => body.includes(mention))) {
+    if (body.includes("/hena")) {
       if (reviewContext) {
         return `${body}\n\nContext: You are reviewing a comment on file "${reviewContext.file}" at line ${reviewContext.line}.\n\nDiff context:\n${reviewContext.diffHunk}`
       }
       return body
     }
-    throw new Error("Comments must mention `/oc` or `/hena`")
+    throw new Error("Comments must mention `/hena`")
   })()
 
   // Handle images

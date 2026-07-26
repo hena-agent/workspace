@@ -3,7 +3,7 @@ title: GitHub
 description: Utilisez Hena dans les issues et les pull-requests GitHub.
 ---
 
-Hena s'intègre à votre flux de travail GitHub. Mentionnez `/hena` ou `/oc` dans votre commentaire, et Hena exécutera des tâches dans votre runner GitHub Actions.
+Hena s'intègre à votre flux de travail GitHub. Mentionnez `/hena` dans votre commentaire, et Hena exécutera des tâches dans votre runner GitHub Actions.
 
 ---
 
@@ -51,7 +51,6 @@ Ajoutez le fichier de workflow suivant à `.github/workflows/hena.yml` dans votr
    jobs:
      hena:
        if: |
-         contains(github.event.comment.body, '/oc') ||
          contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:
@@ -107,8 +106,8 @@ Hena peut être déclenché par les événements GitHub suivants :
 
 | Type d'événement              | Déclenché par                                              | Détails                                                                                                                                                |
 | ----------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `issue_comment`               | Commentaire sur une issue ou une PR                        | Mentionnez `/hena` ou `/oc` dans votre commentaire. Hena lit le contexte et peut créer des branches, ouvrir des PR ou répondre.                |
-| `pull_request_review_comment` | Commentaire sur des lignes de code spécifiques dans une PR | Mentionnez `/hena` ou `/oc` lors de la révision du code. Hena reçoit le chemin du fichier, les numéros de ligne et le contexte de comparaison. |
+| `issue_comment`               | Commentaire sur une issue ou une PR                        | Mentionnez `/hena` dans votre commentaire. Hena lit le contexte et peut créer des branches, ouvrir des PR ou répondre.                |
+| `pull_request_review_comment` | Commentaire sur des lignes de code spécifiques dans une PR | Mentionnez `/hena` lors de la révision du code. Hena reçoit le chemin du fichier, les numéros de ligne et le contexte de comparaison. |
 | `issues`                      | Issue ouverte ou modifiée                                  | Déclenchez automatiquement Hena lorsque des issues sont créées ou modifiées. Nécessite une entrée `prompt`.                                        |
 | `pull_request`                | PR ouverte ou mise à jour                                  | Déclenchez automatiquement Hena lorsque les PR sont ouvertes, synchronisées ou rouvertes. Utile pour les revues automatisées.                      |
 | `schedule`                    | Planification basée sur Cron                               | Exécutez Hena selon un planning. Nécessite une entrée `prompt`. La sortie va aux journaux et aux PR (pas de commentaire sur les issues).           |
@@ -298,7 +297,7 @@ Et Hena créera une nouvelle branche, mettra en œuvre les modifications et ouvr
 Laissez le commentaire suivant sur une PR GitHub.
 
 ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /hena
 ```
 
 Hena mettra en œuvre la modification demandée et la validera dans la même PR.
@@ -309,7 +308,7 @@ Laissez un commentaire directement sur les lignes de code dans l'onglet "Fichier
 
 ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /hena add error handling here
 ```
 
 Lorsqu'il commente des lignes spécifiques, Hena reçoit :

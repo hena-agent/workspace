@@ -3,7 +3,7 @@ title: GitHub
 description: GitHub issue와 pull request에서 Hena를 사용하세요.
 ---
 
-Hena는 GitHub 워크플로와 통합됩니다. 댓글에 `/hena` 또는 `/oc`를 mention하면 Hena가 GitHub Actions runner 안에서 작업을 실행합니다.
+Hena는 GitHub 워크플로와 통합됩니다. 댓글에 `/hena`를 mention하면 Hena가 GitHub Actions runner 안에서 작업을 실행합니다.
 
 ---
 
@@ -51,7 +51,6 @@ hena github install
    jobs:
      hena:
        if: |
-         contains(github.event.comment.body, '/oc') ||
          contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:
@@ -107,8 +106,8 @@ Hena는 아래 GitHub event로 트리거할 수 있습니다.
 
 | Event Type                    | Triggered By            | Details                                                                                                                |
 | ----------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | issue 또는 PR 댓글      | 댓글에 `/hena` 또는 `/oc`를 mention하세요. Hena가 맥락을 읽고 branch 생성, PR 생성, 답변을 수행할 수 있습니다. |
-| `pull_request_review_comment` | PR의 특정 코드 줄 댓글  | 코드 리뷰 중 `/hena` 또는 `/oc`를 mention하세요. Hena가 파일 경로, 라인 번호, diff 맥락을 받습니다.            |
+| `issue_comment`               | issue 또는 PR 댓글      | 댓글에 `/hena`를 mention하세요. Hena가 맥락을 읽고 branch 생성, PR 생성, 답변을 수행할 수 있습니다. |
+| `pull_request_review_comment` | PR의 특정 코드 줄 댓글  | 코드 리뷰 중 `/hena`를 mention하세요. Hena가 파일 경로, 라인 번호, diff 맥락을 받습니다.            |
 | `issues`                      | issue 생성 또는 수정    | issue가 생성/수정될 때 Hena를 자동 트리거합니다. `prompt` 입력이 필요합니다.                                       |
 | `pull_request`                | PR 생성 또는 업데이트   | PR open/synchronize/reopen 시 Hena를 자동 트리거합니다. 자동 리뷰에 유용합니다.                                    |
 | `schedule`                    | cron 기반 스케줄        | 스케줄에 따라 Hena를 실행합니다. `prompt` 입력이 필요합니다. 출력은 로그와 PR로 남습니다(issue 댓글 대상 없음).    |
@@ -298,7 +297,7 @@ jobs:
   GitHub PR에 아래 댓글을 남기세요.
 
   ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /hena
   ```
 
   Hena가 요청한 변경을 구현하고 같은 PR에 커밋합니다.
@@ -309,7 +308,7 @@ jobs:
 
   ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /hena add error handling here
   ```
 
   특정 줄 댓글에서는 Hena가 다음 정보를 함께 받습니다.

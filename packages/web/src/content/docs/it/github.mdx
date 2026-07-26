@@ -3,7 +3,7 @@ title: GitHub
 description: Usa Hena in issue e pull request su GitHub.
 ---
 
-Hena si integra nel tuo workflow GitHub. Menziona `/hena` o `/oc` in un commento e Hena eseguira' i task dentro il runner di GitHub Actions.
+Hena si integra nel tuo workflow GitHub. Menziona `/hena` in un commento e Hena eseguira' i task dentro il runner di GitHub Actions.
 
 ---
 
@@ -51,7 +51,6 @@ In alternativa, puoi configurarlo manualmente.
    jobs:
      hena:
        if: |
-         contains(github.event.comment.body, '/oc') ||
          contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:
@@ -107,8 +106,8 @@ Hena puo' essere attivato dai seguenti eventi GitHub:
 
 | Tipo evento                   | Attivato da                            | Dettagli                                                                                                                  |
 | ----------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `issue_comment`               | Commento su una issue o PR             | Menziona `/hena` o `/oc` nel commento. Hena legge il contesto e puo' creare branch, aprire PR o rispondere.       |
-| `pull_request_review_comment` | Commento su specifiche righe in una PR | Menziona `/hena` o `/oc` durante una review. Hena riceve path file, numeri di riga e contesto del diff.           |
+| `issue_comment`               | Commento su una issue o PR             | Menziona `/hena` nel commento. Hena legge il contesto e puo' creare branch, aprire PR o rispondere.       |
+| `pull_request_review_comment` | Commento su specifiche righe in una PR | Menziona `/hena` durante una review. Hena riceve path file, numeri di riga e contesto del diff.           |
 | `issues`                      | Issue aperta o modificata              | Attiva automaticamente Hena quando le issue vengono create o modificate. Richiede l'input `prompt`.                   |
 | `pull_request`                | PR aperta o aggiornata                 | Attiva automaticamente Hena quando le PR vengono aperte, sincronizzate o riaperte. Utile per review automatiche.      |
 | `schedule`                    | Pianificazione basata su cron          | Esegue Hena a pianificazione. Richiede l'input `prompt`. Output nei log e nelle PR (nessuna issue su cui commentare). |
@@ -298,7 +297,7 @@ Ecco alcuni esempi di come puoi usare Hena su GitHub.
   Lascia il seguente commento su una PR GitHub.
 
   ```
-  Delete the attachment from S3 when the note is removed /oc
+  Delete the attachment from S3 when the note is removed /hena
   ```
 
   Hena implementera' la modifica richiesta e la committera' nella stessa PR.
@@ -309,7 +308,7 @@ Ecco alcuni esempi di come puoi usare Hena su GitHub.
 
   ```
   [Comment on specific lines in Files tab]
-  /oc add error handling here
+  /hena add error handling here
   ```
 
   Quando commenti su righe specifiche, Hena riceve:

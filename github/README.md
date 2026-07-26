@@ -27,7 +27,7 @@ Leave the following comment on a GitHub issue. Hena will create a branch, implem
 Leave the following comment on a GitHub PR. Hena will implement the requested change and commit it to the same PR.
 
 ```
-Delete the attachment from S3 when the note is removed /oc
+Delete the attachment from S3 when the note is removed /hena
 ```
 
 #### Review specific code lines
@@ -36,7 +36,7 @@ Leave a comment directly on code lines in the PR's "Files" tab. Hena will automa
 
 ```
 [Comment on specific lines in Files tab]
-/oc add error handling here
+/hena add error handling here
 ```
 
 When commenting on specific lines, Hena receives:
@@ -75,7 +75,6 @@ This will walk you through installing the GitHub app, creating the workflow, and
    jobs:
      hena:
        if: |
-         contains(github.event.comment.body, '/oc') ||
          contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:

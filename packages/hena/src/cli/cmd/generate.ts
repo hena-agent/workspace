@@ -18,7 +18,7 @@ export const GenerateCommand = {
           {
             lang: "js",
             source: [
-              `import { createHenaClient } from "@hena/sdk`,
+              `import { createHenaClient } from "@hena/sdk"`,
               ``,
               `const client = createHenaClient()`,
               `await client.${operation.operationId}({`,

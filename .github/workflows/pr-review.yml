@@ -1,0 +1,54 @@
+name: pr-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# A called (reusable) workflow cannot exceed the caller's token scopes, and this
+# repo's default workflow permission is read-only. The reusable workflow needs
+# pull-requests/issues write, so grant those scopes explicitly at the caller.
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+# A new push to a PR supersedes the previous commit, so cancel the in-flight
+# run for that PR. github.ref is refs/pull/<n>/merge here, so this is scoped
+# per-PR and never cancels another PR.
+concurrency:
+  group: pr-review-${{ github.ref }}
+  cancel-in-progress: true
+
+# Same-repo PRs only (OPENCODE_AUTH_JSON is not exposed to fork PRs).
+# Each reviewer runs via the shared _opencode-review.yml reusable workflow and
+# posts under its own GitHub App identity:
+#   gpt-review    -> disabled, see the job below
+#   claude-review -> hena-claude-reviewer[bot]
+jobs:
+  gpt-review:
+    # Disabled: only the Claude reviewer is enabled in this repo. To
+    # re-enable, flip this to `if: true` and register
+    # GPT_REVIEWER_CLIENT_ID (var) + GPT_REVIEWER_PRIVATE_KEY (secret).
+    if: ${{ false }}
+    uses: ./.github/workflows/_opencode-review.yml
+    with:
+      model: openai/gpt-5.6-sol
+      variant: high
+      app-client-id: ${{ vars.GPT_REVIEWER_CLIENT_ID }}
+      prompt: |
+        Use the `thermo-nuclear-code-quality-review` skill to review it.
+    secrets:
+      app-private-key: ${{ secrets.GPT_REVIEWER_PRIVATE_KEY }}
+      opencode-auth-json: ${{ secrets.OPENCODE_AUTH_JSON }}
+
+  claude-review:
+    uses: ./.github/workflows/_opencode-review.yml
+    with:
+      model: anthropic/claude-opus-5
+      variant: max
+      app-client-id: ${{ vars.CLAUDE_REVIEWER_CLIENT_ID }}
+      prompt: |
+        Use the `thermo-nuclear-code-quality-review` skill to review it.
+    secrets:
+      app-private-key: ${{ secrets.CLAUDE_REVIEWER_PRIVATE_KEY }}
+      opencode-auth-json: ${{ secrets.OPENCODE_AUTH_JSON }}

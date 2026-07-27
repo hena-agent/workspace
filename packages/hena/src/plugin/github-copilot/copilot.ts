@@ -1,4 +1,4 @@
-import type { Hooks, PluginInput } from "@hena/plugin"
+import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import type { Model } from "@hena/sdk/v2"
 import { InstallationVersion } from "@hena/core/installation/version"
 import { iife } from "@/util/iife"

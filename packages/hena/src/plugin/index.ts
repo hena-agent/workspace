@@ -5,7 +5,7 @@ import type {
   Plugin as PluginInstance,
   PluginModule,
   WorkspaceAdapter as PluginWorkspaceAdapter,
-} from "@hena/plugin"
+} from "@opencode-ai/plugin"
 import { Config } from "@/config/config"
 import { createHenaClient } from "@hena/sdk"
 import { ServerAuth } from "@/server/auth"

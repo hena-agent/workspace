@@ -85,7 +85,7 @@
     "@openauthjs/openauth": "catalog:",
     "@hena/codemode": "workspace:*",
     "@hena/llm": "workspace:*",
-    "@hena/plugin": "workspace:*",
+    "@opencode-ai/plugin": "workspace:*",
     "@hena/protocol": "workspace:*",
     "@hena/schema": "workspace:*",
     "@hena/script": "workspace:*",

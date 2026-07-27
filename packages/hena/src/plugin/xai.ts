@@ -1,4 +1,4 @@
-import type { Hooks, PluginInput } from "@hena/plugin"
+import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { OAUTH_DUMMY_KEY } from "../auth"
 import { createServer } from "http"
 import { InstallationVersion } from "@hena/core/installation/version"

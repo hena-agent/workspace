@@ -9,7 +9,6 @@ import { Flag } from "@/flag"
 import { Auth } from "../auth"
 import { Env } from "../env"
 import { applyEdits, modify } from "jsonc-parser"
-import { InstallationLocal, InstallationVersion } from "@hena/core/installation/version"
 import { existsSync } from "fs"
 import { Account } from "@/account/account"
 import { isRecord } from "@/util/record"
@@ -421,8 +420,7 @@ const layer = Layer.effect(
             .install(dir, {
               add: [
                 {
-                  name: "@hena/plugin",
-                  version: InstallationLocal ? undefined : InstallationVersion,
+                  name: "@opencode-ai/plugin",
                 },
               ],
             })

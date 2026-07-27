@@ -16,7 +16,6 @@ import { FSUtil } from "@hena/core/fs-util"
 import { CurrentWorkingDirectory } from "./tui-cwd"
 import { ConfigPlugin } from "@/config/plugin"
 import { TuiKeybind } from "@hena/tui/config/keybind"
-import { InstallationLocal, InstallationVersion } from "@hena/core/installation/version"
 import { makeRuntime } from "@hena/core/effect/runtime"
 import { Filesystem } from "@/util/filesystem"
 import { ConfigVariable } from "@/config/variable"
@@ -240,8 +239,7 @@ const layer = Layer.effect(
           .install(dir, {
             add: [
               {
-                name: "@hena/plugin",
-                version: InstallationLocal ? undefined : InstallationVersion,
+                name: "@opencode-ai/plugin",
               },
             ],
           })

@@ -1,5 +1,5 @@
 import type { AssistantMessage } from "@hena/sdk/v2"
-import type { TuiPlugin, TuiPluginApi } from "@hena/plugin/tui"
+import type { TuiPlugin, TuiPluginApi } from "@opencode-ai/plugin/tui"
 import type { BuiltinTuiPlugin } from "../builtins"
 import { createMemo } from "solid-js"
 

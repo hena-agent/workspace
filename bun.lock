@@ -6,9 +6,9 @@
       "name": "hena",
       "dependencies": {
         "@aws-sdk/client-s3": "3.933.0",
-        "@hena/plugin": "workspace:*",
         "@hena/script": "workspace:*",
         "@hena/sdk": "workspace:*",
+        "@opencode-ai/plugin": "workspace:*",
         "heap-snapshot-toolkit": "1.1.3",
         "typescript": "catalog:",
       },
@@ -97,7 +97,7 @@
       "name": "@hena/cli",
       "version": "1.18.4",
       "bin": {
-        "hena": "./bin/hena.cjs",
+        "lildax": "./bin/lildax.cjs",
       },
       "dependencies": {
         "@effect/platform-node": "catalog:",
@@ -316,11 +316,11 @@
         "@hena/effect-drizzle-sqlite": "workspace:*",
         "@hena/effect-sqlite-node": "workspace:*",
         "@hena/llm": "workspace:*",
-        "@hena/plugin": "workspace:*",
         "@hena/schema": "workspace:*",
         "@lydell/node-pty": "catalog:",
         "@npmcli/arborist": "9.4.0",
         "@npmcli/config": "10.8.1",
+        "@opencode-ai/plugin": "workspace:*",
         "@openrouter/ai-sdk-provider": "2.9.0",
         "@opentelemetry/api": "1.9.0",
         "@opentelemetry/context-async-hooks": "2.6.1",
@@ -539,7 +539,6 @@
         "@ff-labs/fff-bun": "0.9.4",
         "@hena/codemode": "workspace:*",
         "@hena/llm": "workspace:*",
-        "@hena/plugin": "workspace:*",
         "@hena/protocol": "workspace:*",
         "@hena/schema": "workspace:*",
         "@hena/script": "workspace:*",
@@ -550,6 +549,7 @@
         "@octokit/graphql": "9.0.2",
         "@octokit/rest": "catalog:",
         "@openauthjs/openauth": "catalog:",
+        "@opencode-ai/plugin": "workspace:*",
         "@openrouter/ai-sdk-provider": "2.9.0",
         "@opentelemetry/api": "1.9.0",
         "@opentelemetry/context-async-hooks": "2.6.1",
@@ -684,7 +684,7 @@
       },
     },
     "packages/plugin": {
-      "name": "@hena/plugin",
+      "name": "@opencode-ai/plugin",
       "version": "1.18.4",
       "dependencies": {
         "@ai-sdk/provider": "3.0.8",
@@ -946,9 +946,9 @@
       "version": "1.18.4",
       "dependencies": {
         "@hena/core": "workspace:*",
-        "@hena/plugin": "workspace:*",
         "@hena/sdk": "workspace:*",
         "@hena/ui": "workspace:*",
+        "@opencode-ai/plugin": "workspace:*",
         "@opentui/core": "catalog:",
         "@opentui/keymap": "catalog:",
         "@opentui/solid": "catalog:",
@@ -1688,8 +1688,6 @@
 
     "@hena/llm": ["@hena/llm@workspace:packages/llm"],
 
-    "@hena/plugin": ["@hena/plugin@workspace:packages/plugin"],
-
     "@hena/protocol": ["@hena/protocol@workspace:packages/protocol"],
 
     "@hena/schema": ["@hena/schema@workspace:packages/schema"],
@@ -1996,7 +1994,7 @@
 
     "@openauthjs/openauth": ["@openauthjs/openauth@0.0.0-20250322224806", "", { "dependencies": { "@standard-schema/spec": "1.0.0-beta.3", "aws4fetch": "1.0.20", "jose": "5.9.6" }, "peerDependencies": { "arctic": "^2.2.2", "hono": "^4.0.0" } }, "sha512-p5IWSRXvABcwocH2dNI0w8c1QJelIOFulwhKk+aLLFfUbs8u1pr7kQbYe8yCSM2+bcLHiwbogpUQc2ovrGwCuw=="],
 
-    "@opencode-ai/plugin": ["@opencode-ai/plugin@1.18.3", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@opencode-ai/sdk": "1.18.3", "effect": "4.0.0-beta.83", "zod": "4.1.8" }, "peerDependencies": { "@opentui/core": ">=0.4.3", "@opentui/keymap": ">=0.4.3", "@opentui/solid": ">=0.4.3" }, "optionalPeers": ["@opentui/core", "@opentui/keymap", "@opentui/solid"] }, "sha512-hAm/hZkSCsMSNHVy9DKmFtZAve/qYoIWpduNPcvXnnKK7NMlJEOQitA6CQC67Ym5DFKypDW1TC9YO6S1WdGtpg=="],
+    "@opencode-ai/plugin": ["@opencode-ai/plugin@workspace:packages/plugin"],
 
     "@opencode-ai/sdk": ["@opencode-ai/sdk@1.18.3", "", { "dependencies": { "cross-spawn": "7.0.6" } }, "sha512-Mevo4e6kQwbvto9E+42KSIVMhp+JBu+SwQhC5AomAvrV6Xkio3U249T+xDILDCXhl5Z/Hi/DlAuVLzpGnuh0gg=="],
 
@@ -6307,6 +6305,8 @@
     "nypm/citty": ["citty@0.2.2", "", {}, "sha512-+6vJA3L98yv+IdfKGZHBNiGW5KHn22e/JwID0Strsz8h4S/csAu/OuICwxrg44k5MRiZHWIo8XXuJgQTriRP4w=="],
 
     "nypm/tinyexec": ["tinyexec@1.2.4", "", {}, "sha512-SHf/r48b7vOrjve9PxJo3MN5v5yuyjHvdUcrQffT3WXMUfnGmHDVbC4k3sHJaJTgZCwpUplIaAo5ANtMyp3YHg=="],
+
+    "opencode-gitlab-auth/@opencode-ai/plugin": ["@opencode-ai/plugin@1.18.3", "", { "dependencies": { "@ai-sdk/provider": "3.0.8", "@opencode-ai/sdk": "1.18.3", "effect": "4.0.0-beta.83", "zod": "4.1.8" }, "peerDependencies": { "@opentui/core": ">=0.4.3", "@opentui/keymap": ">=0.4.3", "@opentui/solid": ">=0.4.3" }, "optionalPeers": ["@opentui/core", "@opentui/keymap", "@opentui/solid"] }, "sha512-hAm/hZkSCsMSNHVy9DKmFtZAve/qYoIWpduNPcvXnnKK7NMlJEOQitA6CQC67Ym5DFKypDW1TC9YO6S1WdGtpg=="],
 
     "openid-client/jose": ["jose@4.15.9", "", {}, "sha512-1vUQX+IdDMVPj4k8kOxgUqlcK518yluMuGZwqlr44FS1ppZB/5GWh4rZG89erpOBOJjU/OBsnCVFfapsRz6nEA=="],
 

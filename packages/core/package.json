@@ -90,7 +90,7 @@
     "@hena/effect-sqlite-node": "workspace:*",
     "@hena/llm": "workspace:*",
     "@hena/schema": "workspace:*",
-    "@hena/plugin": "workspace:*",
+    "@opencode-ai/plugin": "workspace:*",
     "@opentelemetry/api": "1.9.0",
     "@opentelemetry/context-async-hooks": "2.6.1",
     "@opentelemetry/exporter-trace-otlp-http": "0.214.0",

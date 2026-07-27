@@ -27,12 +27,12 @@ console.log("binaries", binaries)
 const version = Object.values(binaries)[0]
 
 await $`mkdir -p ./dist/${pkg.name}/bin`
-await $`cp ./bin/hena.cjs ./dist/${pkg.name}/bin/hena`
+await $`cp ./bin/lildax.cjs ./dist/${pkg.name}/bin/lildax`
 await Bun.file(`./dist/${pkg.name}/package.json`).write(
   JSON.stringify(
     {
       name: pkg.name,
-      bin: { "hena": "./bin/hena" },
+      bin: { lildax: "./bin/lildax" },
       version,
       license: pkg.license,
       repository: { type: "git", url: "git+https://github.com/hena-agent/hena.git" },

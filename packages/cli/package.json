@@ -5,7 +5,7 @@
   "type": "module",
   "license": "MIT",
   "bin": {
-    "hena": "./bin/hena.cjs"
+    "lildax": "./bin/lildax.cjs"
   },
   "files": [
     "bin"

@@ -2,7 +2,7 @@
 
 import path from "path"
 import { pathToFileURL } from "bun"
-import { createOpencode } from "@opencode-ai/sdk"
+import { createHena } from "@hena/sdk"
 import { parseArgs } from "util"
 
 async function main() {
@@ -35,7 +35,7 @@ Examples:
     process.exit(1)
   }
 
-  const opencode = await createOpencode({ port: 0 })
+  const hena = await createHena({ port: 0 })
 
   try {
     const parts: Array<{ type: "text"; text: string } | { type: "file"; url: string; filename: string; mime: string }> =
@@ -58,8 +58,8 @@ Examples:
 
     parts.push({ type: "text", text: message })
 
-    const session = await opencode.client.session.create()
-    const result = await opencode.client.session
+    const session = await hena.client.session.create()
+    const result = await hena.client.session
       .prompt({
         path: { id: session.data!.id },
         body: {
@@ -72,7 +72,7 @@ Examples:
 
     console.log(result.trim())
   } finally {
-    opencode.server.close()
+    hena.server.close()
   }
 }
 

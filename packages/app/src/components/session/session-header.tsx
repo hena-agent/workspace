@@ -1,13 +1,13 @@
-import { AppIcon } from "@opencode-ai/ui/app-icon"
-import { Button } from "@opencode-ai/ui/button"
-import { DropdownMenu } from "@opencode-ai/ui/dropdown-menu"
-import { Icon } from "@opencode-ai/ui/icon"
-import { IconButton } from "@opencode-ai/ui/icon-button"
-import { Keybind } from "@opencode-ai/ui/keybind"
-import { Spinner } from "@opencode-ai/ui/spinner"
+import { AppIcon } from "@hena/ui/app-icon"
+import { Button } from "@hena/ui/button"
+import { DropdownMenu } from "@hena/ui/dropdown-menu"
+import { Icon } from "@hena/ui/icon"
+import { IconButton } from "@hena/ui/icon-button"
+import { Keybind } from "@hena/ui/keybind"
+import { Spinner } from "@hena/ui/spinner"
 import { showToast } from "@/utils/toast"
-import { Tooltip, TooltipKeybind } from "@opencode-ai/ui/tooltip"
-import { getFilename } from "@opencode-ai/core/util/path"
+import { Tooltip, TooltipKeybind } from "@hena/ui/tooltip"
+import { getFilename } from "@hena/core/util/path"
 import { createEffect, createMemo, createSignal, For, onMount, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
@@ -27,10 +27,10 @@ import { decode64 } from "@/utils/base64"
 import { fileManagerApp } from "@/utils/file-manager"
 import { Persist, persisted } from "@/utils/persist"
 import { StatusPopover, StatusPopoverV2 } from "../status-popover"
-import { IconButtonV2 } from "@opencode-ai/ui/v2/icon-button-v2"
-import { Icon as IconV2 } from "@opencode-ai/ui/v2/icon"
-import { KeybindV2 } from "@opencode-ai/ui/v2/keybind-v2"
-import { TooltipV2 } from "@opencode-ai/ui/v2/tooltip-v2"
+import { IconButtonV2 } from "@hena/ui/v2/icon-button-v2"
+import { Icon as IconV2 } from "@hena/ui/v2/icon"
+import { KeybindV2 } from "@hena/ui/v2/keybind-v2"
+import { TooltipV2 } from "@hena/ui/v2/tooltip-v2"
 import { reviewTooltipKeybind } from "../command-tooltip-keybind"
 import { useTitlebarRightMount } from "../titlebar"
 
@@ -284,7 +284,7 @@ export function SessionHeader() {
   const [centerMount, setCenterMount] = createSignal<HTMLElement | null>(null)
   const rightMount = useTitlebarRightMount()
   onMount(() => {
-    setCenterMount(document.getElementById("opencode-titlebar-center"))
+    setCenterMount(document.getElementById("hena-titlebar-center"))
   })
 
   return (

@@ -1,7 +1,7 @@
-export * as OpenCode from "./opencode"
+export * as Hena from "./hena"
 export * as Tool from "./tool"
 
-export { ClientError } from "@opencode-ai/client/effect"
+export { ClientError } from "@hena/client/effect"
 export {
   AbsolutePath,
   Agent,
@@ -13,5 +13,5 @@ export {
   Session,
   SessionInput,
   SessionMessage,
-} from "@opencode-ai/client/effect"
-export type { OpenCodeEvent } from "@opencode-ai/client/effect"
+} from "@hena/client/effect"
+export type { HenaEvent } from "@hena/client/effect"

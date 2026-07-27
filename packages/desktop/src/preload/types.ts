@@ -1,19 +1,19 @@
-import type { DesktopMenuAction } from "@opencode-ai/app/desktop-menu"
-import type { WslServersPlatform } from "@opencode-ai/app/wsl/types"
-import type { UpdaterState } from "@opencode-ai/app/updater"
+import type { DesktopMenuAction } from "@hena/app/desktop-menu"
+import type { WslServersPlatform } from "@hena/app/wsl/types"
+import type { UpdaterState } from "@hena/app/updater"
 export type {
   WslDistroProbe,
   WslInstalledDistro,
   WslJob,
   WslOnlineDistro,
-  WslOpencodeCheck,
+  WslHenaCheck,
   WslRuntimeCheck,
   WslServerConfig,
   WslServerItem,
   WslServerRuntime,
   WslServersEvent,
   WslServersState,
-} from "@opencode-ai/app/wsl/types"
+} from "@hena/app/wsl/types"
 
 export type ServerReadyData = {
   url: string

@@ -1,6 +1,6 @@
 import { Platform, usePlatform } from "@/context/platform"
 import { makePersisted, type AsyncStorage, type SyncStorage } from "@solid-primitives/storage"
-import { checksum } from "@opencode-ai/core/util/encode"
+import { checksum } from "@hena/core/util/encode"
 import { createResource, type Accessor } from "solid-js"
 import type { SetStoreFunction, Store } from "solid-js/store"
 import { pathKey } from "@/utils/path-key"
@@ -17,16 +17,15 @@ type PersistedWithReady<T> = [
 type PersistTarget = {
   storage?: string
   scope?: "window"
-  legacyStorageNames?: string[]
   key: string
   legacy?: string[]
   migrate?: (value: unknown) => unknown
 }
 
 const LEGACY_STORAGE = "default.dat"
-const GLOBAL_STORAGE = "opencode.global.dat"
-const WINDOW_STORAGE = "opencode.window"
-const LOCAL_PREFIX = "opencode."
+const GLOBAL_STORAGE = "hena.global.dat"
+const WINDOW_STORAGE = "hena.window"
+const LOCAL_PREFIX = "hena."
 const fallback = new Map<string, boolean>()
 
 const CACHE_MAX_ENTRIES = 500
@@ -233,26 +232,11 @@ function readCurrent(input: {
 function migrateLegacy(input: {
   current: SyncStorage
   legacyStore?: SyncStorage
-  stores: SyncStorage[]
   keys: string[]
   key: string
   defaults: unknown
   migrate?: (value: unknown) => unknown
 }) {
-  for (const store of input.stores) {
-    const raw = store.getItem(input.key)
-    if (raw === null) continue
-
-    const next = normalize(input.defaults, raw, input.migrate)
-    if (next === undefined) {
-      store.removeItem(input.key)
-      continue
-    }
-    input.current.setItem(input.key, next)
-    store.removeItem(input.key)
-    return next
-  }
-
   if (!input.legacyStore) return null
 
   for (const key of input.keys) {
@@ -298,26 +282,11 @@ async function removeAsync(storage: AsyncStorage, key: string) {
 async function migrateLegacyAsync(input: {
   current: AsyncStorage
   legacyStore?: AsyncStorage
-  stores: AsyncStorage[]
   keys: string[]
   key: string
   defaults: unknown
   migrate?: (value: unknown) => unknown
 }) {
-  for (const store of input.stores) {
-    const raw = await store.getItem(input.key)
-    if (raw === null) continue
-
-    const next = normalize(input.defaults, raw, input.migrate)
-    if (next === undefined) {
-      await removeAsync(store, input.key)
-      continue
-    }
-    await input.current.setItem(input.key, next)
-    await store.removeItem(input.key)
-    return next
-  }
-
   if (!input.legacyStore) return null
 
   for (const key of input.keys) {
@@ -340,13 +309,13 @@ async function migrateLegacyAsync(input: {
 function workspaceStorage(dir: string) {
   const head = (dir.slice(0, 12) || "workspace").replace(/[^a-zA-Z0-9._-]/g, "-")
   const sum = checksum(dir) ?? "0"
-  return `opencode.workspace.${head}.${sum}.dat`
+  return `hena.workspace.${head}.${sum}.dat`
 }
 
 function draftStorage(draftID: string) {
   const head = (draftID.slice(0, 12) || "draft").replace(/[^a-zA-Z0-9._-]/g, "-")
   const sum = checksum(draftID) ?? "0"
-  return `opencode.draft.${head}.${sum}.dat`
+  return `hena.draft.${head}.${sum}.dat`
 }
 
 function windowStorage(windowID: string) {
@@ -354,26 +323,12 @@ function windowStorage(windowID: string) {
   return `${WINDOW_STORAGE}.${safe}.dat`
 }
 
-function legacyWorkspaceStorage(dir: string) {
-  const storage = workspaceStorage(pathKey(dir))
-  const result = new Set<string>()
-  const raw = workspaceStorage(dir)
-  if (raw !== storage) result.add(raw)
-
-  const key = pathKey(dir)
-  const drive = key.length >= 3 && key[1] === ":" && key[2] === "/"
-  if (drive) {
-    const backslash = workspaceStorage(key.replaceAll("/", "\\"))
-    if (backslash !== storage) result.add(backslash)
-  }
-
-  if (result.size === 0) return
-  return [...result]
-}
-
 function serverWorkspaceTarget(scope: ServerScopeValue, dir: string, key: string, legacy?: string[]): PersistTarget {
-  if (scope !== ServerScope.local) return { storage: workspaceStorage(ScopedKey.from(scope, pathKey(dir))), key }
-  return { storage: workspaceStorage(pathKey(dir)), legacyStorageNames: legacyWorkspaceStorage(dir), key, legacy }
+  if (scope !== ServerScope.local) {
+    const scoped = ScopedKey.from(scope, pathKey(dir))
+    return { storage: workspaceStorage(scoped), key }
+  }
+  return { storage: workspaceStorage(pathKey(dir)), key, legacy }
 }
 
 function localStorageWithPrefix(prefix: string): SyncStorage {
@@ -487,11 +442,18 @@ export const Persist = {
     return { scope: "window", key, legacy }
   },
   draft(draftID: string, key: string, legacy?: string[]): PersistTarget {
-    return { storage: draftStorage(draftID), key: `draft:${key}`, legacy }
+    return {
+      storage: draftStorage(draftID),
+      key: `draft:${key}`,
+      legacy,
+    }
   },
   serverGlobal(scope: ServerScopeValue, key: string, legacy?: string[]): PersistTarget {
     if (scope === ServerScope.local) return Persist.global(key, legacy)
-    return { storage: GLOBAL_STORAGE, key: ScopedKey.from(scope, key) }
+    return {
+      storage: GLOBAL_STORAGE,
+      key: ScopedKey.from(scope, key),
+    }
   },
   workspace(dir: string, key: string, legacy?: string[]): PersistTarget {
     return serverWorkspaceTarget(ServerScope.local, dir, `workspace:${key}`, legacy)
@@ -517,7 +479,9 @@ export const Persist = {
 
 function resolveTarget(target: PersistTarget, platform: Platform): PersistTarget {
   if (target.scope !== "window") return target
-  if (platform.platform === "desktop" && !platform.windowID) return { ...target, storage: GLOBAL_STORAGE }
+  if (platform.platform === "desktop" && !platform.windowID) {
+    return { ...target, storage: GLOBAL_STORAGE }
+  }
   const windowID = platform.platform === "desktop" ? (platform.windowID ?? "browser") : "browser"
   return {
     ...target,
@@ -525,17 +489,11 @@ function resolveTarget(target: PersistTarget, platform: Platform): PersistTarget
   }
 }
 
-export function removePersisted(
-  target: { storage?: string; legacyStorageNames?: string[]; key: string },
-  platform?: Platform,
-) {
+export function removePersisted(target: { storage?: string; key: string }, platform?: Platform) {
   const isDesktop = platform?.platform === "desktop" && !!platform.storage
 
   if (isDesktop) {
     void platform.storage?.(target.storage)?.removeItem(target.key)
-    for (const storage of target.legacyStorageNames ?? []) {
-      void platform.storage?.(storage)?.removeItem(target.key)
-    }
     return
   }
 
@@ -545,9 +503,6 @@ export function removePersisted(
   }
 
   localStorageWithPrefix(target.storage).removeItem(target.key)
-  for (const storage of target.legacyStorageNames ?? []) {
-    localStorageWithPrefix(storage).removeItem(target.key)
-  }
 }
 
 export function persisted<T>(
@@ -574,14 +529,10 @@ export function persisted<T>(
     return platform.storage?.(LEGACY_STORAGE)
   })()
 
-  const legacyStorageNames = config.legacyStorageNames ?? []
-
   const storage = (() => {
     if (!isDesktop) {
       const current = currentStorage as SyncStorage
       const legacyStore = legacyStorage as SyncStorage
-      const legacyStores = legacyStorageNames.map(localStorageWithPrefix)
-
       const api: SyncStorage = {
         getItem: (key) => {
           const value = readCurrent({ storage: current, key, defaults, migrate: config.migrate })
@@ -589,7 +540,6 @@ export function persisted<T>(
           return migrateLegacy({
             current,
             legacyStore,
-            stores: legacyStores,
             keys: legacy,
             key,
             defaults,
@@ -609,10 +559,6 @@ export function persisted<T>(
 
     const current = currentStorage as AsyncStorage
     const legacyStore = legacyStorage as AsyncStorage | undefined
-    const legacyStores = legacyStorageNames
-      .map((name) => platform.storage?.(name) as AsyncStorage | undefined)
-      .filter((x) => !!x)
-
     const api: AsyncStorage = {
       getItem: async (key) => {
         const value = await readCurrentAsync({ storage: current, key, defaults, migrate: config.migrate })
@@ -620,7 +566,6 @@ export function persisted<T>(
         return migrateLegacyAsync({
           current,
           legacyStore,
-          stores: legacyStores,
           keys: legacy,
           key,
           defaults,

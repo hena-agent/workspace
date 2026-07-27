@@ -1,78 +1,98 @@
 import { Config } from "effect"
 
 export function truthy(key: string) {
-  const value = process.env[key]?.toLowerCase()
+  const value = environment(key)?.toLowerCase()
   return value === "true" || value === "1"
 }
 
-const copy = process.env["OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT"]
-const fff = process.env["OPENCODE_DISABLE_FFF"]
+export function environment(key: string) {
+  return process.env[key]
+}
+
+const copy = environment("HENA_EXPERIMENTAL_DISABLE_COPY_ON_SELECT")
+const fff = environment("HENA_DISABLE_FFF")
 
 function enabledByExperimental(key: string) {
-  return process.env[key] === undefined ? truthy("OPENCODE_EXPERIMENTAL") : truthy(key)
+  return environment(key) === undefined ? truthy("HENA_EXPERIMENTAL") : truthy(key)
+}
+
+function booleanConfig(key: string) {
+  return Config.boolean(key).pipe(Config.withDefault(false))
 }
 
 export const Flag = {
   OTEL_EXPORTER_OTLP_ENDPOINT: process.env["OTEL_EXPORTER_OTLP_ENDPOINT"],
   OTEL_EXPORTER_OTLP_HEADERS: process.env["OTEL_EXPORTER_OTLP_HEADERS"],
 
-  OPENCODE_AUTO_HEAP_SNAPSHOT: truthy("OPENCODE_AUTO_HEAP_SNAPSHOT"),
-  OPENCODE_GIT_BASH_PATH: process.env["OPENCODE_GIT_BASH_PATH"],
-  OPENCODE_CONFIG: process.env["OPENCODE_CONFIG"],
-  OPENCODE_CONFIG_CONTENT: process.env["OPENCODE_CONFIG_CONTENT"],
-  OPENCODE_DISABLE_AUTOUPDATE: truthy("OPENCODE_DISABLE_AUTOUPDATE"),
-  OPENCODE_ALWAYS_NOTIFY_UPDATE: truthy("OPENCODE_ALWAYS_NOTIFY_UPDATE"),
-  OPENCODE_DISABLE_PRUNE: truthy("OPENCODE_DISABLE_PRUNE"),
-  OPENCODE_DISABLE_TERMINAL_TITLE: truthy("OPENCODE_DISABLE_TERMINAL_TITLE"),
-  OPENCODE_SHOW_TTFD: truthy("OPENCODE_SHOW_TTFD"),
-  OPENCODE_DISABLE_AUTOCOMPACT: truthy("OPENCODE_DISABLE_AUTOCOMPACT"),
-  OPENCODE_DISABLE_MODELS_FETCH: truthy("OPENCODE_DISABLE_MODELS_FETCH"),
-  OPENCODE_DISABLE_MOUSE: truthy("OPENCODE_DISABLE_MOUSE"),
-  OPENCODE_FAKE_VCS: process.env["OPENCODE_FAKE_VCS"],
-  OPENCODE_SERVER_PASSWORD: process.env["OPENCODE_SERVER_PASSWORD"],
-  OPENCODE_SERVER_USERNAME: process.env["OPENCODE_SERVER_USERNAME"],
-  OPENCODE_DISABLE_FFF: fff === undefined ? process.platform === "win32" : truthy("OPENCODE_DISABLE_FFF"),
+  HENA_AUTO_HEAP_SNAPSHOT: truthy("HENA_AUTO_HEAP_SNAPSHOT"),
+  HENA_GIT_BASH_PATH: environment("HENA_GIT_BASH_PATH"),
+  HENA_CONFIG: environment("HENA_CONFIG"),
+  HENA_CONFIG_CONTENT: environment("HENA_CONFIG_CONTENT"),
+  HENA_DISABLE_AUTOUPDATE: truthy("HENA_DISABLE_AUTOUPDATE"),
+  HENA_ALWAYS_NOTIFY_UPDATE: truthy("HENA_ALWAYS_NOTIFY_UPDATE"),
+  HENA_DISABLE_PRUNE: truthy("HENA_DISABLE_PRUNE"),
+  HENA_DISABLE_TERMINAL_TITLE: truthy("HENA_DISABLE_TERMINAL_TITLE"),
+  HENA_SHOW_TTFD: truthy("HENA_SHOW_TTFD"),
+  HENA_DISABLE_AUTOCOMPACT: truthy("HENA_DISABLE_AUTOCOMPACT"),
+  HENA_DISABLE_MODELS_FETCH: truthy("HENA_DISABLE_MODELS_FETCH"),
+  HENA_DISABLE_MOUSE: truthy("HENA_DISABLE_MOUSE"),
+  HENA_FAKE_VCS: environment("HENA_FAKE_VCS"),
+  HENA_DISABLE_FFF: fff === undefined ? process.platform === "win32" : truthy("HENA_DISABLE_FFF"),
+  HENA_SERVER_PASSWORD: environment("HENA_SERVER_PASSWORD"),
+  HENA_SERVER_USERNAME: environment("HENA_SERVER_USERNAME"),
 
   // Experimental
-  OPENCODE_EXPERIMENTAL_FILEWATCHER: Config.boolean("OPENCODE_EXPERIMENTAL_FILEWATCHER").pipe(
-    Config.withDefault(false),
-  ),
-  OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: Config.boolean("OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER").pipe(
-    Config.withDefault(false),
-  ),
-  OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT:
-    copy === undefined ? process.platform === "win32" : truthy("OPENCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT"),
-  OPENCODE_MODELS_URL: process.env["OPENCODE_MODELS_URL"],
-  OPENCODE_MODELS_PATH: process.env["OPENCODE_MODELS_PATH"],
-  OPENCODE_DB: process.env["OPENCODE_DB"],
+  HENA_EXPERIMENTAL_FILEWATCHER: booleanConfig("HENA_EXPERIMENTAL_FILEWATCHER"),
+  HENA_EXPERIMENTAL_DISABLE_FILEWATCHER: booleanConfig("HENA_EXPERIMENTAL_DISABLE_FILEWATCHER"),
+  HENA_EXPERIMENTAL_DISABLE_COPY_ON_SELECT:
+    copy === undefined ? process.platform === "win32" : truthy("HENA_EXPERIMENTAL_DISABLE_COPY_ON_SELECT"),
+  HENA_MODELS_URL: environment("HENA_MODELS_URL"),
+  HENA_MODELS_PATH: environment("HENA_MODELS_PATH"),
+  HENA_DB: environment("HENA_DB"),
+  HENA_DISABLE_CHANNEL_DB: truthy("HENA_DISABLE_CHANNEL_DB"),
 
-  OPENCODE_WORKSPACE_ID: process.env["OPENCODE_WORKSPACE_ID"],
-  OPENCODE_EXPERIMENTAL_WORKSPACES: enabledByExperimental("OPENCODE_EXPERIMENTAL_WORKSPACES"),
+  HENA_WORKSPACE_ID: environment("HENA_WORKSPACE_ID"),
+  HENA_EXPERIMENTAL_WORKSPACES: enabledByExperimental("HENA_EXPERIMENTAL_WORKSPACES"),
 
   // Evaluated at access time (not module load) because tests, the CLI, and
   // external tooling set these env vars at runtime.
-  get OPENCODE_DISABLE_PROJECT_CONFIG() {
-    return truthy("OPENCODE_DISABLE_PROJECT_CONFIG")
+  get HENA_DISABLE_PROJECT_CONFIG() {
+    return truthy("HENA_DISABLE_PROJECT_CONFIG")
   },
-  get OPENCODE_EXPERIMENTAL_REFERENCES() {
-    return enabledByExperimental("OPENCODE_EXPERIMENTAL_REFERENCES")
+  get HENA_EXPERIMENTAL_REFERENCES() {
+    return enabledByExperimental("HENA_EXPERIMENTAL_REFERENCES")
   },
-  get OPENCODE_TUI_CONFIG() {
-    return process.env["OPENCODE_TUI_CONFIG"]
+  get HENA_TUI_CONFIG() {
+    return environment("HENA_TUI_CONFIG")
   },
-  get OPENCODE_CONFIG_DIR() {
-    return process.env["OPENCODE_CONFIG_DIR"]
+  get HENA_CONFIG_DIR() {
+    return environment("HENA_CONFIG_DIR")
   },
-  get OPENCODE_PURE() {
-    return truthy("OPENCODE_PURE")
+  get HENA_PURE() {
+    return truthy("HENA_PURE")
   },
-  get OPENCODE_PERMISSION() {
-    return process.env["OPENCODE_PERMISSION"]
+  get HENA_PERMISSION() {
+    return environment("HENA_PERMISSION")
   },
-  get OPENCODE_PLUGIN_META_FILE() {
-    return process.env["OPENCODE_PLUGIN_META_FILE"]
+  get HENA_PLUGIN_META_FILE() {
+    return environment("HENA_PLUGIN_META_FILE")
   },
-  get OPENCODE_CLIENT() {
-    return process.env["OPENCODE_CLIENT"] ?? "cli"
+  get HENA_CLIENT() {
+    return environment("HENA_CLIENT") ?? "cli"
+  },
+  get HENA_TEST_HOME() {
+    return environment("HENA_TEST_HOME")
+  },
+  get HENA_REPO_CLONE_GITHUB_BASE_URL() {
+    return environment("HENA_REPO_CLONE_GITHUB_BASE_URL")
+  },
+  get HENA_WEBSEARCH_PROVIDER() {
+    return environment("HENA_WEBSEARCH_PROVIDER")
+  },
+  get HENA_LOG_LEVEL() {
+    return environment("HENA_LOG_LEVEL")
+  },
+  get HENA_PRINT_LOGS() {
+    return truthy("HENA_PRINT_LOGS")
   },
 }

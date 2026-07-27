@@ -1,7 +1,7 @@
-import { base64Encode } from "@opencode-ai/core/util/encode"
-import { Event } from "@opencode-ai/schema/event"
-import { SessionStatusEvent } from "@opencode-ai/schema/session-status-event"
-import { SessionV1 } from "@opencode-ai/schema/session-v1"
+import { base64Encode } from "@hena/core/util/encode"
+import { Event } from "@hena/schema/event"
+import { SessionStatusEvent } from "@hena/schema/session-status-event"
+import { SessionV1 } from "@hena/schema/session-v1"
 import type {
   AssistantMessage,
   GlobalEvent,
@@ -12,20 +12,20 @@ import type {
   ToolPart,
   ToolState,
   UserMessage,
-} from "@opencode-ai/sdk/v2/client"
+} from "@hena/sdk/v2/client"
 import { expect, type Page } from "@playwright/test"
 import { Schema } from "effect"
-import { mockOpenCodeServer } from "../../utils/mock-server"
+import { mockHenaServer } from "../../utils/mock-server"
 import { installSseTransport } from "../../utils/sse-transport"
 import { expectSessionTitle } from "../../utils/waits"
 
-export const directory = "C:/OpenCode/TimelineStability"
+export const directory = "C:/Hena/TimelineStability"
 export const projectID = "proj_timeline_stability"
 export const sessionID = "ses_timeline_stability"
 export const userID = "msg_1000_timeline_user"
 export const assistantID = "msg_1001_timeline_assistant"
 export const title = "Timeline visual stability"
-export const model = { providerID: "opencode", modelID: "claude-opus-4-6", variant: "max" }
+export const model = { providerID: "hena", modelID: "claude-opus-4-6", variant: "max" }
 
 type TimelinePayload = Extract<
   GlobalEvent["payload"],
@@ -113,7 +113,7 @@ export async function setupTimeline(
     server: `http://${process.env.PLAYWRIGHT_SERVER_HOST ?? "127.0.0.1"}:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`,
     retry: input.eventRetry ?? 20,
   })
-  await mockOpenCodeServer(page, {
+  await mockHenaServer(page, {
     directory,
     project: project(),
     provider: provider(),
@@ -142,7 +142,7 @@ export async function setupTimeline(
   }, input.settings ?? {})
   if (input.locale) {
     await page.addInitScript((locale) => {
-      localStorage.setItem("opencode.global.dat:language", JSON.stringify({ locale }))
+      localStorage.setItem("hena.global.dat:language", JSON.stringify({ locale }))
     }, input.locale)
   }
   if (input.reducedMotion) await page.emulateMedia({ reducedMotion: "reduce" })
@@ -553,12 +553,12 @@ function provider() {
   return {
     all: [
       {
-        id: "opencode",
-        name: "OpenCode",
+        id: "hena",
+        name: "Hena",
         models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
       },
     ],
-    connected: ["opencode"],
-    default: { providerID: "opencode", modelID: "claude-opus-4-6" },
+    connected: ["hena"],
+    default: { providerID: "hena", modelID: "claude-opus-4-6" },
   }
 }

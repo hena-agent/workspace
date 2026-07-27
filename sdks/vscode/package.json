@@ -1,12 +1,12 @@
 {
-  "name": "opencode",
-  "displayName": "opencode",
-  "description": "opencode for VS Code",
+  "name": "hena",
+  "displayName": "Hena",
+  "description": "Hena for VS Code",
   "version": "1.18.4",
-  "publisher": "sst-dev",
+  "publisher": "hena",
   "repository": {
     "type": "git",
-    "url": "https://github.com/anomalyco/opencode"
+    "url": "https://github.com/hena-agent/hena"
   },
   "license": "MIT",
   "icon": "images/icon.png",
@@ -25,54 +25,54 @@
   "contributes": {
     "commands": [
       {
-        "command": "opencode.openTerminal",
-        "title": "Open opencode",
+        "command": "hena.openTerminal",
+        "title": "Open Hena",
         "icon": {
           "light": "images/button-dark.svg",
           "dark": "images/button-light.svg"
         }
       },
       {
-        "command": "opencode.openNewTerminal",
-        "title": "Open opencode in new tab",
+        "command": "hena.openNewTerminal",
+        "title": "Open Hena in new tab",
         "icon": {
           "light": "images/button-dark.svg",
           "dark": "images/button-light.svg"
         }
       },
       {
-        "command": "opencode.addFilepathToTerminal",
+        "command": "hena.addFilepathToTerminal",
         "title": "Add Filepath to Terminal"
       }
     ],
     "menus": {
       "editor/title": [
         {
-          "command": "opencode.openNewTerminal",
+          "command": "hena.openNewTerminal",
           "group": "navigation"
         }
       ]
     },
     "keybindings": [
       {
-        "command": "opencode.openTerminal",
-        "title": "Run opencode",
+        "command": "hena.openTerminal",
+        "title": "Run Hena",
         "key": "cmd+escape",
         "mac": "cmd+escape",
         "win": "ctrl+escape",
         "linux": "ctrl+escape"
       },
       {
-        "command": "opencode.openNewTerminal",
-        "title": "Run opencode",
+        "command": "hena.openNewTerminal",
+        "title": "Run Hena",
         "key": "cmd+shift+escape",
         "mac": "cmd+shift+escape",
         "win": "ctrl+shift+escape",
         "linux": "ctrl+shift+escape"
       },
       {
-        "command": "opencode.addFilepathToTerminal",
-        "title": "opencode: Insert At-Mentioned",
+        "command": "hena.addFilepathToTerminal",
+        "title": "Hena: Insert At-Mentioned",
         "key": "cmd+alt+k",
         "mac": "cmd+alt+k",
         "win": "ctrl+alt+K",

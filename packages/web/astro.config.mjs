@@ -31,7 +31,7 @@ export default defineConfig({
     configSchema(),
     solidJs(),
     starlight({
-      title: "OpenCode",
+      title: "Hena",
       defaultLocale: "root",
       locales: {
         root: {
@@ -160,7 +160,7 @@ export default defineConfig({
         { icon: "discord", label: "Discord", href: config.discord },
       ],
       editLink: {
-        baseUrl: `${config.github}/edit/dev/packages/web/`,
+        baseUrl: `${config.github}/edit/develop/packages/web/`,
       },
       markdown: {
         headingLinks: false,
@@ -317,7 +317,7 @@ function configSchema() {
     hooks: {
       "astro:build:done": async () => {
         console.log("generating config schema")
-        spawnSync("../opencode/script/schema.ts", ["./dist/config.json", "./dist/tui.json"])
+        spawnSync("../hena/script/schema.ts", ["./dist/config.json", "./dist/tui.json"])
       },
     },
   }

@@ -1,19 +1,19 @@
 import type { APIEvent } from "@solidjs/start/server"
-import { and, Database, eq, isNull, lt, or, sql } from "@opencode-ai/console-core/drizzle/index.js"
-import { KeyTable } from "@opencode-ai/console-core/schema/key.sql.js"
-import { BillingTable, LiteTable, SubscriptionTable, UsageTable } from "@opencode-ai/console-core/schema/billing.sql.js"
-import { centsToMicroCents } from "@opencode-ai/console-core/util/price.js"
-import { getMonthlyBounds, getWeekBounds } from "@opencode-ai/console-core/util/date.js"
-import { Identifier } from "@opencode-ai/console-core/identifier.js"
-import { Billing } from "@opencode-ai/console-core/billing.js"
-import { Actor } from "@opencode-ai/console-core/actor.js"
-import { WorkspaceTable } from "@opencode-ai/console-core/schema/workspace.sql.js"
-import { ZenData } from "@opencode-ai/console-core/model.js"
-import { Subscription } from "@opencode-ai/console-core/subscription.js"
-import { BlackData } from "@opencode-ai/console-core/black.js"
-import { UserTable } from "@opencode-ai/console-core/schema/user.sql.js"
-import { ModelTable } from "@opencode-ai/console-core/schema/model.sql.js"
-import { ProviderTable } from "@opencode-ai/console-core/schema/provider.sql.js"
+import { and, Database, eq, isNull, lt, or, sql } from "@hena/console-core/drizzle/index.js"
+import { KeyTable } from "@hena/console-core/schema/key.sql.js"
+import { BillingTable, LiteTable, SubscriptionTable, UsageTable } from "@hena/console-core/schema/billing.sql.js"
+import { centsToMicroCents } from "@hena/console-core/util/price.js"
+import { getMonthlyBounds, getWeekBounds } from "@hena/console-core/util/date.js"
+import { Identifier } from "@hena/console-core/identifier.js"
+import { Billing } from "@hena/console-core/billing.js"
+import { Actor } from "@hena/console-core/actor.js"
+import { WorkspaceTable } from "@hena/console-core/schema/workspace.sql.js"
+import { ZenData } from "@hena/console-core/model.js"
+import { Subscription } from "@hena/console-core/subscription.js"
+import { BlackData } from "@hena/console-core/black.js"
+import { UserTable } from "@hena/console-core/schema/user.sql.js"
+import { ModelTable } from "@hena/console-core/schema/model.sql.js"
+import { ProviderTable } from "@hena/console-core/schema/provider.sql.js"
 import { logger } from "./logger"
 import {
   AuthError,
@@ -42,15 +42,15 @@ import { createRateLimiter as createIpRateLimiter } from "./ipRateLimiter"
 import { createRateLimiter as createKeyRateLimiter } from "./keyRateLimiter"
 import { createTrialLimiter } from "./trialLimiter"
 import { createStickyTracker } from "./stickyProviderTracker"
-import { LiteData } from "@opencode-ai/console-core/lite.js"
-import { Resource } from "@opencode-ai/console-resource"
+import { LiteData } from "@hena/console-core/lite.js"
+import { Resource } from "@hena/console-resource"
 import { i18n, type Key } from "~/i18n"
 import { localeFromRequest } from "~/lib/language"
 import { createModelTpmLimiter } from "./modelTpmLimiter"
 import { createModelTpsLimiter } from "./modelTpsLimiter"
 import { createProviderBudgetTracker } from "./providerBudgetTracker"
 import { accumulateUsage, HOT_WORKSPACES } from "./usageBatcher"
-import { Workspace } from "@opencode-ai/console-core/workspace.js"
+import { Workspace } from "@hena/console-core/workspace.js"
 import { countryFromRequest } from "~/lib/request-country"
 
 type ZenData = Awaited<ReturnType<typeof ZenData.list>>
@@ -105,10 +105,10 @@ export async function handler(
     const ip = rawIp.includes(":") ? rawIp.split(":").slice(0, 4).join(":") : rawIp
     const rawZenApiKey = opts.parseApiKey(input.request.headers)
     const zenApiKey = rawZenApiKey === "public" ? undefined : rawZenApiKey
-    const sessionId = input.request.headers.get("x-opencode-session") ?? ""
-    const requestId = input.request.headers.get("x-opencode-request") ?? ""
-    const ocClient = input.request.headers.get("x-opencode-client") ?? ""
-    const projectId = input.request.headers.get("x-opencode-project") ?? ""
+    const sessionId = input.request.headers.get("x-hena-session") ?? ""
+    const requestId = input.request.headers.get("x-hena-request") ?? ""
+    const ocClient = input.request.headers.get("x-hena-client") ?? ""
+    const projectId = input.request.headers.get("x-hena-project") ?? ""
     const userAgent = input.request.headers.get("user-agent") ?? ""
     logger.metric({
       is_stream: isStream,
@@ -141,7 +141,7 @@ export async function handler(
       if (!allowedRegions?.includes("unavailable"))
         throw new RegionError(
           t("zen.api.error.regionNotAllowed", {
-            consoleGoUrl: `https://opencode.ai/workspace/${authInfo.workspaceID}/go`,
+            consoleGoUrl: `https://hena.dev/workspace/${authInfo.workspaceID}/go`,
           }),
         )
     }
@@ -235,10 +235,10 @@ export async function handler(
             })
             headers.delete("host")
             headers.delete("content-length")
-            headers.delete("x-opencode-request")
-            headers.delete("x-opencode-session")
-            headers.delete("x-opencode-project")
-            headers.delete("x-opencode-client")
+            headers.delete("x-hena-request")
+            headers.delete("x-hena-session")
+            headers.delete("x-hena-project")
+            headers.delete("x-hena-client")
             return headers
           })(),
           body: reqBody,
@@ -250,8 +250,8 @@ export async function handler(
       )
 
       if (isNewInference) {
-        const resEndpointId = res.headers.get("x-opencode-endpoint-id")
-        const resEndpointModelId = res.headers.get("x-opencode-upstream-model-id")
+        const resEndpointId = res.headers.get("x-hena-endpoint-id")
+        const resEndpointModelId = res.headers.get("x-hena-upstream-model-id")
         if (resEndpointId && resEndpointModelId)
           logger.metric({
             provider: resEndpointId,
@@ -552,7 +552,7 @@ export async function handler(
       throw new ModelError(
         `${t("zen.api.error.trialEnded", {
           model: modelData.name,
-          link: "https://opencode.ai/go",
+          link: "https://hena.dev/go",
         })}`,
       )
 
@@ -884,7 +884,7 @@ export async function handler(
     // Validate lite subscription billing
     if (opts.modelList === "lite" && authInfo.billing.lite && authInfo.lite) {
       try {
-        const consoleGoUrl = `https://opencode.ai/workspace/${authInfo.workspaceID}/go`
+        const consoleGoUrl = `https://hena.dev/workspace/${authInfo.workspaceID}/go`
         const sub = authInfo.lite
         const liteData = LiteData.getLimits()
 
@@ -955,8 +955,8 @@ export async function handler(
 
     // Validate pay as you go billing
     const billing = authInfo.billing
-    const billingUrl = `https://opencode.ai/workspace/${authInfo.workspaceID}/billing`
-    const membersUrl = `https://opencode.ai/workspace/${authInfo.workspaceID}/members`
+    const billingUrl = `https://hena.dev/workspace/${authInfo.workspaceID}/billing`
+    const membersUrl = `https://hena.dev/workspace/${authInfo.workspaceID}/members`
     if (!billing.paymentMethodID && billing.balance <= 0)
       throw new CreditsError(t("zen.api.error.noPaymentMethod", { billingUrl }))
     if (billing.balance <= 0) throw new CreditsError(t("zen.api.error.insufficientBalance", { billingUrl }))

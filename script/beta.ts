@@ -3,7 +3,7 @@
 import { $ } from "bun"
 import fs from "fs/promises"
 
-const model = "opencode/gpt-5.3-codex"
+const model = "hena/gpt-5.3-codex"
 
 interface PR {
   number: number
@@ -86,7 +86,7 @@ async function build() {
   console.log("  Running final build smoke check...")
 
   try {
-    await $`./script/build.ts --single`.cwd("packages/opencode")
+    await $`./script/build.ts --single`.cwd("packages/hena")
     return true
   } catch (err) {
     console.log(`Build failed: ${err}`)
@@ -142,7 +142,7 @@ async function install() {
 }
 
 async function fix(pr: PR, files: string[], prs: PR[], applied: number[], idx: number) {
-  console.log(`  Trying to auto-resolve ${files.length} conflict(s) with opencode...`)
+  console.log(`  Trying to auto-resolve ${files.length} conflict(s) with Hena...`)
 
   const done = lines(prs.filter((x) => applied.includes(x.number)))
   const next = lines(prs.slice(idx + 1))
@@ -168,9 +168,9 @@ async function fix(pr: PR, files: string[], prs: PR[], applied: number[], idx: n
   ].join("\n")
 
   try {
-    await $`opencode run -m ${model} ${prompt}`
+    await $`hena run -m ${model} ${prompt}`
   } catch (err) {
-    console.log(`  opencode failed: ${err}`)
+    console.log(`  Hena failed: ${err}`)
     return false
   }
 
@@ -184,7 +184,7 @@ async function fix(pr: PR, files: string[], prs: PR[], applied: number[], idx: n
 
   if (!(await typecheck())) return false
 
-  console.log("  Conflicts resolved with opencode")
+  console.log("  Conflicts resolved with Hena")
   return true
 }
 
@@ -193,20 +193,20 @@ async function smoke(prs: PR[], applied: number[]) {
 
   if (await validate()) return commitSmokeChanges()
 
-  console.log("\nTrying to fix final smoke check with opencode...")
+  console.log("\nTrying to fix final smoke check with Hena...")
 
   const done = lines(prs.filter((x) => applied.includes(x.number)))
   const prompt = [
     "The beta merge batch is complete, but the deterministic final smoke check failed.",
     `Merged PRs on HEAD:\n${done}`,
     "Run `bun typecheck` at the repo root.",
-    "Run `./script/build.ts --single` in `packages/opencode`.",
+    "Run `./script/build.ts --single` in `packages/hena`.",
     "Fix any merge-caused issues until both commands pass.",
     "Do not create a commit.",
   ].join("\n")
 
   try {
-    await $`opencode run -m ${model} ${prompt}`
+    await $`hena run -m ${model} ${prompt}`
   } catch (err) {
     console.log(`Smoke fix failed: ${err}`)
     return false
@@ -230,11 +230,11 @@ async function main() {
     return
   }
 
-  console.log("Fetching latest dev branch...")
-  await $`git fetch origin dev`
+  console.log("Fetching latest develop branch...")
+  await $`git fetch origin develop`
 
   console.log("Checking out beta branch...")
-  await $`git checkout -B beta origin/dev`
+  await $`git checkout -B beta origin/develop`
 
   const applied: number[] = []
   const failed: FailedPR[] = []
@@ -262,7 +262,7 @@ async function main() {
         if (!(await fix(pr, files, prs, applied, idx))) {
           await cleanup()
           failed.push({ number: pr.number, title: pr.title, reason: "Merge conflicts" })
-          await commentOnPR(pr.number, "Merge conflicts with dev branch")
+          await commentOnPR(pr.number, "Merge conflicts with develop branch")
           continue
         }
       } else {
@@ -318,7 +318,7 @@ async function main() {
   await $`git fetch origin beta`
 
   const localTree = (await $`git rev-parse beta^{tree}`.text()).trim()
-  const remoteTrees = (await $`git log origin/dev..origin/beta --format=%T`.text()).split("\n")
+  const remoteTrees = (await $`git log origin/develop..origin/beta --format=%T`.text()).split("\n")
 
   const matchIdx = remoteTrees.indexOf(localTree)
   if (matchIdx !== -1) {
@@ -335,7 +335,7 @@ async function main() {
   await $`git fetch origin beta`
 
   const validatedTree = (await $`git rev-parse beta^{tree}`.text()).trim()
-  const remoteTreesAfterSmoke = (await $`git log origin/dev..origin/beta --format=%T`.text()).split("\n")
+  const remoteTreesAfterSmoke = (await $`git log origin/develop..origin/beta --format=%T`.text()).split("\n")
   const matchIdxAfterSmoke = remoteTreesAfterSmoke.indexOf(validatedTree)
   if (matchIdxAfterSmoke !== -1) {
     if (matchIdxAfterSmoke !== 0) {

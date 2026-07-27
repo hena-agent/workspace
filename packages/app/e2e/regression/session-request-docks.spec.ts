@@ -1,10 +1,10 @@
-import { base64Encode } from "@opencode-ai/core/util/encode"
+import { base64Encode } from "@hena/core/util/encode"
 import { expect, test, type Page } from "@playwright/test"
-import { mockOpenCodeServer } from "../utils/mock-server"
+import { mockHenaServer } from "../utils/mock-server"
 import { installSseTransport } from "../utils/sse-transport"
 import { expectSessionTitle } from "../utils/waits"
 
-const directory = "C:/OpenCode/RequestDocks"
+const directory = "C:/Hena/RequestDocks"
 const projectID = "proj_request_docks"
 const sessionID = "ses_request_docks"
 const title = "Request dock regression"
@@ -169,7 +169,7 @@ async function mockServer(
     questions?: unknown[] | (() => unknown[])
   },
 ) {
-  await mockOpenCodeServer(page, {
+  await mockHenaServer(page, {
     directory,
     project: {
       id: projectID,
@@ -182,8 +182,8 @@ async function mockServer(
     provider: {
       all: [
         {
-          id: "opencode",
-          name: "OpenCode",
+          id: "hena",
+          name: "Hena",
           models: {
             "claude-opus-4-6": {
               id: "claude-opus-4-6",
@@ -193,8 +193,8 @@ async function mockServer(
           },
         },
       ],
-      connected: ["opencode"],
-      default: { providerID: "opencode", modelID: "claude-opus-4-6" },
+      connected: ["hena"],
+      default: { providerID: "hena", modelID: "claude-opus-4-6" },
     },
     sessions: [
       {

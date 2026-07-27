@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 
-async function sendToPostHog(event: string, properties: Record<string, any>) {
+async function sendToPostHog(event: string, properties: Record<string, unknown>) {
   const key = process.env["POSTHOG_KEY"]
 
   if (!key) {
-    console.warn("POSTHOG_API_KEY not set, skipping PostHog event")
+    console.warn("POSTHOG_KEY not set, skipping PostHog event")
     return
   }
 
@@ -73,7 +73,7 @@ async function fetchReleases(): Promise<Release[]> {
   const per = 100
 
   while (true) {
-    const url = `https://api.github.com/repos/anomalyco/opencode/releases?page=${page}&per_page=${per}`
+    const url = `https://api.github.com/repos/hena-agent/hena/releases?page=${page}&per_page=${per}`
 
     const response = await fetch(url)
     if (!response.ok) {
@@ -188,15 +188,15 @@ async function save(githubTotal: number, npmDownloads: number) {
   )
 }
 
-console.log("Fetching GitHub releases for anomalyco/opencode...\n")
+console.log("Fetching GitHub releases for hena-agent/hena...\n")
 
 const releases = await fetchReleases()
 console.log(`\nFetched ${releases.length} releases total\n`)
 
 const { total: githubTotal } = calculate(releases)
 
-console.log("Fetching npm all-time downloads for opencode-ai...\n")
-const npmDownloads = await fetchNpmDownloads("opencode-ai")
+console.log("Fetching npm all-time downloads for hena...\n")
+const npmDownloads = await fetchNpmDownloads("hena")
 console.log(`Fetched npm all-time downloads: ${npmDownloads.toLocaleString()}\n`)
 
 await save(githubTotal, npmDownloads)

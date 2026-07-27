@@ -11,7 +11,7 @@ import { authFromToken } from "@/utils/server"
 import pkg from "../package.json"
 import { ServerConnection } from "./context/server"
 
-const DEFAULT_SERVER_URL_KEY = "opencode.settings.dat:defaultServerUrl"
+const DEFAULT_SERVER_URL_KEY = "hena.settings.dat:defaultServerUrl"
 
 const getLocale = () => {
   if (typeof navigator !== "object") return "en" as const
@@ -51,7 +51,9 @@ const setStorage = (key: string, value: string | null) => {
   }
 }
 
-const readDefaultServerUrl = () => getStorage(DEFAULT_SERVER_URL_KEY)
+const readDefaultServerUrl = () => {
+  return getStorage(DEFAULT_SERVER_URL_KEY)
+}
 const writeDefaultServerUrl = (url: string | null) => setStorage(DEFAULT_SERVER_URL_KEY, url)
 
 const notify: Platform["notify"] = async (title, description, href) => {
@@ -69,7 +71,7 @@ const notify: Platform["notify"] = async (title, description, href) => {
 
   const notification = new Notification(title, {
     body: description ?? "",
-    icon: "https://opencode.ai/favicon-96x96-v3.png",
+    icon: "https://hena.dev/favicon-96x96-v3.png",
   })
 
   notification.onclick = () => {
@@ -100,9 +102,9 @@ if (!(root instanceof HTMLElement) && import.meta.env.DEV) {
 }
 
 const getCurrentUrl = () => {
-  if (location.hostname.includes("opencode.ai")) return "http://localhost:4096"
+  if (location.hostname.includes("hena.dev")) return "http://localhost:4096"
   if (import.meta.env.DEV)
-    return `http://${import.meta.env.VITE_OPENCODE_SERVER_HOST ?? "localhost"}:${import.meta.env.VITE_OPENCODE_SERVER_PORT ?? "4096"}`
+    return `http://${import.meta.env.VITE_HENA_SERVER_HOST ?? "localhost"}:${import.meta.env.VITE_HENA_SERVER_PORT ?? "4096"}`
   return location.origin
 }
 
@@ -147,7 +149,7 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     integrations: (integrations) => {
       return integrations.filter(
         (i) =>
-          i.name !== "Breadcrumbs" && !(import.meta.env.OPENCODE_CHANNEL === "prod" && i.name === "GlobalHandlers"),
+          i.name !== "Breadcrumbs" && !(import.meta.env.HENA_CHANNEL === "prod" && i.name === "GlobalHandlers"),
       )
     },
   })

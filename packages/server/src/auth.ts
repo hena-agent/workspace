@@ -1,6 +1,7 @@
 export * as ServerAuth from "./auth"
 
-import { Config as EffectConfig, Context, Effect, Layer, Option, Redacted } from "effect"
+import { Flag } from "@hena/core/flag/flag"
+import { Context, Layer, Option, Redacted } from "effect"
 
 export type Credentials = {
   password?: string
@@ -17,21 +18,17 @@ export type Info = {
   readonly username: string
 }
 
-export class Config extends Context.Service<Config, Info>()("@opencode/ServerAuthConfig") {
+export class Config extends Context.Service<Config, Info>()("@hena/ServerAuthConfig") {
   static configLayer(input: Info) {
     return Layer.succeed(this, this.of(input))
   }
 
   static get layer() {
-    return Layer.effect(
+    return Layer.succeed(
       this,
-      Effect.gen(function* () {
-        return Config.of(
-          yield* EffectConfig.all({
-            password: EffectConfig.string("OPENCODE_SERVER_PASSWORD").pipe(EffectConfig.option),
-            username: EffectConfig.string("OPENCODE_SERVER_USERNAME").pipe(EffectConfig.withDefault("opencode")),
-          }),
-        )
+      Config.of({
+        password: Option.fromNullishOr(Flag.HENA_SERVER_PASSWORD),
+        username: Flag.HENA_SERVER_USERNAME ?? "hena",
       }),
     )
   }
@@ -50,10 +47,10 @@ export function authorized(credentials: DecodedCredentials, config: Info) {
 }
 
 export function header(credentials?: Credentials) {
-  const password = credentials?.password ?? process.env.OPENCODE_SERVER_PASSWORD
+  const password = credentials?.password ?? Flag.HENA_SERVER_PASSWORD
   if (!password) return undefined
 
-  return `Basic ${Buffer.from(`${credentials?.username ?? process.env.OPENCODE_SERVER_USERNAME ?? "opencode"}:${password}`).toString("base64")}`
+  return `Basic ${Buffer.from(`${credentials?.username ?? Flag.HENA_SERVER_USERNAME ?? "hena"}:${password}`).toString("base64")}`
 }
 
 export function headers(credentials?: Credentials) {

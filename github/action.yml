@@ -1,5 +1,5 @@
-name: "opencode GitHub Action"
-description: "Run opencode in GitHub Actions workflows"
+name: "Hena GitHub Action"
+description: "Run Hena in GitHub Actions workflows"
 branding:
   icon: "code"
   color: "orange"
@@ -14,7 +14,7 @@ inputs:
     required: false
 
   share:
-    description: "Share the opencode session (defaults to true for public repos)"
+    description: "Share the Hena session (defaults to true for public repos)"
     required: false
 
   prompt:
@@ -22,52 +22,53 @@ inputs:
     required: false
 
   use_github_token:
-    description: "Use GITHUB_TOKEN directly instead of OpenCode App token exchange. When true, skips OIDC and uses the GITHUB_TOKEN env var."
+    description: "Use GITHUB_TOKEN directly instead of Hena App token exchange. When true, skips OIDC and uses the GITHUB_TOKEN env var."
     required: false
     default: "false"
 
   mentions:
-    description: "Comma-separated list of trigger phrases (case-insensitive). Defaults to '/opencode,/oc'"
+    description: "Comma-separated trigger phrases. Defaults to '/hena'."
     required: false
+    default: "/hena"
 
   variant:
     description: "Model variant for provider-specific reasoning effort (e.g., high, max, minimal)"
     required: false
 
   oidc_base_url:
-    description: "Base URL for OIDC token exchange API. Only required when running a custom GitHub App install. Defaults to https://api.opencode.ai"
+    description: "Base URL for OIDC token exchange API. Only required when running a custom GitHub App install. Defaults to https://api.hena.dev"
     required: false
 
 runs:
   using: "composite"
   steps:
-    - name: Get opencode version
+    - name: Get Hena version
       id: version
       shell: bash
       run: |
-        VERSION=$(curl -sf https://api.github.com/repos/anomalyco/opencode/releases/latest | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
+        VERSION=$(curl -sf https://api.github.com/repos/hena-agent/hena/releases/latest | grep -o '"tag_name": *"[^"]*"' | cut -d'"' -f4)
         echo "version=${VERSION:-latest}" >> $GITHUB_OUTPUT
 
-    - name: Cache opencode
+    - name: Cache Hena
       id: cache
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
-        path: ~/.opencode/bin
-        key: opencode-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}
+        path: ~/.hena/bin
+        key: hena-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}
 
-    - name: Install opencode
+    - name: Install Hena
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
-      run: curl -fsSL https://opencode.ai/install | bash
+      run: curl -fsSL https://hena.dev/install | bash
 
-    - name: Add opencode to PATH
+    - name: Add Hena to PATH
       shell: bash
-      run: echo "$HOME/.opencode/bin" >> $GITHUB_PATH
+      run: echo "$HOME/.hena/bin" >> $GITHUB_PATH
 
-    - name: Run opencode
+    - name: Run Hena
       shell: bash
-      id: run_opencode
-      run: opencode github run
+      id: run_hena
+      run: hena github run
       env:
         MODEL: ${{ inputs.model }}
         AGENT: ${{ inputs.agent }}

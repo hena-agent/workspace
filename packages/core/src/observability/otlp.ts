@@ -35,13 +35,13 @@ function resourceAttributes() {
 
 export function resource(): { serviceName: string; serviceVersion: string; attributes: Record<string, string> } {
   return {
-    serviceName: "opencode",
+    serviceName: "hena",
     serviceVersion: InstallationVersion,
     attributes: {
       ...resourceAttributes(),
       "deployment.environment.name": InstallationChannel,
-      "opencode.client": Flag.OPENCODE_CLIENT,
-      "opencode.run": runID,
+      "hena.client": Flag.HENA_CLIENT,
+      "hena.run": runID,
       "service.instance.id": runID,
     },
   }

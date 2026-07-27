@@ -1,5 +1,5 @@
 {
-  "name": "@opencode-ai/slack",
+  "name": "@hena/slack",
   "version": "1.18.4",
   "type": "module",
   "license": "MIT",
@@ -8,7 +8,7 @@
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
-    "@opencode-ai/sdk": "workspace:*",
+    "@hena/sdk": "workspace:*",
     "@slack/bolt": "^3.17.1"
   },
   "devDependencies": {

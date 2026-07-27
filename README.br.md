@@ -1,17 +1,17 @@
 <p align="center">
-  <a href="https://opencode.ai">
+  <a href="https://hena.dev">
     <picture>
       <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
       <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Logo do OpenCode">
+      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Logo do Hena">
     </picture>
   </a>
 </p>
 <p align="center">O agente de programação com IA de código aberto.</p>
 <p align="center">
-  <a href="https://opencode.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/opencode-ai"><img alt="npm" src="https://img.shields.io/npm/v/opencode-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/opencode/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/opencode/publish.yml?style=flat-square&branch=dev" /></a>
+  <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
+  <a href="https://www.npmjs.com/package/hena"><img alt="npm" src="https://img.shields.io/npm/v/hena?style=flat-square" /></a>
+  <a href="https://github.com/hena-agent/hena/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/hena-agent/hena/publish.yml?style=flat-square&branch=develop" /></a>
 </p>
 
 <p align="center">
@@ -39,7 +39,7 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![OpenCode Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://opencode.ai)
+[![Hena Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
 
 ---
 
@@ -47,18 +47,18 @@
 
 ```bash
 # YOLO
-curl -fsSL https://opencode.ai/install | bash
+curl -fsSL https://hena.dev/install | bash
 
 # Gerenciadores de pacotes
-npm i -g opencode-ai@latest        # ou bun/pnpm/yarn
-scoop install opencode             # Windows
-choco install opencode             # Windows
-brew install anomalyco/tap/opencode # macOS e Linux (recomendado, sempre atualizado)
-brew install opencode              # macOS e Linux (fórmula oficial do brew, atualiza menos)
-sudo pacman -S opencode            # Arch Linux (Stable)
-paru -S opencode-bin               # Arch Linux (Latest from AUR)
-mise use -g opencode               # qualquer sistema
-nix run nixpkgs#opencode           # ou github:anomalyco/opencode para a branch dev mais recente
+npm i -g hena@latest        # ou bun/pnpm/yarn
+scoop install hena             # Windows
+choco install hena             # Windows
+brew install hena-agent/tap/hena # macOS e Linux (recomendado, sempre atualizado)
+brew install hena              # macOS e Linux (fórmula oficial do brew, atualiza menos)
+sudo pacman -S hena            # Arch Linux (Stable)
+paru -S hena-bin               # Arch Linux (Latest from AUR)
+mise use -g hena               # qualquer sistema
+nix run github:hena-agent/hena           # ou github:hena-agent/hena para a branch develop mais recente
 ```
 
 > [!TIP]
@@ -66,40 +66,40 @@ nix run nixpkgs#opencode           # ou github:anomalyco/opencode para a branch 
 
 ### App desktop (BETA)
 
-O OpenCode também está disponível como aplicativo desktop. Baixe diretamente pela [página de releases](https://github.com/anomalyco/opencode/releases) ou em [opencode.ai/download](https://opencode.ai/download).
+O Hena também está disponível como aplicativo desktop. Baixe diretamente pela [página de releases](https://github.com/hena-agent/hena/releases) ou em [hena.dev/download](https://hena.dev/download).
 
 | Plataforma            | Download                           |
 | --------------------- | ---------------------------------- |
-| macOS (Apple Silicon) | `opencode-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `opencode-desktop-mac-x64.dmg`     |
-| Windows               | `opencode-desktop-windows-x64.exe` |
+| macOS (Apple Silicon) | `hena-desktop-mac-arm64.dmg`   |
+| macOS (Intel)         | `hena-desktop-mac-x64.dmg`     |
+| Windows               | `hena-desktop-windows-x64.exe` |
 | Linux                 | `.deb`, `.rpm` ou AppImage         |
 
 ```bash
 # macOS (Homebrew)
-brew install --cask opencode-desktop
+brew install --cask hena
 # Windows (Scoop)
-scoop bucket add extras; scoop install extras/opencode-desktop
+scoop bucket add extras; scoop install hena
 ```
 
 #### Diretório de instalação
 
 O script de instalação respeita a seguinte ordem de prioridade para o caminho de instalação:
 
-1. `$OPENCODE_INSTALL_DIR` - Diretório de instalação personalizado
+1. `$HENA_INSTALL_DIR` - Diretório de instalação personalizado
 2. `$XDG_BIN_DIR` - Caminho compatível com a especificação XDG Base Directory
 3. `$HOME/bin` - Diretório binário padrão do usuário (se existir ou puder ser criado)
-4. `$HOME/.opencode/bin` - Fallback padrão
+4. `$HOME/.hena/bin` - Fallback padrão
 
 ```bash
 # Exemplos
-OPENCODE_INSTALL_DIR=/usr/local/bin curl -fsSL https://opencode.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://opencode.ai/install | bash
+HENA_INSTALL_DIR=/usr/local/bin curl -fsSL https://hena.dev/install | bash
+XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://hena.dev/install | bash
 ```
 
 ### Agents
 
-O OpenCode inclui dois agents integrados, que você pode alternar com a tecla `Tab`.
+O Hena inclui dois agents integrados, que você pode alternar com a tecla `Tab`.
 
 - **build** - Padrão, agent com acesso total para trabalho de desenvolvimento
 - **plan** - Agent somente leitura para análise e exploração de código
@@ -110,20 +110,20 @@ O OpenCode inclui dois agents integrados, que você pode alternar com a tecla `T
 Também há um subagent **general** para buscas complexas e tarefas em várias etapas.
 Ele é usado internamente e pode ser invocado com `@general` nas mensagens.
 
-Saiba mais sobre [agents](https://opencode.ai/docs/agents).
+Saiba mais sobre [agents](https://hena.dev/docs/agents).
 
 ### Documentação
 
-Para mais informações sobre como configurar o OpenCode, [**veja nossa documentação**](https://opencode.ai/docs).
+Para mais informações sobre como configurar o Hena, [**veja nossa documentação**](https://hena.dev/docs).
 
 ### Contribuir
 
-Se você tem interesse em contribuir com o OpenCode, leia os [contributing docs](./CONTRIBUTING.md) antes de enviar um pull request.
+Se você tem interesse em contribuir com o Hena, leia os [contributing docs](./CONTRIBUTING.md) antes de enviar um pull request.
 
-### Construindo com OpenCode
+### Construindo com Hena
 
-Se você estiver trabalhando em um projeto relacionado ao OpenCode e estiver usando "opencode" como parte do nome (por exemplo, "opencode-dashboard" ou "opencode-mobile"), adicione uma nota no README para deixar claro que não foi construído pela equipe do OpenCode e não é afiliado a nós de nenhuma forma.
+Se você estiver trabalhando em um projeto relacionado ao Hena e estiver usando "hena" como parte do nome (por exemplo, "hena-dashboard" ou "hena-mobile"), adicione uma nota no README para deixar claro que não foi construído pela equipe do Hena e não é afiliado a nós de nenhuma forma.
 
 ---
 
-**Junte-se à nossa comunidade** [Discord](https://discord.gg/opencode) | [X.com](https://x.com/opencode)
+**Junte-se à nossa comunidade** [Discord](https://hena.dev/discord) | [X.com](https://hena.dev)

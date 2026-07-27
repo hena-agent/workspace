@@ -3,11 +3,11 @@
  */
 export const config = {
   // Base URL
-  baseUrl: "https://opencode.ai",
+  baseUrl: "https://hena.dev",
 
   // GitHub
   github: {
-    repoUrl: "https://github.com/anomalyco/opencode",
+    repoUrl: "https://github.com/hena-agent/hena",
     starsFormatted: {
       compact: "160K",
       full: "160,000",
@@ -16,8 +16,8 @@ export const config = {
 
   // Social links
   social: {
-    twitter: "https://x.com/opencode",
-    discord: "https://discord.gg/opencode",
+    twitter: "https://x.com/hena",
+    discord: "https://discord.gg/hena",
   },
 
   // Static stats (used on landing page)

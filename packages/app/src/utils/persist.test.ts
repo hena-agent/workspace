@@ -25,22 +25,22 @@ class MemoryStorage implements Storage {
   getItem(key: string) {
     this.calls.get += 1
     this.events.push(`get:${key}`)
-    if (key.startsWith("opencode.throw")) throw new Error("storage get failed")
+    if (key.startsWith("hena.throw")) throw new Error("storage get failed")
     return this.values.get(key) ?? null
   }
 
   setItem(key: string, value: string) {
     this.calls.set += 1
     this.events.push(`set:${key}`)
-    if (key.startsWith("opencode.quota")) throw new DOMException("quota", "QuotaExceededError")
-    if (key.startsWith("opencode.throw")) throw new Error("storage set failed")
+    if (key.startsWith("hena.quota")) throw new DOMException("quota", "QuotaExceededError")
+    if (key.startsWith("hena.throw")) throw new Error("storage set failed")
     this.values.set(key, value)
   }
 
   removeItem(key: string) {
     this.calls.remove += 1
     this.events.push(`remove:${key}`)
-    if (key.startsWith("opencode.throw")) throw new Error("storage remove failed")
+    if (key.startsWith("hena.throw")) throw new Error("storage remove failed")
     this.values.delete(key)
   }
 }
@@ -76,15 +76,15 @@ beforeEach(() => {
 
 describe("persist localStorage resilience", () => {
   test("does not cache values as persisted when quota write and eviction fail", () => {
-    const storageApi = persistTesting.localStorageWithPrefix("opencode.quota.scope")
+    const storageApi = persistTesting.localStorageWithPrefix("hena.quota.scope")
     storageApi.setItem("value", '{"value":1}')
 
-    expect(storage.getItem("opencode.quota.scope:value")).toBeNull()
+    expect(storage.getItem("hena.quota.scope:value")).toBeNull()
     expect(storageApi.getItem("value")).toBeNull()
   })
 
   test("disables only the failing scope when storage throws", () => {
-    const bad = persistTesting.localStorageWithPrefix("opencode.throw.scope")
+    const bad = persistTesting.localStorageWithPrefix("hena.throw.scope")
     bad.setItem("value", '{"value":1}')
 
     const before = storage.calls.set
@@ -92,13 +92,13 @@ describe("persist localStorage resilience", () => {
     expect(storage.calls.set).toBe(before)
     expect(bad.getItem("value")).toBeNull()
 
-    const healthy = persistTesting.localStorageWithPrefix("opencode.safe.scope")
+    const healthy = persistTesting.localStorageWithPrefix("hena.safe.scope")
     healthy.setItem("value", '{"value":3}')
-    expect(storage.getItem("opencode.safe.scope:value")).toBe('{"value":3}')
+    expect(storage.getItem("hena.safe.scope:value")).toBe('{"value":3}')
   })
 
   test("failing fallback scope does not poison direct storage scope", () => {
-    const broken = persistTesting.localStorageWithPrefix("opencode.throw.scope2")
+    const broken = persistTesting.localStorageWithPrefix("hena.throw.scope2")
     broken.setItem("value", '{"value":1}')
 
     const direct = persistTesting.localStorageDirect()
@@ -115,23 +115,21 @@ describe("persist localStorage resilience", () => {
   test("workspace storage sanitizes Windows filename characters", () => {
     const result = persistTesting.workspaceStorage("C:\\Users\\foo")
 
-    expect(result).toStartWith("opencode.workspace.")
+    expect(result).toStartWith("hena.workspace.")
     expect(result.endsWith(".dat")).toBeTrue()
     expect(/[:\\/]/.test(result)).toBeFalse()
   })
 
-  test("workspace target keeps raw path storage as legacy fallback", () => {
+  test("workspace target normalizes Windows paths", () => {
     const target = Persist.workspace("C:\\Users\\foo", "vcs")
 
     expect(target.storage).toBe(persistTesting.workspaceStorage("C:/Users/foo"))
-    expect(target.legacyStorageNames).toEqual([persistTesting.workspaceStorage("C:\\Users\\foo")])
   })
 
-  test("workspace target keeps backslash storage as fallback for normalized Windows paths", () => {
+  test("workspace target keeps normalized Windows paths stable", () => {
     const target = Persist.workspace("C:/Users/foo", "vcs")
 
     expect(target.storage).toBe(persistTesting.workspaceStorage("C:/Users/foo"))
-    expect(target.legacyStorageNames).toEqual([persistTesting.workspaceStorage("C:\\Users\\foo")])
   })
 
   test("migrates direct legacy keys into scoped storage", () => {
@@ -143,7 +141,6 @@ describe("persist localStorage resilience", () => {
     const result = persistTesting.migrateLegacy({
       current,
       legacyStore,
-      stores: [],
       keys: target.legacy!,
       key: target.key,
       defaults: { value: 1 },
@@ -155,15 +152,13 @@ describe("persist localStorage resilience", () => {
     expect(storage.getItem("legacy.workspace")).toBeNull()
   })
 
-  test("removes legacy workspace storage when removing persisted target", () => {
+  test("removes workspace storage when removing persisted target", () => {
     const target = Persist.workspace("C:\\Users\\foo", "terminal")
     storage.setItem(`${target.storage}:${target.key}`, '{"value":1}')
-    storage.setItem(`${target.legacyStorageNames![0]}:${target.key}`, '{"value":2}')
 
     removePersisted(target)
 
     expect(storage.getItem(`${target.storage}:${target.key}`)).toBeNull()
-    expect(storage.getItem(`${target.legacyStorageNames![0]}:${target.key}`)).toBeNull()
   })
 
   test("draft target isolates storage per draft and namespaces keys", () => {
@@ -193,14 +188,12 @@ describe("persist localStorage resilience", () => {
     expect(windows.storage).not.toBe(local.storage)
     expect(debian.storage).not.toBe(local.storage)
     expect(debian.storage).not.toBe(windows.storage)
-    expect(windows.legacyStorageNames).toBeUndefined()
-    expect(debian.legacyStorageNames).toBeUndefined()
   })
 
   test("server global target preserves local key and isolates remote keys", () => {
     expect(Persist.serverGlobal(ServerScope.local, "notification")).toEqual(Persist.global("notification"))
     expect(Persist.serverGlobal("https://debian.example" as ServerScope, "notification")).toEqual({
-      storage: "opencode.global.dat",
+      storage: "hena.global.dat",
       key: "https://debian.example\0notification",
     })
   })

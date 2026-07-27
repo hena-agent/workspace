@@ -189,7 +189,7 @@ export const OpenAIPlugin = define({
 } satisfies PluginInternal.Plugin<PluginInternal.Requirements | Scope.Scope>)
 
 function headers(contentType: string) {
-  return { "Content-Type": contentType, "User-Agent": `opencode/${InstallationVersion}` }
+  return { "Content-Type": contentType, "User-Agent": `hena/${InstallationVersion}` }
 }
 
 function exchange(code: string, redirect: string, pkce: Pkce) {
@@ -268,6 +268,7 @@ function authorizeURL(redirect: string, pkce: Pkce, state: string) {
     id_token_add_organizations: "true",
     codex_cli_simplified_flow: "true",
     state,
+    // OpenAI registers this OAuth originator independently of product branding.
     originator: "opencode",
   })}`
 }

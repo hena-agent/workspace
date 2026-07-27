@@ -17,5 +17,9 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
+      # ubuntu-latest gives 2 vCPU / 7 GB on this plan. Turbo's default
+      # concurrency starts enough parallel tsgo processes to exhaust that and
+      # get the runner OOM-killed ("received a shutdown signal") partway
+      # through @opencode-ai/ui, so cap it.
       - name: Run typecheck
-        run: bun typecheck
+        run: bun turbo typecheck --concurrency=1

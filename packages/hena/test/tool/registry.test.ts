@@ -357,7 +357,7 @@ describe("tool.registry", () => {
         const test = yield* TestInstance
         const hena = path.join(test.directory, ".hena")
         const customTools = path.join(hena, "tools")
-        const plugin = path.join(hena, "node_modules", "@hena", "plugin")
+        const plugin = path.join(hena, "node_modules", "@opencode-ai", "plugin")
         yield* Effect.promise(() => fs.mkdir(path.join(plugin, "dist"), { recursive: true }))
         yield* Effect.promise(() => fs.mkdir(customTools, { recursive: true }))
         yield* Effect.promise(() =>
@@ -369,7 +369,7 @@ describe("tool.registry", () => {
         yield* Effect.promise(() =>
           Bun.write(
             path.join(plugin, "package.json"),
-            JSON.stringify({ name: "@hena/plugin", type: "module", exports: { ".": "./dist/index.js" } }),
+            JSON.stringify({ name: "@opencode-ai/plugin", type: "module", exports: { ".": "./dist/index.js" } }),
           ),
         )
         yield* Effect.promise(() =>
@@ -389,7 +389,7 @@ describe("tool.registry", () => {
           Bun.write(
             path.join(customTools, "addition.ts"),
             [
-              'import { tool } from "@hena/plugin"',
+              'import { tool } from "@opencode-ai/plugin"',
               "export default tool({",
               "  description: 'Use this tool to add two numbers and return their sum.',",
               "  args: {",
@@ -506,7 +506,7 @@ describe("tool.registry", () => {
           JSON.stringify({
             name: "custom-tools",
             dependencies: {
-              "@hena/plugin": "^0.0.0",
+              "@opencode-ai/plugin": "^0.0.0",
               cowsay: "^1.6.0",
             },
           }),
@@ -521,7 +521,7 @@ describe("tool.registry", () => {
             packages: {
               "": {
                 dependencies: {
-                  "@hena/plugin": "^0.0.0",
+                  "@opencode-ai/plugin": "^0.0.0",
                   cowsay: "^1.6.0",
                 },
               },

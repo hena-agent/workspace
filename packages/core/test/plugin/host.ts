@@ -1,4 +1,4 @@
-import type { PluginContext } from "@hena/plugin/v2/effect"
+import type { PluginContext } from "@opencode-ai/plugin/v2/effect"
 import { AgentV2 } from "@hena/core/agent"
 import { Catalog } from "@hena/core/catalog"
 import { Credential } from "@hena/core/credential"

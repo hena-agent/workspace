@@ -4,7 +4,7 @@ import { AgentV2 } from "@hena/core/agent"
 import { PluginV2 } from "@hena/core/plugin"
 import { PluginHost } from "@hena/core/plugin/host"
 import { PluginPromise } from "@hena/core/plugin/promise"
-import { define } from "@hena/plugin/v2/promise"
+import { define } from "@opencode-ai/plugin/v2/promise"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 

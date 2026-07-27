@@ -12,9 +12,6 @@ export function Legal() {
         ©{new Date().getFullYear()} <a href="https://anoma.ly">Anomaly</a>
       </span>
       <span>
-        <A href={language.route("/brand")}>{i18n.t("legal.brand")}</A>
-      </span>
-      <span>
         <A href={language.route("/legal/privacy-policy")}>{i18n.t("legal.privacy")}</A>
       </span>
       <span>

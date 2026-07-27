@@ -79,6 +79,16 @@ describe("HttpApi CORS", () => {
 
       expect(response.status).toBe(401)
       expect(response.headers.get("access-control-allow-origin")).toBe("https://app.hena.dev")
+
+      const rejected = yield* Effect.promise(() =>
+        handler(
+          new Request(new URL("/global/config", "http://localhost"), {
+            headers: { origin: "https://fakehena.dev" },
+          }),
+          HttpApiApp.context,
+        ),
+      )
+      expect(rejected.headers.get("access-control-allow-origin")).toBeNull()
     }),
   )
 

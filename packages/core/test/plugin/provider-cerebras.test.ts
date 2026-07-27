@@ -5,6 +5,7 @@ import { Catalog } from "@hena/core/catalog"
 import { ModelV2 } from "@hena/core/model"
 import { PluginV2 } from "@hena/core/plugin"
 import { PluginHost } from "@hena/core/plugin/host"
+import "@hena/core/plugin/provider"
 import { CerebrasPlugin } from "@hena/core/plugin/provider/cerebras"
 import { ProviderV2 } from "@hena/core/provider"
 import { testEffect } from "../lib/effect"
@@ -43,7 +44,7 @@ describe("CerebrasPlugin", () => {
       yield* addPlugin()
       expect((yield* catalog.provider.get(ProviderV2.ID.make("cerebras")))?.request.headers).toEqual({
         Existing: "1",
-        "X-Cerebras-3rd-Party-Integration": "hena",
+        "X-Cerebras-3rd-Party-Integration": "opencode",
       })
     }),
   )

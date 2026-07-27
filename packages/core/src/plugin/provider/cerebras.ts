@@ -10,7 +10,8 @@ export const CerebrasPlugin = define({
           if (item.provider.api.type !== "aisdk") continue
           if (item.provider.api.package !== "@ai-sdk/cerebras") continue
           evt.provider.update(item.provider.id, (provider) => {
-            provider.request.headers["X-Cerebras-3rd-Party-Integration"] = "hena"
+            // Cerebras registers this protocol identifier independently of product branding.
+            provider.request.headers["X-Cerebras-3rd-Party-Integration"] = "opencode"
           })
         }
       }),

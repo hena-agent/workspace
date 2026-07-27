@@ -61,7 +61,7 @@ async function start(command: StartCommand) {
       hostname: command.hostname,
       username: "hena",
       password: command.password,
-      cors: ["oc://renderer"],
+      cors: ["hena://renderer"],
     })
     parentPort.postMessage({ type: "ready" })
   } catch (error) {

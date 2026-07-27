@@ -55,8 +55,8 @@ import { MCP } from "@/mcp"
 import { PermissionV1 } from "@hena/core/v1/permission"
 import { McpCatalog } from "@/mcp/catalog"
 
-export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
-  return providerID === ProviderV2.ID.hena || flags.exa || flags.parallel
+export function webSearchEnabled(_providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
+  return flags.exa || flags.parallel
 }
 
 type TaskDef = Tool.InferDef<typeof TaskTool>

@@ -74,7 +74,7 @@ Replace `<platform>` with your platform (e.g., `darwin-arm64`, `linux-x64`).
   - `packages/hena/src/cli/cmd/tui/`: The TUI code, written in SolidJS with [opentui](https://github.com/sst/opentui)
   - `packages/app`: The shared web UI components, written in SolidJS
   - `packages/desktop`: The native desktop app, built with Electron (wraps `packages/app`)
-  - `packages/plugin`: Source for `@hena/plugin`
+  - `packages/plugin`: Source for the compatible `@opencode-ai/plugin` SDK
 
 ### Understanding bun dev vs hena
 

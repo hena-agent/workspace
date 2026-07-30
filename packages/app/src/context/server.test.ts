@@ -126,6 +126,8 @@ describe("createServerProjects", () => {
       projects.open("/b")
       projects.close("/a")
       expect(projects.recentlyClosed()).toEqual(["/a"])
+      expect(projects.closed("/a/")).toBe(true)
+      expect(projects.closed("/b")).toBe(false)
 
       projects.close("/b")
       expect(projects.recentlyClosed()).toEqual(["/b", "/a"])
@@ -146,6 +148,23 @@ describe("createServerProjects", () => {
       projects.open("/repo/subdir")
       projects.remove("/repo/subdir")
       expect(projects.list()).toEqual([])
+      expect(projects.recentlyClosed()).toEqual([])
+      dispose()
+    })
+  })
+
+  test("replaces a managed project worktree without closing it", () => {
+    createRoot((dispose) => {
+      const [scope] = createSignal(ServerScope.local)
+      const [store, setStore] = createStore({ projects: {}, lastProject: {}, recentlyClosed: {} })
+      const projects = createServerProjects({ scope, store, setStore })
+
+      projects.open("/scratch/project")
+      projects.touch("/scratch/project")
+      projects.replace("/scratch/project", "/attached/project")
+
+      expect(projects.list()).toEqual([{ worktree: "/attached/project", expanded: true }])
+      expect(projects.last()).toBe("/attached/project")
       expect(projects.recentlyClosed()).toEqual([])
       dispose()
     })

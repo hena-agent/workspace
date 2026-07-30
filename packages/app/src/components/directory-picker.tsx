@@ -13,6 +13,8 @@ const DialogSelectDirectoryV2 = lazy(() =>
 type DirectoryPickerInput = {
   server: ServerConnection.Any
   title?: string
+  description?: string
+  actionLabel?: string
   multiple?: boolean
   onSelect: (result: string | string[] | null) => void
 }

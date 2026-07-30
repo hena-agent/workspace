@@ -1,5 +1,6 @@
 import { createSimpleContext } from "@hena/ui/context"
-import { createEffect, createMemo, createRoot } from "solid-js"
+import { createEffect, createMemo, createResource, createRoot } from "solid-js"
+import type { ProjectManagedInfo } from "@hena/sdk/v2/client"
 import { createStore } from "solid-js/store"
 import { createServerProjects, RECENTLY_CLOSED_DISPLAY_LIMIT, ServerConnection, useServer } from "./server"
 import { pathKey } from "@/utils/path-key"
@@ -109,10 +110,25 @@ function createServerCtx(
   })
   const sdk = createServerSdkContext(conn, scope)
   const sync = createServerSyncContext(sdk)
+  const [managedProjects, { mutate: setManagedProjects, refetch: refreshManagedProjects }] = createResource(() =>
+    sdk.client.v2.project
+      .list()
+      .then((response) => response.data ?? [])
+      .catch(() => [] as ProjectManagedInfo[]),
+  )
+
+  createEffect(() =>
+    managedProjects()
+      ?.filter((project) => !projects.closed(project.worktree))
+      .forEach((project) => projects.open(project.worktree)),
+  )
 
   function enrich(project: { worktree: string; expanded: boolean }) {
     const [childStore] = sync.child(project.worktree, { bootstrap: false })
     const projectID = childStore.project
+    const managed = managedProjects()?.find(
+      (item) => item.id === projectID || pathKey(item.worktree) === pathKey(project.worktree),
+    )
     const metadata = projectID
       ? sync.data.project.find((x) => x.id === projectID)
       : sync.data.project.find((x) => x.worktree === project.worktree)
@@ -120,7 +136,7 @@ function createServerCtx(
     // Preserve local icon override from per-workspace localStorage cache (childStore.icon).
     // Without this, different subdirectories of the same git repo would share the same
     // icon from the database instead of using their individual overrides.
-    const base = { ...metadata, ...project }
+    const base = { ...metadata, ...managed, ...project }
     if (childStore.icon) {
       return { ...base, icon: { ...base.icon, override: childStore.icon } }
     }
@@ -149,6 +165,13 @@ function createServerCtx(
       ...projects,
       list: projectsList,
       recentlyClosed: recentlyClosedList,
+      managed: {
+        list: () => managedProjects() ?? [],
+        refresh: refreshManagedProjects,
+        set(project: ProjectManagedInfo) {
+          setManagedProjects((current) => [project, ...(current ?? []).filter((item) => item.id !== project.id)])
+        },
+      },
     },
   }
 }

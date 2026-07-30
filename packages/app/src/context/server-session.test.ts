@@ -168,6 +168,18 @@ describe("server session", () => {
     expect(ctx.store.lineage.peek("child")).toEqual(result)
   })
 
+  test("refreshes cached session metadata when forced", async () => {
+    const sessions = { root: session("root") }
+    const ctx = setup(sessions)
+    await ctx.store.resolve("root")
+    sessions.root = { ...sessions.root, directory: "/attached/project" }
+
+    await ctx.store.resolve("root", { force: true })
+
+    expect(ctx.get).toEqual([{ sessionID: "root" }, { sessionID: "root" }])
+    expect(ctx.store.peek("root")?.directory).toBe("/attached/project")
+  })
+
   test("loads session content through the server client", async () => {
     const ctx = setup({ root: session("root") })
 

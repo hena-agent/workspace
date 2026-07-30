@@ -1,6 +1,6 @@
 import "@pierre/trees/web-components"
 import { FileTree } from "@pierre/trees"
-import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@hena/ui/v2/dialog-v2"
+import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle, DialogTitleGroup } from "@hena/ui/v2/dialog-v2"
 import { ButtonV2 } from "@hena/ui/v2/button-v2"
 import { TextInputV2 } from "@hena/ui/v2/text-input-v2"
 import { useDialog } from "@hena/ui/context/dialog"
@@ -31,6 +31,8 @@ import { DividerV2 } from "@hena/ui/v2/divider-v2"
 
 interface DialogSelectDirectoryV2Props {
   title?: string
+  description?: string
+  actionLabel?: string
   multiple?: boolean
   onSelect: (result: string | string[] | null) => void
   server: ServerConnection.Any
@@ -269,7 +271,14 @@ export function DialogSelectDirectoryV2(props: DialogSelectDirectoryV2Props) {
   return (
     <Dialog size="large" class="directory-picker-v2">
       <DialogHeader>
-        <DialogTitle>{props.title ?? language.t("command.project.open")}</DialogTitle>
+        <Show
+          when={props.description}
+          fallback={<DialogTitle>{props.title ?? language.t("command.project.open")}</DialogTitle>}
+        >
+          {(description) => (
+            <DialogTitleGroup title={props.title ?? language.t("command.project.open")} description={description()} />
+          )}
+        </Show>
       </DialogHeader>
       <DividerV2 />
       <DialogBody class="directory-picker-v2-body pt-4!">
@@ -360,7 +369,7 @@ export function DialogSelectDirectoryV2(props: DialogSelectDirectoryV2Props) {
           {language.t("common.cancel")}
         </ButtonV2>
         <ButtonV2 variant="contrast" disabled={!policy.result(root(), selected(), rootValid())} onClick={resolve}>
-          {action[policy.action]}
+          {props.actionLabel ?? action[policy.action]}
         </ButtonV2>
       </DialogFooter>
     </Dialog>

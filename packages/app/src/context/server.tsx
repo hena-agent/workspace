@@ -94,6 +94,10 @@ export function createServerProjects<T extends ServerProjectState>(input: {
   return {
     list: current,
     recentlyClosed: currentClosed,
+    closed(directory: string) {
+      const key = pathKey(directory)
+      return currentClosed().some((worktree) => pathKey(worktree) === key)
+    },
     remove,
     open(directory: string) {
       const scope = input.scope()
@@ -108,6 +112,19 @@ export function createServerProjects<T extends ServerProjectState>(input: {
       }
       if (current().some((project) => project.worktree === directory)) return
       setStore("projects", scope, [{ worktree: directory, expanded: true }, ...current()])
+    },
+    replace(previous: string, directory: string) {
+      const index = current().findIndex((project) => project.worktree === previous)
+      if (index === -1) {
+        if (!current().some((project) => project.worktree === directory))
+          setStore("projects", input.scope(), [{ worktree: directory, expanded: true }, ...current()])
+        return
+      }
+      const next = current().filter((project) => project.worktree !== directory)
+      const previousIndex = next.findIndex((project) => project.worktree === previous)
+      next.splice(previousIndex, 1, { ...current()[index]!, worktree: directory })
+      setStore("projects", input.scope(), next)
+      if (input.store.lastProject[input.scope()] === previous) setStore("lastProject", input.scope(), directory)
     },
     // User-initiated close: removes the project and records it in recently closed.
     // Internal, non-user removals (e.g. sandbox/worktree normalization) should use remove().

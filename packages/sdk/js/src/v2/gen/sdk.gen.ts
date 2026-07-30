@@ -203,7 +203,6 @@ import type {
   SessionMessageResponses,
   SessionMessagesErrors,
   SessionMessagesResponses,
-  SessionMode,
   SessionPromptAsyncErrors,
   SessionPromptAsyncResponses,
   SessionPromptErrors,
@@ -390,10 +389,8 @@ import type {
   V2SessionRevertStageResponses,
   V2SessionSwitchAgentErrors,
   V2SessionSwitchAgentResponses,
-  V2SessionSwitchModeErrors,
   V2SessionSwitchModelErrors,
   V2SessionSwitchModelResponses,
-  V2SessionSwitchModeResponses,
   V2SessionWaitErrors,
   V2SessionWaitResponses,
   V2SkillListErrors,
@@ -3432,7 +3429,6 @@ export class Session2 extends HeyApiClient {
         providerID: string
         variant?: string
       }
-      mode?: SessionMode
       metadata?: {
         [key: string]: unknown
       }
@@ -3452,7 +3448,6 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "title" },
             { in: "body", key: "agent" },
             { in: "body", key: "model" },
-            { in: "body", key: "mode" },
             { in: "body", key: "metadata" },
             { in: "body", key: "permission" },
             { in: "body", key: "workspaceID" },
@@ -5627,43 +5622,6 @@ export class Session3 extends HeyApiClient {
         ...params.headers,
       },
     })
-  }
-
-  /**
-   * Switch session mode
-   *
-   * Switch the mode used by subsequent provider turns. Null restores the default coding mode.
-   */
-  public switchMode<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      mode?: SessionMode | null
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "body", key: "mode" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<V2SessionSwitchModeResponses, V2SessionSwitchModeErrors, ThrowOnError>(
-      {
-        url: "/api/session/{sessionID}/mode",
-        ...options,
-        ...params,
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-          ...params.headers,
-        },
-      },
-    )
   }
 
   /**

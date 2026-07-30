@@ -261,7 +261,6 @@ export type SessionsListOutput = {
     readonly id: string
     readonly parentID?: string
     readonly projectID: string
-    readonly mode?: "general-chat"
     readonly agent?: string
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
     readonly cost: number
@@ -324,7 +323,6 @@ export type SessionsCreateOutput = {
     readonly id: string
     readonly parentID?: string
     readonly projectID: string
-    readonly mode?: "general-chat"
     readonly agent?: string
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
     readonly cost: number
@@ -363,7 +361,6 @@ export type SessionsGetOutput = {
     readonly id: string
     readonly parentID?: string
     readonly projectID: string
-    readonly mode?: "general-chat"
     readonly agent?: string
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
     readonly cost: number
@@ -408,13 +405,6 @@ export type SessionsSwitchModelInput = {
 }
 
 export type SessionsSwitchModelOutput = void
-
-export type SessionsSwitchModeInput = {
-  readonly sessionID: { readonly sessionID: string }["sessionID"]
-  readonly mode: { readonly mode: "general-chat" | null }["mode"]
-}
-
-export type SessionsSwitchModeOutput = void
 
 export type SessionsPromptInput = {
   readonly sessionID: { readonly sessionID: string }["sessionID"]
@@ -744,14 +734,6 @@ export type SessionsHistoryOutput = {
           readonly messageID: string
           readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
         }
-      }
-    | {
-        readonly id: string
-        readonly metadata?: { readonly [x: string]: JsonValue }
-        readonly type: "session.next.mode.switched"
-        readonly durable?: { readonly aggregateID: string; readonly seq: number; readonly version: number }
-        readonly location?: { readonly directory: string; readonly workspaceID?: string }
-        readonly data: { readonly timestamp: number; readonly sessionID: string; readonly mode: "general-chat" | null }
       }
     | {
         readonly id: string
@@ -1210,14 +1192,6 @@ export type SessionsEventsOutput =
         readonly messageID: string
         readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
       }
-    }
-  | {
-      readonly id: string
-      readonly metadata?: { readonly [x: string]: unknown }
-      readonly type: "session.next.mode.switched"
-      readonly durable?: { readonly aggregateID: string; readonly seq: number; readonly version: number }
-      readonly location?: { readonly directory: string; readonly workspaceID?: string }
-      readonly data: { readonly timestamp: number; readonly sessionID: string; readonly mode: "general-chat" | null }
     }
   | {
       readonly id: string

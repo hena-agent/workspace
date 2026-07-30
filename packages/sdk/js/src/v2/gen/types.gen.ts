@@ -18,7 +18,6 @@ export type Event =
   | EventMessagePartRemoved
   | EventSessionNextAgentSwitched
   | EventSessionNextModelSwitched
-  | EventSessionNextModeSwitched
   | EventSessionNextMoved
   | EventSessionNextPrompted
   | EventSessionNextPromptAdmitted
@@ -172,7 +171,6 @@ export type Session = {
   id: string
   slug: string
   projectID: string
-  mode?: SessionMode
   workspaceID?: string
   directory: string
   path?: string
@@ -844,15 +842,6 @@ export type GlobalEvent = {
           sessionID: string
           messageID: string
           model: ModelRef
-        }
-      }
-    | {
-        id: string
-        type: "session.next.mode.switched"
-        properties: {
-          timestamp: number
-          sessionID: string
-          mode: SessionMode | null
         }
       }
     | {
@@ -1629,7 +1618,6 @@ export type GlobalEvent = {
     | SyncEventMessagePartRemoved
     | SyncEventSessionNextAgentSwitched
     | SyncEventSessionNextModelSwitched
-    | SyncEventSessionNextModeSwitched
     | SyncEventSessionNextMoved
     | SyncEventSessionNextPrompted
     | SyncEventSessionNextPromptAdmitted
@@ -2212,7 +2200,6 @@ export type GlobalSession = {
   id: string
   slug: string
   projectID: string
-  mode?: SessionMode
   workspaceID?: string
   directory: string
   path?: string
@@ -2757,7 +2744,6 @@ export type UnknownError1 = {
 export type SessionDurableEvent =
   | SessionNextAgentSwitched
   | SessionNextModelSwitched
-  | SessionNextModeSwitched
   | SessionNextMoved
   | SessionNextPrompted
   | SessionNextPromptAdmitted
@@ -2885,7 +2871,6 @@ export type V2Event =
   | MessagePartRemoved
   | SessionNextAgentSwitched
   | SessionNextModelSwitched
-  | SessionNextModeSwitched
   | SessionNextMoved
   | SessionNextPrompted
   | SessionNextPromptAdmitted
@@ -3067,8 +3052,6 @@ export type SkillV2Source = SkillV2DirectorySource | SkillV2UrlSource | SkillV2E
 export type MoveSessionDestination = {
   directory: string
 }
-
-export type SessionMode = "general-chat"
 
 export type ModelRef = {
   id: string
@@ -3369,22 +3352,6 @@ export type SyncEventSessionNextModelSwitched = {
       sessionID: string
       messageID: string
       model: ModelRef
-    }
-  }
-}
-
-export type SyncEventSessionNextModeSwitched = {
-  type: "sync"
-  id: string
-  syncEvent: {
-    type: "session.next.mode.switched.1"
-    id: string
-    seq: number
-    aggregateID: string
-    data: {
-      timestamp: number
-      sessionID: string
-      mode: SessionMode | null
     }
   }
 }
@@ -3963,7 +3930,6 @@ export type SessionV2Info = {
   id: string
   parentID?: string
   projectID: string
-  mode?: SessionMode
   agent?: string
   model?: ModelRef
   cost: number
@@ -4257,25 +4223,6 @@ export type SessionNextModelSwitched = {
     sessionID: string
     messageID: string
     model: ModelRef
-  }
-}
-
-export type SessionNextModeSwitched = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  type: "session.next.mode.switched"
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  data: {
-    timestamp: number
-    sessionID: string
-    mode: SessionMode | null
   }
 }
 
@@ -6365,16 +6312,6 @@ export type EventSessionNextModelSwitched = {
     sessionID: string
     messageID: string
     model: ModelRef
-  }
-}
-
-export type EventSessionNextModeSwitched = {
-  id: string
-  type: "session.next.mode.switched"
-  properties: {
-    timestamp: number
-    sessionID: string
-    mode: SessionMode | null
   }
 }
 
@@ -9590,7 +9527,6 @@ export type SessionCreateData = {
       providerID: string
       variant?: string
     }
-    mode?: SessionMode
     metadata?: {
       [key: string]: unknown
     }
@@ -11660,43 +11596,6 @@ export type V2SessionSwitchModelResponses = {
 }
 
 export type V2SessionSwitchModelResponse = V2SessionSwitchModelResponses[keyof V2SessionSwitchModelResponses]
-
-export type V2SessionSwitchModeData = {
-  body: {
-    mode: SessionMode | null
-  }
-  path: {
-    sessionID: string
-  }
-  query?: never
-  url: "/api/session/{sessionID}/mode"
-}
-
-export type V2SessionSwitchModeErrors = {
-  /**
-   * InvalidRequestError
-   */
-  400: InvalidRequestError
-  /**
-   * UnauthorizedError
-   */
-  401: UnauthorizedError
-  /**
-   * SessionNotFoundError
-   */
-  404: SessionNotFoundError
-}
-
-export type V2SessionSwitchModeError = V2SessionSwitchModeErrors[keyof V2SessionSwitchModeErrors]
-
-export type V2SessionSwitchModeResponses = {
-  /**
-   * <No Content>
-   */
-  204: void
-}
-
-export type V2SessionSwitchModeResponse = V2SessionSwitchModeResponses[keyof V2SessionSwitchModeResponses]
 
 export type V2SessionPromptData = {
   body: {

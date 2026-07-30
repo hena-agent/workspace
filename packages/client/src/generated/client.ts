@@ -15,8 +15,6 @@ import type {
   SessionsSwitchAgentOutput,
   SessionsSwitchModelInput,
   SessionsSwitchModelOutput,
-  SessionsSwitchModeInput,
-  SessionsSwitchModeOutput,
   SessionsPromptInput,
   SessionsPromptOutput,
   SessionsCompactInput,
@@ -370,18 +368,6 @@ export function make(options: ClientOptions) {
             method: "POST",
             path: `/api/session/${encodeURIComponent(input.sessionID)}/model`,
             body: { model: input["model"] },
-            successStatus: 204,
-            declaredStatuses: [404, 400, 401],
-            empty: true,
-          },
-          requestOptions,
-        ),
-      switchMode: (input: SessionsSwitchModeInput, requestOptions?: RequestOptions) =>
-        request<SessionsSwitchModeOutput>(
-          {
-            method: "POST",
-            path: `/api/session/${encodeURIComponent(input.sessionID)}/mode`,
-            body: { mode: input["mode"] },
             successStatus: 204,
             declaredStatuses: [404, 400, 401],
             empty: true,

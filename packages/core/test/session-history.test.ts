@@ -18,6 +18,10 @@ import { testEffect } from "./lib/effect"
 const projects = Layer.succeed(
   ProjectV2.Service,
   ProjectV2.Service.of({
+    list: () => Effect.succeed([]),
+    get: (projectID) => Effect.fail(new ProjectV2.NotFoundError({ projectID })),
+    create: (input) => Effect.fail(new ProjectV2.InvalidNameError({ name: input.name ?? "" })),
+    attachFolder: (input) => Effect.fail(new ProjectV2.InvalidFolderError({ folder: input.folder })),
     resolve: (directory) => Effect.succeed({ id: ProjectV2.ID.global, directory }),
     directories: () => Effect.succeed([]),
     commit: () => Effect.void,

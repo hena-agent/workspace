@@ -21,6 +21,9 @@ export type Prompt = typeof Prompt.Type
 export const Tool = Question.Tool
 export type Tool = typeof Tool.Type
 
+export const Action = Question.Action
+export type Action = typeof Action.Type
+
 export const Request = Question.Request
 export type Request = typeof Request.Type
 
@@ -46,6 +49,7 @@ export interface AskInput {
   readonly sessionID: SessionSchema.ID
   readonly questions: ReadonlyArray<Info>
   readonly tool?: Tool
+  readonly action?: Action
 }
 
 export interface ReplyInput {

@@ -53,6 +53,7 @@ import { Format } from "../../src/format"
 import { TestInstance } from "../fixture/fixture"
 import { awaitWithTimeout, pollWithTimeout, testEffect } from "../lib/effect"
 import { reply, TestLLMServer } from "../lib/llm-server"
+import { SessionMode } from "@hena/core/session/mode"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@hena/core/provider"
 import { ModelV2 } from "@hena/core/model"
@@ -512,6 +513,34 @@ it.instance("loop calls LLM and returns assistant message", () =>
     expect(parts.some((p) => p.type === "text" && p.text === "world")).toBe(true)
     expect(yield* llm.hits).toHaveLength(1)
   }),
+)
+
+it.instance(
+  "general chat mode replaces the coding system prompt",
+  () =>
+    Effect.gen(function* () {
+      const { llm } = yield* useServerConfig(providerCfg)
+      const prompt = yield* SessionPrompt.Service
+      const sessions = yield* Session.Service
+      const chat = yield* sessions.create({ title: "Chat mode", mode: "general-chat" })
+      yield* prompt.prompt({
+        sessionID: chat.id,
+        agent: "build",
+        noReply: true,
+        parts: [{ type: "text", text: "hello" }],
+      })
+      yield* llm.text("world")
+
+      yield* prompt.loop({ sessionID: chat.id })
+      const body = JSON.stringify((yield* llm.hits)[0]?.body)
+      expect(body).toContain(SessionMode.GENERAL_CHAT_SYSTEM.split("\n")[0])
+      expect(body).not.toContain("best coding agent")
+      expect(body).toContain('"name":"webfetch"')
+      expect(body).not.toContain('"name":"shell"')
+      expect(body).not.toContain('"name":"apply_patch"')
+      expect(body).not.toContain('"name":"skill"')
+    }),
+  15_000,
 )
 
 withMcpInstructions.instance(

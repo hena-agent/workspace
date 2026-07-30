@@ -6,6 +6,7 @@ import { FileDiff } from "../file-diff"
 import { Project } from "../project"
 import { Provider } from "../provider"
 import { Model } from "../model"
+import { SessionMode } from "../session-mode"
 import { NonNegativeInt, optional, statics } from "../schema"
 import { ascending } from "../identifier"
 import { SessionID } from "../session-id"
@@ -544,6 +545,7 @@ export const SessionInfo = Schema.Struct({
   id: SessionID,
   slug: Schema.String,
   projectID: Project.ID,
+  mode: optional(SessionMode.Mode),
   workspaceID: optional(WorkspaceID),
   directory: Schema.String,
   path: optional(Schema.String),

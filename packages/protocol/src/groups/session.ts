@@ -202,6 +202,22 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
         ),
     )
     .add(
+      HttpApiEndpoint.post("session.switchMode", "/api/session/:sessionID/mode", {
+        params: { sessionID: Session.ID },
+        payload: Schema.Struct({ mode: Schema.NullOr(Session.Mode) }),
+        success: HttpApiSchema.NoContent,
+        error: SessionNotFoundError,
+      })
+        .middleware(sessionLocationMiddleware)
+        .annotateMerge(
+          OpenApi.annotations({
+            identifier: "v2.session.switchMode",
+            summary: "Switch session mode",
+            description: "Switch the mode used by subsequent provider turns. Null restores the default coding mode.",
+          }),
+        ),
+    )
+    .add(
       HttpApiEndpoint.post("session.prompt", "/api/session/:sessionID/prompt", {
         params: { sessionID: Session.ID },
         payload: Schema.Struct({

@@ -114,6 +114,8 @@ export default {
           \`worktree\` text NOT NULL,
           \`vcs\` text,
           \`name\` text,
+          \`managed\` integer DEFAULT false NOT NULL,
+          \`folder\` text,
           \`icon_url\` text,
           \`icon_url_override\` text,
           \`icon_color\` text,
@@ -182,6 +184,7 @@ export default {
         CREATE TABLE \`session\` (
           \`id\` text PRIMARY KEY,
           \`project_id\` text NOT NULL,
+          \`mode\` text,
           \`workspace_id\` text,
           \`parent_id\` text,
           \`slug\` text NOT NULL,
@@ -241,6 +244,7 @@ export default {
       yield* tx.run(
         `CREATE UNIQUE INDEX \`permission_project_action_resource_idx\` ON \`permission\` (\`project_id\`,\`action\`,\`resource\`);`,
       )
+      yield* tx.run(`CREATE UNIQUE INDEX \`project_folder_idx\` ON \`project\` (\`folder\`);`)
       yield* tx.run(
         `CREATE INDEX \`message_session_time_created_id_idx\` ON \`message\` (\`session_id\`,\`time_created\`,\`id\`);`,
       )

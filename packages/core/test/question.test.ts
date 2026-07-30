@@ -4,6 +4,7 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { EventV2 } from "@hena/core/event"
 import { QuestionV2 } from "@hena/core/question"
+import { ProjectV2 } from "@hena/core/project"
 import { SessionV2 } from "@hena/core/session"
 import { testEffect } from "./lib/effect"
 
@@ -45,9 +46,15 @@ describe("QuestionV2", () => {
         }),
       )
       yield* Effect.addFinalizer(() => unsubscribe)
-      const { fiber, request } = yield* waitForAsk(service, { sessionID, questions: [question] })
+      const action: QuestionV2.Action = {
+        type: "attach-folder",
+        projectID: ProjectV2.ID.make("prj_question_test"),
+        reason: "The requested files are not available yet",
+      }
+      const { fiber, request } = yield* waitForAsk(service, { sessionID, questions: [question], action })
 
       expect(request.id).toMatch(/^que_/)
+      expect(request.action).toEqual(action)
       expect(yield* service.list()).toEqual([request])
       yield* service.reply({ requestID: request.id, answers: [["One"]] })
 

@@ -100,6 +100,14 @@ afterEach(async () => {
 })
 
 describe("tool.registry", () => {
+  it.instance("exposes attach_folder to interactive clients", () =>
+    Effect.gen(function* () {
+      const registry = yield* ToolRegistry.Service
+
+      expect(yield* registry.ids()).toContain("attach_folder")
+    }),
+  )
+
   it.instance("does not expose task_status", () =>
     Effect.gen(function* () {
       const registry = yield* ToolRegistry.Service

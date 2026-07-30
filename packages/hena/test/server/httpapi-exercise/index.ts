@@ -97,9 +97,7 @@ const scenarios: Scenario[] = [
         Effect.gen(function* () {
           object(body)
           check(body.username === "httpapi-global", "global config update should return patched config")
-          const text = yield* Effect.promise(() =>
-            Bun.file(path.join(exerciseConfigDirectory, "hena.jsonc")).text(),
-          )
+          const text = yield* Effect.promise(() => Bun.file(path.join(exerciseConfigDirectory, "hena.jsonc")).text())
           check(text.includes('"username": "httpapi-global"'), "global config update should write isolated config file")
         }),
       "status",
@@ -800,6 +798,28 @@ const scenarios: Scenario[] = [
     }))
     .status(404, undefined, "none"),
   http.protected.get("/api/reference", "v2.reference.list").json(200, object),
+  http.protected.get("/api/project", "v2.project.list").json(200, array),
+  http.protected
+    .post("/api/project", "v2.project.create")
+    .mutating()
+    .at((ctx) => ({ path: "/api/project", headers: ctx.headers(), body: { name: "HTTP API project" } }))
+    .json(200, object),
+  http.protected
+    .get("/api/project/{projectID}", "v2.project.get")
+    .at((ctx) => ({
+      path: route("/api/project/{projectID}", { projectID: "prj_httpapi_missing" }),
+      headers: ctx.headers(),
+    }))
+    .json(404, object, "status"),
+  http.protected
+    .put("/api/project/{projectID}/folder", "v2.project.attachFolder")
+    .mutating()
+    .at((ctx) => ({
+      path: route("/api/project/{projectID}/folder", { projectID: "prj_httpapi_missing" }),
+      headers: ctx.headers(),
+      body: { folder: ctx.directory },
+    }))
+    .json(404, object, "status"),
   http.protected
     .get("/api/provider/{providerID}", "v2.provider.get")
     .at((ctx) => ({ path: route("/api/provider/{providerID}", { providerID: "missing" }), headers: ctx.headers() }))
@@ -997,6 +1017,15 @@ const scenarios: Scenario[] = [
       path: route("/api/session/{sessionID}/model", { sessionID: ctx.state.id }),
       headers: { ...ctx.headers(), "content-type": "application/json" },
       body: { model: { providerID: "hena", id: "big-pickle" } },
+    }))
+    .status(204, undefined, "none"),
+  http.protected
+    .post("/api/session/{sessionID}/mode", "v2.session.switchMode")
+    .seeded((ctx) => ctx.session({ title: "Switch mode" }))
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/mode", { sessionID: ctx.state.id }),
+      headers: { ...ctx.headers(), "content-type": "application/json" },
+      body: { mode: "general-chat" },
     }))
     .status(204, undefined, "none"),
   http.protected

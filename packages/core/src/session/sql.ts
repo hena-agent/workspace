@@ -12,6 +12,7 @@ import type { MessageID, PartID, SessionV1 } from "../v1/session"
 import { WorkspaceV2 } from "../workspace"
 import { Timestamps } from "../database/schema.sql"
 import type { SystemContext } from "../system-context/index"
+import type { SessionMode } from "./mode"
 import { AgentV2 } from "../agent"
 import type { Revert } from "@hena/schema/revert"
 
@@ -27,6 +28,7 @@ export const SessionTable = sqliteTable(
       .$type<ProjectV2.ID>()
       .notNull()
       .references(() => ProjectTable.id, { onDelete: "cascade" }),
+    mode: text().$type<SessionMode.Mode>(),
     workspace_id: text().$type<WorkspaceV2.ID>(),
     parent_id: text().$type<SessionSchema.ID>(),
     slug: text().notNull(),

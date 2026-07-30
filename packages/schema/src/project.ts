@@ -2,7 +2,7 @@ export * as Project from "./project"
 
 import { Schema } from "effect"
 import { define, inventory } from "./event"
-import { NonNegativeInt, optional } from "./schema"
+import { AbsolutePath, DateTimeUtcFromMillis, NonNegativeInt, optional } from "./schema"
 import { ProjectID } from "./project-id"
 
 export const ID = ProjectID
@@ -39,6 +39,35 @@ export const Info = Schema.Struct({
   sandboxes: Schema.Array(Schema.String),
 }).annotate({ identifier: "Project" })
 export interface Info extends Schema.Schema.Type<typeof Info> {}
+
+export const Name = Schema.Trim.pipe(Schema.check(Schema.isNonEmpty()), Schema.brand("Project.Name")).annotate({
+  identifier: "Project.Name",
+})
+export type Name = typeof Name.Type
+
+export interface ManagedInfo extends Schema.Schema.Type<typeof ManagedInfo> {}
+export const ManagedInfo = Schema.Struct({
+  id: ID,
+  name: Name,
+  worktree: AbsolutePath,
+  folder: AbsolutePath.pipe(optional),
+  time: Schema.Struct({
+    created: DateTimeUtcFromMillis,
+    updated: DateTimeUtcFromMillis,
+  }),
+}).annotate({ identifier: "Project.ManagedInfo" })
+
+export const CreateInput = Schema.Struct({
+  name: Name.pipe(optional),
+  folder: AbsolutePath.pipe(optional),
+}).annotate({ identifier: "Project.CreateInput" })
+export type CreateInput = typeof CreateInput.Type
+
+export const AttachFolderInput = Schema.Struct({
+  projectID: ID,
+  folder: AbsolutePath,
+}).annotate({ identifier: "Project.AttachFolderInput" })
+export type AttachFolderInput = typeof AttachFolderInput.Type
 
 const Updated = define({ type: "project.updated", schema: Info.fields })
 export const Event = { Updated, Definitions: inventory(Updated) }

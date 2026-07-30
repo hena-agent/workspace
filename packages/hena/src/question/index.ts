@@ -14,6 +14,8 @@ export const Prompt = QuestionV1.Prompt
 export type Prompt = typeof Prompt.Type
 export const Tool = QuestionV1.Tool
 export type Tool = typeof Tool.Type
+export const Action = QuestionV1.Action
+export type Action = typeof Action.Type
 export const Request = QuestionV1.Request
 export type Request = typeof Request.Type
 export const Answer = QuestionV1.Answer
@@ -50,6 +52,7 @@ export interface Interface {
     sessionID: SessionID
     questions: ReadonlyArray<Info>
     tool?: Tool
+    action?: Action
   }) => Effect.Effect<ReadonlyArray<Answer>, RejectedError>
   readonly reply: (input: {
     requestID: QuestionID
@@ -88,6 +91,7 @@ const layer = Layer.effect(
       sessionID: SessionID
       questions: ReadonlyArray<Info>
       tool?: Tool
+      action?: Action
     }) {
       const pending = (yield* InstanceState.get(state)).pending
       const id = QuestionID.ascending()
@@ -99,6 +103,7 @@ const layer = Layer.effect(
         sessionID: input.sessionID,
         questions: input.questions,
         tool: input.tool,
+        action: input.action,
       }
       pending.set(id, { info, deferred })
       yield* events.publish(Event.Asked, info)

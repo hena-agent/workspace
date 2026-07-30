@@ -29,6 +29,7 @@ import { WebSearchTool } from "./websearch"
 import { LspTool } from "./lsp"
 import * as Truncate from "./truncate"
 import { ApplyPatchTool } from "./apply_patch"
+import { AttachFolderTool } from "./attach-folder"
 import { Glob } from "@hena/core/util/glob"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -108,6 +109,7 @@ const layer = Layer.effect(
     const edit = yield* EditTool
     const greptool = yield* GrepTool
     const patchtool = yield* ApplyPatchTool
+    const attachFolder = yield* AttachFolderTool
     const skilltool = yield* SkillTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
@@ -215,6 +217,7 @@ const layer = Layer.effect(
           search: Tool.init(websearch),
           skill: Tool.init(skilltool),
           patch: Tool.init(patchtool),
+          attachFolder: Tool.init(attachFolder),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
@@ -225,6 +228,7 @@ const layer = Layer.effect(
           custom,
           builtin: [
             tool.invalid,
+            ...(["app", "cli", "desktop"].includes(flags.client) ? [tool.attachFolder] : []),
             ...(questionEnabled ? [tool.question] : []),
             tool.shell,
             tool.read,

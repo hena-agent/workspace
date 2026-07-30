@@ -1273,6 +1273,7 @@ const layer = Layer.effect(
               user: lastUser,
               agent,
               permission: session.permission,
+              sessionMode: session.mode,
               sessionID,
               parentSessionID: session.parentID,
               system,

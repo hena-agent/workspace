@@ -12,6 +12,10 @@ const ref = { directory: AbsolutePath.make("/repo/packages/app"), workspaceID }
 const projectLayer = Layer.succeed(
   Project.Service,
   Project.Service.of({
+    list: () => Effect.succeed([]),
+    get: (projectID) => Effect.fail(new Project.NotFoundError({ projectID })),
+    create: (input) => Effect.fail(new Project.InvalidNameError({ name: input.name ?? "" })),
+    attachFolder: (input) => Effect.fail(new Project.InvalidFolderError({ folder: input.folder })),
     directories: () => Effect.succeed([]),
     resolve: () =>
       Effect.succeed({

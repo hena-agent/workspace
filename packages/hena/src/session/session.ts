@@ -44,6 +44,7 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@hena/core/provider"
 import { ModelV2 } from "@hena/core/model"
 import { SessionMessage } from "@hena/schema/session-message"
+import { Session } from "@hena/schema/session"
 
 const parentTitlePrefix = "New session - "
 const childTitlePrefix = "Child session - "
@@ -79,6 +80,7 @@ export function fromRow(row: SessionRow): Info {
     id: row.id,
     slug: row.slug,
     projectID: row.project_id,
+    mode: row.mode ?? undefined,
     workspaceID: row.workspace_id ?? undefined,
     directory: row.directory,
     path: row.path ?? undefined,
@@ -121,6 +123,7 @@ export function toRow(info: Info) {
   return {
     id: info.id,
     project_id: info.projectID,
+    mode: info.mode,
     workspace_id: info.workspaceID,
     parent_id: info.parentID,
     slug: info.slug,
@@ -225,6 +228,7 @@ export const Info = Schema.Struct({
   id: SessionID,
   slug: Schema.String,
   projectID: ProjectV2.ID,
+  mode: optional(Session.Mode),
   workspaceID: optional(WorkspaceV2.ID),
   directory: Schema.String,
   path: optional(Schema.String),
@@ -263,6 +267,7 @@ export const CreateInput = Schema.optional(
     title: Schema.optional(Schema.String),
     agent: Schema.optional(Schema.String),
     model: Schema.optional(Model),
+    mode: Schema.optional(Schema.NullOr(Session.Mode)),
     metadata: Schema.optional(Metadata),
     permission: Schema.optional(PermissionV1.Ruleset),
     workspaceID: Schema.optional(WorkspaceV2.ID),
@@ -420,6 +425,7 @@ export interface Interface {
     title?: string
     agent?: string
     model?: Schema.Schema.Type<typeof Model>
+    mode?: Session.Mode | null
     metadata?: typeof Metadata.Type
     permission?: PermissionV1.Ruleset
     workspaceID?: WorkspaceV2.ID
@@ -507,15 +513,26 @@ const layer: Layer.Layer<
       workspaceID?: WorkspaceV2.ID
       directory: string
       path?: string
+      mode?: Session.Mode | null
       metadata?: typeof Metadata.Type
       permission?: PermissionV1.Ruleset
     }) {
       const ctx = yield* InstanceState.context
+      const project = yield* db
+        .select({ managed: ProjectTable.managed, folder: ProjectTable.folder })
+        .from(ProjectTable)
+        .where(eq(ProjectTable.id, ctx.project.id))
+        .get()
+        .pipe(Effect.orDie)
       const result: Info = {
         id: SessionID.descending(input.id),
         slug: Slug.create(),
         version: InstallationVersion,
         projectID: ctx.project.id,
+        mode:
+          input.mode === null
+            ? undefined
+            : (input.mode ?? (project?.managed && !project.folder ? "general-chat" : undefined)),
         directory: input.directory,
         path: input.path,
         workspaceID: input.workspaceID,
@@ -671,6 +688,7 @@ const layer: Layer.Layer<
       title?: string
       agent?: string
       model?: Schema.Schema.Type<typeof Model>
+      mode?: Session.Mode | null
       metadata?: typeof Metadata.Type
       permission?: PermissionV1.Ruleset
       workspaceID?: WorkspaceV2.ID
@@ -684,6 +702,7 @@ const layer: Layer.Layer<
         title: input?.title,
         agent: input?.agent,
         model: input?.model,
+        mode: input?.mode,
         metadata: input?.metadata,
         permission: input?.permission,
         workspaceID: input?.workspaceID ?? workspace,
@@ -699,6 +718,7 @@ const layer: Layer.Layer<
         path: sessionPath(ctx.worktree, ctx.directory),
         workspaceID: original.workspaceID,
         title,
+        mode: original.mode,
         metadata: structuredClone(original.metadata),
       })
       const msgs = yield* messages({ sessionID: input.sessionID })

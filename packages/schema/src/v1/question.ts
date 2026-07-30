@@ -3,6 +3,7 @@ export * as QuestionV1 from "./question"
 import { Schema } from "effect"
 import { define, inventory } from "../event"
 import { ascending } from "../identifier"
+import { ProjectID } from "../project-id"
 import { statics } from "../schema"
 import { SessionID } from "../session-id"
 import { SessionV1 } from "./session"
@@ -32,11 +33,17 @@ export const Prompt = Schema.Struct(base).annotate({ identifier: "QuestionPrompt
 export const Tool = Schema.Struct({ messageID: SessionV1.MessageID, callID: Schema.String }).annotate({
   identifier: "QuestionTool",
 })
+export const Action = Schema.Struct({
+  type: Schema.Literal("attach-folder"),
+  projectID: ProjectID,
+  reason: Schema.String,
+}).annotate({ identifier: "QuestionAction" })
 export const Request = Schema.Struct({
   id: ID,
   sessionID: SessionID,
   questions: Schema.Array(Info).annotate({ description: "Questions to ask" }),
   tool: Schema.optional(Tool),
+  action: Schema.optional(Action),
 }).annotate({ identifier: "QuestionRequest" })
 export const Answer = Schema.Array(Schema.String).annotate({ identifier: "QuestionAnswer" })
 export const Reply = Schema.Struct({

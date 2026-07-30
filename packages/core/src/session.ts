@@ -33,6 +33,7 @@ import { MessageDecodeError } from "./session/error"
 import { SessionEvent } from "./session/event"
 import { SessionInput } from "./session/input"
 import { Snapshot } from "./snapshot"
+import { SessionMode } from "./session/mode"
 import { SessionRevert } from "./session/revert"
 import { Revert } from "@hena/schema/revert"
 import { FSUtil } from "./fs-util"
@@ -144,6 +145,10 @@ export interface Interface {
     sessionID: SessionSchema.ID
     model: ModelV2.Ref
   }) => Effect.Effect<void, NotFoundError>
+  readonly switchMode: (input: {
+    sessionID: SessionSchema.ID
+    mode: SessionMode.Mode | null
+  }) => Effect.Effect<void, NotFoundError>
   readonly prompt: (input: {
     id?: SessionMessage.ID
     sessionID: SessionSchema.ID
@@ -216,12 +221,19 @@ const layer = Layer.effect(
           .onConflictDoNothing()
           .run()
           .pipe(Effect.orDie)
+        const projectRow = yield* db
+          .select({ managed: ProjectTable.managed, folder: ProjectTable.folder })
+          .from(ProjectTable)
+          .where(eq(ProjectTable.id, project.id))
+          .get()
+          .pipe(Effect.orDie)
         const now = Date.now()
         const info = SessionV1.SessionInfo.make({
           id: sessionID,
           slug: Slug.create(),
           version: InstallationVersion,
           projectID: project.id,
+          mode: projectRow?.managed && !projectRow.folder ? "general-chat" : undefined,
           directory: input.location.directory,
           path: path.relative(project.directory, input.location.directory).replaceAll("\\", "/"),
           workspaceID: input.location.workspaceID ? WorkspaceV2.ID.make(input.location.workspaceID) : undefined,
@@ -412,6 +424,15 @@ const layer = Layer.effect(
           messageID: SessionMessage.ID.create(),
           timestamp: yield* DateTime.now,
           model: input.model,
+        })
+      }),
+      switchMode: Effect.fn("V2Session.switchMode")(function* (input) {
+        const session = yield* result.get(input.sessionID)
+        if ((session.mode ?? null) === input.mode) return
+        yield* events.publish(SessionEvent.ModeSwitched, {
+          sessionID: input.sessionID,
+          timestamp: yield* DateTime.now,
+          mode: input.mode,
         })
       }),
       compact: Effect.fn("V2Session.compact")(function* (input) {

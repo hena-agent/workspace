@@ -290,8 +290,9 @@ const it = testEffect(
 )
 const sessionID = SessionV2.ID.make("ses_runner_test")
 const otherSessionID = SessionV2.ID.make("ses_runner_other")
+const generalChatSessionID = SessionV2.ID.make("ses_runner_general_chat")
 
-const insertSession = (id: SessionV2.ID) =>
+const insertSession = (id: SessionV2.ID, mode?: "general-chat") =>
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     yield* db
@@ -303,6 +304,7 @@ const insertSession = (id: SessionV2.ID) =>
         directory: "/project",
         title: "test",
         version: "test",
+        mode,
       })
       .onConflictDoNothing()
       .run()
@@ -652,6 +654,26 @@ describe("SessionRunnerLLM", () => {
         { role: "user", content: [{ type: "text", text: "Second" }] },
       ])
       expect(yield* session.messages({ sessionID })).toHaveLength(2)
+    }),
+  )
+
+  it.effect("limits general chat provider requests to the safe tool set", () =>
+    Effect.gen(function* () {
+      yield* setup
+      yield* insertSession(generalChatSessionID, "general-chat")
+      const session = yield* SessionV2.Service
+      yield* session.prompt({
+        sessionID: generalChatSessionID,
+        prompt: Prompt.make({ text: "Build a webpage" }),
+        resume: false,
+      })
+
+      requests.length = 0
+      response = []
+      yield* session.resume(generalChatSessionID)
+
+      expect(requests).toHaveLength(1)
+      expect(requests[0]?.tools).toEqual([])
     }),
   )
 

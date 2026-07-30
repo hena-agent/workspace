@@ -4,6 +4,7 @@ import { Schema } from "effect"
 import { optional } from "./schema"
 import { define, inventory } from "./event"
 import { ascending } from "./identifier"
+import { ProjectID } from "./project-id"
 import { SessionID } from "./session-id"
 import { statics } from "./schema"
 
@@ -49,11 +50,19 @@ export const Tool = Schema.Struct({
 }).annotate({ identifier: "QuestionV2.Tool" })
 export interface Tool extends Schema.Schema.Type<typeof Tool> {}
 
+export const Action = Schema.Struct({
+  type: Schema.Literal("attach-folder"),
+  projectID: ProjectID,
+  reason: Schema.String,
+}).annotate({ identifier: "QuestionV2.Action" })
+export interface Action extends Schema.Schema.Type<typeof Action> {}
+
 export const Request = Schema.Struct({
   id: ID,
   sessionID: SessionID,
   questions: Schema.Array(Info).annotate({ description: "Questions to ask" }),
   tool: Tool.pipe(optional),
+  action: Action.pipe(optional),
 }).annotate({ identifier: "QuestionV2.Request" })
 export interface Request extends Schema.Schema.Type<typeof Request> {}
 

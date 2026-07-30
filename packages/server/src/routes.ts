@@ -6,6 +6,7 @@ import { EventV2 } from "@hena/core/event"
 import { Credential } from "@hena/core/credential"
 import { PermissionSaved } from "@hena/core/permission/saved"
 import { PtyTicket } from "@hena/core/pty/ticket"
+import { Project } from "@hena/core/project"
 import { SessionV2 } from "@hena/core/session"
 import { SessionExecution } from "@hena/core/session/execution"
 import { LocationServiceMap } from "@hena/core/location-service-map"
@@ -25,6 +26,7 @@ import { sessionLocationLayer } from "./middleware/session-location"
 
 const applicationServices = LayerNode.group([
   Database.node,
+  Project.node,
   EventV2.node,
   httpClient,
   ToolOutputStore.cleanupNode,

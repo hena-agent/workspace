@@ -4,6 +4,7 @@ import { makeLocationNode } from "../effect/app-node"
 import { Layer } from "effect"
 import { BashTool } from "./bash"
 import { ApplyPatchTool } from "./apply-patch"
+import { AttachFolderTool } from "./attach-folder"
 import { EditTool } from "./edit"
 import { GlobTool } from "./glob"
 import { GrepTool } from "./grep"
@@ -33,6 +34,7 @@ export const node = makeLocationNode({
   layer: Layer.empty,
   deps: [
     ApplyPatchTool.node,
+    AttachFolderTool.node,
     BashTool.node,
     EditTool.node,
     GlobTool.node,

@@ -9,17 +9,21 @@ import { DateTimeUtcFromMillis, optional, RelativePath } from "./schema"
 import { SessionEvent } from "./session-event"
 import { SessionID } from "./session-id"
 import { Revert } from "./revert"
+import { SessionMode } from "./session-mode"
 
 export const ID = SessionID
 export type ID = SessionID
 
 export const Event = SessionEvent
+export const Mode = SessionMode.Mode
+export type Mode = SessionMode.Mode
 
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 export const Info = Schema.Struct({
   id: ID,
   parentID: ID.pipe(optional),
   projectID: Project.ID,
+  mode: Mode.pipe(optional),
   agent: Agent.ID.pipe(optional),
   model: Model.Ref.pipe(optional),
   cost: Schema.Finite,

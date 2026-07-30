@@ -45,6 +45,7 @@ function sessionRow(info: SessionV1.SessionInfo): typeof SessionTable.$inferInse
   return {
     id: info.id,
     project_id: info.projectID,
+    mode: info.mode,
     workspace_id: info.workspaceID ?? null,
     parent_id: info.parentID,
     slug: info.slug,
@@ -346,6 +347,14 @@ const layer = Layer.effectDiscard(
           .pipe(Effect.orDie)
         yield* run(db, event)
       }),
+    )
+    yield* events.project(SessionEvent.ModeSwitched, (event) =>
+      db
+        .update(SessionTable)
+        .set({ mode: event.data.mode, time_updated: DateTime.toEpochMillis(event.data.timestamp) })
+        .where(eq(SessionTable.id, event.data.sessionID))
+        .run()
+        .pipe(Effect.orDie),
     )
     yield* events.project(SessionEvent.Prompted, (event) =>
       Effect.gen(function* () {

@@ -73,19 +73,16 @@ function projectLayerWithFailure(failArg: string) {
 }
 
 function projectV2FailureLayer() {
-  return Layer.succeed(
-    ProjectV2.Service,
-    ProjectV2.Service.of({
-      directories: () => Effect.succeed([]),
-      resolve: (input) =>
-        Effect.succeed({
-          id: ProjectV2.ID.global,
-          directory: input,
-          vcs: { type: "git" as const, store: input },
-        }),
-      commit: () => Effect.void,
-    }),
-  )
+  return Layer.mock(ProjectV2.Service, {
+    directories: () => Effect.succeed([]),
+    resolve: (input) =>
+      Effect.succeed({
+        id: ProjectV2.ID.global,
+        directory: input,
+        vcs: { type: "git" as const, store: input },
+      }),
+    commit: () => Effect.void,
+  })
 }
 
 const failureIt = (failArg: string) =>

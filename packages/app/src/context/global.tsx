@@ -119,15 +119,19 @@ function createServerCtx(
 
   createEffect(() =>
     managedProjects()
-      ?.filter((project) => !projects.closed(project.worktree))
-      .forEach((project) => projects.open(project.worktree)),
+      ?.map((project) => project.folder ?? project.worktree)
+      .filter((directory) => !projects.closed(directory))
+      .forEach((directory) => projects.open(directory)),
   )
 
   function enrich(project: { worktree: string; expanded: boolean }) {
     const [childStore] = sync.child(project.worktree, { bootstrap: false })
     const projectID = childStore.project
     const managed = managedProjects()?.find(
-      (item) => item.id === projectID || pathKey(item.worktree) === pathKey(project.worktree),
+      (item) =>
+        item.id === projectID ||
+        pathKey(item.folder ?? item.worktree) === pathKey(project.worktree) ||
+        pathKey(item.worktree) === pathKey(project.worktree),
     )
     const metadata = projectID
       ? sync.data.project.find((x) => x.id === projectID)
@@ -136,7 +140,12 @@ function createServerCtx(
     // Preserve local icon override from per-workspace localStorage cache (childStore.icon).
     // Without this, different subdirectories of the same git repo would share the same
     // icon from the database instead of using their individual overrides.
-    const base = { ...metadata, ...managed, ...project }
+    const base = {
+      ...metadata,
+      ...managed,
+      ...project,
+      worktree: managed?.folder ?? managed?.worktree ?? project.worktree,
+    }
     if (childStore.icon) {
       return { ...base, icon: { ...base.icon, override: childStore.icon } }
     }
@@ -145,7 +154,10 @@ function createServerCtx(
 
   const projectsList = createMemo(() => projects.list().map(enrich))
   const recentlyClosedList = createMemo(() => {
-    const known = new Set(sync.data.project.map((project) => pathKey(project.worktree)))
+    const known = new Set([
+      ...sync.data.project.map((project) => pathKey(project.worktree)),
+      ...(managedProjects()?.map((project) => pathKey(project.folder ?? project.worktree)) ?? []),
+    ])
     return projects
       .recentlyClosed()
       .filter((worktree) => known.has(pathKey(worktree)))

@@ -662,11 +662,14 @@ export function NewHome() {
         const folder = Array.isArray(result) ? result[0] : result
         if (!folder) return
         const ctx = global.ensureServerCtx(conn)
-        const existing = ctx.projects.managed.list().find((project) => pathKey(project.worktree) === pathKey(folder))
+        const existing = ctx.projects.managed
+          .list()
+          .find((project) => pathKey(project.folder ?? project.worktree) === pathKey(folder))
         if (existing) {
-          ctx.projects.open(existing.worktree)
-          ctx.projects.touch(existing.worktree)
-          setSelection({ server: ServerConnection.key(conn), directory: existing.worktree })
+          const directory = existing.folder ?? existing.worktree
+          ctx.projects.open(directory)
+          ctx.projects.touch(directory)
+          setSelection({ server: ServerConnection.key(conn), directory })
           return
         }
         void ctx.sdk.client.v2.project
@@ -674,9 +677,10 @@ export function NewHome() {
           .then((response) => {
             if (!response.data) throw response.error
             ctx.projects.managed.set(response.data)
-            ctx.projects.open(response.data.worktree)
-            ctx.projects.touch(response.data.worktree)
-            setSelection({ server: ServerConnection.key(conn), directory: response.data.worktree })
+            const directory = response.data.folder ?? response.data.worktree
+            ctx.projects.open(directory)
+            ctx.projects.touch(directory)
+            setSelection({ server: ServerConnection.key(conn), directory })
           })
           .catch((error) =>
             showToast({
@@ -705,9 +709,10 @@ export function NewHome() {
           .then((response) => {
             if (!response.data) throw response.error
             ctx.projects.managed.set(response.data)
-            ctx.projects.replace(project.worktree, response.data.worktree)
+            const directory = response.data.folder ?? response.data.worktree
+            ctx.projects.replace(project.worktree, directory)
             if (selection().server === ServerConnection.key(conn) && selection().directory === project.worktree)
-              setSelection({ server: ServerConnection.key(conn), directory: response.data.worktree })
+              setSelection({ server: ServerConnection.key(conn), directory })
             void ctx.queryClient.invalidateQueries({ queryKey: ctx.sync.homeSessions.indexKey })
           })
           .catch((error) =>

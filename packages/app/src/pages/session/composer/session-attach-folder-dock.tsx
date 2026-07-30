@@ -57,7 +57,7 @@ export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSu
         if (!response.data) throw response.error
         context.projects.managed.set(response.data)
         await context.sync.session.resolve(props.request.sessionID, { force: true })
-        context.projects.replace(previous, response.data.worktree)
+        context.projects.replace(previous, response.data.folder ?? response.data.worktree)
         await context.queryClient.invalidateQueries({ queryKey: context.sync.homeSessions.indexKey })
         props.onSubmit()
         await questionClient.reply({ requestID: props.request.id, answers: [["Folder attached"]] })

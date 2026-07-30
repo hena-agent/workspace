@@ -2,9 +2,7 @@ import { makeDefaultApi } from "@hena/protocol/api"
 import { InvalidRequestError, SessionNotFoundError } from "@hena/protocol/errors"
 import { HttpApiMiddleware } from "effect/unstable/httpapi"
 
-class LocationMiddleware extends HttpApiMiddleware.Service<LocationMiddleware>()(
-  "@hena/client/LocationMiddleware",
-) {}
+class LocationMiddleware extends HttpApiMiddleware.Service<LocationMiddleware>()("@hena/client/LocationMiddleware") {}
 
 class SessionLocationMiddleware extends HttpApiMiddleware.Service<SessionLocationMiddleware>()(
   "@hena/client/SessionLocationMiddleware",
@@ -34,6 +32,7 @@ export const groupNames = {
   "server.pty": "ptys",
   "server.question": "questions",
   "server.reference": "references",
+  "server.project": "projects",
   "server.projectCopy": "projectCopies",
 } as const
 

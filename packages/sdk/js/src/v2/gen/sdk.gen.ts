@@ -131,6 +131,7 @@ import type {
   PermissionV2Reply,
   PermissionV2Source,
   ProjectCommands,
+  ProjectCreateInput,
   ProjectCurrentErrors,
   ProjectCurrentResponses,
   ProjectDirectoriesErrors,
@@ -140,6 +141,7 @@ import type {
   ProjectInitGitResponses,
   ProjectListErrors,
   ProjectListResponses,
+  ProjectName,
   ProjectUpdateErrors,
   ProjectUpdateResponses,
   PromptInput,
@@ -201,6 +203,7 @@ import type {
   SessionMessageResponses,
   SessionMessagesErrors,
   SessionMessagesResponses,
+  SessionMode,
   SessionPromptAsyncErrors,
   SessionPromptAsyncResponses,
   SessionPromptErrors,
@@ -305,12 +308,20 @@ import type {
   V2PermissionSavedListResponses,
   V2PermissionSavedRemoveErrors,
   V2PermissionSavedRemoveResponses,
+  V2ProjectAttachFolderErrors,
+  V2ProjectAttachFolderResponses,
   V2ProjectCopyCreateErrors,
   V2ProjectCopyCreateResponses,
   V2ProjectCopyRefreshErrors,
   V2ProjectCopyRefreshResponses,
   V2ProjectCopyRemoveErrors,
   V2ProjectCopyRemoveResponses,
+  V2ProjectCreateErrors,
+  V2ProjectCreateResponses,
+  V2ProjectGetErrors,
+  V2ProjectGetResponses,
+  V2ProjectListErrors,
+  V2ProjectListResponses,
   V2ProviderGetErrors,
   V2ProviderGetResponses,
   V2ProviderListErrors,
@@ -379,8 +390,10 @@ import type {
   V2SessionRevertStageResponses,
   V2SessionSwitchAgentErrors,
   V2SessionSwitchAgentResponses,
+  V2SessionSwitchModeErrors,
   V2SessionSwitchModelErrors,
   V2SessionSwitchModelResponses,
+  V2SessionSwitchModeResponses,
   V2SessionWaitErrors,
   V2SessionWaitResponses,
   V2SkillListErrors,
@@ -1198,7 +1211,7 @@ export class Workspace extends HeyApiClient {
     parameters?: {
       directory?: string
       workspace?: string
-      id?: string | null
+      id?: string | null | null
       sessionID?: string
       copyChanges?: boolean
     },
@@ -3419,6 +3432,7 @@ export class Session2 extends HeyApiClient {
         providerID: string
         variant?: string
       }
+      mode?: SessionMode
       metadata?: {
         [key: string]: unknown
       }
@@ -3438,6 +3452,7 @@ export class Session2 extends HeyApiClient {
             { in: "body", key: "title" },
             { in: "body", key: "agent" },
             { in: "body", key: "model" },
+            { in: "body", key: "mode" },
             { in: "body", key: "metadata" },
             { in: "body", key: "permission" },
             { in: "body", key: "workspaceID" },
@@ -5615,6 +5630,43 @@ export class Session3 extends HeyApiClient {
   }
 
   /**
+   * Switch session mode
+   *
+   * Switch the mode used by subsequent provider turns. Null restores the default coding mode.
+   */
+  public switchMode<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      mode?: SessionMode | null
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "body", key: "mode" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2SessionSwitchModeResponses, V2SessionSwitchModeErrors, ThrowOnError>(
+      {
+        url: "/api/session/{sessionID}/mode",
+        ...options,
+        ...params,
+        headers: {
+          "Content-Type": "application/json",
+          ...options?.headers,
+          ...params.headers,
+        },
+      },
+    )
+  }
+
+  /**
    * Send message
    *
    * Durably admit one session input and schedule agent-loop execution unless resume is false.
@@ -6871,6 +6923,94 @@ export class Reference extends HeyApiClient {
   }
 }
 
+export class Project2 extends HeyApiClient {
+  /**
+   * List projects
+   */
+  public list<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<V2ProjectListResponses, V2ProjectListErrors, ThrowOnError>({
+      url: "/api/project",
+      ...options,
+    })
+  }
+
+  /**
+   * Create project
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters: {
+      projectCreateInput: ProjectCreateInput
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ key: "projectCreateInput", map: "body" }] }])
+    return (options?.client ?? this.client).post<V2ProjectCreateResponses, V2ProjectCreateErrors, ThrowOnError>({
+      url: "/api/project",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Get project
+   */
+  public get<ThrowOnError extends boolean = false>(
+    parameters: {
+      projectID: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "projectID" }] }])
+    return (options?.client ?? this.client).get<V2ProjectGetResponses, V2ProjectGetErrors, ThrowOnError>({
+      url: "/api/project/{projectID}",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Attach project folder
+   */
+  public attachFolder<ThrowOnError extends boolean = false>(
+    parameters: {
+      projectID: string
+      folder?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "projectID" },
+            { in: "body", key: "folder" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).put<
+      V2ProjectAttachFolderResponses,
+      V2ProjectAttachFolderErrors,
+      ThrowOnError
+    >({
+      url: "/api/project/{projectID}/folder",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class ProjectCopy2 extends HeyApiClient {
   public remove<ThrowOnError extends boolean = false>(
     parameters: {
@@ -6920,7 +7060,7 @@ export class ProjectCopy2 extends HeyApiClient {
         directory?: string
         workspace?: string
       }
-      strategy?: string
+      strategy?: ProjectName
       directory?: string
       name?: string
     },
@@ -7066,6 +7206,11 @@ export class V2 extends HeyApiClient {
   private _reference?: Reference
   get reference(): Reference {
     return (this._reference ??= new Reference({ client: this.client }))
+  }
+
+  private _project?: Project2
+  get project(): Project2 {
+    return (this._project ??= new Project2({ client: this.client }))
   }
 
   private _projectCopy?: ProjectCopy2

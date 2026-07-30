@@ -94,6 +94,31 @@ export type QuestionNotFoundError = {
 export const isQuestionNotFoundError = (value: unknown): value is QuestionNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "QuestionNotFoundError"
 
+export type ProjectFolderConflictError = {
+  readonly _tag: "ProjectFolderConflictError"
+  readonly projectID: string
+  readonly folder?: string | undefined
+  readonly message: string
+}
+export const isProjectFolderConflictError = (value: unknown): value is ProjectFolderConflictError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectFolderConflictError"
+
+export type ProjectFolderInvalidError = {
+  readonly _tag: "ProjectFolderInvalidError"
+  readonly folder: string
+  readonly message: string
+}
+export const isProjectFolderInvalidError = (value: unknown): value is ProjectFolderInvalidError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectFolderInvalidError"
+
+export type ProjectNotFoundError = {
+  readonly _tag: "ProjectNotFoundError"
+  readonly projectID: string
+  readonly message: string
+}
+export const isProjectNotFoundError = (value: unknown): value is ProjectNotFoundError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectNotFoundError"
+
 export type ProjectCopyError = {
   readonly name: "ProjectCopyError"
   readonly data: { readonly message: string; readonly forceRequired?: boolean | undefined }
@@ -236,6 +261,7 @@ export type SessionsListOutput = {
     readonly id: string
     readonly parentID?: string
     readonly projectID: string
+    readonly mode?: "general-chat"
     readonly agent?: string
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
     readonly cost: number
@@ -298,6 +324,7 @@ export type SessionsCreateOutput = {
     readonly id: string
     readonly parentID?: string
     readonly projectID: string
+    readonly mode?: "general-chat"
     readonly agent?: string
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
     readonly cost: number
@@ -336,6 +363,7 @@ export type SessionsGetOutput = {
     readonly id: string
     readonly parentID?: string
     readonly projectID: string
+    readonly mode?: "general-chat"
     readonly agent?: string
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
     readonly cost: number
@@ -380,6 +408,13 @@ export type SessionsSwitchModelInput = {
 }
 
 export type SessionsSwitchModelOutput = void
+
+export type SessionsSwitchModeInput = {
+  readonly sessionID: { readonly sessionID: string }["sessionID"]
+  readonly mode: { readonly mode: "general-chat" | null }["mode"]
+}
+
+export type SessionsSwitchModeOutput = void
 
 export type SessionsPromptInput = {
   readonly sessionID: { readonly sessionID: string }["sessionID"]
@@ -709,6 +744,14 @@ export type SessionsHistoryOutput = {
           readonly messageID: string
           readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
         }
+      }
+    | {
+        readonly id: string
+        readonly metadata?: { readonly [x: string]: JsonValue }
+        readonly type: "session.next.mode.switched"
+        readonly durable?: { readonly aggregateID: string; readonly seq: number; readonly version: number }
+        readonly location?: { readonly directory: string; readonly workspaceID?: string }
+        readonly data: { readonly timestamp: number; readonly sessionID: string; readonly mode: "general-chat" | null }
       }
     | {
         readonly id: string
@@ -1167,6 +1210,14 @@ export type SessionsEventsOutput =
         readonly messageID: string
         readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
       }
+    }
+  | {
+      readonly id: string
+      readonly metadata?: { readonly [x: string]: unknown }
+      readonly type: "session.next.mode.switched"
+      readonly durable?: { readonly aggregateID: string; readonly seq: number; readonly version: number }
+      readonly location?: { readonly directory: string; readonly workspaceID?: string }
+      readonly data: { readonly timestamp: number; readonly sessionID: string; readonly mode: "general-chat" | null }
     }
   | {
       readonly id: string
@@ -2710,6 +2761,7 @@ export type QuestionsListRequestsOutput = {
       readonly custom?: boolean
     }>
     readonly tool?: { readonly messageID: string; readonly callID: string }
+    readonly action?: { readonly type: "attach-folder"; readonly projectID: string; readonly reason: string }
   }>
 }
 
@@ -2727,6 +2779,7 @@ export type QuestionsListOutput = {
       readonly custom?: boolean
     }>
     readonly tool?: { readonly messageID: string; readonly callID: string }
+    readonly action?: { readonly type: "attach-folder"; readonly projectID: string; readonly reason: string }
   }>
 }["data"]
 
@@ -2772,6 +2825,50 @@ export type ReferencesListOutput = {
           readonly hidden?: boolean
         }
   }>
+}
+
+export type ProjectsListOutput = ReadonlyArray<{
+  readonly id: string
+  readonly name: string
+  readonly worktree: string
+  readonly folder?: string
+  readonly time: { readonly created: number; readonly updated: number }
+}>
+
+export type ProjectsCreateInput = {
+  readonly name?: { readonly name?: string; readonly folder?: string }["name"]
+  readonly folder?: { readonly name?: string; readonly folder?: string }["folder"]
+}
+
+export type ProjectsCreateOutput = {
+  readonly id: string
+  readonly name: string
+  readonly worktree: string
+  readonly folder?: string
+  readonly time: { readonly created: number; readonly updated: number }
+}
+
+export type ProjectsGetInput = { readonly projectID: { readonly projectID: string }["projectID"] }
+
+export type ProjectsGetOutput = {
+  readonly id: string
+  readonly name: string
+  readonly worktree: string
+  readonly folder?: string
+  readonly time: { readonly created: number; readonly updated: number }
+}
+
+export type ProjectsAttachFolderInput = {
+  readonly projectID: { readonly projectID: string }["projectID"]
+  readonly folder: { readonly folder: string }["folder"]
+}
+
+export type ProjectsAttachFolderOutput = {
+  readonly id: string
+  readonly name: string
+  readonly worktree: string
+  readonly folder?: string
+  readonly time: { readonly created: number; readonly updated: number }
 }
 
 export type ProjectCopiesCreateInput = {

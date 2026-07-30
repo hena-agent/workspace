@@ -15,6 +15,8 @@ import type {
   SessionsSwitchAgentOutput,
   SessionsSwitchModelInput,
   SessionsSwitchModelOutput,
+  SessionsSwitchModeInput,
+  SessionsSwitchModeOutput,
   SessionsPromptInput,
   SessionsPromptOutput,
   SessionsCompactInput,
@@ -106,6 +108,13 @@ import type {
   QuestionsRejectOutput,
   ReferencesListInput,
   ReferencesListOutput,
+  ProjectsListOutput,
+  ProjectsCreateInput,
+  ProjectsCreateOutput,
+  ProjectsGetInput,
+  ProjectsGetOutput,
+  ProjectsAttachFolderInput,
+  ProjectsAttachFolderOutput,
   ProjectCopiesCreateInput,
   ProjectCopiesCreateOutput,
   ProjectCopiesRemoveInput,
@@ -361,6 +370,18 @@ export function make(options: ClientOptions) {
             method: "POST",
             path: `/api/session/${encodeURIComponent(input.sessionID)}/model`,
             body: { model: input["model"] },
+            successStatus: 204,
+            declaredStatuses: [404, 400, 401],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      switchMode: (input: SessionsSwitchModeInput, requestOptions?: RequestOptions) =>
+        request<SessionsSwitchModeOutput>(
+          {
+            method: "POST",
+            path: `/api/session/${encodeURIComponent(input.sessionID)}/mode`,
+            body: { mode: input["mode"] },
             successStatus: 204,
             declaredStatuses: [404, 400, 401],
             empty: true,
@@ -942,6 +963,48 @@ export function make(options: ClientOptions) {
             query: { location: input?.["location"] },
             successStatus: 200,
             declaredStatuses: [401, 400],
+            empty: false,
+          },
+          requestOptions,
+        ),
+    },
+    projects: {
+      list: (requestOptions?: RequestOptions) =>
+        request<ProjectsListOutput>(
+          { method: "GET", path: `/api/project`, successStatus: 200, declaredStatuses: [401, 400], empty: false },
+          requestOptions,
+        ),
+      create: (input?: ProjectsCreateInput, requestOptions?: RequestOptions) =>
+        request<ProjectsCreateOutput>(
+          {
+            method: "POST",
+            path: `/api/project`,
+            body: { name: input?.["name"], folder: input?.["folder"] },
+            successStatus: 200,
+            declaredStatuses: [409, 400, 401],
+            empty: false,
+          },
+          requestOptions,
+        ),
+      get: (input: ProjectsGetInput, requestOptions?: RequestOptions) =>
+        request<ProjectsGetOutput>(
+          {
+            method: "GET",
+            path: `/api/project/${encodeURIComponent(input.projectID)}`,
+            successStatus: 200,
+            declaredStatuses: [404, 401, 400],
+            empty: false,
+          },
+          requestOptions,
+        ),
+      attachFolder: (input: ProjectsAttachFolderInput, requestOptions?: RequestOptions) =>
+        request<ProjectsAttachFolderOutput>(
+          {
+            method: "PUT",
+            path: `/api/project/${encodeURIComponent(input.projectID)}/folder`,
+            body: { folder: input["folder"] },
+            successStatus: 200,
+            declaredStatuses: [404, 409, 400, 401],
             empty: false,
           },
           requestOptions,

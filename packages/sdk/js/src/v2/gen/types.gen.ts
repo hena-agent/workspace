@@ -18,6 +18,7 @@ export type Event =
   | EventMessagePartRemoved
   | EventSessionNextAgentSwitched
   | EventSessionNextModelSwitched
+  | EventSessionNextModeSwitched
   | EventSessionNextMoved
   | EventSessionNextPrompted
   | EventSessionNextPromptAdmitted
@@ -171,6 +172,7 @@ export type Session = {
   id: string
   slug: string
   projectID: string
+  mode?: SessionMode
   workspaceID?: string
   directory: string
   path?: string
@@ -725,6 +727,12 @@ export type QuestionTool = {
   callID: string
 }
 
+export type QuestionAction = {
+  type: "attach-folder"
+  projectID: string
+  reason: string
+}
+
 export type QuestionAnswer = Array<string>
 
 export type GlobalEvent = {
@@ -836,6 +844,15 @@ export type GlobalEvent = {
           sessionID: string
           messageID: string
           model: ModelRef
+        }
+      }
+    | {
+        id: string
+        type: "session.next.mode.switched"
+        properties: {
+          timestamp: number
+          sessionID: string
+          mode: SessionMode | null
         }
       }
     | {
@@ -1339,6 +1356,7 @@ export type GlobalEvent = {
            */
           questions: Array<QuestionV2Info>
           tool?: QuestionV2Tool
+          action?: QuestionV2Action
         }
       }
     | {
@@ -1516,6 +1534,7 @@ export type GlobalEvent = {
            */
           questions: Array<QuestionInfo>
           tool?: QuestionTool
+          action?: QuestionAction
         }
       }
     | {
@@ -1610,6 +1629,7 @@ export type GlobalEvent = {
     | SyncEventMessagePartRemoved
     | SyncEventSessionNextAgentSwitched
     | SyncEventSessionNextModelSwitched
+    | SyncEventSessionNextModeSwitched
     | SyncEventSessionNextMoved
     | SyncEventSessionNextPrompted
     | SyncEventSessionNextPromptAdmitted
@@ -2192,6 +2212,7 @@ export type GlobalSession = {
   id: string
   slug: string
   projectID: string
+  mode?: SessionMode
   workspaceID?: string
   directory: string
   path?: string
@@ -2453,6 +2474,7 @@ export type QuestionRequest = {
    */
   questions: Array<QuestionInfo>
   tool?: QuestionTool
+  action?: QuestionAction
 }
 
 export type QuestionNotFoundError = {
@@ -2735,6 +2757,7 @@ export type UnknownError1 = {
 export type SessionDurableEvent =
   | SessionNextAgentSwitched
   | SessionNextModelSwitched
+  | SessionNextModeSwitched
   | SessionNextMoved
   | SessionNextPrompted
   | SessionNextPromptAdmitted
@@ -2862,6 +2885,7 @@ export type V2Event =
   | MessagePartRemoved
   | SessionNextAgentSwitched
   | SessionNextModelSwitched
+  | SessionNextModeSwitched
   | SessionNextMoved
   | SessionNextPrompted
   | SessionNextPromptAdmitted
@@ -2942,6 +2966,19 @@ export type V2EventStream = string
 
 export type ForbiddenError = {
   _tag: "ForbiddenError"
+  message: string
+}
+
+export type ProjectFolderConflictError = {
+  _tag: "ProjectFolderConflictError"
+  projectID: string
+  folder?: string
+  message: string
+}
+
+export type ProjectFolderInvalidError = {
+  _tag: "ProjectFolderInvalidError"
+  folder: string
   message: string
 }
 
@@ -3030,6 +3067,8 @@ export type SkillV2Source = SkillV2DirectorySource | SkillV2UrlSource | SkillV2E
 export type MoveSessionDestination = {
   directory: string
 }
+
+export type SessionMode = "general-chat"
 
 export type ModelRef = {
   id: string
@@ -3154,6 +3193,12 @@ export type QuestionV2Info = {
 export type QuestionV2Tool = {
   messageID: string
   callID: string
+}
+
+export type QuestionV2Action = {
+  type: "attach-folder"
+  projectID: string
+  reason: string
 }
 
 export type QuestionV2Answer = Array<string>
@@ -3324,6 +3369,22 @@ export type SyncEventSessionNextModelSwitched = {
       sessionID: string
       messageID: string
       model: ModelRef
+    }
+  }
+}
+
+export type SyncEventSessionNextModeSwitched = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.mode.switched.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      mode: SessionMode | null
     }
   }
 }
@@ -3902,6 +3963,7 @@ export type SessionV2Info = {
   id: string
   parentID?: string
   projectID: string
+  mode?: SessionMode
   agent?: string
   model?: ModelRef
   cost: number
@@ -4195,6 +4257,25 @@ export type SessionNextModelSwitched = {
     sessionID: string
     messageID: string
     model: ModelRef
+  }
+}
+
+export type SessionNextModeSwitched = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "session.next.mode.switched"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    timestamp: number
+    sessionID: string
+    mode: SessionMode | null
   }
 }
 
@@ -5614,6 +5695,7 @@ export type QuestionV2Asked = {
      */
     questions: Array<QuestionV2Info>
     tool?: QuestionV2Tool
+    action?: QuestionV2Action
   }
 }
 
@@ -5943,6 +6025,7 @@ export type QuestionAsked = {
      */
     questions: Array<QuestionInfo>
     tool?: QuestionTool
+    action?: QuestionAction
   }
 }
 
@@ -6109,6 +6192,7 @@ export type QuestionV2Request = {
    */
   questions: Array<QuestionV2Info>
   tool?: QuestionV2Tool
+  action?: QuestionV2Action
 }
 
 export type QuestionV2Reply = {
@@ -6141,6 +6225,24 @@ export type ReferenceInfo = {
   description?: string
   hidden?: boolean
   source: ReferenceSource
+}
+
+export type ProjectName = string
+
+export type ProjectManagedInfo = {
+  id: string
+  name: ProjectName
+  worktree: string
+  folder?: string
+  time: {
+    created: number
+    updated: number
+  }
+}
+
+export type ProjectCreateInput = {
+  name?: string
+  folder?: string
 }
 
 export type ProjectCopyCopy = {
@@ -6263,6 +6365,16 @@ export type EventSessionNextModelSwitched = {
     sessionID: string
     messageID: string
     model: ModelRef
+  }
+}
+
+export type EventSessionNextModeSwitched = {
+  id: string
+  type: "session.next.mode.switched"
+  properties: {
+    timestamp: number
+    sessionID: string
+    mode: SessionMode | null
   }
 }
 
@@ -6813,6 +6925,7 @@ export type EventQuestionV2Asked = {
      */
     questions: Array<QuestionV2Info>
     tool?: QuestionV2Tool
+    action?: QuestionV2Action
   }
 }
 
@@ -6952,6 +7065,7 @@ export type EventQuestionAsked = {
      */
     questions: Array<QuestionInfo>
     tool?: QuestionTool
+    action?: QuestionAction
   }
 }
 
@@ -9391,7 +9505,7 @@ export type ProviderOauthAuthorizeResponses = {
   /**
    * Authorization URL and method
    */
-  200: ProviderAuthAuthorization
+  200: ProviderAuthAuthorization | null
 }
 
 export type ProviderOauthAuthorizeResponse = ProviderOauthAuthorizeResponses[keyof ProviderOauthAuthorizeResponses]
@@ -9476,6 +9590,7 @@ export type SessionCreateData = {
       providerID: string
       variant?: string
     }
+    mode?: SessionMode
     metadata?: {
       [key: string]: unknown
     }
@@ -11180,7 +11295,7 @@ export type ExperimentalWorkspaceRemoveResponses = {
   /**
    * Workspace removed
    */
-  200: Workspace
+  200: Workspace | null
 }
 
 export type ExperimentalWorkspaceRemoveResponse =
@@ -11188,7 +11303,7 @@ export type ExperimentalWorkspaceRemoveResponse =
 
 export type ExperimentalWorkspaceWarpData = {
   body?: {
-    id: string | null
+    id: string | null | null
     sessionID: string
     copyChanges?: boolean
   }
@@ -11546,6 +11661,43 @@ export type V2SessionSwitchModelResponses = {
 
 export type V2SessionSwitchModelResponse = V2SessionSwitchModelResponses[keyof V2SessionSwitchModelResponses]
 
+export type V2SessionSwitchModeData = {
+  body: {
+    mode: SessionMode | null
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/mode"
+}
+
+export type V2SessionSwitchModeErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+}
+
+export type V2SessionSwitchModeError = V2SessionSwitchModeErrors[keyof V2SessionSwitchModeErrors]
+
+export type V2SessionSwitchModeResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2SessionSwitchModeResponse = V2SessionSwitchModeResponses[keyof V2SessionSwitchModeResponses]
+
 export type V2SessionPromptData = {
   body: {
     id?: string
@@ -11900,7 +12052,7 @@ export type V2SessionEventsResponses = {
    * Success
    */
   200: {
-    id: string
+    id: string | null
     event: string
     data: SessionDurableEventStream
   }
@@ -12226,7 +12378,7 @@ export type V2IntegrationGetResponses = {
    */
   200: {
     location: LocationInfo
-    data: IntegrationInfo
+    data: IntegrationInfo | null
   }
 }
 
@@ -13478,6 +13630,144 @@ export type V2ReferenceListResponses = {
 
 export type V2ReferenceListResponse = V2ReferenceListResponses[keyof V2ReferenceListResponses]
 
+export type V2ProjectListData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/project"
+}
+
+export type V2ProjectListErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+}
+
+export type V2ProjectListError = V2ProjectListErrors[keyof V2ProjectListErrors]
+
+export type V2ProjectListResponses = {
+  /**
+   * Success
+   */
+  200: Array<ProjectManagedInfo>
+}
+
+export type V2ProjectListResponse = V2ProjectListResponses[keyof V2ProjectListResponses]
+
+export type V2ProjectCreateData = {
+  body: ProjectCreateInput
+  path?: never
+  query?: never
+  url: "/api/project"
+}
+
+export type V2ProjectCreateErrors = {
+  /**
+   * ProjectFolderInvalidError | InvalidRequestError
+   */
+  400: ProjectFolderInvalidError | InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ProjectFolderConflictError
+   */
+  409: ProjectFolderConflictError
+}
+
+export type V2ProjectCreateError = V2ProjectCreateErrors[keyof V2ProjectCreateErrors]
+
+export type V2ProjectCreateResponses = {
+  /**
+   * Project.ManagedInfo
+   */
+  200: ProjectManagedInfo
+}
+
+export type V2ProjectCreateResponse = V2ProjectCreateResponses[keyof V2ProjectCreateResponses]
+
+export type V2ProjectGetData = {
+  body?: never
+  path: {
+    projectID: string
+  }
+  query?: never
+  url: "/api/project/{projectID}"
+}
+
+export type V2ProjectGetErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
+}
+
+export type V2ProjectGetError = V2ProjectGetErrors[keyof V2ProjectGetErrors]
+
+export type V2ProjectGetResponses = {
+  /**
+   * Project.ManagedInfo
+   */
+  200: ProjectManagedInfo
+}
+
+export type V2ProjectGetResponse = V2ProjectGetResponses[keyof V2ProjectGetResponses]
+
+export type V2ProjectAttachFolderData = {
+  body: {
+    folder: string
+  }
+  path: {
+    projectID: string
+  }
+  query?: never
+  url: "/api/project/{projectID}/folder"
+}
+
+export type V2ProjectAttachFolderErrors = {
+  /**
+   * ProjectFolderInvalidError | InvalidRequestError
+   */
+  400: ProjectFolderInvalidError | InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
+  /**
+   * ProjectFolderConflictError
+   */
+  409: ProjectFolderConflictError
+}
+
+export type V2ProjectAttachFolderError = V2ProjectAttachFolderErrors[keyof V2ProjectAttachFolderErrors]
+
+export type V2ProjectAttachFolderResponses = {
+  /**
+   * Project.ManagedInfo
+   */
+  200: ProjectManagedInfo
+}
+
+export type V2ProjectAttachFolderResponse = V2ProjectAttachFolderResponses[keyof V2ProjectAttachFolderResponses]
+
 export type V2ProjectCopyRemoveData = {
   body?: {
     directory: string
@@ -13515,7 +13805,7 @@ export type V2ProjectCopyRemoveResponse = V2ProjectCopyRemoveResponses[keyof V2P
 
 export type V2ProjectCopyCreateData = {
   body?: {
-    strategy: string
+    strategy: ProjectName
     directory: string
     name?: string
   }

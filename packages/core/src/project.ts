@@ -1,7 +1,7 @@
 export * as ProjectV2 from "./project"
 export * as Project from "./project"
 
-import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm"
+import { and, desc, eq, isNull, ne } from "drizzle-orm"
 import { Cause, Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import { isSqlError } from "effect/unstable/sql/SqlError"
 import path from "path"
@@ -11,7 +11,6 @@ import { FSUtil } from "./fs-util"
 import { Git } from "./git"
 import { Global } from "./global"
 import { makeGlobalNode } from "./effect/app-node"
-import { SessionContextEpochTable, SessionTable } from "./session/sql"
 import { Hash } from "./util/hash"
 import { ProjectDirectories } from "./project/directories"
 import { ProjectSchema } from "./project/schema"
@@ -70,10 +69,13 @@ export interface Interface {
     readonly name?: string
     readonly folder?: string
   }) => Effect.Effect<ManagedInfo, InvalidNameError | InvalidFolderError | FolderConflictError>
-  readonly attachFolder: (input: {
-    readonly projectID: ID
-    readonly folder: string
-  }) => Effect.Effect<ManagedInfo, NotFoundError | InvalidFolderError | FolderConflictError>
+  readonly attachFolder: (
+    input: {
+      readonly projectID: ID
+      readonly folder: string
+    },
+    transaction?: Database.Transaction,
+  ) => Effect.Effect<ManagedInfo, NotFoundError | InvalidFolderError | FolderConflictError>
   readonly directories: (input: DirectoriesInput) => Effect.Effect<Directories>
   readonly resolve: (input: AbsolutePath) => Effect.Effect<Resolved>
   /**
@@ -103,7 +105,7 @@ const layer = Layer.effect(
       ProjectSchema.ManagedInfo.make({
         id: row.id,
         name: ProjectSchema.Name.make(row.name!),
-        worktree: row.folder ?? row.worktree,
+        worktree: row.worktree,
         folder: row.folder ?? undefined,
         time: {
           created: DateTime.makeUnsafe(row.time_created),
@@ -154,8 +156,9 @@ const layer = Layer.effect(
           .pipe(Effect.orDie)
         if (used) return yield* new FolderConflictError({ projectID: used.projectID, folder })
       }
-      const worktree = AbsolutePath.make(path.join(global.data, "projects", id))
-      yield* fs.makeDirectory(worktree, { recursive: true, mode: 0o700 }).pipe(Effect.orDie)
+      const scratch = path.join(global.data, "projects", id)
+      yield* fs.makeDirectory(scratch, { recursive: true, mode: 0o700 }).pipe(Effect.orDie)
+      const worktree = AbsolutePath.make(yield* fs.resolve(scratch))
       if (process.platform !== "win32") yield* fs.chmod(worktree, 0o700).pipe(Effect.orDie)
       const row = yield* db
         .insert(ProjectTable)
@@ -187,75 +190,43 @@ const layer = Layer.effect(
       return fromRow(row)
     })
 
-    const attachFolder = Effect.fn("Project.attachFolder")(function* (input: {
-      readonly projectID: ID
-      readonly folder: string
-    }) {
+    const attachFolder = Effect.fn("Project.attachFolder")(function* (
+      input: { readonly projectID: ID; readonly folder: string },
+      transaction?: Database.Transaction,
+    ) {
       const folder = yield* resolveFolder(input.folder)
+      const attach = (tx: Database.Transaction) =>
+        Effect.gen(function* () {
+          const row = yield* tx
+            .select()
+            .from(ProjectTable)
+            .where(and(eq(ProjectTable.id, input.projectID), eq(ProjectTable.managed, true)))
+            .get()
+            .pipe(Effect.orDie)
+          if (!row) return yield* new NotFoundError({ projectID: input.projectID })
+          if (row.folder) return yield* new FolderConflictError({ projectID: input.projectID, folder: row.folder })
 
-      return yield* db
-        .transaction((tx) =>
-          Effect.gen(function* () {
-            const row = yield* tx
-              .select()
-              .from(ProjectTable)
-              .where(and(eq(ProjectTable.id, input.projectID), eq(ProjectTable.managed, true)))
-              .get()
-              .pipe(Effect.orDie)
-            if (!row) return yield* new NotFoundError({ projectID: input.projectID })
-            if (row.folder) return yield* new FolderConflictError({ projectID: input.projectID, folder: row.folder })
+          const used = yield* tx
+            .select({ projectID: ProjectTable.id })
+            .from(ProjectTable)
+            .where(and(eq(ProjectTable.folder, folder), ne(ProjectTable.id, input.projectID)))
+            .get()
+            .pipe(Effect.orDie)
+          if (used) return yield* new FolderConflictError({ projectID: input.projectID, folder })
 
-            const used = yield* tx
-              .select({ projectID: ProjectTable.id })
-              .from(ProjectTable)
-              .where(and(eq(ProjectTable.folder, folder), ne(ProjectTable.id, input.projectID)))
-              .get()
-              .pipe(Effect.orDie)
-            if (used) return yield* new FolderConflictError({ projectID: input.projectID, folder })
-
-            const now = Date.now()
-            const updated = yield* tx
-              .update(ProjectTable)
-              .set({ folder, time_updated: now })
-              .where(and(eq(ProjectTable.id, input.projectID), isNull(ProjectTable.folder)))
-              .returning()
-              .get()
-              .pipe(Effect.orDie)
-            if (!updated) return yield* new FolderConflictError({ projectID: input.projectID })
-
-            // Transitional direct projection update: Project cannot publish Session events without an Event/Project cycle.
-            const sessions = yield* tx
-              .select({ id: SessionTable.id, directory: SessionTable.directory })
-              .from(SessionTable)
-              .where(eq(SessionTable.project_id, input.projectID))
-              .all()
-              .pipe(Effect.orDie)
-            yield* Effect.forEach(sessions, (session) => {
-              const directory = inside(row.worktree, session.directory)
-                ? AbsolutePath.make(path.join(folder, path.relative(row.worktree, session.directory)))
-                : session.directory
-              return tx
-                .update(SessionTable)
-                .set({ directory, mode: null, time_updated: now })
-                .where(eq(SessionTable.id, session.id))
-                .run()
-                .pipe(Effect.orDie)
-            })
-            if (sessions.length > 0)
-              yield* tx
-                .delete(SessionContextEpochTable)
-                .where(
-                  inArray(
-                    SessionContextEpochTable.session_id,
-                    sessions.map((session) => session.id),
-                  ),
-                )
-                .run()
-                .pipe(Effect.orDie)
-            return fromRow(updated)
-          }),
-        )
-        .pipe(Effect.catchTag("SqlError", Effect.die))
+          const updated = yield* tx
+            .update(ProjectTable)
+            .set({ folder, time_updated: Date.now() })
+            .where(and(eq(ProjectTable.id, input.projectID), isNull(ProjectTable.folder)))
+            .returning()
+            .get()
+            .pipe(Effect.orDie)
+          if (!updated) return yield* new FolderConflictError({ projectID: input.projectID })
+          return fromRow(updated)
+        })
+      return yield* (transaction ? attach(transaction) : db.transaction(attach)).pipe(
+        Effect.catchTag("SqlError", Effect.die),
+      )
     })
 
     const directories = Effect.fn("Project.directories")(function* (input: DirectoriesInput) {

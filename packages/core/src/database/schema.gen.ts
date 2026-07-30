@@ -184,7 +184,6 @@ export default {
         CREATE TABLE \`session\` (
           \`id\` text PRIMARY KEY,
           \`project_id\` text NOT NULL,
-          \`mode\` text,
           \`workspace_id\` text,
           \`parent_id\` text,
           \`slug\` text NOT NULL,

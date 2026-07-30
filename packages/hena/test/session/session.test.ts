@@ -17,8 +17,6 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 import { InstanceStore } from "@/project/instance-store"
 import { InstanceBootstrap } from "@/project/bootstrap"
 import { Database } from "@hena/core/database/database"
-import { ProjectTable } from "@hena/core/project/sql"
-import { InstanceState } from "@/effect/instance-state"
 import { eq } from "drizzle-orm"
 
 const it = testEffect(
@@ -211,24 +209,6 @@ describe("step-finish token propagation via event", () => {
 })
 
 describe("Session", () => {
-  it.instance("defaults sessions in managed folderless projects to general chat mode", () =>
-    Effect.gen(function* () {
-      const session = yield* SessionNs.Service
-      const ctx = yield* InstanceState.context
-      const db = (yield* Database.Service).db
-      yield* db
-        .update(ProjectTable)
-        .set({ managed: true, name: "Chat project", folder: null })
-        .where(eq(ProjectTable.id, ctx.project.id))
-        .run()
-        .pipe(Effect.orDie)
-
-      const info = yield* session.create({})
-      expect(info.mode).toBe("general-chat")
-      yield* session.remove(info.id)
-    }),
-  )
-
   it.live("remove works without an instance", () =>
     Effect.gen(function* () {
       const session = yield* SessionNs.Service

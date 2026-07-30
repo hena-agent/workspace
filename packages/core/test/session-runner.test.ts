@@ -292,7 +292,7 @@ const sessionID = SessionV2.ID.make("ses_runner_test")
 const otherSessionID = SessionV2.ID.make("ses_runner_other")
 const generalChatSessionID = SessionV2.ID.make("ses_runner_general_chat")
 
-const insertSession = (id: SessionV2.ID, mode?: "general-chat") =>
+const insertSession = (id: SessionV2.ID) =>
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     yield* db
@@ -304,7 +304,6 @@ const insertSession = (id: SessionV2.ID, mode?: "general-chat") =>
         directory: "/project",
         title: "test",
         version: "test",
-        mode,
       })
       .onConflictDoNothing()
       .run()
@@ -660,7 +659,14 @@ describe("SessionRunnerLLM", () => {
   it.effect("limits general chat provider requests to the safe tool set", () =>
     Effect.gen(function* () {
       yield* setup
-      yield* insertSession(generalChatSessionID, "general-chat")
+      const db = (yield* Database.Service).db
+      yield* db
+        .update(ProjectTable)
+        .set({ managed: true, name: "Chat project", folder: null })
+        .where(eq(ProjectTable.id, Project.ID.global))
+        .run()
+        .pipe(Effect.orDie)
+      yield* insertSession(generalChatSessionID)
       const session = yield* SessionV2.Service
       yield* session.prompt({
         sessionID: generalChatSessionID,

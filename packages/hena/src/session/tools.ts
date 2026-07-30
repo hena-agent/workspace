@@ -23,7 +23,7 @@ import { ProviderV2 } from "@hena/core/provider"
 import { ModelV2 } from "@hena/core/model"
 import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
-import { SessionMode } from "@hena/core/session/mode"
+import { GeneralChat } from "./general-chat"
 
 const MCP_RESOURCE_TOOLS = {
   list: "list_mcp_resources",
@@ -47,6 +47,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   bypassAgentCheck: boolean
   messages: SessionV1.WithParts[]
   promptOps: TaskPromptOps
+  generalChat: boolean
 }) {
   const tools: Record<string, AITool> = {}
   const run = yield* EffectBridge.make()
@@ -56,7 +57,10 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   const mcp = yield* MCP.Service
   const truncate = yield* Truncate.Service
   const flags = yield* RuntimeFlags.Service
-  const toolNames = SessionMode.toolNames(input.session.mode)
+  const ruleset = GeneralChat.permissions(
+    input.generalChat,
+    Permission.merge(input.agent.permission, input.session.permission ?? []),
+  )
 
   const context = (args: Record<string, unknown>, options: ToolExecutionOptions): Tool.Context => ({
     sessionID: input.session.id,
@@ -86,18 +90,20 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
           ...req,
           sessionID: input.session.id,
           tool: { messageID: input.processor.message.id, callID: options.toolCallId },
-          ruleset: Permission.merge(input.agent.permission, input.session.permission ?? []),
+          ruleset,
         })
         .pipe(Effect.orDie),
   })
 
-  for (const item of yield* registry.tools({
+  const registered = yield* registry.tools({
     modelID: ModelV2.ID.make(input.model.api.id),
     providerID: input.model.providerID,
     agent: input.agent,
-    permission: input.session.permission,
-  })) {
-    if (toolNames && !toolNames.has(item.id)) continue
+    permission: ruleset,
+  })
+  for (const item of Object.values(
+    Permission.visibleTools(Object.fromEntries(registered.map((item) => [item.id, item])), ruleset),
+  )) {
     const schema = ProviderTransform.schema(input.model, ToolJsonSchema.fromTool(item))
     tools[item.id] = tool({
       description: item.description,
@@ -135,8 +141,6 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
       },
     })
   }
-
-  if (toolNames) return tools
 
   const hasMcpResourceServer = Object.values(yield* mcp.clients()).some(
     (client) => !!client.getServerCapabilities()?.resources,
@@ -390,7 +394,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     })
   }
 
-  if (flags.experimentalCodeMode) return tools
+  if (flags.experimentalCodeMode) return Permission.visibleTools(tools, ruleset)
 
   for (const [key, entry] of Object.entries(yield* mcp.tools())) {
     const item = McpCatalog.convertTool(entry.def, entry.client, entry.timeout)
@@ -494,7 +498,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     tools[key] = item
   }
 
-  return tools
+  return Permission.visibleTools(tools, ruleset)
 })
 
 function toRecord(value: unknown) {

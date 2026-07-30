@@ -149,19 +149,6 @@ describe("PublicApi OpenAPI v2 errors", () => {
     }
   })
 
-  test("preserves explicit null in required session mode contracts", () => {
-    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
-    const body = spec.paths["/api/session/{sessionID}/mode"]?.post?.requestBody?.content?.["application/json"]?.schema
-    const payload = body?.$ref ? spec.components.schemas[componentName(body.$ref)] : body
-    const event = Object.values(spec.components.schemas).find((schema) =>
-      schema.properties?.type?.enum?.includes("session.next.mode.switched"),
-    )
-
-    expect(payload?.required).toContain("mode")
-    expect(payload?.properties?.mode?.anyOf).toContainEqual({ type: "null" })
-    expect(event?.properties?.data?.properties?.mode?.anyOf).toContainEqual({ type: "null" })
-  })
-
   test("documents integration discovery and connection routes", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
 

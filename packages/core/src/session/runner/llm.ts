@@ -12,6 +12,7 @@ import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } f
 import { AgentV2 } from "../../agent"
 import { Config } from "../../config"
 import { Database } from "../../database/database"
+import { ProjectTable } from "../../project/sql"
 import { EventV2 } from "../../event"
 import { Location } from "../../location"
 import { ModelV2 } from "../../model"
@@ -20,7 +21,7 @@ import { ProviderV2 } from "../../provider"
 import { QuestionV2 } from "../../question"
 import { SystemContext } from "../../system-context/index"
 import { SystemContextRegistry } from "../../system-context/registry"
-import { SessionMode } from "../mode"
+import { GeneralChat } from "../general-chat"
 import { SkillGuidance } from "../../skill/guidance"
 import { ReferenceGuidance } from "../../reference/guidance"
 import { ToolRegistry } from "../../tool/registry"
@@ -40,6 +41,7 @@ import { MAX_STEPS_PROMPT } from "./max-steps"
 import { Snapshot } from "../../snapshot"
 import { makeLocationNode } from "../../effect/app-node"
 import { llmClient } from "../../effect/app-node-platform"
+import { eq } from "drizzle-orm"
 
 /**
  * Runs one durable coding-agent Session until it settles.
@@ -201,14 +203,21 @@ const layer = Layer.effect(
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
+      const project = yield* db
+        .select({ managed: ProjectTable.managed, folder: ProjectTable.folder })
+        .from(ProjectTable)
+        .where(eq(ProjectTable.id, session.projectID))
+        .get()
+        .pipe(Effect.orDie)
+      const generalChat = project?.managed === true && !project.folder
       const toolMaterialization = isLastStep
         ? undefined
-        : yield* tools.materialize(agent.info?.permissions, SessionMode.toolNames(session.mode))
+        : yield* tools.materialize(GeneralChat.permissions(generalChat, agent.info?.permissions))
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
         model,
         providerOptions: { openai: { promptCacheKey } },
-        system: [...SessionMode.system(session.mode, agent.info?.system ? [agent.info.system] : []), system.baseline]
+        system: [...GeneralChat.system(generalChat, agent.info?.system ? [agent.info.system] : []), system.baseline]
           .filter((part): part is string => part !== undefined && part.length > 0)
           .map(SystemPart.make),
         messages: [...toLLMMessages(context, model), ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : [])],

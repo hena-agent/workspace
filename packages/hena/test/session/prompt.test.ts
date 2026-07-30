@@ -27,6 +27,7 @@ import { Question } from "../../src/question"
 import { Todo } from "../../src/session/todo"
 import { Session } from "@/session/session"
 import { SessionMessageTable } from "@hena/core/session/sql"
+import { ProjectTable } from "@hena/core/project/sql"
 import { LLM } from "../../src/session/llm"
 import { MessageV2 } from "../../src/session/message-v2"
 import { FSUtil } from "@hena/core/fs-util"
@@ -53,7 +54,8 @@ import { Format } from "../../src/format"
 import { TestInstance } from "../fixture/fixture"
 import { awaitWithTimeout, pollWithTimeout, testEffect } from "../lib/effect"
 import { reply, TestLLMServer } from "../lib/llm-server"
-import { SessionMode } from "@hena/core/session/mode"
+import { GeneralChat } from "@/session/general-chat"
+import { InstanceState } from "@/effect/instance-state"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@hena/core/provider"
 import { ModelV2 } from "@hena/core/model"
@@ -522,7 +524,15 @@ it.instance(
       const { llm } = yield* useServerConfig(providerCfg)
       const prompt = yield* SessionPrompt.Service
       const sessions = yield* Session.Service
-      const chat = yield* sessions.create({ title: "Chat mode", mode: "general-chat" })
+      const instance = yield* InstanceState.context
+      const db = (yield* Database.Service).db
+      yield* db
+        .update(ProjectTable)
+        .set({ managed: true, name: "Chat project", folder: null })
+        .where(eq(ProjectTable.id, instance.project.id))
+        .run()
+        .pipe(Effect.orDie)
+      const chat = yield* sessions.create({ title: "Chat mode" })
       yield* prompt.prompt({
         sessionID: chat.id,
         agent: "build",
@@ -533,7 +543,7 @@ it.instance(
 
       yield* prompt.loop({ sessionID: chat.id })
       const body = JSON.stringify((yield* llm.hits)[0]?.body)
-      expect(body).toContain(SessionMode.GENERAL_CHAT_SYSTEM.split("\n")[0])
+      expect(body).toContain(GeneralChat.GENERAL_CHAT_SYSTEM.split("\n")[0])
       expect(body).not.toContain("best coding agent")
       expect(body).toContain('"name":"webfetch"')
       expect(body).not.toContain('"name":"shell"')

@@ -39,7 +39,7 @@ describe("v2 project HttpApi", () => {
     try {
       expect(created.name).toBe(Project.Name.make(path.basename(folder.path)))
       expect(String(created.folder)).toBe(folder.path)
-      expect(String(created.worktree)).toBe(folder.path)
+      expect(String(created.worktree)).not.toBe(folder.path)
 
       const duplicate = await request("/api/project", {
         method: "POST",
@@ -65,6 +65,14 @@ describe("v2 project HttpApi", () => {
       expect(created.folder).toBeUndefined()
       expect(path.isAbsolute(created.worktree)).toBe(true)
 
+      const sessionResponse = await request("/api/session", {
+        method: "POST",
+        body: JSON.stringify({ location: { directory: created.worktree } }),
+      })
+      expect(sessionResponse.status).toBe(200)
+      const session = Schema.decodeUnknownSync(Schema.Struct({ data: Session.Info }))(await sessionResponse.json()).data
+      expect(session.projectID).toBe(created.id)
+
       const attachedResponse = await request(`/api/project/${created.id}/folder`, {
         method: "PUT",
         body: JSON.stringify({ folder: folder.path }),
@@ -73,7 +81,12 @@ describe("v2 project HttpApi", () => {
       const attached = Schema.decodeUnknownSync(Project.ManagedInfo)(await attachedResponse.json())
       expect(attached.id).toBe(created.id)
       expect(attached.name).toBe(created.name)
+      expect(attached.worktree).toBe(created.worktree)
       expect(String(attached.folder)).toBe(folder.path)
+      const movedResponse = await request(`/api/session/${session.id}`)
+      const moved = Schema.decodeUnknownSync(Schema.Struct({ data: Session.Info }))(await movedResponse.json()).data
+      expect(moved.projectID).toBe(created.id)
+      expect(String(moved.location.directory)).toBe(folder.path)
 
       const conflict = await request(`/api/project/${created.id}/folder`, {
         method: "PUT",
@@ -90,43 +103,4 @@ describe("v2 project HttpApi", () => {
     expect(response.status).toBe(400)
   })
 
-  test("supports manual session mode switching", async () => {
-    const projectResponse = await request("/api/project", {
-      method: "POST",
-      body: JSON.stringify({ name: "Mode project" }),
-    })
-    const project = Schema.decodeUnknownSync(Project.ManagedInfo)(await projectResponse.json())
-
-    try {
-      const sessionResponse = await request("/api/session", {
-        method: "POST",
-        body: JSON.stringify({ location: { directory: project.worktree } }),
-      })
-      expect(sessionResponse.status).toBe(200)
-      const created = Schema.decodeUnknownSync(Schema.Struct({ data: Session.Info }))(await sessionResponse.json()).data
-
-      const chat = await request(`/api/session/${created.id}/mode`, {
-        method: "POST",
-        body: JSON.stringify({ mode: "general-chat" }),
-      })
-      expect(chat.status).toBe(204)
-      const chatResponse = await request(`/api/session/${created.id}`)
-      const chatSession = Schema.decodeUnknownSync(Schema.Struct({ data: Session.Info }))(
-        await chatResponse.json(),
-      ).data
-      expect(chatSession.mode).toBe("general-chat")
-
-      const switched = await request(`/api/session/${created.id}/mode`, {
-        method: "POST",
-        body: JSON.stringify({ mode: null }),
-      })
-      expect(switched.status).toBe(204)
-
-      const getResponse = await request(`/api/session/${created.id}`)
-      const updated = Schema.decodeUnknownSync(Schema.Struct({ data: Session.Info }))(await getResponse.json()).data
-      expect(updated.mode).toBeUndefined()
-    } finally {
-      await fs.rm(project.worktree, { recursive: true, force: true })
-    }
-  })
 })

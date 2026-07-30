@@ -53,6 +53,8 @@ import { ModelV2 } from "@hena/core/model"
 import { ProviderV2 } from "@hena/core/provider"
 import { eq } from "drizzle-orm"
 import { SessionTable } from "@hena/core/session/sql"
+import { ProjectTable } from "@hena/core/project/sql"
+import { GeneralChat } from "./general-chat"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@hena/llm"
@@ -1222,6 +1224,14 @@ const layer = Layer.effect(
             const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
             const promptOps = yield* ops()
+            const project = yield* db
+              .select({ managed: ProjectTable.managed, folder: ProjectTable.folder })
+              .from(ProjectTable)
+              .where(eq(ProjectTable.id, session.projectID))
+              .get()
+              .pipe(Effect.orDie)
+            const generalChat = project?.managed === true && !project.folder
+            const sessionPermission = GeneralChat.permissions(generalChat, session.permission)
 
             const tools = yield* SessionTools.resolve({
               agent,
@@ -1231,6 +1241,7 @@ const layer = Layer.effect(
               bypassAgentCheck,
               messages: msgs,
               promptOps,
+              generalChat,
             }).pipe(
               Effect.provideService(Plugin.Service, plugin),
               Effect.provideService(Permission.Service, permission),
@@ -1272,8 +1283,8 @@ const layer = Layer.effect(
             const result = yield* handle.process({
               user: lastUser,
               agent,
-              permission: session.permission,
-              sessionMode: session.mode,
+              permission: sessionPermission,
+              generalChat,
               sessionID,
               parentSessionID: session.parentID,
               system,

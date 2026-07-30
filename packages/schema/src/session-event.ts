@@ -12,7 +12,6 @@ import { SessionID } from "./session-id"
 import { Location } from "./location"
 import { SessionMessage } from "./session-message"
 import { Revert } from "./revert"
-import { SessionMode } from "./session-mode"
 
 export { FileAttachment }
 
@@ -73,16 +72,6 @@ export const ModelSwitched = Event.define({
   },
 })
 export type ModelSwitched = typeof ModelSwitched.Type
-
-export const ModeSwitched = Event.define({
-  type: "session.next.mode.switched",
-  ...options,
-  schema: {
-    ...Base,
-    mode: Schema.NullOr(SessionMode.Mode),
-  },
-})
-export type ModeSwitched = typeof ModeSwitched.Type
 
 export const Moved = Event.define({
   type: "session.next.moved",
@@ -459,7 +448,6 @@ export namespace RevertEvent {
 export const DurableDefinitions = Event.inventory(
   AgentSwitched,
   ModelSwitched,
-  ModeSwitched,
   Moved,
   Prompted,
   PromptAdmitted,
@@ -491,7 +479,6 @@ export const DurableDefinitions = Event.inventory(
 export const Definitions = Event.inventory(
   AgentSwitched,
   ModelSwitched,
-  ModeSwitched,
   Moved,
   Prompted,
   PromptAdmitted,

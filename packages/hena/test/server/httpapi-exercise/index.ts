@@ -1020,15 +1020,6 @@ const scenarios: Scenario[] = [
     }))
     .status(204, undefined, "none"),
   http.protected
-    .post("/api/session/{sessionID}/mode", "v2.session.switchMode")
-    .seeded((ctx) => ctx.session({ title: "Switch mode" }))
-    .at((ctx) => ({
-      path: route("/api/session/{sessionID}/mode", { sessionID: ctx.state.id }),
-      headers: { ...ctx.headers(), "content-type": "application/json" },
-      body: { mode: "general-chat" },
-    }))
-    .status(204, undefined, "none"),
-  http.protected
     .get("/api/session/{sessionID}/context", "v2.session.context")
     .at((ctx) => ({
       path: route("/api/session/{sessionID}/context", { sessionID: "ses_httpapi_missing" }),

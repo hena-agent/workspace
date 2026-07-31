@@ -82,11 +82,6 @@ export function homeProjectNavigation(active: ServerConnection.Key, server: Serv
   return { server, href }
 }
 
-export function homeProjectDirectories(result: string | string[] | null) {
-  if (!result) return []
-  return Array.isArray(result) ? result : [result]
-}
-
 export function homeSessionServerStatus(active: boolean, status: () => { working: boolean; tint?: string }) {
   if (!active) return { working: false, tint: undefined }
   return status()

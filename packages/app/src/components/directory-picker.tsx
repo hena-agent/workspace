@@ -26,6 +26,7 @@ export function useDirectoryPicker() {
 
   return (input: DirectoryPickerInput) => {
     if (directoryPickerKind(platform.platform, input.server) === "native" && platform.platform === "desktop") {
+      // The native API only supports title and multi-select; description and actionLabel remain app-dialog features.
       void platform.openDirectoryPickerDialog({ title: input.title, multiple: input.multiple }).then(input.onSelect)
       return
     }

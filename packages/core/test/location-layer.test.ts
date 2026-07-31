@@ -106,7 +106,6 @@ describe("LocationServiceMap", () => {
           expect(blockedState.tools.map((tool) => tool.name).sort()).toEqual([
             "application_context",
             "apply_patch",
-            "attach_folder",
             "bash",
             "edit",
             "glob",
@@ -124,7 +123,6 @@ describe("LocationServiceMap", () => {
           expect(allowedState.tools.map((tool) => tool.name).sort()).toEqual([
             "application_context",
             "apply_patch",
-            "attach_folder",
             "bash",
             "edit",
             "glob",

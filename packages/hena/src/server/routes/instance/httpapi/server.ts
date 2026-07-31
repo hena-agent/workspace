@@ -264,6 +264,7 @@ const app = LayerNode.group([
   httpClient,
   EventV2.node,
   ProjectV2.node,
+  SessionExecution.node,
   ProjectCopy.node,
   PtyTicket.node,
 ])
@@ -303,7 +304,12 @@ export function createRoutes(
     ),
     Layer.provide(locationServiceMapV2),
 
-    Layer.provide(AppNodeBuilderV1.build(app)),
+    Layer.provide(
+      AppNodeBuilderV1.build(app, [
+        [LocationServiceMap.node, locationServiceMapV2],
+        [SessionExecution.node, SessionExecutionLocal.node],
+      ]),
+    ),
     // Must stay last: layers provided later in this pipe build beneath earlier ones,
     // so Observability must come after every service graph. Otherwise eagerly forked
     // fibers (e.g. the ModelsDev background refresh) capture Effect's default stdout

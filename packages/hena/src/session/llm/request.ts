@@ -1,9 +1,7 @@
-import { PermissionV1 } from "@hena/core/v1/permission"
 import type { Auth } from "@/auth"
 import { SessionV1 } from "@hena/core/v1/session"
 import type { RuntimeFlags } from "@/effect/runtime-flags"
 import { InstanceState } from "@/effect/instance-state"
-import { Permission } from "@/permission"
 import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "../message-v2"
 import type { Provider } from "@/provider/provider"
@@ -11,7 +9,6 @@ import { ProviderTransform } from "@/provider/transform"
 import { SystemPrompt } from "../system"
 import { InstallationVersion } from "@hena/core/installation/version"
 import { Effect, Record } from "effect"
-import { GeneralChat } from "../general-chat"
 import { jsonSchema, tool as aiTool, type ModelMessage, type Tool } from "ai"
 import type { Plugin } from "@/plugin"
 import { mergeDeep } from "remeda"
@@ -24,8 +21,7 @@ type PrepareInput = {
   readonly parentSessionID?: string
   readonly model: Provider.Model
   readonly agent: Agent.Info
-  readonly permission?: PermissionV1.Ruleset
-  readonly generalChat?: boolean
+  readonly baseSystem?: string[]
   readonly system: string[]
   readonly messages: ModelMessage[]
   readonly small?: boolean
@@ -59,10 +55,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   const isOpenaiOauth = input.provider.id === "openai" && input.auth?.type === "oauth"
   const system = [
     [
-      ...GeneralChat.system(
-        input.generalChat === true,
-        input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model),
-      ),
+      ...(input.baseSystem ?? (input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model))),
       ...input.system,
       ...(input.user.system ? [input.user.system] : []),
     ]
@@ -210,12 +203,8 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   }
 })
 
-function resolveTools(input: Pick<PrepareInput, "tools" | "agent" | "permission" | "user">) {
-  const disabled = Permission.disabled(
-    Object.keys(input.tools),
-    Permission.merge(input.agent.permission, input.permission ?? []),
-  )
-  return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false && !disabled.has(k))
+function resolveTools(input: Pick<PrepareInput, "tools" | "user">) {
+  return Record.filter(input.tools, (_, k) => input.user.tools?.[k] !== false)
 }
 
 export function hasToolCalls(messages: ModelMessage[]): boolean {

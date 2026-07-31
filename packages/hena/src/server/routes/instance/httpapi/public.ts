@@ -112,7 +112,7 @@ function matchLegacyOpenApi(input: Record<string, unknown>) {
         // Keep that SDK surface stable while the HttpApi spec is tightened.
         if (!isV2Api) delete operation.requestBody.required
         const body = operation.requestBody.content?.["application/json"]
-        if (body?.schema) body.schema = stripOptionalNull(structuredClone(body.schema), !isV2Api)
+        if (body?.schema) body.schema = stripOptionalNull(structuredClone(body.schema))
         if (path === "/experimental/workspace" && method === "post") {
           // Workspace creation fields `branch` and `extra` are Schema.NullOr —
           // genuinely nullable, not just optional. Re-add the null that the
@@ -457,23 +457,23 @@ function fixSelfReferencingComponents(spec: OpenApiSpec) {
   }
 }
 
-/** Strip null arms from optional fields while preserving explicit required `Schema.NullOr` contracts. */
-function stripOptionalNull(schema: OpenApiSchema, optional = false): OpenApiSchema {
+/** Strip `{type:"null"}` arms that Effect's `Schema.optional` adds to OpenAPI unions. */
+function stripOptionalNull(schema: OpenApiSchema): OpenApiSchema {
   if (schema.allOf?.length === 1) {
     const [constraint] = schema.allOf
     delete schema.allOf
-    return stripOptionalNull({ ...schema, ...constraint }, optional)
+    return stripOptionalNull({ ...schema, ...constraint })
   }
   if (isEmptyObjectUnion(schema)) return { type: "object", properties: {} }
   const options = flattenOptions(schema.anyOf ?? schema.oneOf)
   if (options) {
-    const selected = optional ? options.filter((item) => item.type !== "null") : options
-    if (selected.length === 1) return stripOptionalNull(selected[0])
-    if (schema.anyOf) schema.anyOf = selected.map((item) => stripOptionalNull(item))
-    if (schema.oneOf) schema.oneOf = selected.map((item) => stripOptionalNull(item))
+    const withoutNull = options.filter((item) => item.type !== "null")
+    if (withoutNull.length === 1) return stripOptionalNull(withoutNull[0])
+    if (schema.anyOf) schema.anyOf = withoutNull.map(stripOptionalNull)
+    if (schema.oneOf) schema.oneOf = withoutNull.map(stripOptionalNull)
   }
   if (schema.allOf) {
-    const allOf = schema.allOf.map((item) => stripOptionalNull(item, optional))
+    const allOf = schema.allOf.map(stripOptionalNull)
     if (schema.type) {
       delete schema.allOf
       for (const item of allOf) Object.assign(schema, item)
@@ -484,9 +484,8 @@ function stripOptionalNull(schema: OpenApiSchema, optional = false): OpenApiSche
   if (schema.prefixItems && schema.items) delete schema.prefixItems
   if (schema.items) schema.items = stripOptionalNull(schema.items)
   if (schema.properties) {
-    const required = new Set(schema.required ?? [])
     for (const [key, value] of Object.entries(schema.properties)) {
-      schema.properties[key] = stripOptionalNull(value, !required.has(key))
+      schema.properties[key] = stripOptionalNull(value)
     }
   }
   if (schema.additionalProperties && typeof schema.additionalProperties === "object") {
@@ -525,7 +524,7 @@ function normalizeParameter(param: OpenApiParameter, route: string) {
       return
     }
   }
-  param.schema = stripOptionalNull(param.schema, param.required !== true)
+  param.schema = stripOptionalNull(param.schema)
 }
 
 export const PublicApi = HenaHttpApi.annotateMerge(

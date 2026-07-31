@@ -94,14 +94,13 @@ export type QuestionNotFoundError = {
 export const isQuestionNotFoundError = (value: unknown): value is QuestionNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "QuestionNotFoundError"
 
-export type ProjectFolderConflictError = {
-  readonly _tag: "ProjectFolderConflictError"
+export type ProjectNotFoundError = {
+  readonly _tag: "ProjectNotFoundError"
   readonly projectID: string
-  readonly folder?: string | undefined
   readonly message: string
 }
-export const isProjectFolderConflictError = (value: unknown): value is ProjectFolderConflictError =>
-  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectFolderConflictError"
+export const isProjectNotFoundError = (value: unknown): value is ProjectNotFoundError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectNotFoundError"
 
 export type ProjectFolderInvalidError = {
   readonly _tag: "ProjectFolderInvalidError"
@@ -110,14 +109,6 @@ export type ProjectFolderInvalidError = {
 }
 export const isProjectFolderInvalidError = (value: unknown): value is ProjectFolderInvalidError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectFolderInvalidError"
-
-export type ProjectNotFoundError = {
-  readonly _tag: "ProjectNotFoundError"
-  readonly projectID: string
-  readonly message: string
-}
-export const isProjectNotFoundError = (value: unknown): value is ProjectNotFoundError =>
-  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectNotFoundError"
 
 export type ProjectCopyError = {
   readonly name: "ProjectCopyError"
@@ -2804,21 +2795,16 @@ export type ReferencesListOutput = {
 export type ProjectsListOutput = ReadonlyArray<{
   readonly id: string
   readonly name: string
-  readonly worktree: string
-  readonly folder?: string
+  readonly directory: string
   readonly time: { readonly created: number; readonly updated: number }
 }>
 
-export type ProjectsCreateInput = {
-  readonly name?: { readonly name?: string; readonly folder?: string }["name"]
-  readonly folder?: { readonly name?: string; readonly folder?: string }["folder"]
-}
+export type ProjectsCreateInput = { readonly name: { readonly name: string }["name"] }
 
 export type ProjectsCreateOutput = {
   readonly id: string
   readonly name: string
-  readonly worktree: string
-  readonly folder?: string
+  readonly directory: string
   readonly time: { readonly created: number; readonly updated: number }
 }
 
@@ -2827,8 +2813,7 @@ export type ProjectsGetInput = { readonly projectID: { readonly projectID: strin
 export type ProjectsGetOutput = {
   readonly id: string
   readonly name: string
-  readonly worktree: string
-  readonly folder?: string
+  readonly directory: string
   readonly time: { readonly created: number; readonly updated: number }
 }
 
@@ -2838,11 +2823,8 @@ export type ProjectsAttachFolderInput = {
 }
 
 export type ProjectsAttachFolderOutput = {
-  readonly id: string
-  readonly name: string
-  readonly worktree: string
-  readonly folder?: string
-  readonly time: { readonly created: number; readonly updated: number }
+  readonly project: { readonly id: string; readonly directory: string; readonly vcs?: "git" }
+  readonly sessionIDs: ReadonlyArray<string>
 }
 
 export type ProjectCopiesCreateInput = {

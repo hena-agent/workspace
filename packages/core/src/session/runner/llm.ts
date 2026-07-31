@@ -12,7 +12,7 @@ import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } f
 import { AgentV2 } from "../../agent"
 import { Config } from "../../config"
 import { Database } from "../../database/database"
-import { ProjectTable } from "../../project/sql"
+import { Project } from "../../project"
 import { EventV2 } from "../../event"
 import { Location } from "../../location"
 import { ModelV2 } from "../../model"
@@ -24,6 +24,7 @@ import { SystemContextRegistry } from "../../system-context/registry"
 import { GeneralChat } from "../general-chat"
 import { SkillGuidance } from "../../skill/guidance"
 import { ReferenceGuidance } from "../../reference/guidance"
+import { AttachFolderTool } from "../../tool/attach-folder"
 import { ToolRegistry } from "../../tool/registry"
 import { ToolOutputStore } from "../../tool-output-store"
 import { SessionContextEpoch } from "../context-epoch"
@@ -41,7 +42,6 @@ import { MAX_STEPS_PROMPT } from "./max-steps"
 import { Snapshot } from "../../snapshot"
 import { makeLocationNode } from "../../effect/app-node"
 import { llmClient } from "../../effect/app-node-platform"
-import { eq } from "drizzle-orm"
 
 /**
  * Runs one durable coding-agent Session until it settles.
@@ -108,6 +108,7 @@ const layer = Layer.effect(
     const referenceGuidance = yield* ReferenceGuidance.Service
     const config = yield* Config.Service
     const snapshots = yield* Snapshot.Service
+    const projects = yield* Project.Service
     const db = (yield* Database.Service).db
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
@@ -186,6 +187,7 @@ const layer = Layer.effect(
       const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent), session.id)
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()
       let needsContinuation = false
+      let stopsTurn = false
       let currentStep = step
       if (promotion) {
         const cutoff = yield* EventV2.latestSequence(db, session.id)
@@ -203,21 +205,20 @@ const layer = Layer.effect(
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
-      const project = yield* db
-        .select({ managed: ProjectTable.managed, folder: ProjectTable.folder })
-        .from(ProjectTable)
-        .where(eq(ProjectTable.id, session.projectID))
-        .get()
-        .pipe(Effect.orDie)
-      const generalChat = project?.managed === true && !project.folder
+      const generalChat = yield* projects.isFolderless(session.projectID)
+      const permissions = generalChat
+        ? [...(agent.info?.permissions ?? []), ...GeneralChat.CEILING]
+        : agent.info?.permissions
+      const agentSystem = generalChat ? GeneralChat.GENERAL_CHAT_SYSTEM : agent.info?.system
       const toolMaterialization = isLastStep
         ? undefined
-        : yield* tools.materialize(GeneralChat.permissions(generalChat, agent.info?.permissions))
+        : yield* tools.materialize(permissions)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
         model,
         providerOptions: { openai: { promptCacheKey } },
-        system: [...GeneralChat.system(generalChat, agent.info?.system ? [agent.info.system] : []), system.baseline]
+        // The persisted system-context baseline is required in both coding and general-chat modes.
+        system: [agentSystem, system.baseline]
           .filter((part): part is string => part !== undefined && part.length > 0)
           .map(SystemPart.make),
         messages: [...toLLMMessages(context, model), ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : [])],
@@ -269,15 +270,18 @@ const layer = Layer.effect(
                 }),
               ).pipe(
                 Effect.flatMap((settlement) =>
-                  publish(
-                    LLMEvent.toolResult({
-                      id: event.id,
-                      name: event.name,
-                      result: settlement.result,
-                      output: settlement.output,
-                    }),
-                    settlement.outputPaths ?? [],
-                  ),
+                  Effect.gen(function* () {
+                    if (AttachFolderTool.stopsTurn(event.name, settlement.output?.structured)) stopsTurn = true
+                    yield* publish(
+                      LLMEvent.toolResult({
+                        id: event.id,
+                        name: event.name,
+                        result: settlement.result,
+                        output: settlement.output,
+                      }),
+                      settlement.outputPaths ?? [],
+                    )
+                  }),
                 ),
               ),
             ).pipe(FiberSet.run(toolFibers))
@@ -354,7 +358,7 @@ const layer = Layer.effect(
           if (stream._tag === "Failure") return yield* Effect.failCause(stream.cause)
           if (settled._tag === "Failure" && Cause.hasInterrupts(settled.cause))
             return yield* Effect.failCause(settled.cause)
-          return { needsContinuation: !publisher.hasProviderError() && needsContinuation, step: currentStep }
+          return { needsContinuation: !publisher.hasProviderError() && needsContinuation && !stopsTurn, step: currentStep }
         }),
       )
     }, Effect.scoped)
@@ -439,6 +443,7 @@ export const node = makeLocationNode({
     ReferenceGuidance.node,
     Config.node,
     Snapshot.node,
+    Project.node,
     Database.node,
   ],
 })

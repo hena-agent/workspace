@@ -29,6 +29,7 @@ import { SessionEvent } from "@hena/core/session/event"
 import { SessionInput } from "@hena/core/session/input"
 import { SessionMessage } from "@hena/core/session/message"
 import { Prompt } from "@hena/core/session/prompt"
+import { GeneralChat } from "@hena/core/session/general-chat"
 import { SessionProjector } from "@hena/core/session/projector"
 import { SessionExecution } from "@hena/core/session/execution"
 import { SessionRunCoordinator } from "@hena/core/session/run-coordinator"
@@ -40,6 +41,7 @@ import { ApplicationTools } from "@hena/core/tool/application-tools"
 import { AgentV2 } from "@hena/core/agent"
 import { Config } from "@hena/core/config"
 import { ConfigCompaction } from "@hena/core/config/compaction"
+import { AttachFolderTool } from "@hena/core/tool/attach-folder"
 import { Tool } from "@hena/core/tool/tool"
 import {
   SessionContextEpochTable,
@@ -147,6 +149,12 @@ const echo = Layer.effectDiscard(
         input: Schema.Struct({}),
         output: Schema.Struct({}),
         execute: () => Effect.die("unexpected tool defect"),
+      }),
+      [AttachFolderTool.name]: Tool.make({
+        description: AttachFolderTool.description,
+        input: AttachFolderTool.Input,
+        output: AttachFolderTool.Output,
+        execute: () => Effect.succeed({ attached: true }),
       }),
     }),
   ),
@@ -647,7 +655,7 @@ describe("SessionRunnerLLM", () => {
 
       expect(requests).toHaveLength(1)
       expect(requests[0]?.model).toBe(model)
-      expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "defect"])
+      expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "defect", AttachFolderTool.name])
       expect(requests[0]?.messages.map((message) => ({ role: message.role, content: message.content }))).toEqual([
         { role: "user", content: [{ type: "text", text: "First" }] },
         { role: "user", content: [{ type: "text", text: "Second" }] },
@@ -662,7 +670,7 @@ describe("SessionRunnerLLM", () => {
       const db = (yield* Database.Service).db
       yield* db
         .update(ProjectTable)
-        .set({ managed: true, name: "Chat project", folder: null })
+        .set({ worktree: null, name: "Chat project" })
         .where(eq(ProjectTable.id, Project.ID.global))
         .run()
         .pipe(Effect.orDie)
@@ -680,6 +688,10 @@ describe("SessionRunnerLLM", () => {
 
       expect(requests).toHaveLength(1)
       expect(requests[0]?.tools).toEqual([])
+      expect(requests[0]?.system.map((part) => part.text)).toEqual([
+        GeneralChat.GENERAL_CHAT_SYSTEM,
+        "Initial context",
+      ])
     }),
   )
 
@@ -1393,7 +1405,7 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests).toHaveLength(1)
-      expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "defect"])
+      expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "defect", AttachFolderTool.name])
       expect(yield* session.context(sessionID)).toMatchObject([
         { type: "user", text: "Use tools" },
         {
@@ -1487,6 +1499,45 @@ describe("SessionRunnerLLM", () => {
           ],
         },
         { type: "assistant", finish: "stop", content: [{ type: "text", id: "text-final", text: "Done" }] },
+      ])
+    }),
+  )
+
+  it.effect("stops after a folder is attached instead of continuing the provider loop", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Attach my folder" }), resume: false })
+
+      requests.length = 0
+      responses = [
+        [
+          LLMEvent.stepStart({ index: 0 }),
+          LLMEvent.toolCall({
+            id: "call-attach-folder",
+            name: AttachFolderTool.name,
+            input: { reason: "I need the source files" },
+          }),
+          LLMEvent.stepFinish({ index: 0, reason: "tool-calls" }),
+          LLMEvent.finish({ reason: "tool-calls" }),
+        ],
+      ]
+
+      yield* session.resume(sessionID)
+
+      expect(requests).toHaveLength(1)
+      expect(yield* session.context(sessionID)).toMatchObject([
+        { type: "user", text: "Attach my folder" },
+        {
+          type: "assistant",
+          content: [
+            {
+              type: "tool",
+              name: AttachFolderTool.name,
+              state: { status: "completed", structured: { attached: true } },
+            },
+          ],
+        },
       ])
     }),
   )

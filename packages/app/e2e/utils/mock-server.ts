@@ -7,6 +7,7 @@ export interface MockServerConfig {
   provider: unknown
   directory: string
   project: unknown
+  projectChats?: unknown[]
   sessions: ({ id: string } & Record<string, unknown>)[]
   pageMessages: (sessionId: string, limit: number, before?: string) => { items: unknown[]; cursor?: string }
   vcsDiff?: unknown[]
@@ -61,6 +62,7 @@ export async function mockHenaServer(page: Page, config: MockServerConfig) {
         data: config.sessions.map((session) => v2Session(session, config.directory)),
         cursor: {},
       })
+    if (path === "/api/project") return json(route, config.projectChats ?? [])
     if (path === "/experimental/capabilities") return json(route, { backgroundSubagents: false })
     if (path === "/permission")
       return json(route, typeof config.permissions === "function" ? config.permissions() : (config.permissions ?? []))

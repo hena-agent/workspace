@@ -236,11 +236,17 @@ export function createServerSession(client: HenaClient, options?: { retry?: type
     return session
   }
 
-  const resolve = (sessionID: string, options?: { force?: boolean }) => {
+  const resolve = (sessionID: string, options?: { force?: boolean }): Promise<Session> => {
     const cached = data.info[sessionID]
     if (cached && !options?.force) return Promise.resolve(cached)
     const pending = requests.get(sessionID)
-    if (pending) return pending
+    if (pending)
+      return options?.force
+        ? pending.then(
+            () => resolve(sessionID, options),
+            () => resolve(sessionID, options),
+          )
+        : pending
     const active = generation(sessionID)
     const request = client.session.get({ sessionID }).then((result) => {
       if (!result.data) throw sessionNotFoundError(sessionID)

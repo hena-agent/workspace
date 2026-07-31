@@ -12,6 +12,7 @@ import { sessionHref } from "@/utils/session-route"
 import { createTabMemory } from "./tab-memory"
 import { nextTabAfterClose, pushClosedTab, removeClosedTabs, takeClosedTab, type ClosedTab } from "./closed-tabs"
 import { createDraftPromptSession, type PromptModel } from "./prompt-state"
+import { replaceDraftDirectory } from "./tab-directory"
 
 export type SessionTab = {
   type: "session"
@@ -229,6 +230,11 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
             produce((tab) => Object.assign(tab, draft)),
           )
         })
+      },
+      replaceDirectory(server: ServerConnection.Key, previous: string, directory: string) {
+        const apply = () => setStore(() => replaceDraftDirectory(store, server, previous, directory))
+        apply()
+        if (!ready()) void ready.promise?.then(apply)
       },
       promoteDraft(draftID: string, session: Omit<SessionTab, "type">) {
         // Keep the replacement and navigation atomic so /new-session never renders

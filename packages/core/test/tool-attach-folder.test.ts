@@ -18,6 +18,7 @@ const projectID = ProjectV2.ID.make("prj_attach_folder_tool_test")
 const sessionID = SessionV2.ID.make("ses_attach_folder_tool_test")
 const directory = AbsolutePath.make("/scratch")
 let captured: QuestionV2.AskInput | undefined
+let folderlessChecks = 0
 
 const it = testEffect(
   AppNodeBuilder.build(LayerNode.group([ToolRegistry.node, ToolRegistry.toolsNode, AttachFolderTool.node]), [
@@ -33,8 +34,14 @@ const it = testEffect(
         ask: (input) =>
           Effect.sync(() => {
             captured = input
-            return [["Folder attached"]]
+            return [["not a status sentinel"]]
           }),
+      }),
+    ],
+    [
+      ProjectV2.node,
+      Layer.mock(ProjectV2.Service, {
+        isFolderless: () => Effect.sync(() => folderlessChecks++ === 0),
       }),
     ],
     [
@@ -52,6 +59,9 @@ describe("AttachFolderTool", () => {
   it.effect("asks the App to attach the current project and stops the turn", () =>
     Effect.gen(function* () {
       const registry = yield* ToolRegistry.Service
+      expect(AttachFolderTool.stopsTurn(AttachFolderTool.name, { attached: true })).toBe(true)
+      expect(AttachFolderTool.stopsTurn(AttachFolderTool.name, { attached: false })).toBe(false)
+      expect(AttachFolderTool.stopsTurn("question", { attached: true })).toBe(false)
       expect((yield* toolDefinitions(registry)).map((definition) => definition.name)).toEqual(["attach_folder"])
 
       const result = yield* settleTool(registry, {

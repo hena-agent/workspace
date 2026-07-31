@@ -3,7 +3,7 @@ export * from "./session/schema"
 
 import { DateTime, Effect, Layer, Schema, Context, Stream } from "effect"
 import { ListAnchor } from "@hena/schema/session"
-import { and, asc, desc, eq, gt, inArray, like, lt, or, type SQL } from "drizzle-orm"
+import { and, asc, desc, eq, gt, like, lt, or, type SQL } from "drizzle-orm"
 import { ProjectV2 } from "./project"
 import { WorkspaceV2 } from "./workspace"
 import { ModelV2 } from "./model"
@@ -14,7 +14,7 @@ import { PromptInput } from "@hena/schema/prompt-input"
 import { EventV2 } from "./event"
 import { Database } from "./database/database"
 import { SessionProjector } from "./session/projector"
-import { SessionContextEpochTable, SessionMessageTable, SessionTable } from "./session/sql"
+import { SessionMessageTable, SessionTable } from "./session/sql"
 import { SessionSchema } from "./session/schema"
 import { AbsolutePath, PositiveInt, RelativePath } from "./schema"
 import { AgentV2 } from "./agent"
@@ -144,14 +144,6 @@ export interface Interface {
     sessionID: SessionSchema.ID
     model: ModelV2.Ref
   }) => Effect.Effect<void, NotFoundError>
-  readonly rebaseProject: (
-    input: {
-      projectID: ProjectV2.ID
-      from: AbsolutePath
-      to: AbsolutePath
-    },
-    transaction?: Database.Transaction,
-  ) => Effect.Effect<void>
   readonly prompt: (input: {
     id?: SessionMessage.ID
     sessionID: SessionSchema.ID
@@ -422,56 +414,6 @@ const layer = Layer.effect(
           model: input.model,
         })
       }),
-      rebaseProject: Effect.fn("V2Session.rebaseProject")(function* (input, transaction?: Database.Transaction) {
-        const rebase = (tx: Database.Transaction) =>
-          Effect.gen(function* () {
-            const sessions = yield* tx
-              .select({ id: SessionTable.id, projectID: SessionTable.project_id, directory: SessionTable.directory })
-              .from(SessionTable)
-              .all()
-              .pipe(
-                Effect.orDie,
-                  // Adopt scratch sessions created before managed worktrees were canonicalized.
-                  Effect.map((sessions) =>
-                    sessions.filter(
-                      (session) =>
-                        session.projectID === input.projectID ||
-                        (session.projectID === ProjectV2.ID.global && inside(input.from, session.directory)),
-                    ),
-                  ),
-              )
-            const now = Date.now()
-            yield* Effect.forEach(
-              sessions,
-              (session) =>
-                tx
-                  .update(SessionTable)
-                  .set({
-                    project_id: input.projectID,
-                    directory: inside(input.from, session.directory)
-                      ? AbsolutePath.make(path.join(input.to, path.relative(input.from, session.directory)))
-                      : session.directory,
-                    time_updated: now,
-                  })
-                  .where(eq(SessionTable.id, session.id))
-                  .run()
-                  .pipe(Effect.orDie),
-              { discard: true },
-            )
-            if (sessions.length === 0) return
-            yield* tx
-              .delete(SessionContextEpochTable)
-              .where(
-                inArray(
-                  SessionContextEpochTable.session_id,
-                  sessions.map((session) => session.id),
-                ),
-              )
-              .run()
-              .pipe(Effect.orDie)
-          })
-        yield* (transaction ? rebase(transaction) : db.transaction(rebase)).pipe(Effect.orDie)
-      }),
       compact: Effect.fn("V2Session.compact")(function* (input) {
         yield* result.get(input.sessionID)
         return yield* new OperationUnavailableError({ operation: "compact" })
@@ -528,11 +470,6 @@ const resolvePrompt = (input: PromptInput.Prompt) =>
       }
     }),
   })
-
-function inside(root: string, target: string) {
-  const relative = path.relative(root, target)
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))
-}
 
 export const node = makeGlobalNode({
   service: Service,

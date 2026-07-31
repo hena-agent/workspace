@@ -31,6 +31,7 @@ const applicationServices = LayerNode.group([
   httpClient,
   ToolOutputStore.cleanupNode,
   SessionV2.node,
+  SessionExecution.node,
   PermissionSaved.node,
   PtyTicket.node,
   Credential.node,

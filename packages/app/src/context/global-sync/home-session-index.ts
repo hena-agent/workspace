@@ -85,6 +85,7 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
   const indexKey = homeSessionIndexKey(server)
   const eventsKey = homeSessionEventsKey(server)
   let connected = false
+  const refetch = () => queryClient.refetchQueries({ queryKey: indexKey, exact: true, type: "active" })
 
   return {
     indexKey,
@@ -116,11 +117,17 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
       }
       queryClient.setQueryData<HomeSessionEvents>(eventsKey, { sequence: next.sequence, entries: [] })
     },
+    invalidate() {
+      return queryClient.invalidateQueries({ queryKey: indexKey, exact: true })
+    },
+    refetch() {
+      return refetch()
+    },
     refresh(event: Event["type"]) {
       const result = homeSessionIndexRefresh(event, connected)
       connected = result.connected
       if (!result.refetch) return
-      void queryClient.refetchQueries({ queryKey: indexKey, exact: true, type: "active" })
+      void refetch()
     },
   }
 }

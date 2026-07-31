@@ -1208,7 +1208,7 @@ export class Workspace extends HeyApiClient {
     parameters?: {
       directory?: string
       workspace?: string
-      id?: string | null | null
+      id?: string | null
       sessionID?: string
       copyChanges?: boolean
     },

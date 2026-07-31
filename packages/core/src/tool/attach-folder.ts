@@ -5,6 +5,7 @@ import { Effect, Layer, Schema } from "effect"
 import { makeLocationNode } from "../effect/app-node"
 import { Location } from "../location"
 import { PermissionV2 } from "../permission"
+import { Project } from "../project"
 import { QuestionV2 } from "../question"
 import { ToolRegistry } from "./registry"
 import { Tool } from "./tool"
@@ -25,12 +26,31 @@ export const Output = Schema.Struct({
   attached: Schema.Boolean,
 })
 
+export function modelOutput(attached: boolean) {
+  return attached
+    ? "The folder was attached. Stop now, tell the user the project is ready, and wait for their next message. Do not continue the original task in this turn."
+    : "The folder was not attached. Do not continue with filesystem or coding work."
+}
+
+export function stopsTurn(tool: string, output: unknown) {
+  return (
+    tool === name &&
+    typeof output === "object" &&
+    output !== null &&
+    "attached" in output &&
+    output.attached === true
+  )
+}
+
 const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const tools = yield* Tools.Service
     const question = yield* QuestionV2.Service
     const permission = yield* PermissionV2.Service
     const location = yield* Location.Service
+    const projects = yield* Project.Service
+
+    if (!(yield* projects.isFolderless(location.project.id))) return
 
     yield* tools
       .register({
@@ -39,14 +59,7 @@ const layer = Layer.effectDiscard(
             description,
             input: Input,
             output: Output,
-            toModelOutput: ({ output }) => [
-              {
-                type: "text",
-                text: output.attached
-                  ? "The folder was attached. Stop now, tell the user the project is ready, and wait for their next message. Do not continue the original task in this turn."
-                  : "The user cancelled folder attachment. Do not continue with filesystem or coding work.",
-              },
-            ],
+            toModelOutput: ({ output }) => [{ type: "text", text: modelOutput(output.attached) }],
             execute: (input, context) =>
               permission
                 .assert({
@@ -83,7 +96,8 @@ const layer = Layer.effectDiscard(
                       })
                       .pipe(Effect.orDie),
                   ),
-                  Effect.map((answers) => ({ attached: answers[0]?.[0] === "Folder attached" })),
+                  Effect.andThen(projects.isFolderless(location.project.id)),
+                  Effect.map((folderless) => ({ attached: !folderless })),
                 ),
           }),
           "question",
@@ -96,5 +110,5 @@ const layer = Layer.effectDiscard(
 export const node = makeLocationNode({
   name: "tool/attach-folder",
   layer,
-  deps: [ToolRegistry.node, PermissionV2.node, QuestionV2.node, Location.node],
+  deps: [ToolRegistry.node, PermissionV2.node, QuestionV2.node, Location.node, Project.node],
 })

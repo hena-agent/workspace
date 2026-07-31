@@ -1,27 +1,25 @@
 import { Effect, Schema } from "effect"
 import { InstanceState } from "@/effect/instance-state"
+import { ProjectV2 } from "@hena/core/project"
+import { AttachFolderTool as CoreAttachFolderTool } from "@hena/core/tool/attach-folder"
 import { Question } from "../question"
 import * as Tool from "./tool"
 
-export const Parameters = Schema.Struct({
-  reason: Schema.String.annotate({ description: "Why an attached folder is needed" }),
-})
+export const Parameters = CoreAttachFolderTool.Input
 
 export const AttachFolderTool = Tool.define(
-  "attach_folder",
+  CoreAttachFolderTool.name,
   Effect.gen(function* () {
     const question = yield* Question.Service
+    const projects = yield* ProjectV2.Service
 
     return {
-      description: `Ask the user to attach a folder to the current project when filesystem or coding work requires their files.
-
-The tool does not accept a path. The user chooses the folder through Hena's directory picker.
-Use this only when the current project has no attached folder. After a folder is attached, stop the current task and wait for the user's next message so the new coding context can load.`,
+      description: CoreAttachFolderTool.description,
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
         Effect.gen(function* () {
           const instance = yield* InstanceState.context
-          const answers = yield* question.ask({
+          yield* question.ask({
             sessionID: ctx.sessionID,
             questions: [
               {
@@ -38,13 +36,11 @@ Use this only when the current project has no attached folder. After a folder is
               reason: params.reason,
             },
           })
-          const attached = answers[0]?.[0] === "Folder attached"
+          const attached = !(yield* projects.isFolderless(instance.project.id))
 
           return {
             title: attached ? "Folder attached" : "Folder attachment cancelled",
-            output: attached
-              ? "The folder was attached. Stop now, tell the user the project is ready, and wait for their next message. Do not continue the original task in this turn."
-              : "The user cancelled folder attachment. Do not continue with filesystem or coding work.",
+            output: CoreAttachFolderTool.modelOutput(attached),
             metadata: { attached },
           }
         }).pipe(Effect.orDie),

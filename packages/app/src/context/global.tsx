@@ -1,6 +1,6 @@
 import { createSimpleContext } from "@hena/ui/context"
 import { createEffect, createMemo, createResource, createRoot } from "solid-js"
-import type { ProjectManagedInfo } from "@hena/sdk/v2/client"
+import type { ProjectAttachment, ProjectChat } from "@hena/sdk/v2/client"
 import { createStore } from "solid-js/store"
 import { createServerProjects, RECENTLY_CLOSED_DISPLAY_LIMIT, ServerConnection, useServer } from "./server"
 import { pathKey } from "@/utils/path-key"
@@ -110,29 +110,32 @@ function createServerCtx(
   })
   const sdk = createServerSdkContext(conn, scope)
   const sync = createServerSyncContext(sdk)
-  const [managedProjects, { mutate: setManagedProjects, refetch: refreshManagedProjects }] = createResource(() =>
+  const chatOverrides = new Map<string, ProjectChat | undefined>()
+  const [chats, { mutate: setChats }] = createResource(() =>
     sdk.client.v2.project
       .list()
       .then((response) => response.data ?? [])
-      .catch(() => [] as ProjectManagedInfo[]),
+      .then((items) => {
+        const merged = new Map(items.map((item) => [item.id, item]))
+        for (const [id, chat] of chatOverrides) {
+          if (chat) merged.set(id, chat)
+          else merged.delete(id)
+        }
+        return [...merged.values()]
+      })
+      .catch(() => [...chatOverrides.values()].filter((chat): chat is ProjectChat => chat !== undefined)),
   )
 
   createEffect(() =>
-    managedProjects()
-      ?.map((project) => project.folder ?? project.worktree)
-      .filter((directory) => !projects.closed(directory))
-      .forEach((directory) => projects.open(directory)),
+    chats()
+      ?.filter((chat) => !projects.closed(chat.directory))
+      .forEach((chat) => projects.open(chat.directory)),
   )
 
   function enrich(project: { worktree: string; expanded: boolean }) {
     const [childStore] = sync.child(project.worktree, { bootstrap: false })
     const projectID = childStore.project
-    const managed = managedProjects()?.find(
-      (item) =>
-        item.id === projectID ||
-        pathKey(item.folder ?? item.worktree) === pathKey(project.worktree) ||
-        pathKey(item.worktree) === pathKey(project.worktree),
-    )
+    const chat = chats()?.find((item) => item.id === projectID || pathKey(item.directory) === pathKey(project.worktree))
     const metadata = projectID
       ? sync.data.project.find((x) => x.id === projectID)
       : sync.data.project.find((x) => x.worktree === project.worktree)
@@ -141,10 +144,15 @@ function createServerCtx(
     // Without this, different subdirectories of the same git repo would share the same
     // icon from the database instead of using their individual overrides.
     const base = {
-      ...metadata,
-      ...managed,
-      ...project,
-      worktree: managed?.folder ?? managed?.worktree ?? project.worktree,
+      id: chat?.id ?? metadata?.id,
+      worktree: project.worktree,
+      expanded: project.expanded,
+      name: chat?.name ?? metadata?.name,
+      vcs: metadata?.vcs,
+      commands: metadata?.commands,
+      sandboxes: metadata?.sandboxes ?? [],
+      time: metadata?.time ?? chat?.time,
+      icon: metadata?.icon,
     }
     if (childStore.icon) {
       return { ...base, icon: { ...base.icon, override: childStore.icon } }
@@ -156,7 +164,7 @@ function createServerCtx(
   const recentlyClosedList = createMemo(() => {
     const known = new Set([
       ...sync.data.project.map((project) => pathKey(project.worktree)),
-      ...(managedProjects()?.map((project) => pathKey(project.folder ?? project.worktree)) ?? []),
+      ...(chats()?.map((chat) => pathKey(chat.directory)) ?? []),
     ])
     return projects
       .recentlyClosed()
@@ -168,6 +176,30 @@ function createServerCtx(
   const isLocal =
     (conn?.type === "sidecar" && conn.variant === "base") || (conn?.type === "http" && isLocalHost(conn.http.url))
 
+  const chatActions = createProjectChatActions({
+    chats: () => chats() ?? [],
+    setChats,
+    open: projects.open,
+    replace: projects.replace,
+    touch: projects.touch,
+    create: async (name) => {
+      const response = await sdk.client.v2.project.create({ projectCreateInput: { name } })
+      if (!response.data) throw response.error
+      chatOverrides.set(response.data.id, response.data)
+      return response.data
+    },
+    attach: async (projectID, folder) => {
+      const response = await sdk.client.v2.project.attachFolder({ projectID, folder })
+      if (!response.data) throw response.error
+      chatOverrides.set(projectID, undefined)
+      return response.data
+    },
+    refreshSessions: async (sessionIDs) => {
+      await Promise.all(sessionIDs.map((sessionID) => sync.session.resolve(sessionID, { force: true }).catch(() => {})))
+      await sync.homeSessions.invalidate()
+    },
+  })
+
   return {
     queryClient,
     sdk,
@@ -177,18 +209,49 @@ function createServerCtx(
       ...projects,
       list: projectsList,
       recentlyClosed: recentlyClosedList,
-      managed: {
-        list: () => managedProjects() ?? [],
-        refresh: refreshManagedProjects,
-        set(project: ProjectManagedInfo) {
-          setManagedProjects((current) => [project, ...(current ?? []).filter((item) => item.id !== project.id)])
-        },
-      },
+      chats: () => chats() ?? [],
+      createChat: chatActions.createChat,
+      attachFolder: chatActions.attachFolder,
     },
   }
 }
 
 export type ServerCtx = ReturnType<typeof createServerCtx>
+
+export function createProjectChatActions(input: {
+  chats: () => ProjectChat[]
+  setChats: (update: (current: ProjectChat[] | undefined) => ProjectChat[]) => unknown
+  open: (directory: string) => void
+  replace: (previous: string, directory: string) => void
+  touch: (directory: string) => void
+  create: (name: string) => Promise<ProjectChat>
+  attach: (projectID: string, folder: string) => Promise<ProjectAttachment>
+  refreshSessions: (sessionIDs: string[]) => Promise<unknown>
+}) {
+  return {
+    async createChat(name: string) {
+      const chat = await input.create(name)
+      input.setChats((current) => [chat, ...(current ?? []).filter((item) => item.id !== chat.id)])
+      input.open(chat.directory)
+      input.touch(chat.directory)
+      return { chat, directory: chat.directory }
+    },
+    async attachFolder(projectID: string, folder: string) {
+      const chat = input.chats().find((item) => item.id === projectID)
+      if (!chat) throw new Error(`Chat project not found: ${projectID}`)
+      const attachment = await input.attach(projectID, folder)
+      input.setChats((current) => (current ?? []).filter((item) => item.id !== projectID))
+      input.replace(chat.directory, attachment.project.directory)
+      await input.refreshSessions(attachment.sessionIDs).catch(() => {})
+      return {
+        project: attachment.project,
+        sessionIDs: attachment.sessionIDs,
+        previous: chat.directory,
+        directory: attachment.project.directory,
+      }
+    },
+  }
+}
 
 function isLocalHost(url: string) {
   const host = url.replace(/^https?:\/\//, "").split(":")[0]

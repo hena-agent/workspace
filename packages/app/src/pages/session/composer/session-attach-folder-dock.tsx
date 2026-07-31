@@ -7,23 +7,33 @@ import { createStore } from "solid-js/store"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useGlobal } from "@/context/global"
 import { useLanguage } from "@/context/language"
+import { useLayout } from "@/context/layout"
 import { useSDK } from "@/context/sdk"
+import { ServerConnection } from "@/context/server"
 import { useServerSDK } from "@/context/server-sdk"
+import { useTabs } from "@/context/tabs"
 import { showToast } from "@/utils/toast"
+import {
+  createAttachFolderController,
+  rejectFolderAttachment,
+  sessionAttachFolderAction,
+} from "./session-attach-folder"
 
 export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSubmit: () => void }> = (props) => {
   const sdk = useSDK()
   const serverSDK = useServerSDK()
   const global = useGlobal()
+  const tabs = useTabs()
   const language = useLanguage()
+  const layout = useLayout()
   const pickDirectory = useDirectoryPicker()
-  const [state, setState] = createStore({ picking: false, sending: false })
-  const action = () => props.request.action!
+  const [state, setState] = createStore({ picking: false, sending: false, retry: false })
+  const action = createMemo(() => sessionAttachFolderAction(props.request))
   const serverContext = () => global.ensureServerCtx(serverSDK().server)
   const project = createMemo(() =>
     serverContext()
-      .projects.managed.list()
-      .find((item) => item.id === action().projectID),
+      .projects.chats()
+      .find((item) => item.id === action()?.projectID),
   )
 
   const fail = (error: unknown) => {
@@ -33,49 +43,58 @@ export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSu
     })
   }
 
-  const reply = async (answer: "Folder attached" | "Cancelled") => {
-    if (state.sending) return
+  const controller = createAttachFolderController({
+    attach: async (folder) => {
+      const current = action()
+      if (!current) throw new Error("Attach-folder action is missing")
+      const context = serverContext()
+      const result = await context.projects.attachFolder(current.projectID, folder)
+      const server = ServerConnection.key(serverSDK().server)
+      await tabs.replaceDirectory(server, result.previous, result.directory)
+      const selection = layout.home.selection()
+      if (selection.server === server && selection.directory === result.previous)
+        layout.home.setSelection({ server, directory: result.directory })
+    },
+    reply: (answers) => sdk().client.question.reply({ requestID: props.request.id, answers }),
+    onSubmit: props.onSubmit,
+  })
+
+  const reject = async () => {
+    if (state.sending || controller.committed()) return
     setState("sending", true)
-    props.onSubmit()
-    await sdk()
-      .client.question.reply({ requestID: props.request.id, answers: [[answer]] })
-      .catch((error) => {
-        setState("sending", false)
-        fail(error)
-      })
+    await rejectFolderAttachment({
+      onSubmit: props.onSubmit,
+      reject: () => sdk().client.question.reject({ requestID: props.request.id }),
+    }).catch((error) => {
+      setState("sending", false)
+      fail(error)
+    })
   }
 
-  const attach = (folder: string) => {
+  const attach = (folder?: string) => {
     if (state.sending) return
     setState("sending", true)
-    const previous = sdk().directory
-    const questionClient = sdk().client.question
-    const context = serverContext()
-    void context.sdk.client.v2.project
-      .attachFolder({ projectID: action().projectID, folder })
-      .then(async (response) => {
-        if (!response.data) throw response.error
-        context.projects.managed.set(response.data)
-        await context.sync.session.resolve(props.request.sessionID, { force: true })
-        context.projects.replace(previous, response.data.folder ?? response.data.worktree)
-        await context.queryClient.invalidateQueries({ queryKey: context.sync.homeSessions.indexKey })
-        props.onSubmit()
-        await questionClient.reply({ requestID: props.request.id, answers: [["Folder attached"]] })
-      })
-      .catch((error) => {
-        setState("sending", false)
-        fail(error)
-      })
+    void controller.submit(folder).catch((error) => {
+      setState("sending", false)
+      setState("retry", controller.committed())
+      fail(error)
+    })
   }
 
   const choose = () => {
     if (state.picking || state.sending) return
+    if (state.retry) {
+      attach()
+      return
+    }
+    const current = action()
+    if (!current) return
     setState("picking", true)
     pickDirectory({
       server: serverSDK().server,
       title: language.t("home.project.attachFolder"),
-      description: `${action().reason} ${language.t("dialog.project.attach.description", {
-        project: project()?.name ?? action().projectID,
+      description: `${current.reason} ${language.t("dialog.project.attach.description", {
+        project: project()?.name ?? current.projectID,
       })} ${language.t("dialog.project.attach.warning")}`,
       actionLabel: language.t("home.project.attachFolder"),
       multiple: false,
@@ -93,14 +112,14 @@ export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSu
         <Icon name="folder-add-left" size="normal" class="shrink-0 text-text-weak" />
         <div class="min-w-0 flex-1">
           <div class="text-13-medium text-text-strong">{language.t("dialog.project.attach.title")}</div>
-          <div class="line-clamp-2 text-12-regular text-text-weak">{action().reason}</div>
+          <div class="line-clamp-2 text-12-regular text-text-weak">{action()?.reason}</div>
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <Button
             variant="ghost"
             size="normal"
-            disabled={state.picking || state.sending}
-            onClick={() => void reply("Cancelled")}
+            disabled={state.picking || state.sending || state.retry}
+            onClick={() => void reject()}
           >
             {language.t("common.cancel")}
           </Button>

@@ -1,20 +1,21 @@
 export * as ProjectV2 from "./project"
 export * as Project from "./project"
 
-import { and, desc, eq, isNull, ne } from "drizzle-orm"
-import { Cause, Context, DateTime, Effect, Layer, Option, Schema } from "effect"
-import { isSqlError } from "effect/unstable/sql/SqlError"
+import { and, desc, eq, inArray, isNull } from "drizzle-orm"
+import { Context, DateTime, Effect, Exit, Layer, Schema } from "effect"
 import path from "path"
 import { Database } from "./database/database"
-import { AbsolutePath } from "./schema"
+import { makeGlobalNode } from "./effect/app-node"
 import { FSUtil } from "./fs-util"
 import { Git } from "./git"
 import { Global } from "./global"
-import { makeGlobalNode } from "./effect/app-node"
-import { Hash } from "./util/hash"
 import { ProjectDirectories } from "./project/directories"
 import { ProjectSchema } from "./project/schema"
-import { ProjectTable } from "./project/sql"
+import { ProjectDirectoryTable, ProjectTable } from "./project/sql"
+import { AbsolutePath, RelativePath } from "./schema"
+import { SessionSchema } from "./session/schema"
+import { SessionContextEpochTable, SessionTable } from "./session/sql"
+import { Hash } from "./util/hash"
 
 export const ID = ProjectSchema.ID
 export type ID = ProjectSchema.ID
@@ -29,8 +30,11 @@ export class Info extends Schema.Class<Info>("Project.Info")({
   id: ID,
 }) {}
 
-export const ManagedInfo = ProjectSchema.ManagedInfo
-export type ManagedInfo = ProjectSchema.ManagedInfo
+export const Chat = ProjectSchema.Chat
+export type Chat = ProjectSchema.Chat
+
+export const Attachment = ProjectSchema.Attachment
+export type Attachment = ProjectSchema.Attachment
 
 export class InvalidNameError extends Schema.TaggedErrorClass<InvalidNameError>()("Project.InvalidNameError", {
   name: Schema.String,
@@ -42,11 +46,6 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Pro
 
 export class InvalidFolderError extends Schema.TaggedErrorClass<InvalidFolderError>()("Project.InvalidFolderError", {
   folder: Schema.String,
-}) {}
-
-export class FolderConflictError extends Schema.TaggedErrorClass<FolderConflictError>()("Project.FolderConflictError", {
-  projectID: ID,
-  folder: Schema.optional(AbsolutePath),
 }) {}
 
 export const DirectoriesInput = ProjectDirectories.ListInput
@@ -63,19 +62,14 @@ export interface Resolved {
 }
 
 export interface Interface {
-  readonly list: () => Effect.Effect<ReadonlyArray<ManagedInfo>>
-  readonly get: (projectID: ID) => Effect.Effect<ManagedInfo, NotFoundError>
-  readonly create: (input: {
-    readonly name?: string
-    readonly folder?: string
-  }) => Effect.Effect<ManagedInfo, InvalidNameError | InvalidFolderError | FolderConflictError>
-  readonly attachFolder: (
-    input: {
-      readonly projectID: ID
-      readonly folder: string
-    },
-    transaction?: Database.Transaction,
-  ) => Effect.Effect<ManagedInfo, NotFoundError | InvalidFolderError | FolderConflictError>
+  readonly list: () => Effect.Effect<ReadonlyArray<Chat>>
+  readonly get: (projectID: ID) => Effect.Effect<Chat, NotFoundError>
+  readonly isFolderless: (projectID: ID) => Effect.Effect<boolean>
+  readonly create: (input: { readonly name: string }) => Effect.Effect<Chat, InvalidNameError>
+  readonly attachFolder: (input: {
+    readonly projectID: ID
+    readonly folder: string
+  }) => Effect.Effect<Attachment, NotFoundError | InvalidFolderError>
   readonly directories: (input: DirectoriesInput) => Effect.Effect<Directories>
   readonly resolve: (input: AbsolutePath) => Effect.Effect<Resolved>
   /**
@@ -101,136 +95,79 @@ const layer = Layer.effect(
     const global = yield* Global.Service
     const projectDirectories = yield* ProjectDirectories.Service
 
-    const fromRow = (row: typeof ProjectTable.$inferSelect) =>
-      ProjectSchema.ManagedInfo.make({
-        id: row.id,
-        name: ProjectSchema.Name.make(row.name!),
-        worktree: row.worktree,
-        folder: row.folder ?? undefined,
-        time: {
-          created: DateTime.makeUnsafe(row.time_created),
-          updated: DateTime.makeUnsafe(row.time_updated),
-        },
-      })
-
     const list = Effect.fn("Project.list")(function* () {
       const rows = yield* db
-        .select()
+        .select({ project: ProjectTable, directory: ProjectDirectoryTable.directory })
         .from(ProjectTable)
-        .where(eq(ProjectTable.managed, true))
+        .innerJoin(ProjectDirectoryTable, eq(ProjectDirectoryTable.project_id, ProjectTable.id))
+        .where(isNull(ProjectTable.worktree))
         .orderBy(desc(ProjectTable.time_updated), desc(ProjectTable.time_created))
         .all()
         .pipe(Effect.orDie)
-      return rows.map(fromRow)
+      return rows.map(fromChatRow)
     })
 
     const get = Effect.fn("Project.get")(function* (projectID: ID) {
       const row = yield* db
-        .select()
+        .select({ project: ProjectTable, directory: ProjectDirectoryTable.directory })
         .from(ProjectTable)
-        .where(and(eq(ProjectTable.id, projectID), eq(ProjectTable.managed, true)))
+        .innerJoin(ProjectDirectoryTable, eq(ProjectDirectoryTable.project_id, ProjectTable.id))
+        .where(and(eq(ProjectTable.id, projectID), isNull(ProjectTable.worktree)))
         .get()
         .pipe(Effect.orDie)
       if (!row) return yield* new NotFoundError({ projectID })
-      return fromRow(row)
+      return fromChatRow(row)
     })
 
-    const resolveFolder = Effect.fnUntraced(function* (input: string) {
-      if (!path.isAbsolute(input)) return yield* new InvalidFolderError({ folder: input })
-      const folder = AbsolutePath.make(yield* fs.resolve(input))
-      if (!(yield* fs.isDir(folder))) return yield* new InvalidFolderError({ folder: input })
-      return folder
-    })
-
-    const create = Effect.fn("Project.create")(function* (input: { readonly name?: string; readonly folder?: string }) {
-      const id = ID.create()
-      const folder = input.folder ? yield* resolveFolder(input.folder) : undefined
-      const name = input.name?.trim() || (folder ? path.basename(folder) || folder : undefined)
-      if (!name) return yield* new InvalidNameError({ name: input.name ?? "" })
-      if (folder) {
-        const used = yield* db
-          .select({ projectID: ProjectTable.id })
+    const isFolderless = Effect.fn("Project.isFolderless")(function* (projectID: ID) {
+      return (
+        (yield* db
+          .select({ id: ProjectTable.id })
           .from(ProjectTable)
-          .where(eq(ProjectTable.folder, folder))
+          .where(and(eq(ProjectTable.id, projectID), isNull(ProjectTable.worktree)))
           .get()
-          .pipe(Effect.orDie)
-        if (used) return yield* new FolderConflictError({ projectID: used.projectID, folder })
-      }
-      const scratch = path.join(global.data, "projects", id)
-      yield* fs.makeDirectory(scratch, { recursive: true, mode: 0o700 }).pipe(Effect.orDie)
-      const worktree = AbsolutePath.make(yield* fs.resolve(scratch))
-      if (process.platform !== "win32") yield* fs.chmod(worktree, 0o700).pipe(Effect.orDie)
-      const row = yield* db
-        .insert(ProjectTable)
-        .values({ id, name, worktree, managed: true, folder, sandboxes: [] })
-        .returning()
-        .get()
-        .pipe(
-          Effect.catchTag("EffectDrizzleQueryError", (error) => {
-            const cause = Cause.isCause(error.cause)
-              ? Option.getOrUndefined(Cause.findErrorOption(error.cause))
-              : undefined
-            if (!folder || !isSqlError(cause) || cause.reason._tag !== "UniqueViolation") return Effect.die(error)
-            return db
-              .select({ projectID: ProjectTable.id })
-              .from(ProjectTable)
-              .where(eq(ProjectTable.folder, folder))
-              .get()
-              .pipe(
-                Effect.orDie,
-                Effect.tap(() => fs.remove(worktree, { recursive: true, force: true }).pipe(Effect.ignore)),
-                Effect.flatMap((existing) =>
-                  existing
-                    ? Effect.fail(new FolderConflictError({ projectID: existing.projectID, folder }))
-                    : Effect.die(error),
-                ),
-              )
-          }),
-        )
-      return fromRow(row)
-    })
-
-    const attachFolder = Effect.fn("Project.attachFolder")(function* (
-      input: { readonly projectID: ID; readonly folder: string },
-      transaction?: Database.Transaction,
-    ) {
-      const folder = yield* resolveFolder(input.folder)
-      const attach = (tx: Database.Transaction) =>
-        Effect.gen(function* () {
-          const row = yield* tx
-            .select()
-            .from(ProjectTable)
-            .where(and(eq(ProjectTable.id, input.projectID), eq(ProjectTable.managed, true)))
-            .get()
-            .pipe(Effect.orDie)
-          if (!row) return yield* new NotFoundError({ projectID: input.projectID })
-          if (row.folder) return yield* new FolderConflictError({ projectID: input.projectID, folder: row.folder })
-
-          const used = yield* tx
-            .select({ projectID: ProjectTable.id })
-            .from(ProjectTable)
-            .where(and(eq(ProjectTable.folder, folder), ne(ProjectTable.id, input.projectID)))
-            .get()
-            .pipe(Effect.orDie)
-          if (used) return yield* new FolderConflictError({ projectID: input.projectID, folder })
-
-          const updated = yield* tx
-            .update(ProjectTable)
-            .set({ folder, time_updated: Date.now() })
-            .where(and(eq(ProjectTable.id, input.projectID), isNull(ProjectTable.folder)))
-            .returning()
-            .get()
-            .pipe(Effect.orDie)
-          if (!updated) return yield* new FolderConflictError({ projectID: input.projectID })
-          return fromRow(updated)
-        })
-      return yield* (transaction ? attach(transaction) : db.transaction(attach)).pipe(
-        Effect.catchTag("SqlError", Effect.die),
+          .pipe(Effect.orDie)) !== undefined
       )
     })
 
-    const directories = Effect.fn("Project.directories")(function* (input: DirectoriesInput) {
-      return yield* projectDirectories.list(input.projectID)
+    const create = Effect.fn("Project.create")(function* (input: { readonly name: string }) {
+      const name = input.name.trim()
+      if (!name) return yield* new InvalidNameError({ name: input.name })
+      const id = ID.create()
+      const scratch = AbsolutePath.make(path.join(global.data, "projects", id))
+      return yield* Effect.uninterruptibleMask((restore) =>
+        Effect.gen(function* () {
+          const directory = yield* restore(
+            Effect.gen(function* () {
+              yield* fs.makeDirectory(scratch, { recursive: true, mode: 0o700 }).pipe(Effect.orDie)
+              const directory = AbsolutePath.make(yield* fs.resolve(scratch))
+              if (process.platform !== "win32") yield* fs.chmod(directory, 0o700).pipe(Effect.orDie)
+              return directory
+            }),
+          )
+          const row = yield* db
+            .transaction((tx) =>
+              Effect.gen(function* () {
+                const project = yield* tx
+                  .insert(ProjectTable)
+                  .values({ id, name, worktree: null, sandboxes: [] })
+                  .returning()
+                  .get()
+                yield* tx
+                  .insert(ProjectDirectoryTable)
+                  .values({ project_id: id, directory, type: "main" })
+                  .run()
+                return project
+              }),
+            )
+            .pipe(Effect.orDie)
+          return fromChatRow({ project: row, directory })
+        }).pipe(
+          Effect.onExit((exit) =>
+            Exit.isFailure(exit) ? fs.remove(scratch, { recursive: true, force: true }).pipe(Effect.ignore) : Effect.void,
+          ),
+        ),
+      )
     })
 
     const cached = Effect.fnUntraced(function* (dir: string) {
@@ -280,31 +217,19 @@ const layer = Layer.effect(
 
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
       const directory = AbsolutePath.make(yield* fs.resolve(input))
-      const managed = yield* db
-        .select()
+      const ancestors = ancestorPaths(directory)
+      const chat = yield* db
+        .select({ id: ProjectTable.id, directory: ProjectDirectoryTable.directory })
         .from(ProjectTable)
-        .where(eq(ProjectTable.managed, true))
+        .innerJoin(ProjectDirectoryTable, eq(ProjectDirectoryTable.project_id, ProjectTable.id))
+        .where(and(isNull(ProjectTable.worktree), inArray(ProjectDirectoryTable.directory, ancestors)))
         .all()
         .pipe(Effect.orDie)
-      const match = managed
-        .flatMap((row) =>
-          [row.worktree, row.folder]
-            .filter((root): root is AbsolutePath => root !== null)
-            .map((root) => ({ row, root })),
-        )
-        .filter((candidate) => inside(candidate.root, directory))
-        .sort((a, b) => b.root.length - a.root.length)[0]
-      if (match) {
-        const repo = yield* git.repo.discover(directory)
-        return {
-          id: match.row.id,
-          directory: match.root,
-          vcs: repo ? { type: "git" as const, store: repo.commonDirectory } : undefined,
-        }
-      }
+      const match = chat.sort((a, b) => b.directory.length - a.directory.length)[0]
+      if (match) return { id: match.id, directory: match.directory, vcs: undefined }
 
-      const repo = yield* git.repo.discover(input)
-      if (!repo) return { id: ID.global, directory: AbsolutePath.make(path.parse(input).root), vcs: undefined }
+      const repo = yield* git.repo.discover(directory)
+      if (!repo) return { id: ID.global, directory: AbsolutePath.make(path.parse(directory).root), vcs: undefined }
 
       const previous = yield* cached(repo.commonDirectory)
       const id = (yield* remote(repo)) ?? previous ?? (yield* root(repo))
@@ -316,21 +241,129 @@ const layer = Layer.effect(
       }
     })
 
+    const attachFolder = Effect.fn("Project.attachFolder")(function* (input) {
+      const selected = yield* resolveFolder(fs, input.folder)
+      const destination = yield* resolve(selected)
+      if (destination.id === input.projectID) return yield* new InvalidFolderError({ folder: input.folder })
+      const directory = destination.vcs ? destination.directory : selected
+      return yield* db
+        .transaction((tx) =>
+          Effect.gen(function* () {
+            const source = yield* tx
+              .select({ directory: ProjectDirectoryTable.directory })
+              .from(ProjectTable)
+              .innerJoin(ProjectDirectoryTable, eq(ProjectDirectoryTable.project_id, ProjectTable.id))
+              .where(and(eq(ProjectTable.id, input.projectID), isNull(ProjectTable.worktree)))
+              .get()
+            if (!source) return yield* new NotFoundError({ projectID: input.projectID })
+
+            yield* tx
+              .insert(ProjectTable)
+              .values({
+                id: destination.id,
+                worktree: destination.directory,
+                vcs: destination.vcs?.type,
+                sandboxes: [],
+              })
+              .onConflictDoNothing()
+              .run()
+
+            const sessions = yield* tx
+              .select()
+              .from(SessionTable)
+              .where(eq(SessionTable.project_id, input.projectID))
+              .all()
+            yield* Effect.forEach(
+              sessions,
+              (session) => {
+                const relative = path.relative(source.directory, session.directory)
+                const subpath =
+                  relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative) ? "" : relative
+                return tx
+                  .update(SessionTable)
+                  .set({
+                    project_id: destination.id,
+                    directory: AbsolutePath.make(path.resolve(directory, subpath)),
+                    path: subpath ? RelativePath.make(subpath) : null,
+                    time_updated: Date.now(),
+                  })
+                  .where(eq(SessionTable.id, session.id))
+                  .run()
+              },
+              { discard: true },
+            )
+            if (sessions.length > 0) {
+              yield* tx
+                .delete(SessionContextEpochTable)
+                .where(
+                  inArray(
+                    SessionContextEpochTable.session_id,
+                    sessions.map((session) => session.id),
+                  ),
+                )
+                .run()
+            }
+            yield* tx.delete(ProjectTable).where(eq(ProjectTable.id, input.projectID)).run()
+            return {
+              attachment: ProjectSchema.Attachment.make({
+                project: { id: destination.id, directory, vcs: destination.vcs?.type },
+                sessionIDs: sessions.map((session) => SessionSchema.ID.make(session.id)),
+              }),
+              scratch: source.directory,
+            }
+          }),
+        )
+        .pipe(
+          Effect.catchTags({
+            EffectDrizzleQueryError: Effect.die,
+            SqlError: Effect.die,
+          }),
+          Effect.tap((result) => fs.remove(result.scratch, { recursive: true, force: true }).pipe(Effect.ignore)),
+          Effect.map((result) => result.attachment),
+        )
+    })
+
+    const directories = Effect.fn("Project.directories")(function* (input: DirectoriesInput) {
+      return yield* projectDirectories.list(input.projectID)
+    })
+
     const commit = Effect.fn("Project.commit")(function* (input: { store: AbsolutePath; id: ID }) {
       yield* fs.writeFileString(path.join(input.store, "hena"), input.id).pipe(Effect.ignore)
     })
 
-    return Service.of({ list, get, create, attachFolder, directories, resolve, commit })
+    return Service.of({ list, get, isFolderless, create, attachFolder, directories, resolve, commit })
   }),
 )
 
-function inside(root: string, target: string) {
-  const relative = path.relative(root, target)
-  return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
-}
-
 export const node = makeGlobalNode({
   service: Service,
-  layer: layer,
+  layer,
   deps: [Database.node, FSUtil.node, Git.node, Global.node, ProjectDirectories.node],
 })
+
+function fromChatRow(input: {
+  project: typeof ProjectTable.$inferSelect
+  directory: AbsolutePath
+}) {
+  return ProjectSchema.Chat.make({
+    id: input.project.id,
+    name: ProjectSchema.Name.make(input.project.name!),
+    directory: input.directory,
+    time: {
+      created: DateTime.makeUnsafe(input.project.time_created),
+      updated: DateTime.makeUnsafe(input.project.time_updated),
+    },
+  })
+}
+
+const resolveFolder = Effect.fnUntraced(function* (fs: FSUtil.Interface, input: string) {
+  if (!path.isAbsolute(input)) return yield* new InvalidFolderError({ folder: input })
+  const folder = AbsolutePath.make(yield* fs.resolve(input))
+  if (!(yield* fs.isDir(folder))) return yield* new InvalidFolderError({ folder: input })
+  return folder
+})
+
+function ancestorPaths(directory: AbsolutePath): AbsolutePath[] {
+  const parent = AbsolutePath.make(path.dirname(directory))
+  return parent === directory ? [directory] : [directory, ...ancestorPaths(parent)]
+}

@@ -111,11 +111,9 @@ export default {
       yield* tx.run(`
         CREATE TABLE \`project\` (
           \`id\` text PRIMARY KEY,
-          \`worktree\` text NOT NULL,
+          \`worktree\` text,
           \`vcs\` text,
           \`name\` text,
-          \`managed\` integer DEFAULT false NOT NULL,
-          \`folder\` text,
           \`icon_url\` text,
           \`icon_url_override\` text,
           \`icon_color\` text,
@@ -243,7 +241,6 @@ export default {
       yield* tx.run(
         `CREATE UNIQUE INDEX \`permission_project_action_resource_idx\` ON \`permission\` (\`project_id\`,\`action\`,\`resource\`);`,
       )
-      yield* tx.run(`CREATE UNIQUE INDEX \`project_folder_idx\` ON \`project\` (\`folder\`);`)
       yield* tx.run(
         `CREATE INDEX \`message_session_time_created_id_idx\` ON \`message\` (\`session_id\`,\`time_created\`,\`id\`);`,
       )

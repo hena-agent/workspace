@@ -1,11 +1,4 @@
-import type {
-  Config,
-  McpResource,
-  HenaClient,
-  Path,
-  Project,
-  ProviderAuthResponse,
-} from "@hena/sdk/v2/client"
+import type { Config, McpResource, HenaClient, Path, Project, ProviderAuthResponse } from "@hena/sdk/v2/client"
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@hena/core/util/path"
 import { type Accessor, batch, createMemo, getOwner, onCleanup, onMount, untrack } from "solid-js"
@@ -78,11 +71,7 @@ export const loadLspQuery = (scope: ServerScope, directory: string, sdk: HenaCli
     queryFn: () => sdk.lsp.status().then((r) => r.data ?? []),
   })
 
-function makeQueryOptionsApi(
-  scope: ServerScope,
-  serverSDK: () => HenaClient,
-  sdkFor: (dir: PathKey) => HenaClient,
-) {
+function makeQueryOptionsApi(scope: ServerScope, serverSDK: () => HenaClient, sdkFor: (dir: PathKey) => HenaClient) {
   return {
     globalConfig: () => loadGlobalConfigQuery(scope, serverSDK()),
     projects: () => loadProjectsQuery(scope, serverSDK()),

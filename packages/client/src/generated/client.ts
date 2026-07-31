@@ -960,14 +960,14 @@ export function make(options: ClientOptions) {
           { method: "GET", path: `/api/project`, successStatus: 200, declaredStatuses: [401, 400], empty: false },
           requestOptions,
         ),
-      create: (input?: ProjectsCreateInput, requestOptions?: RequestOptions) =>
+      create: (input: ProjectsCreateInput, requestOptions?: RequestOptions) =>
         request<ProjectsCreateOutput>(
           {
             method: "POST",
             path: `/api/project`,
-            body: { name: input?.["name"], folder: input?.["folder"] },
+            body: { name: input["name"] },
             successStatus: 200,
-            declaredStatuses: [409, 400, 401],
+            declaredStatuses: [401, 400],
             empty: false,
           },
           requestOptions,
@@ -990,7 +990,7 @@ export function make(options: ClientOptions) {
             path: `/api/project/${encodeURIComponent(input.projectID)}/folder`,
             body: { folder: input["folder"] },
             successStatus: 200,
-            declaredStatuses: [404, 409, 400, 401],
+            declaredStatuses: [404, 400, 401],
             empty: false,
           },
           requestOptions,

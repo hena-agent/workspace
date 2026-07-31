@@ -53,8 +53,9 @@ import { ModelV2 } from "@hena/core/model"
 import { ProviderV2 } from "@hena/core/provider"
 import { eq } from "drizzle-orm"
 import { SessionTable } from "@hena/core/session/sql"
-import { ProjectTable } from "@hena/core/project/sql"
+import { Project } from "@hena/core/project"
 import { GeneralChat } from "./general-chat"
+import { AttachFolderTool } from "@hena/core/tool/attach-folder"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@hena/llm"
@@ -141,6 +142,7 @@ const layer = Layer.effect(
     const llm = yield* LLM.Service
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
+    const projects = yield* Project.Service
     const database = yield* Database.Service
     const { db } = database
     const ops = Effect.fn("SessionPrompt.ops")(function* () {
@@ -1224,14 +1226,12 @@ const layer = Layer.effect(
             const lastUserMsg = msgs.findLast((m) => m.info.role === "user")
             const bypassAgentCheck = lastUserMsg?.parts.some((p) => p.type === "agent") ?? false
             const promptOps = yield* ops()
-            const project = yield* db
-              .select({ managed: ProjectTable.managed, folder: ProjectTable.folder })
-              .from(ProjectTable)
-              .where(eq(ProjectTable.id, session.projectID))
-              .get()
-              .pipe(Effect.orDie)
-            const generalChat = project?.managed === true && !project.folder
-            const sessionPermission = GeneralChat.permissions(generalChat, session.permission)
+            const generalChat = yield* projects.isFolderless(session.projectID)
+            const ruleset = [
+              ...agent.permission,
+              ...(session.permission ?? []),
+              ...(generalChat ? GeneralChat.CEILING : []),
+            ]
 
             const tools = yield* SessionTools.resolve({
               agent,
@@ -1241,7 +1241,7 @@ const layer = Layer.effect(
               bypassAgentCheck,
               messages: msgs,
               promptOps,
-              generalChat,
+              permission: ruleset,
             }).pipe(
               Effect.provideService(Plugin.Service, plugin),
               Effect.provideService(Permission.Service, permission),
@@ -1269,7 +1269,7 @@ const layer = Layer.effect(
               sys.skills(agent),
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
-              sys.mcp(agent, session.permission),
+              sys.mcp(agent, ruleset),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
             const system = [
@@ -1283,8 +1283,8 @@ const layer = Layer.effect(
             const result = yield* handle.process({
               user: lastUser,
               agent,
-              permission: sessionPermission,
-              generalChat,
+              permission: ruleset,
+              baseSystem: generalChat ? [GeneralChat.GENERAL_CHAT_SYSTEM] : undefined,
               sessionID,
               parentSessionID: session.parentID,
               system,
@@ -1296,6 +1296,16 @@ const layer = Layer.effect(
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
             })
+
+            const stopsAfterAttachment = (
+              yield* MessageV2.parts(handle.message.id).pipe(Effect.provideService(Database.Service, database))
+            ).some(
+              (part) =>
+                part.type === "tool" &&
+                part.state.status === "completed" &&
+                AttachFolderTool.stopsTurn(part.tool, part.state.metadata),
+            )
+            if (stopsAfterAttachment) return "break" as const
 
             if (structured !== undefined) {
               handle.message.structured = structured
@@ -1636,6 +1646,7 @@ export const node = LayerNode.make({
     LLM.node,
     EventV2Bridge.node,
     RuntimeFlags.node,
+    Project.node,
     Database.node,
   ],
 })

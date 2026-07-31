@@ -1,6 +1,7 @@
 import { describe, expect } from "bun:test"
 import { LayerNode } from "@hena/core/effect/layer-node"
-import { Effect, Fiber, Queue } from "effect"
+import { ProjectV2 } from "@hena/core/project"
+import { Effect, Fiber, Layer, Queue } from "effect"
 import { Agent } from "@/agent/agent"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Question } from "@/question"
@@ -21,7 +22,14 @@ const context = {
 }
 
 const it = testEffect(
-  LayerNode.compile(LayerNode.group([Question.node, EventV2Bridge.node, Truncate.node, Agent.node])),
+  LayerNode.compile(LayerNode.group([Question.node, EventV2Bridge.node, Truncate.node, Agent.node, ProjectV2.node]), [
+    [
+      ProjectV2.node,
+      Layer.mock(ProjectV2.Service, {
+        isFolderless: () => Effect.succeed(false),
+      }),
+    ],
+  ]),
 )
 
 describe("tool.attach_folder", () => {
@@ -49,7 +57,7 @@ describe("tool.attach_folder", () => {
         type: "attach-folder",
         reason: "I need the source files",
       })
-      yield* question.reply({ requestID: request.id, answers: [["Folder attached"]] })
+      yield* question.reply({ requestID: request.id, answers: [["not a status sentinel"]] })
       expect((yield* Fiber.join(fiber)).output).toContain("Stop now")
     }),
   )

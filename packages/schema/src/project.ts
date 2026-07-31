@@ -4,6 +4,7 @@ import { Schema } from "effect"
 import { define, inventory } from "./event"
 import { AbsolutePath, DateTimeUtcFromMillis, NonNegativeInt, optional } from "./schema"
 import { ProjectID } from "./project-id"
+import { SessionID } from "./session-id"
 
 export const ID = ProjectID
 export type ID = typeof ID.Type
@@ -45,21 +46,29 @@ export const Name = Schema.Trim.pipe(Schema.check(Schema.isNonEmpty()), Schema.b
 })
 export type Name = typeof Name.Type
 
-export interface ManagedInfo extends Schema.Schema.Type<typeof ManagedInfo> {}
-export const ManagedInfo = Schema.Struct({
+export interface Chat extends Schema.Schema.Type<typeof Chat> {}
+export const Chat = Schema.Struct({
   id: ID,
   name: Name,
-  worktree: AbsolutePath,
-  folder: AbsolutePath.pipe(optional),
+  directory: AbsolutePath,
   time: Schema.Struct({
     created: DateTimeUtcFromMillis,
     updated: DateTimeUtcFromMillis,
   }),
-}).annotate({ identifier: "Project.ManagedInfo" })
+}).annotate({ identifier: "Project.Chat" })
+
+export interface Attachment extends Schema.Schema.Type<typeof Attachment> {}
+export const Attachment = Schema.Struct({
+  project: Schema.Struct({
+    id: ID,
+    directory: AbsolutePath,
+    vcs: Vcs.pipe(optional),
+  }),
+  sessionIDs: Schema.Array(SessionID),
+}).annotate({ identifier: "Project.Attachment" })
 
 export const CreateInput = Schema.Struct({
-  name: Name.pipe(optional),
-  folder: AbsolutePath.pipe(optional),
+  name: Name,
 }).annotate({ identifier: "Project.CreateInput" })
 export type CreateInput = typeof CreateInput.Type
 

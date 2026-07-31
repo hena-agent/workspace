@@ -12,6 +12,9 @@ import { cleanPickerInput, createDirectorySearch, displayPickerPath } from "./di
 
 interface DialogSelectDirectoryProps {
   title?: string
+  description?: string
+  // The legacy picker selects rows immediately, so only the V2 picker can display a custom action label.
+  actionLabel?: string
   multiple?: boolean
   onSelect: (result: string | string[] | null) => void
   server: ServerConnection.Any
@@ -123,7 +126,7 @@ export function DialogSelectDirectory(props: DialogSelectDirectoryProps) {
   }
 
   return (
-    <Dialog title={props.title ?? language.t("command.project.open")}>
+    <Dialog title={props.title ?? language.t("command.project.open")} description={props.description}>
       <List
         class="px-3"
         search={{ placeholder: language.t("dialog.directory.search.placeholder"), autofocus: true }}

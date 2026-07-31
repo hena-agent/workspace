@@ -2954,13 +2954,6 @@ export type ForbiddenError = {
   message: string
 }
 
-export type ProjectFolderConflictError = {
-  _tag: "ProjectFolderConflictError"
-  projectID: string
-  folder?: string
-  message: string
-}
-
 export type ProjectFolderInvalidError = {
   _tag: "ProjectFolderInvalidError"
   folder: string
@@ -6176,11 +6169,10 @@ export type ReferenceInfo = {
 
 export type ProjectName = string
 
-export type ProjectManagedInfo = {
+export type ProjectChat = {
   id: string
   name: ProjectName
-  worktree: string
-  folder?: string
+  directory: string
   time: {
     created: number
     updated: number
@@ -6188,8 +6180,16 @@ export type ProjectManagedInfo = {
 }
 
 export type ProjectCreateInput = {
-  name?: string
-  folder?: string
+  name: ProjectName
+}
+
+export type ProjectAttachment = {
+  project: {
+    id: string
+    directory: string
+    vcs?: ProjectVcs
+  }
+  sessionIDs: Array<string>
 }
 
 export type ProjectCopyCopy = {
@@ -9442,7 +9442,7 @@ export type ProviderOauthAuthorizeResponses = {
   /**
    * Authorization URL and method
    */
-  200: ProviderAuthAuthorization | null
+  200: ProviderAuthAuthorization
 }
 
 export type ProviderOauthAuthorizeResponse = ProviderOauthAuthorizeResponses[keyof ProviderOauthAuthorizeResponses]
@@ -11231,7 +11231,7 @@ export type ExperimentalWorkspaceRemoveResponses = {
   /**
    * Workspace removed
    */
-  200: Workspace | null
+  200: Workspace
 }
 
 export type ExperimentalWorkspaceRemoveResponse =
@@ -11239,7 +11239,7 @@ export type ExperimentalWorkspaceRemoveResponse =
 
 export type ExperimentalWorkspaceWarpData = {
   body?: {
-    id: string | null | null
+    id: string | null
     sessionID: string
     copyChanges?: boolean
   }
@@ -11951,7 +11951,7 @@ export type V2SessionEventsResponses = {
    * Success
    */
   200: {
-    id: string | null
+    id: string
     event: string
     data: SessionDurableEventStream
   }
@@ -12277,7 +12277,7 @@ export type V2IntegrationGetResponses = {
    */
   200: {
     location: LocationInfo
-    data: IntegrationInfo | null
+    data: IntegrationInfo
   }
 }
 
@@ -13553,7 +13553,7 @@ export type V2ProjectListResponses = {
   /**
    * Success
    */
-  200: Array<ProjectManagedInfo>
+  200: Array<ProjectChat>
 }
 
 export type V2ProjectListResponse = V2ProjectListResponses[keyof V2ProjectListResponses]
@@ -13567,26 +13567,22 @@ export type V2ProjectCreateData = {
 
 export type V2ProjectCreateErrors = {
   /**
-   * ProjectFolderInvalidError | InvalidRequestError
+   * InvalidRequestError
    */
-  400: ProjectFolderInvalidError | InvalidRequestError
+  400: InvalidRequestError
   /**
    * UnauthorizedError
    */
   401: UnauthorizedError
-  /**
-   * ProjectFolderConflictError
-   */
-  409: ProjectFolderConflictError
 }
 
 export type V2ProjectCreateError = V2ProjectCreateErrors[keyof V2ProjectCreateErrors]
 
 export type V2ProjectCreateResponses = {
   /**
-   * Project.ManagedInfo
+   * Project.Chat
    */
-  200: ProjectManagedInfo
+  200: ProjectChat
 }
 
 export type V2ProjectCreateResponse = V2ProjectCreateResponses[keyof V2ProjectCreateResponses]
@@ -13619,9 +13615,9 @@ export type V2ProjectGetError = V2ProjectGetErrors[keyof V2ProjectGetErrors]
 
 export type V2ProjectGetResponses = {
   /**
-   * Project.ManagedInfo
+   * Project.Chat
    */
-  200: ProjectManagedInfo
+  200: ProjectChat
 }
 
 export type V2ProjectGetResponse = V2ProjectGetResponses[keyof V2ProjectGetResponses]
@@ -13650,19 +13646,15 @@ export type V2ProjectAttachFolderErrors = {
    * ProjectNotFoundError
    */
   404: ProjectNotFoundError
-  /**
-   * ProjectFolderConflictError
-   */
-  409: ProjectFolderConflictError
 }
 
 export type V2ProjectAttachFolderError = V2ProjectAttachFolderErrors[keyof V2ProjectAttachFolderErrors]
 
 export type V2ProjectAttachFolderResponses = {
   /**
-   * Project.ManagedInfo
+   * Project.Attachment
    */
-  200: ProjectManagedInfo
+  200: ProjectAttachment
 }
 
 export type V2ProjectAttachFolderResponse = V2ProjectAttachFolderResponses[keyof V2ProjectAttachFolderResponses]

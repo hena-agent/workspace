@@ -52,6 +52,7 @@ import { BackgroundJob } from "@/background/job"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@hena/core/provider"
 import { ModelV2 } from "@hena/core/model"
+import { ProjectV2 } from "@hena/core/project"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@hena/core/v1/permission"
 import { McpCatalog } from "@/mcp/catalog"
@@ -93,6 +94,7 @@ const layer = Layer.effect(
     const truncate = yield* Truncate.Service
     const flags = yield* RuntimeFlags.Service
     const mcp = yield* MCP.Service
+    const projects = yield* ProjectV2.Service
 
     const invalid = yield* InvalidTool
     const task = yield* TaskTool
@@ -202,6 +204,9 @@ const layer = Layer.effect(
 
         yield* config.get()
         const questionEnabled = ["app", "cli", "desktop"].includes(flags.client) || flags.enableQuestionTool
+        const attachFolderEnabled =
+          ["app", "cli", "desktop"].includes(flags.client) &&
+          (yield* projects.isFolderless(ProjectV2.ID.make(ctx.project.id)))
 
         const tool = yield* Effect.all({
           invalid: Tool.init(invalid),
@@ -228,7 +233,7 @@ const layer = Layer.effect(
           custom,
           builtin: [
             tool.invalid,
-            ...(["app", "cli", "desktop"].includes(flags.client) ? [tool.attachFolder] : []),
+            ...(attachFolderEnabled ? [tool.attachFolder] : []),
             ...(questionEnabled ? [tool.question] : []),
             tool.shell,
             tool.read,
@@ -281,7 +286,7 @@ const layer = Layer.effect(
       permission?: PermissionV1.Ruleset
     }) {
       if (!codeMode) return
-      const ruleset = Permission.merge(input.agent.permission, input.permission ?? [])
+      const ruleset = input.permission ?? input.agent.permission
       const tools = Permission.visibleTools(yield* mcp.tools(), ruleset)
       if (Object.keys(tools).length === 0) return
       return codeMode.describeCatalog(tools, Object.keys(yield* mcp.clients()).map(McpCatalog.sanitize))
@@ -448,6 +453,7 @@ export const node = LayerNode.make({
     MCP.node,
     Database.node,
     Ripgrep.node,
+    ProjectV2.node,
   ],
 })
 

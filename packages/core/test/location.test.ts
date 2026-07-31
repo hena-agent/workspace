@@ -14,6 +14,7 @@ const projectLayer = Layer.succeed(
   Project.Service.of({
     list: () => Effect.succeed([]),
     get: (projectID) => Effect.fail(new Project.NotFoundError({ projectID })),
+    isFolderless: () => Effect.succeed(false),
     create: (input) => Effect.fail(new Project.InvalidNameError({ name: input.name ?? "" })),
     attachFolder: (input) => Effect.fail(new Project.InvalidFolderError({ folder: input.folder })),
     directories: () => Effect.succeed([]),

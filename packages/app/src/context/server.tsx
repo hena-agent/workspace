@@ -5,7 +5,7 @@ import { Persist, persisted } from "@/utils/persist"
 import { pathKey } from "@/utils/path-key"
 import { ServerScope } from "@/utils/server-scope"
 
-type StoredProject = { worktree: string; expanded: boolean }
+export type StoredProject = { worktree: string; expanded: boolean }
 type StoredServer = string | ServerConnection.HttpBase | ServerConnection.Http
 type ServerProjectState = {
   projects: Record<string, StoredProject[]>
@@ -84,11 +84,12 @@ export function createServerProjects<T extends ServerProjectState>(input: {
   const setStore = input.setStore as unknown as SetStoreFunction<ServerProjectState>
   const current = () => input.store.projects[input.scope()] ?? []
   const currentClosed = () => input.store.recentlyClosed?.[input.scope()] ?? []
+  const samePath = (left: string, right: string) => pathKey(left) === pathKey(right)
   const remove = (directory: string) => {
     setStore(
       "projects",
       input.scope(),
-      current().filter((project) => project.worktree !== directory),
+      current().filter((project) => !samePath(project.worktree, directory)),
     )
   }
   return {
@@ -101,52 +102,85 @@ export function createServerProjects<T extends ServerProjectState>(input: {
     remove,
     open(directory: string) {
       const scope = input.scope()
-      const key = pathKey(directory)
+      const normalized = pathKey(directory)
       const closed = currentClosed()
-      if (closed.some((worktree) => pathKey(worktree) === key)) {
+      if (closed.some((worktree) => pathKey(worktree) === normalized)) {
         setStore(
           "recentlyClosed",
           scope,
-          closed.filter((worktree) => pathKey(worktree) !== key),
+          closed.filter((worktree) => pathKey(worktree) !== normalized),
         )
       }
-      if (current().some((project) => project.worktree === directory)) return
-      setStore("projects", scope, [{ worktree: directory, expanded: true }, ...current()])
+      if (current().some((project) => samePath(project.worktree, normalized))) return
+      setStore("projects", scope, [{ worktree: normalized, expanded: true }, ...current()])
     },
-    replace(previous: string, directory: string) {
-      const index = current().findIndex((project) => project.worktree === previous)
-      if (index === -1) {
-        if (!current().some((project) => project.worktree === directory))
-          setStore("projects", input.scope(), [{ worktree: directory, expanded: true }, ...current()])
-        return
-      }
-      const next = current().filter((project) => project.worktree !== directory)
-      const previousIndex = next.findIndex((project) => project.worktree === previous)
-      next.splice(previousIndex, 1, { ...current()[index]!, worktree: directory })
-      setStore("projects", input.scope(), next)
-      if (input.store.lastProject[input.scope()] === previous) setStore("lastProject", input.scope(), directory)
+    replace(previous_: string, directory_: string) {
+      const scope = input.scope()
+      const previous = pathKey(previous_)
+      const directory = pathKey(directory_)
+      const list = current()
+      const previousIndex = list.findIndex((project) => samePath(project.worktree, previous))
+      const targetIndex = list.findIndex((project) => samePath(project.worktree, directory))
+      const source = list[previousIndex]
+      const routeClosed = currentClosed().some(
+        (worktree) => samePath(worktree, previous) || samePath(worktree, directory),
+      )
+      const next = list.flatMap((project, index) => {
+        if (index === previousIndex) return [{ ...project, worktree: directory }]
+        if (index === targetIndex) {
+          if (previousIndex !== -1) return []
+          return [{ ...project, worktree: directory }]
+        }
+        return [project]
+      })
+      if (!source && targetIndex === -1 && !routeClosed) next.unshift({ worktree: directory, expanded: true })
+      const closed = currentClosed().reduce<string[]>((items, worktree) => {
+        if (
+          (source && (samePath(worktree, previous) || samePath(worktree, directory))) ||
+          (!source && targetIndex !== -1 && (samePath(worktree, previous) || samePath(worktree, directory)))
+        )
+          return items
+        const value = samePath(worktree, previous) ? directory : pathKey(worktree)
+        if (!items.some((item) => samePath(item, value))) items.push(value)
+        return items
+      }, [])
+
+      batch(() => {
+        if (
+          next.length !== list.length ||
+          next.some(
+            (project, index) =>
+              project.worktree !== list[index]?.worktree || project.expanded !== list[index]?.expanded,
+          )
+        )
+          setStore("projects", scope, next)
+        if (closed.length !== currentClosed().length || closed.some((value, index) => value !== currentClosed()[index]))
+          setStore("recentlyClosed", scope, closed)
+        const last = input.store.lastProject[scope]
+        if (last && samePath(last, previous)) setStore("lastProject", scope, directory)
+      })
     },
     // User-initiated close: removes the project and records it in recently closed.
     // Internal, non-user removals (e.g. sandbox/worktree normalization) should use remove().
     close(directory: string) {
-      remove(directory)
-      const key = pathKey(directory)
-      const closed = [directory, ...currentClosed().filter((worktree) => pathKey(worktree) !== key)].slice(
+      const normalized = pathKey(directory)
+      remove(normalized)
+      const closed = [normalized, ...currentClosed().filter((worktree) => !samePath(worktree, normalized))].slice(
         0,
         RECENTLY_CLOSED_HISTORY_LIMIT,
       )
       setStore("recentlyClosed", input.scope(), closed)
     },
     expand(directory: string) {
-      const index = current().findIndex((project) => project.worktree === directory)
+      const index = current().findIndex((project) => samePath(project.worktree, directory))
       if (index !== -1) setStore("projects", input.scope(), index, "expanded", true)
     },
     collapse(directory: string) {
-      const index = current().findIndex((project) => project.worktree === directory)
+      const index = current().findIndex((project) => samePath(project.worktree, directory))
       if (index !== -1) setStore("projects", input.scope(), index, "expanded", false)
     },
     move(directory: string, toIndex: number) {
-      const fromIndex = current().findIndex((project) => project.worktree === directory)
+      const fromIndex = current().findIndex((project) => samePath(project.worktree, directory))
       if (fromIndex === -1 || fromIndex === toIndex) return
       const next = [...current()]
       const [item] = next.splice(fromIndex, 1)
@@ -157,7 +191,7 @@ export function createServerProjects<T extends ServerProjectState>(input: {
       return input.store.lastProject[input.scope()]
     },
     touch(directory: string) {
-      setStore("lastProject", input.scope(), directory)
+      setStore("lastProject", input.scope(), pathKey(directory))
     },
   }
 }

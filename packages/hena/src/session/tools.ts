@@ -1,5 +1,6 @@
 import { Agent } from "@/agent/agent"
 import { SessionV1 } from "@hena/core/v1/session"
+import { PermissionV1 } from "@hena/core/v1/permission"
 import { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { MCP } from "@/mcp"
@@ -23,7 +24,6 @@ import { ProviderV2 } from "@hena/core/provider"
 import { ModelV2 } from "@hena/core/model"
 import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
-import { GeneralChat } from "./general-chat"
 
 const MCP_RESOURCE_TOOLS = {
   list: "list_mcp_resources",
@@ -47,7 +47,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   bypassAgentCheck: boolean
   messages: SessionV1.WithParts[]
   promptOps: TaskPromptOps
-  generalChat: boolean
+  permission: PermissionV1.Ruleset
 }) {
   const tools: Record<string, AITool> = {}
   const run = yield* EffectBridge.make()
@@ -57,10 +57,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   const mcp = yield* MCP.Service
   const truncate = yield* Truncate.Service
   const flags = yield* RuntimeFlags.Service
-  const ruleset = GeneralChat.permissions(
-    input.generalChat,
-    Permission.merge(input.agent.permission, input.session.permission ?? []),
-  )
+  const ruleset = input.permission
 
   const context = (args: Record<string, unknown>, options: ToolExecutionOptions): Tool.Context => ({
     sessionID: input.session.id,

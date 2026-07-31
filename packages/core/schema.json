@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "583f10f4-bc02-4b8e-af44-7611d3c0dbe2",
+  "id": "527b2d42-a05a-4909-9ce4-1746b78a2038",
   "prevIds": [
-    "458ff85c-4d42-4929-98cd-afbbe3449573"
+    "f14a9b18-8207-487e-a3d3-227e629ba9ad"
   ],
   "ddl": [
     {
@@ -664,7 +664,7 @@
     },
     {
       "type": "text",
-      "notNull": true,
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
@@ -689,26 +689,6 @@
       "default": null,
       "generated": null,
       "name": "name",
-      "entityType": "columns",
-      "table": "project"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": "false",
-      "generated": null,
-      "name": "managed",
-      "entityType": "columns",
-      "table": "project"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "folder",
       "entityType": "columns",
       "table": "project"
     },
@@ -1099,16 +1079,6 @@
       "default": null,
       "generated": null,
       "name": "project_id",
-      "entityType": "columns",
-      "table": "session"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "mode",
       "entityType": "columns",
       "table": "session"
     },
@@ -1942,20 +1912,6 @@
       "name": "permission_project_action_resource_idx",
       "entityType": "indexes",
       "table": "permission"
-    },
-    {
-      "columns": [
-        {
-          "value": "folder",
-          "isExpression": false
-        }
-      ],
-      "isUnique": true,
-      "where": null,
-      "origin": "manual",
-      "name": "project_folder_idx",
-      "entityType": "indexes",
-      "table": "project"
     },
     {
       "columns": [

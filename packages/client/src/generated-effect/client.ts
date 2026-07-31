@@ -639,14 +639,9 @@ const Endpoint17_0 = (raw: RawClient["server.project"]) => () =>
   raw["project.list"]({}).pipe(Effect.mapError(mapClientError))
 
 type Endpoint17_1Request = Parameters<RawClient["server.project"]["project.create"]>[0]
-type Endpoint17_1Input = {
-  readonly name?: Endpoint17_1Request["payload"]["name"]
-  readonly folder?: Endpoint17_1Request["payload"]["folder"]
-}
-const Endpoint17_1 = (raw: RawClient["server.project"]) => (input?: Endpoint17_1Input) =>
-  raw["project.create"]({ payload: { name: input?.["name"], folder: input?.["folder"] } }).pipe(
-    Effect.mapError(mapClientError),
-  )
+type Endpoint17_1Input = { readonly name: Endpoint17_1Request["payload"]["name"] }
+const Endpoint17_1 = (raw: RawClient["server.project"]) => (input: Endpoint17_1Input) =>
+  raw["project.create"]({ payload: { name: input["name"] } }).pipe(Effect.mapError(mapClientError))
 
 type Endpoint17_2Request = Parameters<RawClient["server.project"]["project.get"]>[0]
 type Endpoint17_2Input = { readonly projectID: Endpoint17_2Request["params"]["projectID"] }

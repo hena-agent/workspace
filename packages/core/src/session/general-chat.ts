@@ -5,17 +5,9 @@ import GENERAL_CHAT_SYSTEM from "./prompt/general-chat.txt"
 
 export { GENERAL_CHAT_SYSTEM }
 
-const ceiling: PermissionV2.Ruleset = [
+export const SAFE_ACTIONS = ["question", "webfetch", "websearch"] as const
+
+export const CEILING: PermissionV2.Ruleset = [
   { action: "*", resource: "*", effect: "deny" },
-  { action: "question", resource: "*", effect: "allow" },
-  { action: "webfetch", resource: "*", effect: "allow" },
-  { action: "websearch", resource: "*", effect: "allow" },
+  ...SAFE_ACTIONS.map((action) => ({ action, resource: "*", effect: "allow" as const })),
 ]
-
-export function system(active: boolean, coding: ReadonlyArray<string>) {
-  return active ? [GENERAL_CHAT_SYSTEM] : [...coding]
-}
-
-export function permissions(active: boolean, configured: PermissionV2.Ruleset = []) {
-  return active ? [...configured, ...ceiling] : configured
-}

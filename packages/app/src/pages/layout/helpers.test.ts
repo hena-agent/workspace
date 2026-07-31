@@ -15,7 +15,6 @@ import {
   errorMessage,
   hasProjectPermissions,
   homeProjectNavigation,
-  homeProjectDirectories,
   homeSessionServerStatus,
   latestRootSession,
   toggleHomeProjectSelection,
@@ -287,12 +286,6 @@ describe("layout workspace helpers", () => {
     ).toEqual({
       href: "/YW1hem9u/session",
     })
-  })
-
-  test("preserves picker order when adding multiple projects", () => {
-    expect(homeProjectDirectories(["/first", "/second"])).toEqual(["/first", "/second"])
-    expect(homeProjectDirectories("/only")).toEqual(["/only"])
-    expect(homeProjectDirectories(null)).toEqual([])
   })
 
   test("hides status derived from an inactive server", () => {

@@ -1,31 +1,18 @@
 import { describe, expect, test } from "bun:test"
 import { GeneralChat } from "@hena/core/session/general-chat"
 
-describe("GeneralChat.system", () => {
-  test("replaces the coding prompt when active", () => {
-    const system = GeneralChat.system(true, ["coding prompt"])
-
-    expect(system).toEqual([GeneralChat.GENERAL_CHAT_SYSTEM])
-    expect(system.join("\n")).not.toContain("coding prompt")
+describe("GeneralChat", () => {
+  test("exports the canonical system prompt", () => {
+    expect(GeneralChat.GENERAL_CHAT_SYSTEM).toContain("general-purpose AI collaborator")
   })
 
-  test("keeps the coding prompt when inactive", () => {
-    expect(GeneralChat.system(false, ["coding prompt"])).toEqual(["coding prompt"])
-  })
-})
-
-describe("GeneralChat.permissions", () => {
-  test("applies a capability ceiling when active", () => {
-    expect(GeneralChat.permissions(true)).toEqual([
+  test("derives its ceiling from the canonical safe actions", () => {
+    expect(GeneralChat.SAFE_ACTIONS).toEqual(["question", "webfetch", "websearch"])
+    expect(GeneralChat.CEILING).toEqual([
       { action: "*", resource: "*", effect: "deny" },
       { action: "question", resource: "*", effect: "allow" },
       { action: "webfetch", resource: "*", effect: "allow" },
       { action: "websearch", resource: "*", effect: "allow" },
     ])
-  })
-
-  test("keeps configured permissions when inactive", () => {
-    const configured = [{ action: "bash", resource: "*", effect: "allow" as const }]
-    expect(GeneralChat.permissions(false, configured)).toBe(configured)
   })
 })

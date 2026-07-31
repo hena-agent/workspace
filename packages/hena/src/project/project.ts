@@ -1,5 +1,5 @@
 import { LayerNode } from "@hena/core/effect/layer-node"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, isNotNull, sql } from "drizzle-orm"
 import { Database } from "@hena/core/database/database"
 import { ProjectDirectoryTable, ProjectTable } from "@hena/core/project/sql"
 import { ProjectDirectories } from "@hena/core/project/directories"
@@ -31,8 +31,13 @@ export const Event = {
 }
 
 type Row = typeof ProjectTable.$inferSelect
+type RootedRow = Row & { worktree: AbsolutePath }
 
-export function fromRow(row: Row): Info {
+function isRooted(row: Row): row is RootedRow {
+  return row.worktree !== null
+}
+
+export function fromRow(row: RootedRow): Info {
   const icon =
     row.icon_url || row.icon_url_override || row.icon_color
       ? {
@@ -220,7 +225,8 @@ const layer = Layer.effect(
       const projectID = ProjectV2.ID.make(data.id)
       yield* migrateProjectId(data.previous ? ProjectV2.ID.make(data.previous) : undefined, projectID)
       const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get().pipe(Effect.orDie)
-      const existing = row
+      if (row && !isRooted(row)) return yield* Effect.die(`Folderless project cannot be opened as rooted: ${projectID}`)
+      const existing = row && isRooted(row)
         ? fromRow(row)
         : {
             id: projectID,
@@ -334,12 +340,13 @@ const layer = Layer.effect(
     })
 
     const list = Effect.fn("Project.list")(function* () {
-      return (yield* db.select().from(ProjectTable).all().pipe(Effect.orDie)).map(fromRow)
+      const rows = yield* db.select().from(ProjectTable).where(isNotNull(ProjectTable.worktree)).all().pipe(Effect.orDie)
+      return rows.filter(isRooted).map(fromRow)
     })
 
     const get = Effect.fn("Project.get")(function* (id: ProjectV2.ID) {
       const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get().pipe(Effect.orDie)
-      return row ? fromRow(row) : undefined
+      return row?.worktree ? fromRow({ ...row, worktree: row.worktree }) : undefined
     })
 
     const update = Effect.fn("Project.update")(function* (input: UpdateInput) {
@@ -357,8 +364,8 @@ const layer = Layer.effect(
         .returning()
         .get()
         .pipe(Effect.orDie)
-      if (!result) return yield* new NotFoundError({ projectID: input.projectID })
-      const data = fromRow(result)
+      if (!result?.worktree) return yield* new NotFoundError({ projectID: input.projectID })
+      const data = fromRow({ ...result, worktree: result.worktree })
       yield* emitUpdated(data)
       return data
     })
@@ -402,7 +409,8 @@ const layer = Layer.effect(
     const sandboxes = Effect.fn("Project.sandboxes")(function* (id: ProjectV2.ID) {
       const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get().pipe(Effect.orDie)
       if (!row) return []
-      const data = fromRow(row)
+      if (!row.worktree) return []
+      const data = fromRow({ ...row, worktree: row.worktree })
       return yield* Effect.forEach(
         data.sandboxes,
         (dir) =>
@@ -428,7 +436,8 @@ const layer = Layer.effect(
         .get()
         .pipe(Effect.orDie)
       if (!result) throw new Error(`Project not found: ${id}`)
-      yield* emitUpdated(fromRow(result))
+      if (!result.worktree) return yield* Effect.die(`Folderless project cannot add a sandbox: ${id}`)
+      yield* emitUpdated(fromRow({ ...result, worktree: result.worktree }))
     })
 
     const removeSandbox = Effect.fn("Project.removeSandbox")(function* (id: ProjectV2.ID, directory: string) {
@@ -444,7 +453,8 @@ const layer = Layer.effect(
         .get()
         .pipe(Effect.orDie)
       if (!result) throw new Error(`Project not found: ${id}`)
-      yield* emitUpdated(fromRow(result))
+      if (!result.worktree) return yield* Effect.die(`Folderless project cannot remove a sandbox: ${id}`)
+      yield* emitUpdated(fromRow({ ...result, worktree: result.worktree }))
     })
 
     return Service.of({

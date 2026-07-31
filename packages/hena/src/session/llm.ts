@@ -39,7 +39,7 @@ export type StreamInput = {
   model: Provider.Model
   agent: Agent.Info
   permission?: PermissionV1.Ruleset
-  generalChat?: boolean
+  baseSystem?: string[]
   system: string[]
   messages: ModelMessage[]
   small?: boolean
@@ -147,9 +147,9 @@ const live: Layer.Layer<
           }
         }
 
-        const ruleset = Permission.merge(input.agent.permission ?? [], input.permission ?? [])
+        const ruleset = input.permission ?? input.agent.permission
         workflowModel.sessionPreapprovedTools = Object.keys(prepared.tools).filter((name) => {
-          const match = ruleset.findLast((rule) => Wildcard.match(name, rule.permission))
+          const match = ruleset.findLast((rule) => Wildcard.match(Permission.catalogPermission(name), rule.permission))
           return !match || match.action !== "ask"
         })
 

@@ -19,6 +19,7 @@ import { MessageID, SessionID } from "@/session/schema"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@hena/core/provider"
 import { ModelV2 } from "@hena/core/model"
+import { ProjectV2 } from "@hena/core/project"
 import { MCP } from "@/mcp"
 import type { Tool as MCPToolDef } from "@modelcontextprotocol/sdk/types.js"
 
@@ -54,6 +55,12 @@ const root = LayerNode.group([ToolRegistry.node, Agent.node])
 const replacements = [
   [Config.node, configLayer],
   [RuntimeFlags.node, RuntimeFlags.layer()],
+  [
+    ProjectV2.node,
+    Layer.mock(ProjectV2.Service, {
+      isFolderless: () => Effect.succeed(true),
+    }),
+  ],
 ] as const
 
 const it = testEffect(LayerNode.compile(root, replacements))
@@ -94,6 +101,18 @@ const withEmptyCodeMode = testEffect(
   ]),
 )
 const withBrokenPlugin = testEffect(LayerNode.compile(root, [...replacements, [Plugin.node, brokenPluginLayer]]))
+const withAttachedProject = testEffect(
+  LayerNode.compile(root, [
+    [Config.node, configLayer],
+    [RuntimeFlags.node, RuntimeFlags.layer()],
+    [
+      ProjectV2.node,
+      Layer.mock(ProjectV2.Service, {
+        isFolderless: () => Effect.succeed(false),
+      }),
+    ],
+  ]),
+)
 
 afterEach(async () => {
   await disposeAllInstances()
@@ -105,6 +124,12 @@ describe("tool.registry", () => {
       const registry = yield* ToolRegistry.Service
 
       expect(yield* registry.ids()).toContain("attach_folder")
+    }),
+  )
+
+  withAttachedProject.instance("hides attach_folder when the managed project already has a folder", () =>
+    Effect.gen(function* () {
+      expect(yield* (yield* ToolRegistry.Service).ids()).not.toContain("attach_folder")
     }),
   )
 

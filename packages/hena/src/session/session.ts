@@ -585,6 +585,7 @@ const layer: Layer.Layer<
           .all()
           .pipe(Effect.orDie)
         for (const item of items) {
+          if (!item.worktree) continue
           projects.set(item.id, {
             id: item.id,
             name: item.name ?? undefined,

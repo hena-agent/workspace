@@ -528,11 +528,14 @@ it.instance(
       const db = (yield* Database.Service).db
       yield* db
         .update(ProjectTable)
-        .set({ managed: true, name: "Chat project", folder: null })
+        .set({ worktree: null, name: "Chat project" })
         .where(eq(ProjectTable.id, instance.project.id))
         .run()
         .pipe(Effect.orDie)
-      const chat = yield* sessions.create({ title: "Chat mode" })
+      const chat = yield* sessions.create({
+        title: "Chat mode",
+        permission: [{ permission: "shell", pattern: "*", action: "allow" }],
+      })
       yield* prompt.prompt({
         sessionID: chat.id,
         agent: "build",
@@ -546,6 +549,7 @@ it.instance(
       expect(body).toContain(GeneralChat.GENERAL_CHAT_SYSTEM.split("\n")[0])
       expect(body).not.toContain("best coding agent")
       expect(body).toContain('"name":"webfetch"')
+      expect(body).toContain('"name":"attach_folder"')
       expect(body).not.toContain('"name":"shell"')
       expect(body).not.toContain('"name":"apply_patch"')
       expect(body).not.toContain('"name":"skill"')

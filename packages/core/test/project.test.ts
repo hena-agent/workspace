@@ -2,7 +2,7 @@ import { describe, expect } from "bun:test"
 import { $ } from "bun"
 import fs from "fs/promises"
 import path from "path"
-import { Cause, Effect, Exit, Schema } from "effect"
+import { Effect } from "effect"
 import { Database } from "@hena/core/database/database"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
@@ -218,71 +218,6 @@ describe("ProjectV2.resolve", () => {
       expect(result.previous).toBe(ProjectV2.ID.make("old-id"))
       expect(result.id).toBe(remoteID("github.com/owner/repo"))
       expect(result.vcs?.type).toBe("git")
-    }),
-  )
-})
-
-describe("ProjectV2 managed projects", () => {
-  it.live("creates without a folder and preserves identity after the first attachment", () =>
-    Effect.gen(function* () {
-      const folder = yield* Effect.acquireRelease(
-        Effect.promise(() => tmpdir()),
-        (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
-      )
-      const project = yield* ProjectV2.Service
-      const created = yield* Effect.acquireRelease(project.create({ name: "  Research  " }), (info) =>
-        Effect.promise(() => fs.rm(info.worktree, { recursive: true, force: true })),
-      )
-      yield* Effect.promise(() => fs.mkdir(path.join(created.worktree, "notes")))
-
-      expect(created.name).toBe(ProjectV2.Name.make("Research"))
-      expect(created.folder).toBeUndefined()
-      expect((yield* project.resolve(abs(path.join(created.worktree, "notes")))).id).toBe(created.id)
-
-      const attached = yield* project.attachFolder({ projectID: created.id, folder: folder.path })
-      yield* Effect.promise(() => fs.mkdir(path.join(folder.path, "sources")))
-
-      expect(attached.id).toBe(created.id)
-      expect(attached.name).toBe(created.name)
-      expect(attached.worktree).toBe(created.worktree)
-      expect(attached.folder).toBe(yield* real(folder.path))
-      expect((yield* project.resolve(abs(path.join(folder.path, "sources")))).id).toBe(created.id)
-      expect(yield* Effect.flip(project.attachFolder({ projectID: created.id, folder: folder.path }))).toBeInstanceOf(
-        ProjectV2.FolderConflictError,
-      )
-    }),
-  )
-
-  it.live("rejects an empty project name", () =>
-    Effect.gen(function* () {
-      const project = yield* ProjectV2.Service
-      expect(yield* Effect.flip(project.create({ name: "   " }))).toBeInstanceOf(ProjectV2.InvalidNameError)
-    }),
-  )
-
-  it.live("reports one folder conflict when concurrent creates target the same folder", () =>
-    Effect.gen(function* () {
-      const folder = yield* Effect.acquireRelease(
-        Effect.promise(() => tmpdir()),
-        (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
-      )
-      const project = yield* ProjectV2.Service
-      const results = yield* Effect.all(
-        [
-          project.create({ folder: folder.path }).pipe(Effect.exit),
-          project.create({ folder: folder.path }).pipe(Effect.exit),
-        ],
-        { concurrency: "unbounded" },
-      )
-      const successes = results.filter(Exit.isSuccess)
-      const failures = results.filter(Exit.isFailure)
-      yield* Effect.forEach(successes, (result) =>
-        Effect.promise(() => fs.rm(result.value.worktree, { recursive: true, force: true })),
-      )
-
-      expect(successes).toHaveLength(1)
-      expect(failures).toHaveLength(1)
-      expect(Cause.squash(failures[0]!.cause)).toBeInstanceOf(ProjectV2.FolderConflictError)
     }),
   )
 })

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { createRoot, getOwner, onCleanup } from "solid-js"
 import { createTabMemory } from "./tab-memory"
 import { nextTabAfterClose, pushClosedTab, removeClosedTabs, takeClosedTab, type ClosedTab } from "./closed-tabs"
+import { replaceDraftDirectory } from "./tab-directory"
 import type { SessionTab, Tab } from "./tabs"
 import type { ServerConnection } from "./server"
 
@@ -32,6 +33,20 @@ describe("tab memory", () => {
       dispose()
     })
   })
+})
+
+test("replaces matching draft directories without changing session tabs", () => {
+  const tabs: Tab[] = [
+    { type: "draft", draftID: "directory", server, directory: "/scratch/" },
+    { type: "draft", draftID: "worktree", server, directory: "/other", worktree: "/scratch" },
+    sessionTab("session"),
+  ]
+
+  expect(replaceDraftDirectory(tabs, server, "/scratch", "/destination/")).toEqual([
+    { type: "draft", draftID: "directory", server, directory: "/destination" },
+    { type: "draft", draftID: "worktree", server, directory: "/other", worktree: "/destination" },
+    sessionTab("session"),
+  ])
 })
 
 describe("closed tab stack", () => {

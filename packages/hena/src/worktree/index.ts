@@ -488,7 +488,7 @@ const layer: Layer.Layer<
         .where(eq(ProjectTable.id, input.projectID))
         .get()
         .pipe(Effect.orDie)
-      const project = row ? Project.fromRow(row) : undefined
+      const project = row?.worktree ? Project.fromRow({ ...row, worktree: row.worktree }) : undefined
       const startup = project?.commands?.start?.trim() ?? ""
       const ok = yield* runStartScript(directory, startup, "project")
       if (!ok) return false

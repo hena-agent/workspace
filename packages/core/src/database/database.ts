@@ -12,7 +12,6 @@ import { makeGlobalNode } from "../effect/app-node"
 
 const makeDatabase = EffectDrizzleSqlite.makeWithDefaults()
 type DatabaseShape = Effect.Success<typeof makeDatabase>
-export type Transaction = Parameters<Parameters<DatabaseShape["transaction"]>[0]>[0]
 
 export interface Interface {
   db: DatabaseShape
@@ -46,7 +45,10 @@ export function path() {
     if (Flag.HENA_DB === ":memory:" || isAbsolute(Flag.HENA_DB)) return Flag.HENA_DB
     return join(Global.Path.data, Flag.HENA_DB)
   }
-  if (["latest", "beta", "prod"].includes(InstallationChannel) || Flag.HENA_DISABLE_CHANNEL_DB)
+  if (
+    ["latest", "beta", "prod"].includes(InstallationChannel) ||
+    Flag.HENA_DISABLE_CHANNEL_DB
+  )
     return join(Global.Path.data, "hena.db")
   return join(Global.Path.data, `hena-${InstallationChannel.replace(/[^a-zA-Z0-9._-]/g, "-")}.db`)
 }

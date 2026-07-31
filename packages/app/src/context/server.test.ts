@@ -146,26 +146,166 @@ describe("createServerProjects", () => {
       const projects = createServerProjects({ scope, store, setStore })
 
       projects.open("/repo/subdir")
-      projects.remove("/repo/subdir")
+      projects.remove("/repo/subdir/")
       expect(projects.list()).toEqual([])
       expect(projects.recentlyClosed()).toEqual([])
       dispose()
     })
   })
 
-  test("replaces a managed project worktree without closing it", () => {
+  test("replaces a normalized route in place and preserves expansion and order", () => {
     createRoot((dispose) => {
       const [scope] = createSignal(ServerScope.local)
       const [store, setStore] = createStore({ projects: {}, lastProject: {}, recentlyClosed: {} })
       const projects = createServerProjects({ scope, store, setStore })
 
-      projects.open("/scratch/project")
+      projects.open("/before")
+      projects.open("/scratch/project/")
+      projects.collapse("/scratch/project")
+      projects.open("/after")
       projects.touch("/scratch/project")
-      projects.replace("/scratch/project", "/attached/project")
+      projects.replace("/scratch/project/", "/attached/project/")
 
-      expect(projects.list()).toEqual([{ worktree: "/attached/project", expanded: true }])
+      expect(projects.list()).toEqual([
+        { worktree: "/after", expanded: true },
+        { worktree: "/attached/project", expanded: false },
+        { worktree: "/before", expanded: true },
+      ])
       expect(projects.last()).toBe("/attached/project")
       expect(projects.recentlyClosed()).toEqual([])
+      dispose()
+    })
+  })
+
+  test("dedupes an existing destination without moving the source slot", () => {
+    createRoot((dispose) => {
+      const [scope] = createSignal(ServerScope.local)
+      const [store, setStore] = createStore({
+        projects: {
+          local: [
+            { worktree: "/scratch", expanded: false },
+            { worktree: "/other", expanded: true },
+            { worktree: "/target/", expanded: true },
+          ],
+        },
+        lastProject: {},
+        recentlyClosed: {},
+      })
+      const projects = createServerProjects({ scope, store, setStore })
+
+      projects.replace("/scratch/", "/target")
+
+      expect(projects.list()).toEqual([
+        { worktree: "/target", expanded: false },
+        { worktree: "/other", expanded: true },
+      ])
+      dispose()
+    })
+  })
+
+  test("removes a closed source when its replacement is already active", () => {
+    createRoot((dispose) => {
+      const [scope] = createSignal(ServerScope.local)
+      const [store, setStore] = createStore({
+        projects: { local: [{ worktree: "/destination", expanded: true }] },
+        recentlyClosed: { local: ["/scratch"] },
+        lastProject: {},
+      })
+      const projects = createServerProjects({ scope, store, setStore })
+
+      projects.replace("/scratch", "/destination")
+
+      expect(projects.list()).toEqual([{ worktree: "/destination", expanded: true }])
+      expect(projects.recentlyClosed()).toEqual([])
+      dispose()
+    })
+  })
+
+  test("keeps an active source open when the destination was previously closed", () => {
+    createRoot((dispose) => {
+      const [scope] = createSignal(ServerScope.local)
+      const [store, setStore] = createStore({
+        projects: { local: [{ worktree: "/scratch", expanded: false }] },
+        lastProject: {},
+        recentlyClosed: { local: ["/target/"] },
+      })
+      const projects = createServerProjects({ scope, store, setStore })
+
+      projects.replace("/scratch/", "/target")
+
+      expect(projects.list()).toEqual([{ worktree: "/target", expanded: false }])
+      expect(projects.recentlyClosed()).toEqual([])
+      dispose()
+    })
+  })
+
+  test("handles equal normalized source and destination paths", () => {
+    createRoot((dispose) => {
+      const [scope] = createSignal(ServerScope.local)
+      const [store, setStore] = createStore({ projects: {}, lastProject: {}, recentlyClosed: {} })
+      const projects = createServerProjects({ scope, store, setStore })
+
+      projects.open("/folder/")
+      projects.replace("/folder", "/folder/")
+
+      expect(projects.list()).toEqual([{ worktree: "/folder", expanded: true }])
+      dispose()
+    })
+  })
+
+  test("preserves closed state while migrating recently closed paths", () => {
+    createRoot((dispose) => {
+      const [scope] = createSignal(ServerScope.local)
+      const [store, setStore] = createStore({ projects: {}, lastProject: {}, recentlyClosed: {} })
+      const projects = createServerProjects({ scope, store, setStore })
+
+      projects.open("/scratch")
+      projects.close("/scratch/")
+      projects.replace("/scratch", "/folder/")
+
+      expect(projects.list()).toEqual([])
+      expect(projects.recentlyClosed()).toEqual(["/folder"])
+      expect(projects.closed("/folder/")).toBe(true)
+      dispose()
+    })
+  })
+
+  test("dedupes migrated recently closed targets and updates normalized last project", () => {
+    createRoot((dispose) => {
+      const [scope] = createSignal(ServerScope.local)
+      const [store, setStore] = createStore({
+        projects: {},
+        lastProject: { local: "/scratch/" },
+        recentlyClosed: { local: ["/target/", "/scratch", "/other"] },
+      })
+      const projects = createServerProjects({ scope, store, setStore })
+
+      projects.replace("/scratch", "/target")
+
+      expect(projects.list()).toEqual([])
+      expect(projects.last()).toBe("/target")
+      expect(projects.recentlyClosed()).toEqual(["/target", "/other"])
+      dispose()
+    })
+  })
+
+  test("normalizes paths for persisted project operations", () => {
+    createRoot((dispose) => {
+      const [scope] = createSignal(ServerScope.local)
+      const [store, setStore] = createStore({ projects: {}, lastProject: {}, recentlyClosed: {} })
+      const projects = createServerProjects({ scope, store, setStore })
+
+      projects.open("/first/")
+      projects.open("/second")
+      projects.collapse("/first/")
+      projects.move("/first/", 0)
+      projects.touch("/first/")
+
+      expect(projects.list()).toEqual([
+        { worktree: "/first", expanded: false },
+        { worktree: "/second", expanded: true },
+      ])
+      expect(projects.last()).toBe("/first")
       dispose()
     })
   })
@@ -212,7 +352,7 @@ describe("createServerProjects", () => {
 
       projects.close("/repo")
       projects.close("/repo/")
-      expect(projects.recentlyClosed()).toEqual(["/repo/"])
+      expect(projects.recentlyClosed()).toEqual(["/repo"])
       dispose()
     })
   })

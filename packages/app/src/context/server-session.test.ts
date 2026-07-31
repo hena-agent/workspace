@@ -180,6 +180,31 @@ describe("server session", () => {
     expect(ctx.store.peek("root")?.directory).toBe("/attached/project")
   })
 
+  test("forced refresh supersedes an in-flight session request", async () => {
+    const first = Promise.withResolvers<{ data: Session }>()
+    const requests: unknown[] = []
+    const client = {
+      session: {
+        get: (input: unknown) => {
+          requests.push(input)
+          if (requests.length === 1) return first.promise
+          return Promise.resolve({ data: { ...session("root"), directory: "/attached/project" } })
+        },
+      },
+    } as unknown as HenaClient
+    const store = createServerSession(client)
+    const initial = store.resolve("root")
+    const refreshed = store.resolve("root", { force: true })
+
+    expect(requests).toHaveLength(1)
+    first.resolve({ data: session("root") })
+    await initial
+    await refreshed
+
+    expect(requests).toHaveLength(2)
+    expect(store.peek("root")?.directory).toBe("/attached/project")
+  })
+
   test("loads session content through the server client", async () => {
     const ctx = setup({ root: session("root") })
 

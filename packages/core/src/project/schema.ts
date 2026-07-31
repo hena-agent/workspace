@@ -10,8 +10,11 @@ export type ID = typeof ID.Type
 export const Name = Project.Name
 export type Name = Project.Name
 
-export const ManagedInfo = Project.ManagedInfo
-export type ManagedInfo = Project.ManagedInfo
+export const Chat = Project.Chat
+export type Chat = Project.Chat
+
+export const Attachment = Project.Attachment
+export type Attachment = Project.Attachment
 
 export const Vcs = Schema.Union([
   Schema.Struct({

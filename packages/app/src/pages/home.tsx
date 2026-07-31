@@ -1,4 +1,4 @@
-import type { ProjectManagedInfo, Session } from "@hena/sdk/v2/client"
+import type { ProjectChat, Session } from "@hena/sdk/v2/client"
 import {
   type ComponentProps,
   createEffect,
@@ -536,7 +536,7 @@ export function NewHome() {
     const directory = directories[0]
     if (!directory) return
     const ctx = global.ensureServerCtx(conn)
-    directories.forEach(ctx.projects.open)
+    directories.forEach((directory) => ctx.projects.open(directory))
     ctx.projects.touch(directory)
     setSelection({ server: ServerConnection.key(conn), directory })
   }
@@ -556,9 +556,10 @@ export function NewHome() {
   }
 
   function editProject(conn: ServerConnection.Any, project: LocalProject) {
-    void import("@/components/dialog-edit-project-v2").then((x) => {
-      void dialog.show(() => <x.DialogEditProjectV2 server={conn} project={project} />)
-    })
+    void (async () => {
+      const { DialogEditProjectV2 } = await import("@/components/dialog-edit-project-v2")
+      dialog.show(() => <DialogEditProjectV2 server={conn} project={project} />)
+    })()
   }
 
   function unseenCount(conn: ServerConnection.Any, project: LocalProject) {
@@ -623,20 +624,17 @@ export function NewHome() {
 
   function startChat(conn: ServerConnection.Any) {
     if (global.servers.health[ServerConnection.key(conn)]?.healthy === false) return
-    void import("@/components/dialog-create-project-v2").then((module) =>
+    void (async () => {
+      const { DialogCreateProjectV2 } = await import("@/components/dialog-create-project-v2")
       dialog.show(() => (
-        <module.DialogCreateProjectV2
-          onCreate={(name) => {
-            const ctx = global.ensureServerCtx(conn)
-            return ctx.sdk.client.v2.project
-              .create({ projectCreateInput: { name } })
-              .then((response) => {
-                if (!response.data) throw response.error
-                ctx.projects.managed.set(response.data)
-                ctx.projects.open(response.data.worktree)
-                ctx.projects.touch(response.data.worktree)
-                setSelection({ server: ServerConnection.key(conn), directory: response.data.worktree })
-                openProjectNewSession(conn, response.data.worktree)
+        <DialogCreateProjectV2
+          onCreate={(name) =>
+            global
+              .ensureServerCtx(conn)
+              .projects.createChat(name)
+              .then(({ directory }) => {
+                setSelection({ server: ServerConnection.key(conn), directory })
+                tabs.newDraft({ server: ServerConnection.key(conn), directory })
                 return true
               })
               .catch((error) => {
@@ -646,10 +644,10 @@ export function NewHome() {
                 })
                 return false
               })
-          }}
+          }
         />
-      )),
-    )
+      ))
+    })()
   }
 
   function openFolder(conn: ServerConnection.Any) {
@@ -661,59 +659,29 @@ export function NewHome() {
       onSelect: (result) => {
         const folder = Array.isArray(result) ? result[0] : result
         if (!folder) return
-        const ctx = global.ensureServerCtx(conn)
-        const existing = ctx.projects.managed
-          .list()
-          .find((project) => pathKey(project.folder ?? project.worktree) === pathKey(folder))
-        if (existing) {
-          const directory = existing.folder ?? existing.worktree
-          ctx.projects.open(directory)
-          ctx.projects.touch(directory)
-          setSelection({ server: ServerConnection.key(conn), directory })
-          return
-        }
-        void ctx.sdk.client.v2.project
-          .create({ projectCreateInput: { folder } })
-          .then((response) => {
-            if (!response.data) throw response.error
-            ctx.projects.managed.set(response.data)
-            const directory = response.data.folder ?? response.data.worktree
-            ctx.projects.open(directory)
-            ctx.projects.touch(directory)
-            setSelection({ server: ServerConnection.key(conn), directory })
-          })
-          .catch((error) =>
-            showToast({
-              title: language.t("common.requestFailed"),
-              description: errorMessage(error, language.t("common.requestFailed")),
-            }),
-          )
+        addProjects(conn, [folder])
       },
     })
   }
 
-  function attachFolder(conn: ServerConnection.Any, project: LocalProject, managed: ProjectManagedInfo) {
-    if (managed.folder || global.servers.health[ServerConnection.key(conn)]?.healthy === false) return
+  function attachFolder(conn: ServerConnection.Any, project: LocalProject, chat: ProjectChat) {
+    if (global.servers.health[ServerConnection.key(conn)]?.healthy === false) return
     pickDirectory({
       server: conn,
       title: language.t("home.project.attachFolder"),
-      description: `${language.t("dialog.project.attach.description", { project: managed.name })} ${language.t("dialog.project.attach.warning")}`,
+      description: `${language.t("dialog.project.attach.description", { project: chat.name })} ${language.t("dialog.project.attach.warning")}`,
       actionLabel: language.t("home.project.attachFolder"),
       multiple: false,
       onSelect: (result) => {
         const folder = Array.isArray(result) ? result[0] : result
         if (!folder) return
-        const ctx = global.ensureServerCtx(conn)
-        void ctx.sdk.client.v2.project
-          .attachFolder({ projectID: managed.id, folder })
-          .then((response) => {
-            if (!response.data) throw response.error
-            ctx.projects.managed.set(response.data)
-            const directory = response.data.folder ?? response.data.worktree
-            ctx.projects.replace(project.worktree, directory)
+        void global
+          .ensureServerCtx(conn)
+          .projects.attachFolder(chat.id, folder)
+          .then(async ({ previous, directory }) => {
+            await tabs.replaceDirectory(ServerConnection.key(conn), previous, directory)
             if (selection().server === ServerConnection.key(conn) && selection().directory === project.worktree)
               setSelection({ server: ServerConnection.key(conn), directory })
-            void ctx.queryClient.invalidateQueries({ queryKey: ctx.sync.homeSessions.indexKey })
           })
           .catch((error) =>
             showToast({
@@ -895,7 +863,7 @@ function HomeProjectColumn(props: {
   openRecentProject: (server: ServerConnection.Any, directory: string) => void
   openFolder: (server: ServerConnection.Any) => void
   startChat: (server: ServerConnection.Any) => void
-  attachFolder: (server: ServerConnection.Any, project: LocalProject, managed: ProjectManagedInfo) => void
+  attachFolder: (server: ServerConnection.Any, project: LocalProject, chat: ProjectChat) => void
   editProject: (server: ServerConnection.Any, project: LocalProject) => void
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
@@ -1185,7 +1153,7 @@ type HomeProjectListProps = {
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
   unseenCount: (server: ServerConnection.Any, project: LocalProject) => number
-  attachFolder: (server: ServerConnection.Any, project: LocalProject, managed: ProjectManagedInfo) => void
+  attachFolder: (server: ServerConnection.Any, project: LocalProject, chat: ProjectChat) => void
   language: ReturnType<typeof useLanguage>
 }
 
@@ -1251,7 +1219,7 @@ function HomeProjectSlot(
           index={props.index}
           serverSelected={props.selected.server === ServerConnection.key(props.server)}
           selected={
-            props.selected.server === ServerConnection.key(props.server) && props.selected.directory === props.worktree
+            props.selected.server === ServerConnection.key(props.server) && props.selected.directory === item().worktree
           }
           unseenCount={props.unseenCount(props.server, item())}
           selectProject={props.selectProject}
@@ -1363,19 +1331,17 @@ function HomeProjectRow(props: {
   editProject: (server: ServerConnection.Any, project: LocalProject) => void
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
-  attachFolder: (server: ServerConnection.Any, project: LocalProject, managed: ProjectManagedInfo) => void
+  attachFolder: (server: ServerConnection.Any, project: LocalProject, chat: ProjectChat) => void
   language: ReturnType<typeof useLanguage>
 }) {
   const global = useGlobal()
   const platform = usePlatform()
   const serverUnreachable = () => global.servers.health[ServerConnection.key(props.server)]?.healthy === false
-  const managed = createMemo(() =>
+  const chat = createMemo(() =>
     global
       .ensureServerCtx(props.server)
-      .projects.managed.list()
-      .find(
-        (project) => project.id === props.project.id || pathKey(project.worktree) === pathKey(props.project.worktree),
-      ),
+      .projects.chats()
+      .find((item) => item.id === props.project.id || pathKey(item.directory) === pathKey(props.project.worktree)),
   )
   const [state, setState] = createStore({ menuOpen: false })
   const sortable = useSortable({
@@ -1391,7 +1357,7 @@ function HomeProjectRow(props: {
     platform.platform === "desktop" &&
     !!platform.openPath &&
     ServerConnection.local(props.server) &&
-    (managed() === undefined || managed()?.folder !== undefined)
+    chat() === undefined
   const fileManagerActionLabel = () =>
     props.language.t(
       fileManagerApp(platform.platform === "desktop" ? (platform.os ?? "unknown") : "unknown").actionLabel,
@@ -1480,10 +1446,12 @@ function HomeProjectRow(props: {
               <MenuV2.Item onSelect={() => props.editProject(props.server, props.project)}>
                 {props.language.t("dialog.project.edit.title")}
               </MenuV2.Item>
-              <Show when={managed() && !managed()!.folder}>
-                <MenuV2.Item onSelect={() => props.attachFolder(props.server, props.project, managed()!)}>
-                  {props.language.t("home.project.attachFolder")}
-                </MenuV2.Item>
+              <Show when={chat()}>
+                {(item) => (
+                  <MenuV2.Item onSelect={() => props.attachFolder(props.server, props.project, item())}>
+                    {props.language.t("home.project.attachFolder")}
+                  </MenuV2.Item>
+                )}
               </Show>
               <Show when={canRevealInFileManager()}>
                 <MenuV2.Item onSelect={revealInFileManager}>{fileManagerActionLabel()}</MenuV2.Item>

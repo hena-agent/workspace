@@ -78,7 +78,6 @@ describe("AttachFolderTool", () => {
       expect(captured?.action).toEqual({
         type: "attach-folder",
         projectID,
-        reason: "I need the source files",
       })
       expect(result.result).toEqual({
         type: "text",

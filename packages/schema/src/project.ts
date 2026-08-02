@@ -41,15 +41,10 @@ export const Info = Schema.Struct({
 }).annotate({ identifier: "Project" })
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 
-export const Name = Schema.Trim.pipe(Schema.check(Schema.isNonEmpty()), Schema.brand("Project.Name")).annotate({
-  identifier: "Project.Name",
-})
-export type Name = typeof Name.Type
-
 export interface Chat extends Schema.Schema.Type<typeof Chat> {}
 export const Chat = Schema.Struct({
   id: ID,
-  name: Name,
+  name: Schema.String,
   directory: AbsolutePath,
   time: Schema.Struct({
     created: DateTimeUtcFromMillis,
@@ -68,15 +63,9 @@ export const Attachment = Schema.Struct({
 }).annotate({ identifier: "Project.Attachment" })
 
 export const CreateInput = Schema.Struct({
-  name: Name,
+  name: Schema.String,
 }).annotate({ identifier: "Project.CreateInput" })
 export type CreateInput = typeof CreateInput.Type
-
-export const AttachFolderInput = Schema.Struct({
-  projectID: ID,
-  folder: AbsolutePath,
-}).annotate({ identifier: "Project.AttachFolderInput" })
-export type AttachFolderInput = typeof AttachFolderInput.Type
 
 const Updated = define({ type: "project.updated", schema: Info.fields })
 export const Event = { Updated, Definitions: inventory(Updated) }

@@ -13,11 +13,7 @@ import { ServerConnection } from "@/context/server"
 import { useServerSDK } from "@/context/server-sdk"
 import { useTabs } from "@/context/tabs"
 import { showToast } from "@/utils/toast"
-import {
-  createAttachFolderController,
-  rejectFolderAttachment,
-  sessionAttachFolderAction,
-} from "./session-attach-folder"
+import { createAttachFolderController } from "./session-attach-folder"
 
 export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSubmit: () => void }> = (props) => {
   const sdk = useSDK()
@@ -28,7 +24,8 @@ export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSu
   const layout = useLayout()
   const pickDirectory = useDirectoryPicker()
   const [state, setState] = createStore({ picking: false, sending: false, retry: false })
-  const action = createMemo(() => sessionAttachFolderAction(props.request))
+  const action = createMemo(() => (props.request.action?.type === "attach-folder" ? props.request.action : undefined))
+  const reason = () => props.request.questions[0]?.question ?? ""
   const serverContext = () => global.ensureServerCtx(serverSDK().server)
   const project = createMemo(() =>
     serverContext()
@@ -62,13 +59,13 @@ export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSu
   const reject = async () => {
     if (state.sending || controller.committed()) return
     setState("sending", true)
-    await rejectFolderAttachment({
-      onSubmit: props.onSubmit,
-      reject: () => sdk().client.question.reject({ requestID: props.request.id }),
-    }).catch((error) => {
-      setState("sending", false)
-      fail(error)
-    })
+    await sdk()
+      .client.question.reject({ requestID: props.request.id })
+      .then(() => props.onSubmit())
+      .catch((error) => {
+        setState("sending", false)
+        fail(error)
+      })
   }
 
   const attach = (folder?: string) => {
@@ -93,7 +90,7 @@ export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSu
     pickDirectory({
       server: serverSDK().server,
       title: language.t("home.project.attachFolder"),
-      description: `${current.reason} ${language.t("dialog.project.attach.description", {
+      description: `${reason()} ${language.t("dialog.project.attach.description", {
         project: project()?.name ?? current.projectID,
       })} ${language.t("dialog.project.attach.warning")}`,
       actionLabel: language.t("home.project.attachFolder"),
@@ -112,7 +109,7 @@ export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSu
         <Icon name="folder-add-left" size="normal" class="shrink-0 text-text-weak" />
         <div class="min-w-0 flex-1">
           <div class="text-13-medium text-text-strong">{language.t("dialog.project.attach.title")}</div>
-          <div class="line-clamp-2 text-12-regular text-text-weak">{action()?.reason}</div>
+          <div class="line-clamp-2 text-12-regular text-text-weak">{reason()}</div>
         </div>
         <div class="flex shrink-0 items-center gap-2">
           <Button

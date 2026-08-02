@@ -728,7 +728,6 @@ export type QuestionTool = {
 export type QuestionAction = {
   type: "attach-folder"
   projectID: string
-  reason: string
 }
 
 export type QuestionAnswer = Array<string>
@@ -3174,7 +3173,6 @@ export type QuestionV2Tool = {
 export type QuestionV2Action = {
   type: "attach-folder"
   projectID: string
-  reason: string
 }
 
 export type QuestionV2Answer = Array<string>
@@ -6167,11 +6165,9 @@ export type ReferenceInfo = {
   source: ReferenceSource
 }
 
-export type ProjectName = string
-
 export type ProjectChat = {
   id: string
-  name: ProjectName
+  name: string
   directory: string
   time: {
     created: number
@@ -6180,7 +6176,7 @@ export type ProjectChat = {
 }
 
 export type ProjectCreateInput = {
-  name: ProjectName
+  name: string
 }
 
 export type ProjectAttachment = {
@@ -13587,41 +13583,6 @@ export type V2ProjectCreateResponses = {
 
 export type V2ProjectCreateResponse = V2ProjectCreateResponses[keyof V2ProjectCreateResponses]
 
-export type V2ProjectGetData = {
-  body?: never
-  path: {
-    projectID: string
-  }
-  query?: never
-  url: "/api/project/{projectID}"
-}
-
-export type V2ProjectGetErrors = {
-  /**
-   * InvalidRequestError
-   */
-  400: InvalidRequestError
-  /**
-   * UnauthorizedError
-   */
-  401: UnauthorizedError
-  /**
-   * ProjectNotFoundError
-   */
-  404: ProjectNotFoundError
-}
-
-export type V2ProjectGetError = V2ProjectGetErrors[keyof V2ProjectGetErrors]
-
-export type V2ProjectGetResponses = {
-  /**
-   * Project.Chat
-   */
-  200: ProjectChat
-}
-
-export type V2ProjectGetResponse = V2ProjectGetResponses[keyof V2ProjectGetResponses]
-
 export type V2ProjectAttachFolderData = {
   body: {
     folder: string
@@ -13696,7 +13657,7 @@ export type V2ProjectCopyRemoveResponse = V2ProjectCopyRemoveResponses[keyof V2P
 
 export type V2ProjectCopyCreateData = {
   body?: {
-    strategy: ProjectName
+    strategy: string
     directory: string
     name?: string
   }

@@ -109,8 +109,6 @@ import type {
   ProjectsListOutput,
   ProjectsCreateInput,
   ProjectsCreateOutput,
-  ProjectsGetInput,
-  ProjectsGetOutput,
   ProjectsAttachFolderInput,
   ProjectsAttachFolderOutput,
   ProjectCopiesCreateInput,
@@ -968,17 +966,6 @@ export function make(options: ClientOptions) {
             body: { name: input["name"] },
             successStatus: 200,
             declaredStatuses: [401, 400],
-            empty: false,
-          },
-          requestOptions,
-        ),
-      get: (input: ProjectsGetInput, requestOptions?: RequestOptions) =>
-        request<ProjectsGetOutput>(
-          {
-            method: "GET",
-            path: `/api/project/${encodeURIComponent(input.projectID)}`,
-            successStatus: 200,
-            declaredStatuses: [404, 401, 400],
             empty: false,
           },
           requestOptions,

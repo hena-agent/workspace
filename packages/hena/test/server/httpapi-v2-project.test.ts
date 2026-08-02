@@ -34,7 +34,7 @@ describe("v2 project HttpApi", () => {
     const created = Schema.decodeUnknownSync(Project.Chat)(await response.json())
 
     try {
-      expect(created.name).toBe(Project.Name.make("Research"))
+      expect(created.name).toBe("Research")
       const listed = Schema.decodeUnknownSync(Schema.Array(Project.Chat))(await (await request("/api/project")).json())
       expect(listed).toContainEqual(created)
 
@@ -74,7 +74,8 @@ describe("v2 project HttpApi", () => {
       const attached = Schema.decodeUnknownSync(Project.Attachment)(await response.json())
       expect(String(attached.project.directory)).toBe(folder.path)
       expect(attached.sessionIDs).toEqual([session.id])
-      expect((await request(`/api/project/${created.id}`)).status).toBe(404)
+      const listed = Schema.decodeUnknownSync(Schema.Array(Project.Chat))(await (await request("/api/project")).json())
+      expect(listed.some((project) => project.id === created.id)).toBe(false)
     } finally {
       await fs.rm(created.directory, { recursive: true, force: true })
     }

@@ -34,13 +34,6 @@ export const ProjectGroup = HttpApiGroup.make("server.project")
     }).annotateMerge(OpenApi.annotations({ identifier: "v2.project.create", summary: "Create project" })),
   )
   .add(
-    HttpApiEndpoint.get("project.get", "/api/project/:projectID", {
-      params: { projectID: Project.ID },
-      success: Project.Chat,
-      error: ProjectNotFoundError,
-    }).annotateMerge(OpenApi.annotations({ identifier: "v2.project.get", summary: "Get project" })),
-  )
-  .add(
     HttpApiEndpoint.put("project.attachFolder", "/api/project/:projectID/folder", {
       params: { projectID: Project.ID },
       // Re-declaring the required field avoids losing its requiredness when

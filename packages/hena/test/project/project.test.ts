@@ -23,7 +23,7 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 
 const encoder = new TextEncoder()
 
-const projectTestNode = LayerNode.group([Project.node, Database.node, CrossSpawnSpawner.node])
+const projectTestNode = LayerNode.group([Project.node, ProjectV2.node, Database.node, CrossSpawnSpawner.node])
 const it = testEffect(AppNodeBuilder.build(projectTestNode))
 
 function remoteProjectID(remote: string) {
@@ -104,6 +104,23 @@ function waitForProjectIcon(id: ProjectV2.ID, attempts = 50): Effect.Effect<Proj
 }
 
 describe("Project.fromDirectory", () => {
+  it.live("opens a folderless project through its private directory without rooting it", () =>
+    Effect.gen(function* () {
+      const db = (yield* Database.Service).db
+      const projects = yield* ProjectV2.Service
+      const legacy = yield* Project.Service
+      const created = yield* projects.create({ name: "Chat" })
+
+      const result = yield* legacy.fromDirectory(created.directory)
+
+      expect(result.project.id).toBe(created.id)
+      expect(result.project.worktree).toBe(created.directory)
+      expect(
+        (yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, created.id)).get().pipe(Effect.orDie))?.worktree,
+      ).toBeNull()
+    }),
+  )
+
   it.live("should handle git repository with no commits", () =>
     Effect.gen(function* () {
       const project = yield* Project.Service

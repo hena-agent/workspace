@@ -33,7 +33,6 @@ export const AttachFolderTool = Tool.define(
             action: {
               type: "attach-folder",
               projectID: instance.project.id,
-              reason: params.reason,
             },
           })
           const attached = !(yield* projects.isFolderless(instance.project.id))

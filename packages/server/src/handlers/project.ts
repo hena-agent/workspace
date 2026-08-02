@@ -18,7 +18,6 @@ export const ProjectHandler = HttpApiBuilder.group(Api, "server.project", (handl
           ),
         ),
       )
-      .handle("project.get", (ctx) => projects.get(ctx.params.projectID).pipe(Effect.mapError(notFound)))
       .handle(
         "project.attachFolder",
         Effect.fn(function* (ctx) {

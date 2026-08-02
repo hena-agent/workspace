@@ -1,6 +1,6 @@
 import { createSimpleContext } from "@hena/ui/context"
 import { createEffect, createMemo, createResource, createRoot } from "solid-js"
-import type { ProjectAttachment, ProjectChat } from "@hena/sdk/v2/client"
+import type { ProjectChat } from "@hena/sdk/v2/client"
 import { createStore } from "solid-js/store"
 import { createServerProjects, RECENTLY_CLOSED_DISPLAY_LIMIT, ServerConnection, useServer } from "./server"
 import { pathKey } from "@/utils/path-key"
@@ -176,29 +176,37 @@ function createServerCtx(
   const isLocal =
     (conn?.type === "sidecar" && conn.variant === "base") || (conn?.type === "http" && isLocalHost(conn.http.url))
 
-  const chatActions = createProjectChatActions({
-    chats: () => chats() ?? [],
-    setChats,
-    open: projects.open,
-    replace: projects.replace,
-    touch: projects.touch,
-    create: async (name) => {
-      const response = await sdk.client.v2.project.create({ projectCreateInput: { name } })
-      if (!response.data) throw response.error
-      chatOverrides.set(response.data.id, response.data)
-      return response.data
-    },
-    attach: async (projectID, folder) => {
-      const response = await sdk.client.v2.project.attachFolder({ projectID, folder })
-      if (!response.data) throw response.error
-      chatOverrides.set(projectID, undefined)
-      return response.data
-    },
-    refreshSessions: async (sessionIDs) => {
-      await Promise.all(sessionIDs.map((sessionID) => sync.session.resolve(sessionID, { force: true }).catch(() => {})))
-      await sync.homeSessions.invalidate()
-    },
-  })
+  const createChat = async (name: string) => {
+    const response = await sdk.client.v2.project.create({ projectCreateInput: { name } })
+    if (!response.data) throw response.error
+    const chat = response.data
+    chatOverrides.set(chat.id, chat)
+    setChats((current) => [chat, ...(current ?? []).filter((item) => item.id !== chat.id)])
+    projects.open(chat.directory)
+    projects.touch(chat.directory)
+    return { chat, directory: chat.directory }
+  }
+
+  const attachFolder = async (projectID: string, folder: string) => {
+    const chat = (chats() ?? []).find((item) => item.id === projectID)
+    if (!chat) throw new Error(`Chat project not found: ${projectID}`)
+    const response = await sdk.client.v2.project.attachFolder({ projectID, folder })
+    if (!response.data) throw response.error
+    const attachment = response.data
+    chatOverrides.set(projectID, undefined)
+    setChats((current) => (current ?? []).filter((item) => item.id !== projectID))
+    projects.replace(chat.directory, attachment.project.directory)
+    await Promise.all(
+      attachment.sessionIDs.map((sessionID) => sync.session.resolve(sessionID, { force: true }).catch(() => {})),
+    )
+    await sync.homeSessions.invalidate().catch(() => {})
+    return {
+      project: attachment.project,
+      sessionIDs: attachment.sessionIDs,
+      previous: chat.directory,
+      directory: attachment.project.directory,
+    }
+  }
 
   return {
     queryClient,
@@ -210,48 +218,13 @@ function createServerCtx(
       list: projectsList,
       recentlyClosed: recentlyClosedList,
       chats: () => chats() ?? [],
-      createChat: chatActions.createChat,
-      attachFolder: chatActions.attachFolder,
+      createChat,
+      attachFolder,
     },
   }
 }
 
 export type ServerCtx = ReturnType<typeof createServerCtx>
-
-export function createProjectChatActions(input: {
-  chats: () => ProjectChat[]
-  setChats: (update: (current: ProjectChat[] | undefined) => ProjectChat[]) => unknown
-  open: (directory: string) => void
-  replace: (previous: string, directory: string) => void
-  touch: (directory: string) => void
-  create: (name: string) => Promise<ProjectChat>
-  attach: (projectID: string, folder: string) => Promise<ProjectAttachment>
-  refreshSessions: (sessionIDs: string[]) => Promise<unknown>
-}) {
-  return {
-    async createChat(name: string) {
-      const chat = await input.create(name)
-      input.setChats((current) => [chat, ...(current ?? []).filter((item) => item.id !== chat.id)])
-      input.open(chat.directory)
-      input.touch(chat.directory)
-      return { chat, directory: chat.directory }
-    },
-    async attachFolder(projectID: string, folder: string) {
-      const chat = input.chats().find((item) => item.id === projectID)
-      if (!chat) throw new Error(`Chat project not found: ${projectID}`)
-      const attachment = await input.attach(projectID, folder)
-      input.setChats((current) => (current ?? []).filter((item) => item.id !== projectID))
-      input.replace(chat.directory, attachment.project.directory)
-      await input.refreshSessions(attachment.sessionIDs).catch(() => {})
-      return {
-        project: attachment.project,
-        sessionIDs: attachment.sessionIDs,
-        previous: chat.directory,
-        directory: attachment.project.directory,
-      }
-    },
-  }
-}
 
 function isLocalHost(url: string) {
   const host = url.replace(/^https?:\/\//, "").split(":")[0]

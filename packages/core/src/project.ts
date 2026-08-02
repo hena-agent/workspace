@@ -54,7 +54,6 @@ export interface Resolved {
 
 export interface Interface {
   readonly list: () => Effect.Effect<ReadonlyArray<ProjectSchema.Chat>>
-  readonly get: (projectID: ID) => Effect.Effect<ProjectSchema.Chat, NotFoundError>
   readonly isFolderless: (projectID: ID) => Effect.Effect<boolean>
   readonly create: (input: { readonly name: string }) => Effect.Effect<ProjectSchema.Chat, InvalidNameError>
   readonly attachFolder: (input: {
@@ -96,18 +95,6 @@ const layer = Layer.effect(
         .all()
         .pipe(Effect.orDie)
       return rows.map(fromChatRow)
-    })
-
-    const get = Effect.fn("Project.get")(function* (projectID: ID) {
-      const row = yield* db
-        .select({ project: ProjectTable, directory: ProjectDirectoryTable.directory })
-        .from(ProjectTable)
-        .innerJoin(ProjectDirectoryTable, eq(ProjectDirectoryTable.project_id, ProjectTable.id))
-        .where(and(eq(ProjectTable.id, projectID), isNull(ProjectTable.worktree)))
-        .get()
-        .pipe(Effect.orDie)
-      if (!row) return yield* new NotFoundError({ projectID })
-      return fromChatRow(row)
     })
 
     const isFolderless = Effect.fn("Project.isFolderless")(function* (projectID: ID) {
@@ -322,7 +309,7 @@ const layer = Layer.effect(
       yield* fs.writeFileString(path.join(input.store, "hena"), input.id).pipe(Effect.ignore)
     })
 
-    return Service.of({ list, get, isFolderless, create, attachFolder, directories, resolve, commit })
+    return Service.of({ list, isFolderless, create, attachFolder, directories, resolve, commit })
   }),
 )
 
@@ -338,7 +325,7 @@ function fromChatRow(input: {
 }) {
   return ProjectSchema.Chat.make({
     id: input.project.id,
-    name: ProjectSchema.Name.make(input.project.name!),
+    name: input.project.name!,
     directory: input.directory,
     time: {
       created: DateTime.makeUnsafe(input.project.time_created),

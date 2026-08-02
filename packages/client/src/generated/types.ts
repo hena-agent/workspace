@@ -2726,7 +2726,7 @@ export type QuestionsListRequestsOutput = {
       readonly custom?: boolean
     }>
     readonly tool?: { readonly messageID: string; readonly callID: string }
-    readonly action?: { readonly type: "attach-folder"; readonly projectID: string; readonly reason: string }
+    readonly action?: { readonly type: "attach-folder"; readonly projectID: string }
   }>
 }
 
@@ -2744,7 +2744,7 @@ export type QuestionsListOutput = {
       readonly custom?: boolean
     }>
     readonly tool?: { readonly messageID: string; readonly callID: string }
-    readonly action?: { readonly type: "attach-folder"; readonly projectID: string; readonly reason: string }
+    readonly action?: { readonly type: "attach-folder"; readonly projectID: string }
   }>
 }["data"]
 
@@ -2802,15 +2802,6 @@ export type ProjectsListOutput = ReadonlyArray<{
 export type ProjectsCreateInput = { readonly name: { readonly name: string }["name"] }
 
 export type ProjectsCreateOutput = {
-  readonly id: string
-  readonly name: string
-  readonly directory: string
-  readonly time: { readonly created: number; readonly updated: number }
-}
-
-export type ProjectsGetInput = { readonly projectID: { readonly projectID: string }["projectID"] }
-
-export type ProjectsGetOutput = {
   readonly id: string
   readonly name: string
   readonly directory: string

@@ -53,7 +53,6 @@ export interface Tool extends Schema.Schema.Type<typeof Tool> {}
 export const Action = Schema.Struct({
   type: Schema.Literal("attach-folder"),
   projectID: ProjectID,
-  reason: Schema.String,
 }).annotate({ identifier: "QuestionV2.Action" })
 export interface Action extends Schema.Schema.Type<typeof Action> {}
 

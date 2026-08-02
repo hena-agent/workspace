@@ -38,6 +38,10 @@ function isRooted(row: Row): row is RootedRow {
 }
 
 export function fromRow(row: RootedRow): Info {
+  return rowInfo(row, row.worktree)
+}
+
+function rowInfo(row: Row, worktree: AbsolutePath): Info {
   const icon =
     row.icon_url || row.icon_url_override || row.icon_color
       ? {
@@ -48,7 +52,7 @@ export function fromRow(row: RootedRow): Info {
       : undefined
   return {
     id: row.id,
-    worktree: row.worktree,
+    worktree,
     vcs: row.vcs ? Schema.decodeUnknownSync(Project.Vcs)(row.vcs) : undefined,
     name: row.name ?? undefined,
     icon,
@@ -225,9 +229,9 @@ const layer = Layer.effect(
       const projectID = ProjectV2.ID.make(data.id)
       yield* migrateProjectId(data.previous ? ProjectV2.ID.make(data.previous) : undefined, projectID)
       const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get().pipe(Effect.orDie)
-      if (row && !isRooted(row)) return yield* Effect.die(`Folderless project cannot be opened as rooted: ${projectID}`)
-      const existing = row && isRooted(row)
-        ? fromRow(row)
+      const folderless = row !== undefined && !isRooted(row)
+      const existing = row
+        ? rowInfo(row, row.worktree ?? data.directory)
         : {
             id: projectID,
             worktree,
@@ -260,39 +264,40 @@ const layer = Layer.effect(
         { concurrency: "unbounded" },
       ).pipe(Effect.map((arr) => arr.filter((x): x is string => x !== undefined)))
 
-      yield* db
-        .insert(ProjectTable)
-        .values({
-          id: result.id,
-          worktree: AbsolutePath.make(result.worktree),
-          vcs: result.vcs ?? null,
-          name: result.name,
-          icon_url: result.icon?.url,
-          icon_url_override: result.icon?.override,
-          icon_color: result.icon?.color,
-          time_created: result.time.created,
-          time_updated: result.time.updated,
-          time_initialized: result.time.initialized,
-          sandboxes: result.sandboxes.map((sandbox) => AbsolutePath.make(sandbox)),
-          commands: result.commands,
-        })
-        .onConflictDoUpdate({
-          target: ProjectTable.id,
-          set: {
+      if (!folderless)
+        yield* db
+          .insert(ProjectTable)
+          .values({
+            id: result.id,
             worktree: AbsolutePath.make(result.worktree),
             vcs: result.vcs ?? null,
             name: result.name,
             icon_url: result.icon?.url,
             icon_url_override: result.icon?.override,
             icon_color: result.icon?.color,
+            time_created: result.time.created,
             time_updated: result.time.updated,
             time_initialized: result.time.initialized,
             sandboxes: result.sandboxes.map((sandbox) => AbsolutePath.make(sandbox)),
             commands: result.commands,
-          },
-        })
-        .run()
-        .pipe(Effect.orDie)
+          })
+          .onConflictDoUpdate({
+            target: ProjectTable.id,
+            set: {
+              worktree: AbsolutePath.make(result.worktree),
+              vcs: result.vcs ?? null,
+              name: result.name,
+              icon_url: result.icon?.url,
+              icon_url_override: result.icon?.override,
+              icon_color: result.icon?.color,
+              time_updated: result.time.updated,
+              time_initialized: result.time.initialized,
+              sandboxes: result.sandboxes.map((sandbox) => AbsolutePath.make(sandbox)),
+              commands: result.commands,
+            },
+          })
+          .run()
+          .pipe(Effect.orDie)
 
       if (projectID !== ProjectV2.ID.global) {
         yield* db

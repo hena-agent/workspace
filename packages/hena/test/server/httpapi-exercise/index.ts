@@ -805,13 +805,6 @@ const scenarios: Scenario[] = [
     .at((ctx) => ({ path: "/api/project", headers: ctx.headers(), body: { name: "HTTP API project" } }))
     .json(200, object),
   http.protected
-    .get("/api/project/{projectID}", "v2.project.get")
-    .at((ctx) => ({
-      path: route("/api/project/{projectID}", { projectID: "prj_httpapi_missing" }),
-      headers: ctx.headers(),
-    }))
-    .json(404, object, "status"),
-  http.protected
     .put("/api/project/{projectID}/folder", "v2.project.attachFolder")
     .mutating()
     .at((ctx) => ({

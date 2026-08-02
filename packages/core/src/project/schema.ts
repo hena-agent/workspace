@@ -7,9 +7,6 @@ import { AbsolutePath } from "../schema"
 export const ID = Project.ID
 export type ID = typeof ID.Type
 
-export const Name = Project.Name
-export type Name = Project.Name
-
 export const Chat = Project.Chat
 export type Chat = Project.Chat
 

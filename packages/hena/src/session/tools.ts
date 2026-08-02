@@ -98,9 +98,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     agent: input.agent,
     permission: ruleset,
   })
-  for (const item of Object.values(
-    Permission.visibleTools(Object.fromEntries(registered.map((item) => [item.id, item])), ruleset),
-  )) {
+  for (const item of registered) {
     const schema = ProviderTransform.schema(input.model, ToolJsonSchema.fromTool(item))
     tools[item.id] = tool({
       description: item.description,

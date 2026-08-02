@@ -118,44 +118,32 @@ export function createServerProjects<T extends ServerProjectState>(input: {
       const scope = input.scope()
       const previous = pathKey(previous_)
       const directory = pathKey(directory_)
+      if (samePath(previous, directory)) return
       const list = current()
       const previousIndex = list.findIndex((project) => samePath(project.worktree, previous))
       const targetIndex = list.findIndex((project) => samePath(project.worktree, directory))
-      const source = list[previousIndex]
-      const routeClosed = currentClosed().some(
-        (worktree) => samePath(worktree, previous) || samePath(worktree, directory),
-      )
-      const next = list.flatMap((project, index) => {
-        if (index === previousIndex) return [{ ...project, worktree: directory }]
-        if (index === targetIndex) {
-          if (previousIndex !== -1) return []
-          return [{ ...project, worktree: directory }]
-        }
-        return [project]
-      })
-      if (!source && targetIndex === -1 && !routeClosed) next.unshift({ worktree: directory, expanded: true })
-      const closed = currentClosed().reduce<string[]>((items, worktree) => {
-        if (
-          (source && (samePath(worktree, previous) || samePath(worktree, directory))) ||
-          (!source && targetIndex !== -1 && (samePath(worktree, previous) || samePath(worktree, directory)))
-        )
+      const currentRecentlyClosed = currentClosed()
+      const previousClosed = currentRecentlyClosed.some((worktree) => samePath(worktree, previous))
+      if (previousIndex === -1 && !previousClosed) return
+      const next =
+        previousIndex === -1
+          ? list
+          : list.flatMap((project, index) => {
+              if (index === previousIndex) return [{ ...project, worktree: directory }]
+              return index === targetIndex ? [] : [project]
+            })
+      const recentlyClosed = currentRecentlyClosed.reduce<string[]>((items, worktree) => {
+        if ((previousIndex !== -1 || targetIndex !== -1) && (samePath(worktree, previous) || samePath(worktree, directory))) {
           return items
+        }
         const value = samePath(worktree, previous) ? directory : pathKey(worktree)
         if (!items.some((item) => samePath(item, value))) items.push(value)
         return items
       }, [])
 
       batch(() => {
-        if (
-          next.length !== list.length ||
-          next.some(
-            (project, index) =>
-              project.worktree !== list[index]?.worktree || project.expanded !== list[index]?.expanded,
-          )
-        )
-          setStore("projects", scope, next)
-        if (closed.length !== currentClosed().length || closed.some((value, index) => value !== currentClosed()[index]))
-          setStore("recentlyClosed", scope, closed)
+        if (previousIndex !== -1) setStore("projects", scope, next)
+        setStore("recentlyClosed", scope, recentlyClosed)
         const last = input.store.lastProject[scope]
         if (last && samePath(last, previous)) setStore("lastProject", scope, directory)
       })

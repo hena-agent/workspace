@@ -643,17 +643,12 @@ type Endpoint17_1Input = { readonly name: Endpoint17_1Request["payload"]["name"]
 const Endpoint17_1 = (raw: RawClient["server.project"]) => (input: Endpoint17_1Input) =>
   raw["project.create"]({ payload: { name: input["name"] } }).pipe(Effect.mapError(mapClientError))
 
-type Endpoint17_2Request = Parameters<RawClient["server.project"]["project.get"]>[0]
-type Endpoint17_2Input = { readonly projectID: Endpoint17_2Request["params"]["projectID"] }
-const Endpoint17_2 = (raw: RawClient["server.project"]) => (input: Endpoint17_2Input) =>
-  raw["project.get"]({ params: { projectID: input["projectID"] } }).pipe(Effect.mapError(mapClientError))
-
-type Endpoint17_3Request = Parameters<RawClient["server.project"]["project.attachFolder"]>[0]
-type Endpoint17_3Input = {
-  readonly projectID: Endpoint17_3Request["params"]["projectID"]
-  readonly folder: Endpoint17_3Request["payload"]["folder"]
+type Endpoint17_2Request = Parameters<RawClient["server.project"]["project.attachFolder"]>[0]
+type Endpoint17_2Input = {
+  readonly projectID: Endpoint17_2Request["params"]["projectID"]
+  readonly folder: Endpoint17_2Request["payload"]["folder"]
 }
-const Endpoint17_3 = (raw: RawClient["server.project"]) => (input: Endpoint17_3Input) =>
+const Endpoint17_2 = (raw: RawClient["server.project"]) => (input: Endpoint17_2Input) =>
   raw["project.attachFolder"]({ params: { projectID: input["projectID"] }, payload: { folder: input["folder"] } }).pipe(
     Effect.mapError(mapClientError),
   )
@@ -661,8 +656,7 @@ const Endpoint17_3 = (raw: RawClient["server.project"]) => (input: Endpoint17_3I
 const adaptGroup17 = (raw: RawClient["server.project"]) => ({
   list: Endpoint17_0(raw),
   create: Endpoint17_1(raw),
-  get: Endpoint17_2(raw),
-  attachFolder: Endpoint17_3(raw),
+  attachFolder: Endpoint17_2(raw),
 })
 
 type Endpoint18_0Request = Parameters<RawClient["server.projectCopy"]["projectCopy.create"]>[0]

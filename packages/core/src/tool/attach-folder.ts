@@ -91,7 +91,6 @@ const layer = Layer.effectDiscard(
                         action: {
                           type: "attach-folder",
                           projectID: location.project.id,
-                          reason: input.reason,
                         },
                       })
                       .pipe(Effect.orDie),

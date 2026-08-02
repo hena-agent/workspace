@@ -36,7 +36,6 @@ export const Tool = Schema.Struct({ messageID: SessionV1.MessageID, callID: Sche
 export const Action = Schema.Struct({
   type: Schema.Literal("attach-folder"),
   projectID: ProjectID,
-  reason: Schema.String,
 }).annotate({ identifier: "QuestionAction" })
 export const Request = Schema.Struct({
   id: ID,

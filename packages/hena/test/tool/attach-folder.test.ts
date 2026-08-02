@@ -55,7 +55,6 @@ describe("tool.attach_folder", () => {
 
       expect(request.action).toMatchObject({
         type: "attach-folder",
-        reason: "I need the source files",
       })
       yield* question.reply({ requestID: request.id, answers: [["not a status sentinel"]] })
       expect((yield* Fiber.join(fiber)).output).toContain("Stop now")

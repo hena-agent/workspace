@@ -141,7 +141,6 @@ import type {
   ProjectInitGitResponses,
   ProjectListErrors,
   ProjectListResponses,
-  ProjectName,
   ProjectUpdateErrors,
   ProjectUpdateResponses,
   PromptInput,
@@ -317,8 +316,6 @@ import type {
   V2ProjectCopyRemoveResponses,
   V2ProjectCreateErrors,
   V2ProjectCreateResponses,
-  V2ProjectGetErrors,
-  V2ProjectGetResponses,
   V2ProjectListErrors,
   V2ProjectListResponses,
   V2ProviderGetErrors,
@@ -6915,23 +6912,6 @@ export class Project2 extends HeyApiClient {
   }
 
   /**
-   * Get project
-   */
-  public get<ThrowOnError extends boolean = false>(
-    parameters: {
-      projectID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "projectID" }] }])
-    return (options?.client ?? this.client).get<V2ProjectGetResponses, V2ProjectGetErrors, ThrowOnError>({
-      url: "/api/project/{projectID}",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
    * Attach project folder
    */
   public attachFolder<ThrowOnError extends boolean = false>(
@@ -7018,7 +6998,7 @@ export class ProjectCopy2 extends HeyApiClient {
         directory?: string
         workspace?: string
       }
-      strategy?: ProjectName
+      strategy?: string
       directory?: string
       name?: string
     },

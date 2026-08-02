@@ -49,7 +49,6 @@ describe("QuestionV2", () => {
       const action: QuestionV2.Action = {
         type: "attach-folder",
         projectID: ProjectV2.ID.make("prj_question_test"),
-        reason: "The requested files are not available yet",
       }
       const { fiber, request } = yield* waitForAsk(service, { sessionID, questions: [question], action })
 

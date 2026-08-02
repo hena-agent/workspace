@@ -38,7 +38,6 @@ describe("folderless projects", () => {
       expect(row?.name).toBe("Research")
       expect(directory?.directory).toBe(created.directory)
       expect(path.isAbsolute(created.directory)).toBe(true)
-      expect(yield* projects.get(created.id)).toEqual(created)
       expect(yield* projects.list()).toContainEqual(created)
       expect(yield* projects.isFolderless(created.id)).toBe(true)
       expect((yield* projects.resolve(created.directory)).id).toBe(created.id)

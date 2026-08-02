@@ -1,9 +1,4 @@
-import type { QuestionAnswer, QuestionRequest } from "@hena/sdk/v2"
-
-export function sessionAttachFolderAction(request: Pick<QuestionRequest, "action">) {
-  if (request.action?.type !== "attach-folder") return
-  return request.action
-}
+import type { QuestionAnswer } from "@hena/sdk/v2"
 
 export function createAttachFolderController(input: {
   attach: (folder: string) => Promise<unknown>
@@ -23,9 +18,4 @@ export function createAttachFolderController(input: {
       input.onSubmit()
     },
   }
-}
-
-export async function rejectFolderAttachment(input: { reject: () => Promise<unknown>; onSubmit: () => void }) {
-  await input.reject()
-  input.onSubmit()
 }

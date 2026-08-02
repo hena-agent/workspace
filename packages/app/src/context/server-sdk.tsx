@@ -1,9 +1,10 @@
 import type { Event } from "@hena/sdk/v2/client"
+import { Hena } from "@hena/client"
 import { createSimpleContext } from "@hena/ui/context"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { type Accessor, batch, createMemo, onCleanup, onMount } from "solid-js"
-import { createSdkForServer } from "@/utils/server"
+import { authTokenFromCredentials, createSdkForServer } from "@/utils/server"
 import { useLanguage } from "./language"
 import { usePlatform } from "./platform"
 import { ServerConnection, useServer } from "./server"
@@ -124,7 +125,17 @@ function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerS
     last = Date.now()
     const output = coalesceServerEvents(events)
     batch(() => {
-      output.forEach((event) => emitter.emit(event.directory, event.payload))
+      output.forEach((event) =>
+        emitter.emit(
+          event.directory,
+          event.payload.type === "question.asked"
+            ? ({
+                ...event.payload,
+                properties: { ...event.payload.properties, location: { directory: event.directory } },
+              } as Event)
+            : event.payload,
+        ),
+      )
     })
 
     buffer.length = 0
@@ -258,12 +269,25 @@ function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerS
     fetch: platform.fetch,
     throwOnError: true,
   })
+  const current = Hena.make({
+    baseUrl: server.http.url,
+    fetch: platform.fetch,
+    headers: server.http.password
+      ? {
+          Authorization: `Basic ${authTokenFromCredentials({
+            username: server.http.username,
+            password: server.http.password,
+          })}`,
+        }
+      : undefined,
+  })
 
   return {
     server,
     scope,
     url: server.http.url,
     client: sdk,
+    current,
     event: {
       on: emitter.on.bind(emitter),
       listen: emitter.listen.bind(emitter),

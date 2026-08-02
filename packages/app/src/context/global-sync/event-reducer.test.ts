@@ -3,6 +3,7 @@ import type { Message, Part, PermissionRequest, Project, QuestionRequest, Sessio
 import { createStore } from "solid-js/store"
 import type { State } from "./types"
 import { applyDirectoryEvent, applyGlobalEvent, cleanupDroppedSessionCaches } from "./event-reducer"
+import { currentQuestion, legacyQuestion } from "../question"
 
 const rootSession = (input: { id: string; parentID?: string; archived?: number }) =>
   ({
@@ -486,7 +487,12 @@ describe("applyDirectoryEvent", () => {
     const [store, setStore] = createStore(
       baseState({
         permission: { [sessionID]: [permissionRequest("perm_1", sessionID), permissionRequest("perm_3", sessionID)] },
-        question: { [sessionID]: [questionRequest("q_1", sessionID), questionRequest("q_3", sessionID)] },
+        question: {
+          [sessionID]: [
+            legacyQuestion(questionRequest("q_1", sessionID), "/tmp"),
+            legacyQuestion(questionRequest("q_3", sessionID), "/tmp"),
+          ],
+        },
       }),
     )
 
@@ -549,6 +555,41 @@ describe("applyDirectoryEvent", () => {
       loadLsp() {},
     })
     expect(store.question[sessionID]?.map((x) => x.id)).toEqual(["q_1", "q_3"])
+  })
+
+  test("keeps legacy and current question lifecycles protocol-discriminated", () => {
+    const sessionID = "ses_1"
+    const legacy = legacyQuestion(questionRequest("que_same", sessionID), "/legacy")
+    const [store, setStore] = createStore(baseState({ question: { [sessionID]: [legacy] } }))
+    const current = currentQuestion({
+      id: "que_same",
+      sessionID,
+      location: { directory: "/current" },
+      questions: [],
+    })
+
+    applyDirectoryEvent({
+      event: { type: "question.v2.asked", properties: current },
+      store,
+      setStore,
+      push() {},
+      directory: "/current",
+      loadLsp() {},
+    })
+    expect(store.question[sessionID]?.map((item) => [item.protocol, item.location.directory])).toEqual([
+      ["current", "/current"],
+      ["legacy", "/legacy"],
+    ])
+
+    applyDirectoryEvent({
+      event: { type: "question.v2.replied", properties: { sessionID, requestID: "que_same" } },
+      store,
+      setStore,
+      push() {},
+      directory: "/current",
+      loadLsp() {},
+    })
+    expect(store.question[sessionID]).toEqual([legacy])
   })
 
   test("updates vcs branch in store and cache", () => {

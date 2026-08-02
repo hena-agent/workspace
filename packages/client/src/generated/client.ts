@@ -107,6 +107,7 @@ import type {
   ReferencesListInput,
   ReferencesListOutput,
   ProjectsListOutput,
+  ProjectsListAttachmentsOutput,
   ProjectsCreateInput,
   ProjectsCreateOutput,
   ProjectsAttachFolderInput,
@@ -908,6 +909,7 @@ export function make(options: ClientOptions) {
           {
             method: "GET",
             path: `/api/session/${encodeURIComponent(input.sessionID)}/question`,
+            query: { location: input["location"] },
             successStatus: 200,
             declaredStatuses: [404, 400, 401],
             empty: false,
@@ -919,6 +921,7 @@ export function make(options: ClientOptions) {
           {
             method: "POST",
             path: `/api/session/${encodeURIComponent(input.sessionID)}/question/${encodeURIComponent(input.requestID)}/reply`,
+            query: { location: input["location"] },
             body: { answers: input["answers"] },
             successStatus: 204,
             declaredStatuses: [404, 400, 401],
@@ -931,6 +934,7 @@ export function make(options: ClientOptions) {
           {
             method: "POST",
             path: `/api/session/${encodeURIComponent(input.sessionID)}/question/${encodeURIComponent(input.requestID)}/reject`,
+            query: { location: input["location"] },
             successStatus: 204,
             declaredStatuses: [404, 400, 401],
             empty: true,
@@ -958,6 +962,17 @@ export function make(options: ClientOptions) {
           { method: "GET", path: `/api/project`, successStatus: 200, declaredStatuses: [401, 400], empty: false },
           requestOptions,
         ),
+      listAttachments: (requestOptions?: RequestOptions) =>
+        request<ProjectsListAttachmentsOutput>(
+          {
+            method: "GET",
+            path: `/api/project/attachment`,
+            successStatus: 200,
+            declaredStatuses: [401, 400],
+            empty: false,
+          },
+          requestOptions,
+        ),
       create: (input: ProjectsCreateInput, requestOptions?: RequestOptions) =>
         request<ProjectsCreateOutput>(
           {
@@ -975,9 +990,9 @@ export function make(options: ClientOptions) {
           {
             method: "PUT",
             path: `/api/project/${encodeURIComponent(input.projectID)}/folder`,
-            body: { folder: input["folder"] },
+            body: { folder: input["folder"], initiatingSessionID: input["initiatingSessionID"] },
             successStatus: 200,
-            declaredStatuses: [404, 400, 401],
+            declaredStatuses: [404, 400, 409, 401],
             empty: false,
           },
           requestOptions,

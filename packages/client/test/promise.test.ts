@@ -22,6 +22,7 @@ test("exposes every standard HTTP API group", () => {
     "ptys",
     "questions",
     "references",
+    "projects",
     "projectCopies",
   ])
   expect(Object.keys(client.messages)).toEqual(["list"])
@@ -36,6 +37,8 @@ test("exposes every standard HTTP API group", () => {
   ])
   expect(Object.keys(client.files)).toEqual(["list", "find"])
   expect(Object.keys(client.ptys)).toEqual(["list", "create", "get", "update", "remove"])
+  expect(Object.keys(client.projects)).toEqual(["list", "listAttachments", "create", "attachFolder"])
+  expect(Object.keys(client.projectCopies)).toEqual(["create", "remove", "refresh"])
 })
 
 test("sessions.get returns the wire projection", async () => {

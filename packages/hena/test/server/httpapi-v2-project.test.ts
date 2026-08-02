@@ -76,6 +76,11 @@ describe("v2 project HttpApi", () => {
       expect(attached.sessionIDs).toEqual([session.id])
       const listed = Schema.decodeUnknownSync(Schema.Array(Project.Chat))(await (await request("/api/project")).json())
       expect(listed.some((project) => project.id === created.id)).toBe(false)
+      expect(
+        Schema.decodeUnknownSync(Schema.Array(Project.AttachmentReceipt))(
+          await (await request("/api/project/attachment")).json(),
+        ),
+      ).toEqual([{ projectID: created.id, attachment: attached }])
     } finally {
       await fs.rm(created.directory, { recursive: true, force: true })
     }

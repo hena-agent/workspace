@@ -1,4 +1,3 @@
-import type { QuestionRequest } from "@hena/sdk/v2"
 import { Button } from "@hena/ui/button"
 import { DockTray } from "@hena/ui/dock-surface"
 import { Icon } from "@hena/ui/icon"
@@ -8,36 +7,40 @@ import { useDirectoryPicker } from "@/components/directory-picker"
 import { useGlobal } from "@/context/global"
 import { useLanguage } from "@/context/language"
 import { useLayout } from "@/context/layout"
-import { type DirectorySDK, useSDK } from "@/context/sdk"
+import type { DirectorySDK } from "@/context/sdk"
 import { ServerConnection } from "@/context/server"
 import { useServerSDK } from "@/context/server-sdk"
 import { useTabs } from "@/context/tabs"
 import { showToast } from "@/utils/toast"
-import { createAttachFolderController } from "./session-attach-folder"
+import { createAttachFolderController, runSharedAttachment } from "./session-attach-folder"
 import { ScopedKey } from "@/utils/server-scope"
 import { pathKey } from "@/utils/path-key"
+import type { BrowserQuestionRequest } from "@/context/question"
+import { locationHeaders } from "@/context/question"
 
 type PendingAttachment = {
   source: DirectorySDK
-  attaching: boolean
+  attaching?: Promise<void>
   committed: boolean
   dispose: Array<() => void>
+  notify: Set<(state: { sending: boolean; retry: boolean }) => void>
 }
 const pending = new Map<string, PendingAttachment>()
 
-export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSubmit: () => void }> = (props) => {
-  const sdk = useSDK()
+export const SessionAttachFolderDock: Component<{ request: BrowserQuestionRequest; onSubmit: () => void }> = (
+  props,
+) => {
   const serverSDK = useServerSDK()
   const global = useGlobal()
   const tabs = useTabs()
   const language = useLanguage()
   const layout = useLayout()
   const pickDirectory = useDirectoryPicker()
-  const sourceSDK = sdk()
   const sourceServerSDK = serverSDK()
-  const cacheKey = ScopedKey.from(sourceServerSDK.scope, props.request.id)
+  const sourceSDK = sourceServerSDK.ensureDirSdkContext(props.request.location.directory)
+  const cacheKey = ScopedKey.from(sourceServerSDK.scope, `${props.request.protocol}:${props.request.id}`)
   const existing = pending.get(cacheKey)
-  const attachment = existing ?? { source: sourceSDK, attaching: false, committed: false, dispose: [] }
+  const attachment = existing ?? { source: sourceSDK, committed: false, dispose: [], notify: new Set() }
   pending.set(cacheKey, attachment)
   const action = createMemo(() => (props.request.action?.type === "attach-folder" ? props.request.action : undefined))
   const reason = () => props.request.questions[0]?.question ?? ""
@@ -62,8 +65,20 @@ export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSu
   if (!existing) {
     attachment.dispose.push(
       sourceServerSDK.event.on(sourceSDK.directory, (event) => {
-        if (event.type !== "question.replied" && event.type !== "question.rejected") return
-        if (event.properties.requestID === props.request.id) clearPending()
+        if (event.type === "session.deleted" || event.type === "session.updated") {
+          const info = (event.properties as { info?: { id?: string; time?: { archived?: number } } } | undefined)?.info
+          if (info?.id === props.request.sessionID && (event.type === "session.deleted" || info.time?.archived))
+            clearPending()
+          return
+        }
+        if (
+          event.type !== "question.replied" &&
+          event.type !== "question.rejected" &&
+          event.type !== "question.v2.replied" &&
+          event.type !== "question.v2.rejected"
+        )
+          return
+        if ((event.properties as { requestID?: string } | undefined)?.requestID === props.request.id) clearPending()
       }),
       sourceServerSDK.event.on("global", (event) => {
         if (event.type === "global.disposed") clearPending()
@@ -81,29 +96,52 @@ export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSu
       const current = action()
       if (!current) throw new Error("Attach-folder action is missing")
       const context = serverContext()
-      const result = await context.projects.attachFolder(current.projectID, folder)
+      const result = await context.projects.attachFolder(current.projectID, folder, props.request.sessionID)
       const server = ServerConnection.key(sourceServerSDK.server)
       await tabs.replaceDirectory(server, result.previous, result.directory)
       const selection = layout.home.selection()
-      if (selection.server === server && selection.directory && pathKey(selection.directory) === pathKey(result.previous))
+      if (
+        selection.server === server &&
+        selection.directory &&
+        pathKey(selection.directory) === pathKey(result.previous)
+      )
         layout.home.setSelection({ server, directory: result.directory })
     },
-    reply: (source, answers) => source.client.question.reply({ requestID: props.request.id, answers }),
+    reply: (source, answers) =>
+      props.request.protocol === "legacy"
+        ? source.client.question.reply({ requestID: props.request.id, answers })
+        : sourceServerSDK.current.questions.reply(
+            { sessionID: props.request.sessionID, requestID: props.request.id, answers },
+            { headers: locationHeaders(props.request.location) },
+          ),
     onSubmit: () => {
       clearPending()
       props.onSubmit()
     },
   })
-  const [state, setState] = createStore({ picking: false, sending: false, retry: controller.committed() })
+  const [state, setState] = createStore({
+    picking: false,
+    sending: !!attachment.attaching,
+    retry: controller.committed(),
+  })
+  const update = (next: { sending: boolean; retry: boolean }) => setState(next)
+  attachment.notify.add(update)
   onCleanup(() => {
+    attachment.notify.delete(update)
     if (!attachment.attaching && !attachment.committed) clearPending()
   })
 
   const reject = async () => {
     if (state.sending || controller.committed()) return
     setState("sending", true)
-    await sourceSDK
-      .client.question.reject({ requestID: props.request.id })
+    await (
+      props.request.protocol === "legacy"
+        ? sourceSDK.client.question.reject({ requestID: props.request.id })
+        : sourceServerSDK.current.questions.reject(
+            { sessionID: props.request.sessionID, requestID: props.request.id },
+            { headers: locationHeaders(props.request.location) },
+          )
+    )
       .then(() => {
         clearPending()
         props.onSubmit()
@@ -115,20 +153,18 @@ export const SessionAttachFolderDock: Component<{ request: QuestionRequest; onSu
   }
 
   const attach = (folder?: string) => {
-    if (state.sending) return
+    if (state.sending || attachment.attaching) return
     setState("sending", true)
-    attachment.attaching = true
-    void controller
-      .submit(folder)
-      .catch((error) => {
-        setState("sending", false)
-        setState("retry", controller.committed())
+    const task = runSharedAttachment(attachment, () =>
+      controller.submit(folder).catch((error: unknown) => {
         fail(error)
-      })
-      .finally(() => {
-        attachment.attaching = false
-        if (!attachment.committed) clearPending()
-      })
+      }),
+    )
+    attachment.notify.forEach((notify) => notify({ sending: true, retry: controller.committed() }))
+    void task.finally(() => {
+      attachment.notify.forEach((notify) => notify({ sending: false, retry: controller.committed() }))
+      if (!attachment.committed) clearPending()
+    })
   }
 
   const choose = () => {

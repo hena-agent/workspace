@@ -13,6 +13,9 @@ export type Chat = Project.Chat
 export const Attachment = Project.Attachment
 export type Attachment = Project.Attachment
 
+export const AttachmentReceipt = Project.AttachmentReceipt
+export type AttachmentReceipt = Project.AttachmentReceipt
+
 export const Event = Project.Event
 
 export const Vcs = Schema.Union([

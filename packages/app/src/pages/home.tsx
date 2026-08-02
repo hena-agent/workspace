@@ -131,6 +131,7 @@ const HOME_SEARCH_RESULT_META =
   "min-w-0 flex-[1_1_auto] overflow-hidden text-ellipsis whitespace-nowrap text-[13px] leading-4 tracking-[-0.04px] text-v2-text-text-muted [font-weight:440]"
 
 let pendingHomeNavigation: { server: ServerConnection.Key; href: string } | undefined
+const attachingHomeProjects = new Set<string>()
 
 function buildHomeSessionRecords(input: {
   sessions: () => Session[]
@@ -307,7 +308,6 @@ export function NewHome() {
   const notification = useNotification()
   const marked = useMarked()
   const openSettings = useSettingsCommand()
-  const attachingProjects = new Set<string>()
   let focusSessionSearch: (() => void) | undefined
   let sessionViewport: HTMLDivElement | undefined
   const [sessionThumbTrack, setSessionThumbTrack] = createSignal<HTMLDivElement>()
@@ -376,9 +376,13 @@ export function NewHome() {
       if (!ctx) return { sessions: [], eventSequence: 0 }
       const cache = homeSessions()
       const eventSequence = cache.eventSequence()
-      const index = await loadHomeSessionIndex(
-        (input, options) => ctx.sdk.client.v2.session.list(input, options),
-        eventSequence,
+      const index = await cache.initialLoad(
+        () =>
+          loadHomeSessionIndex(
+            (input, options) => ctx.sdk.client.v2.session.list(input, options),
+            eventSequence,
+            signal,
+          ),
         signal,
       )
       cache.complete(eventSequence)
@@ -671,7 +675,7 @@ export function NewHome() {
   function attachFolder(conn: ServerConnection.Any, project: LocalProject, chat: ProjectChat) {
     if (global.servers.health[ServerConnection.key(conn)]?.healthy === false) return
     const attachmentKey = `${ServerConnection.key(conn)}\0${chat.id}`
-    if (attachingProjects.has(attachmentKey)) return
+    if (attachingHomeProjects.has(attachmentKey)) return
     pickDirectory({
       server: conn,
       title: language.t("home.project.attachFolder"),
@@ -681,8 +685,8 @@ export function NewHome() {
       onSelect: (result) => {
         const folder = Array.isArray(result) ? result[0] : result
         if (!folder) return
-        if (attachingProjects.has(attachmentKey)) return
-        attachingProjects.add(attachmentKey)
+        if (attachingHomeProjects.has(attachmentKey)) return
+        attachingHomeProjects.add(attachmentKey)
         void global
           .ensureServerCtx(conn)
           .projects.attachFolder(chat.id, folder)
@@ -697,7 +701,7 @@ export function NewHome() {
               description: errorMessage(error, language.t("common.requestFailed")),
             }),
           )
-          .finally(() => attachingProjects.delete(attachmentKey))
+          .finally(() => attachingHomeProjects.delete(attachmentKey))
       },
     })
   }

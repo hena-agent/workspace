@@ -342,6 +342,7 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
           provider: globalStore.provider,
         },
         sdk,
+        current: serverSDK.current,
         store: child[0],
         setStore: child[1],
         vcsCache: cache,

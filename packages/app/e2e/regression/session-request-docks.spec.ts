@@ -70,6 +70,37 @@ test("shows a pending question dock", async ({ page }) => {
   expect((await reply).postDataJSON()).toEqual({ answers: [["Minimal"]] })
 })
 
+test("answers a current question at its original location", async ({ page }) => {
+  const replies: { requestID: string; directory?: string; answers: unknown; attempt: number }[] = []
+  await mockServer(page, {
+    currentQuestions: [
+      {
+        id: "que_current",
+        sessionID,
+        questions: [
+          {
+            header: "Current",
+            question: "Use the current protocol?",
+            options: [{ label: "Yes", description: "Reply through the current route" }],
+          },
+        ],
+      },
+    ],
+    questionReply: (input) => {
+      replies.push(input)
+    },
+  })
+
+  await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+  await expectSessionTitle(page, title)
+  const question = page.locator('[data-component="dock-prompt"][data-kind="question"]')
+  await expect(question.getByText("Use the current protocol?")).toBeVisible()
+  await question.getByRole("radio", { name: /Yes/ }).click()
+  await question.getByRole("button", { name: "Submit" }).click()
+
+  await expect.poll(() => replies).toEqual([{ requestID: "que_current", directory, answers: [["Yes"]], attempt: 1 }])
+})
+
 test("shows a pending permission dock", async ({ page }) => {
   await mockServer(page, {
     permissions: [

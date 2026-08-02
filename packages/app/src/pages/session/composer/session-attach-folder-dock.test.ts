@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { createAttachFolderController } from "./session-attach-folder"
+import { createAttachFolderController, runSharedAttachment } from "./session-attach-folder"
 
 describe("session attach folder controller", () => {
   test("closes only after attachment and the empty reply succeed", async () => {
@@ -50,5 +50,25 @@ describe("session attach folder controller", () => {
     await controller.submit()
 
     expect(calls).toEqual(["attach", "reply", "reply", "close"])
+  })
+
+  test("shares an in-flight attachment across remounts", async () => {
+    const state: { attaching?: Promise<void> } = {}
+    let resolve!: () => void
+    let puts = 0
+    const submit = () => {
+      puts++
+      return new Promise<void>((done) => {
+        resolve = done
+      })
+    }
+
+    const first = runSharedAttachment(state, submit)
+    const remounted = runSharedAttachment(state, submit)
+    expect(remounted).toBe(first)
+    expect(puts).toBe(1)
+    resolve()
+    await first
+    expect(state.attaching).toBeUndefined()
   })
 })

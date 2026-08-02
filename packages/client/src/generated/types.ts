@@ -110,6 +110,23 @@ export type ProjectFolderInvalidError = {
 export const isProjectFolderInvalidError = (value: unknown): value is ProjectFolderInvalidError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectFolderInvalidError"
 
+export type ProjectAttachmentConflictError = {
+  readonly _tag: "ProjectAttachmentConflictError"
+  readonly projectID: string
+  readonly message: string
+}
+export const isProjectAttachmentConflictError = (value: unknown): value is ProjectAttachmentConflictError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectAttachmentConflictError"
+
+export type ProjectSessionsActiveError = {
+  readonly _tag: "ProjectSessionsActiveError"
+  readonly projectID: string
+  readonly sessionIDs: ReadonlyArray<string>
+  readonly message: string
+}
+export const isProjectSessionsActiveError = (value: unknown): value is ProjectSessionsActiveError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectSessionsActiveError"
+
 export type ProjectCopyError = {
   readonly name: "ProjectCopyError"
   readonly data: { readonly message: string; readonly forceRequired?: boolean | undefined }
@@ -2720,6 +2737,7 @@ export type QuestionsListRequestsOutput = {
   readonly data: ReadonlyArray<{
     readonly id: string
     readonly sessionID: string
+    readonly location: { readonly directory: string; readonly workspaceID?: string }
     readonly questions: ReadonlyArray<{
       readonly question: string
       readonly header: string
@@ -2732,12 +2750,18 @@ export type QuestionsListRequestsOutput = {
   }>
 }
 
-export type QuestionsListInput = { readonly sessionID: { readonly sessionID: string }["sessionID"] }
+export type QuestionsListInput = {
+  readonly sessionID: { readonly sessionID: string }["sessionID"]
+  readonly location?: {
+    readonly location?: { readonly directory?: string | undefined; readonly workspace?: string | undefined } | undefined
+  }["location"]
+}
 
 export type QuestionsListOutput = {
   readonly data: ReadonlyArray<{
     readonly id: string
     readonly sessionID: string
+    readonly location: { readonly directory: string; readonly workspaceID?: string }
     readonly questions: ReadonlyArray<{
       readonly question: string
       readonly header: string
@@ -2753,6 +2777,9 @@ export type QuestionsListOutput = {
 export type QuestionsReplyInput = {
   readonly sessionID: { readonly sessionID: string; readonly requestID: string }["sessionID"]
   readonly requestID: { readonly sessionID: string; readonly requestID: string }["requestID"]
+  readonly location?: {
+    readonly location?: { readonly directory?: string | undefined; readonly workspace?: string | undefined } | undefined
+  }["location"]
   readonly answers: { readonly answers: ReadonlyArray<ReadonlyArray<string>> }["answers"]
 }
 
@@ -2761,6 +2788,9 @@ export type QuestionsReplyOutput = void
 export type QuestionsRejectInput = {
   readonly sessionID: { readonly sessionID: string; readonly requestID: string }["sessionID"]
   readonly requestID: { readonly sessionID: string; readonly requestID: string }["requestID"]
+  readonly location?: {
+    readonly location?: { readonly directory?: string | undefined; readonly workspace?: string | undefined } | undefined
+  }["location"]
 }
 
 export type QuestionsRejectOutput = void
@@ -2801,6 +2831,14 @@ export type ProjectsListOutput = ReadonlyArray<{
   readonly time: { readonly created: number; readonly updated: number }
 }>
 
+export type ProjectsListAttachmentsOutput = ReadonlyArray<{
+  readonly projectID: string
+  readonly attachment: {
+    readonly project: { readonly id: string; readonly directory: string; readonly vcs?: "git" }
+    readonly sessionIDs: ReadonlyArray<string>
+  }
+}>
+
 export type ProjectsCreateInput = { readonly name: { readonly name: string }["name"] }
 
 export type ProjectsCreateOutput = {
@@ -2812,7 +2850,11 @@ export type ProjectsCreateOutput = {
 
 export type ProjectsAttachFolderInput = {
   readonly projectID: { readonly projectID: string }["projectID"]
-  readonly folder: { readonly folder: string }["folder"]
+  readonly folder: { readonly folder: string; readonly initiatingSessionID?: string | undefined }["folder"]
+  readonly initiatingSessionID?: {
+    readonly folder: string
+    readonly initiatingSessionID?: string | undefined
+  }["initiatingSessionID"]
 }
 
 export type ProjectsAttachFolderOutput = {

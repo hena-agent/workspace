@@ -54,6 +54,7 @@ import { EventV2Bridge } from "@/event-v2-bridge"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { AppNodeBuilderV1 } from "./app-node-builder-v1"
 import { SessionProjector } from "@hena/core/session/projector"
+import { SessionActivity } from "@hena/core/session/activity"
 
 export const AppLayer = AppNodeBuilderV1.build(
   LayerNode.group([
@@ -78,6 +79,7 @@ export const AppLayer = AppNodeBuilderV1.build(
     Todo.node,
     Session.node,
     SessionProjector.node,
+    SessionActivity.node,
     SessionStatus.node,
     BackgroundJob.node,
     RuntimeFlags.node,

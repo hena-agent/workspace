@@ -31,6 +31,7 @@ const projects = Layer.succeed(
   ProjectV2.Service,
   ProjectV2.Service.of({
     list: () => Effect.succeed([]),
+    listAttachments: () => Effect.succeed([]),
     isFolderless: () => Effect.succeed(false),
     create: (input) => Effect.fail(new ProjectV2.InvalidNameError({ name: input.name ?? "" })),
     attachFolder: (input) => Effect.fail(new ProjectV2.InvalidFolderError({ folder: input.folder })),

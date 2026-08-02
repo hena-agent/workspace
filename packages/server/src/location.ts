@@ -26,17 +26,26 @@ export function response<A, E, R>(data: Effect.Effect<A, E, R>) {
   })
 }
 
-export function ref(request: { readonly url: string; readonly headers: Readonly<Record<string, string | undefined>> }) {
+export function ref(
+  request: { readonly url: string; readonly headers: Readonly<Record<string, string | undefined>> },
+  fallback?: Location.Ref,
+) {
   const query = new URL(request.url, "http://localhost").searchParams
-  const workspaceID = query.get("location[workspace]") || request.headers["x-hena-workspace"]
+  const workspaceID =
+    query.get("location[workspace]") || request.headers["x-hena-workspace"] || fallback?.workspaceID
   const directoryHeader = request.headers["x-hena-directory"]
   const directory =
     query.get("location[directory]") ||
-    (directoryHeader ? decode(directoryHeader) : process.cwd())
+    (directoryHeader ? decode(directoryHeader) : fallback?.directory ?? process.cwd())
   return Location.Ref.make({
     directory: AbsolutePath.make(directory),
     workspaceID: workspaceID ? WorkspaceV2.ID.make(workspaceID) : undefined,
   })
+}
+
+export function hasLocationQuery(request: { readonly url: string }) {
+  const query = new URL(request.url, "http://localhost").searchParams
+  return query.has("location[directory]") || query.has("location[workspace]")
 }
 
 function decode(input: string) {

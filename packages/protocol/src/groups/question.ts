@@ -31,15 +31,17 @@ export const makeQuestionGroup = <
         ),
     )
     .annotateMerge(OpenApi.annotations({ title: "questions", description: "Experimental question routes." }))
-    // Effect applies group middleware only to endpoints already added; session endpoints use session placement below.
+    // Effect applies group middleware only to endpoints already added.
     .middleware(locationMiddleware)
     .add(
       HttpApiEndpoint.get("session.question.list", "/api/session/:sessionID/question", {
         params: { sessionID: Session.ID },
+        query: LocationQuery,
         success: Schema.Struct({ data: Schema.Array(Question.Request) }),
         error: SessionNotFoundError,
       })
         .middleware(sessionLocationMiddleware)
+        .annotateMerge(locationQueryOpenApi)
         .annotateMerge(
           OpenApi.annotations({
             identifier: "v2.session.question.list",
@@ -51,11 +53,13 @@ export const makeQuestionGroup = <
     .add(
       HttpApiEndpoint.post("session.question.reply", "/api/session/:sessionID/question/:requestID/reply", {
         params: { sessionID: Session.ID, requestID: Question.ID },
+        query: LocationQuery,
         payload: Question.Reply,
         success: HttpApiSchema.NoContent,
         error: [SessionNotFoundError, QuestionNotFoundError],
       })
         .middleware(sessionLocationMiddleware)
+        .annotateMerge(locationQueryOpenApi)
         .annotateMerge(
           OpenApi.annotations({
             identifier: "v2.session.question.reply",
@@ -67,10 +71,12 @@ export const makeQuestionGroup = <
     .add(
       HttpApiEndpoint.post("session.question.reject", "/api/session/:sessionID/question/:requestID/reject", {
         params: { sessionID: Session.ID, requestID: Question.ID },
+        query: LocationQuery,
         success: HttpApiSchema.NoContent,
         error: [SessionNotFoundError, QuestionNotFoundError],
       })
         .middleware(sessionLocationMiddleware)
+        .annotateMerge(locationQueryOpenApi)
         .annotateMerge(
           OpenApi.annotations({
             identifier: "v2.session.question.reject",

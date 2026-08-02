@@ -15,6 +15,8 @@ import type { State, VcsCache } from "./types"
 import { trimSessions } from "./session-trim"
 import { dropSessionCaches } from "./session-cache"
 import { diffs as list, message as clean } from "@/utils/diffs"
+import { currentQuestion, legacyQuestion } from "../question"
+import type { BrowserQuestionRequest } from "../question"
 
 const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
 const SESSION_CONTENT_EVENTS = new Set([
@@ -31,6 +33,9 @@ const SESSION_CONTENT_EVENTS = new Set([
   "question.asked",
   "question.replied",
   "question.rejected",
+  "question.v2.asked",
+  "question.v2.replied",
+  "question.v2.rejected",
 ])
 
 export function applyGlobalEvent(input: {
@@ -364,17 +369,18 @@ export function applyDirectoryEvent(input: {
       break
     }
     case "question.asked": {
-      const question = event.properties as QuestionRequest
+      const question = legacyQuestion(event.properties as QuestionRequest, input.directory)
       const questions = input.store.question[question.sessionID]
       if (!questions) {
         input.setStore("question", question.sessionID, [question])
         break
       }
-      const result = Binary.search(questions, question.id, (q) => q.id)
-      if (result.found) {
-        input.setStore("question", question.sessionID, result.index, reconcile(question))
+      const existing = questions.findIndex((item) => item.id === question.id && item.protocol === "legacy")
+      if (existing !== -1) {
+        input.setStore("question", question.sessionID, existing, reconcile(question))
         break
       }
+      const result = Binary.search(questions, question.id, (q) => q.id)
       input.setStore(
         "question",
         question.sessionID,
@@ -389,13 +395,55 @@ export function applyDirectoryEvent(input: {
       const props = event.properties as { sessionID: string; requestID: string }
       const questions = input.store.question[props.sessionID]
       if (!questions) break
-      const result = Binary.search(questions, props.requestID, (q) => q.id)
-      if (!result.found) break
+      const index = questions.findIndex((question) => question.id === props.requestID && question.protocol === "legacy")
+      if (index === -1) break
       input.setStore(
         "question",
         props.sessionID,
         produce((draft) => {
-          draft.splice(result.index, 1)
+          draft.splice(index, 1)
+        }),
+      )
+      break
+    }
+    case "question.v2.asked": {
+      const question = currentQuestion(
+        event.properties as Extract<BrowserQuestionRequest, { readonly protocol: "current" }>,
+      )
+      const questions = input.store.question[question.sessionID]
+      if (!questions) {
+        input.setStore("question", question.sessionID, [question])
+        break
+      }
+      const existing = questions.findIndex((item) => item.id === question.id && item.protocol === "current")
+      if (existing !== -1) {
+        input.setStore("question", question.sessionID, existing, reconcile(question))
+        break
+      }
+      const result = Binary.search(questions, question.id, (q) => q.id)
+      input.setStore(
+        "question",
+        question.sessionID,
+        produce((draft) => {
+          draft.splice(result.index, 0, question)
+        }),
+      )
+      break
+    }
+    case "question.v2.replied":
+    case "question.v2.rejected": {
+      const props = event.properties as { sessionID: string; requestID: string }
+      const questions = input.store.question[props.sessionID]
+      if (!questions) break
+      const index = questions.findIndex(
+        (question) => question.id === props.requestID && question.protocol === "current",
+      )
+      if (index === -1) break
+      input.setStore(
+        "question",
+        props.sessionID,
+        produce((draft) => {
+          draft.splice(index, 1)
         }),
       )
       break

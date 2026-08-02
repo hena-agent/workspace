@@ -14,6 +14,15 @@ type AttachFolderController = {
   submit: (folder?: string) => Promise<void>
 }
 
+export function runSharedAttachment(state: { attaching?: Promise<void> }, submit: () => Promise<void>) {
+  if (state.attaching) return state.attaching
+  const task = submit().finally(() => {
+    if (state.attaching === task) state.attaching = undefined
+  })
+  state.attaching = task
+  return task
+}
+
 export function createAttachFolderController<T>(input: AttachFolderControllerInput<T>): AttachFolderController {
   let committed = typeof input.committed === "boolean" ? input.committed : false
   const isCommitted = () => (typeof input.committed === "function" ? input.committed() : committed)

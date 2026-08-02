@@ -6,13 +6,14 @@ import { DockPrompt } from "@hena/session-ui/dock-prompt"
 import { Icon } from "@hena/ui/icon"
 import { useSpring } from "@hena/ui/motion-spring"
 import { showToast } from "@/utils/toast"
-import type { QuestionAnswer, QuestionRequest } from "@hena/sdk/v2"
+import type { QuestionAnswer } from "@hena/sdk/v2"
 import { useLanguage } from "@/context/language"
-import { useSDK } from "@/context/sdk"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useServerSDK } from "@/context/server-sdk"
 import { ScopedKey } from "@/utils/server-scope"
+import type { BrowserQuestionRequest } from "@/context/question"
+import { locationHeaders } from "@/context/question"
 
 const cache = new Map<string, { tab: number; answers: QuestionAnswer[]; custom: string[]; customOn: boolean[] }>()
 
@@ -61,11 +62,16 @@ function Option(props: {
   )
 }
 
-export const SessionQuestionDock: Component<{ request: QuestionRequest; onSubmit: () => void }> = (props) => {
-  const sdk = useSDK()
+export const SessionQuestionDock: Component<{ request: BrowserQuestionRequest; onSubmit: () => void }> = (props) => {
   const serverSDK = useServerSDK()
   const language = useLanguage()
-  const cacheKey = ScopedKey.from(serverSDK().scope, props.request.id)
+  const cacheKey = ScopedKey.from(serverSDK().scope, `${props.request.protocol}:${props.request.id}`)
+  const source = serverSDK().ensureDirSdkContext(props.request.location.directory)
+  const current = serverSDK().current
+  const protocol = props.request.protocol
+  const sessionID = props.request.sessionID
+  const requestID = props.request.id
+  const headers = locationHeaders(props.request.location)
 
   const questions = createMemo(() => props.request.questions)
   const total = createMemo(() => questions().length)
@@ -88,6 +94,30 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; onSubmit
   let optsRef: HTMLButtonElement[] = []
   let replied = false
   let focusFrame: number | undefined
+  const clearCached = () => {
+    replied = true
+    cache.delete(cacheKey)
+  }
+  const dispose = [
+    serverSDK().event.on(source.directory, (event) => {
+      if (event.type === "session.deleted" || event.type === "session.updated") {
+        const info = (event.properties as { info?: { id?: string; time?: { archived?: number } } } | undefined)?.info
+        if (info?.id === sessionID && (event.type === "session.deleted" || info.time?.archived)) clearCached()
+        return
+      }
+      if (
+        event.type !== "question.replied" &&
+        event.type !== "question.rejected" &&
+        event.type !== "question.v2.replied" &&
+        event.type !== "question.v2.rejected"
+      )
+        return
+      if ((event.properties as { requestID?: string } | undefined)?.requestID === requestID) clearCached()
+    }),
+    serverSDK().event.on("global", (event) => {
+      if (event.type === "global.disposed") clearCached()
+    }),
+  ]
 
   const question = createMemo(() => questions()[store.tab])
   const options = createMemo(() => question()?.options ?? [])
@@ -207,6 +237,7 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; onSubmit
   })
 
   onCleanup(() => {
+    dispose.forEach((item) => item())
     if (focusFrame !== undefined) cancelAnimationFrame(focusFrame)
     if (replied) return
     cache.set(cacheKey, {
@@ -223,25 +254,31 @@ export const SessionQuestionDock: Component<{ request: QuestionRequest; onSubmit
   }
 
   const replyMutation = useMutation(() => ({
-    mutationFn: (answers: QuestionAnswer[]) => sdk().client.question.reply({ requestID: props.request.id, answers }),
+    mutationFn: (answers: QuestionAnswer[]) =>
+      (protocol === "legacy"
+        ? source.client.question.reply({ requestID, answers })
+        : current.questions.reply({ sessionID, requestID, answers }, { headers })
+      ).then(() => undefined),
     onMutate: () => {
       props.onSubmit()
     },
     onSuccess: () => {
-      replied = true
-      cache.delete(cacheKey)
+      clearCached()
     },
     onError: fail,
   }))
 
   const rejectMutation = useMutation(() => ({
-    mutationFn: () => sdk().client.question.reject({ requestID: props.request.id }),
+    mutationFn: () =>
+      (protocol === "legacy"
+        ? source.client.question.reject({ requestID })
+        : current.questions.reject({ sessionID, requestID }, { headers })
+      ).then(() => undefined),
     onMutate: () => {
       props.onSubmit()
     },
     onSuccess: () => {
-      replied = true
-      cache.delete(cacheKey)
+      clearCached()
     },
     onError: fail,
   }))

@@ -1,6 +1,7 @@
 import { createEffect, createMemo, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import type { PermissionRequest, QuestionRequest, Todo } from "@hena/sdk/v2"
+import type { PermissionRequest, Todo } from "@hena/sdk/v2"
+import type { BrowserQuestionRequest } from "@/context/question"
 import { useParams } from "@solidjs/router"
 import { showToast } from "@/utils/toast"
 import { useServerSync } from "@/context/server-sync"
@@ -33,7 +34,7 @@ export function createSessionComposerController(options?: { closeMs?: number | (
   const language = useLanguage()
   const permission = usePermission()
 
-  const questionRequest = createMemo((): QuestionRequest | undefined => {
+  const questionRequest = createMemo((): BrowserQuestionRequest | undefined => {
     return sessionQuestionRequest(sync().data.session, sync().data.question, params.id)
   })
 

@@ -6,6 +6,7 @@ import { define, inventory } from "./event"
 import { ascending } from "./identifier"
 import { ProjectID } from "./project-id"
 import { SessionID } from "./session-id"
+import { Location } from "./location"
 import { statics } from "./schema"
 
 export const ID = Schema.String.check(Schema.isStartsWith("que")).pipe(
@@ -59,6 +60,7 @@ export interface Action extends Schema.Schema.Type<typeof Action> {}
 export const Request = Schema.Struct({
   id: ID,
   sessionID: SessionID,
+  location: Location.Ref,
   questions: Schema.Array(Info).annotate({ description: "Questions to ask" }),
   tool: Tool.pipe(optional),
   action: Action.pipe(optional),
@@ -80,6 +82,7 @@ const Replied = define({
   type: "question.v2.replied",
   schema: {
     sessionID: SessionID,
+    location: Location.Ref,
     requestID: ID,
     answers: Schema.Array(Answer),
   },
@@ -88,6 +91,7 @@ const Rejected = define({
   type: "question.v2.rejected",
   schema: {
     sessionID: SessionID,
+    location: Location.Ref,
     requestID: ID,
   },
 })

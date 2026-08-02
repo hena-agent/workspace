@@ -1364,6 +1364,7 @@ export type GlobalEvent = {
         properties: {
           id: string
           sessionID: string
+          location: LocationRef
           /**
            * Questions to ask
            */
@@ -1377,6 +1378,7 @@ export type GlobalEvent = {
         type: "question.v2.replied"
         properties: {
           sessionID: string
+          location: LocationRef
           requestID: string
           answers: Array<QuestionV2Answer>
         }
@@ -1386,6 +1388,7 @@ export type GlobalEvent = {
         type: "question.v2.rejected"
         properties: {
           sessionID: string
+          location: LocationRef
           requestID: string
         }
       }
@@ -1668,7 +1671,6 @@ export type GlobalEvent = {
     | SyncEventSessionNextRevertStaged
     | SyncEventSessionNextRevertCleared
     | SyncEventSessionNextRevertCommitted
-    | SyncEventProjectNextAttached
 }
 
 /**
@@ -2963,6 +2965,19 @@ export type ProjectFolderInvalidError = {
   message: string
 }
 
+export type ProjectAttachmentConflictError = {
+  _tag: "ProjectAttachmentConflictError"
+  projectID: string
+  message: string
+}
+
+export type ProjectSessionsActiveError = {
+  _tag: "ProjectSessionsActiveError"
+  projectID: string
+  sessionIDs: Array<string>
+  message: string
+}
+
 export type ProjectCopyError = {
   name: "ProjectCopyError"
   data: {
@@ -3848,22 +3863,6 @@ export type SyncEventSessionNextRevertCommitted = {
       timestamp: number
       sessionID: string
       messageID: string
-    }
-  }
-}
-
-export type SyncEventProjectNextAttached = {
-  type: "sync"
-  id: string
-  syncEvent: {
-    type: "project.next.attached.1"
-    id: string
-    seq: number
-    aggregateID: string
-    data: {
-      projectID: string
-      attachment: ProjectAttachment
-      timestamp: number
     }
   }
 }
@@ -5701,6 +5700,7 @@ export type QuestionV2Asked = {
   data: {
     id: string
     sessionID: string
+    location: LocationRef
     /**
      * Questions to ask
      */
@@ -5724,6 +5724,7 @@ export type QuestionV2Replied = {
   location?: LocationRef
   data: {
     sessionID: string
+    location: LocationRef
     requestID: string
     answers: Array<QuestionV2Answer>
   }
@@ -5743,6 +5744,7 @@ export type QuestionV2Rejected = {
   location?: LocationRef
   data: {
     sessionID: string
+    location: LocationRef
     requestID: string
   }
 }
@@ -6198,6 +6200,7 @@ export type GlobalDisposed = {
 export type QuestionV2Request = {
   id: string
   sessionID: string
+  location: LocationRef
   /**
    * Questions to ask
    */
@@ -6246,6 +6249,11 @@ export type ProjectChat = {
     created: number
     updated: number
   }
+}
+
+export type ProjectAttachmentReceipt = {
+  projectID: string
+  attachment: ProjectAttachment
 }
 
 export type ProjectCreateInput = {
@@ -6942,6 +6950,7 @@ export type EventQuestionV2Asked = {
   properties: {
     id: string
     sessionID: string
+    location: LocationRef
     /**
      * Questions to ask
      */
@@ -6956,6 +6965,7 @@ export type EventQuestionV2Replied = {
   type: "question.v2.replied"
   properties: {
     sessionID: string
+    location: LocationRef
     requestID: string
     answers: Array<QuestionV2Answer>
   }
@@ -6966,6 +6976,7 @@ export type EventQuestionV2Rejected = {
   type: "question.v2.rejected"
   properties: {
     sessionID: string
+    location: LocationRef
     requestID: string
   }
 }
@@ -13473,7 +13484,12 @@ export type V2SessionQuestionListData = {
   path: {
     sessionID: string
   }
-  query?: never
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
   url: "/api/session/{sessionID}/question"
 }
 
@@ -13511,7 +13527,12 @@ export type V2SessionQuestionReplyData = {
     sessionID: string
     requestID: string
   }
-  query?: never
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
   url: "/api/session/{sessionID}/question/{requestID}/reply"
 }
 
@@ -13547,7 +13568,12 @@ export type V2SessionQuestionRejectData = {
     sessionID: string
     requestID: string
   }
-  query?: never
+  query?: {
+    location?: {
+      directory?: string
+      workspace?: string
+    }
+  }
   url: "/api/session/{sessionID}/question/{requestID}/reject"
 }
 
@@ -13672,9 +13698,40 @@ export type V2ProjectCreateResponses = {
 
 export type V2ProjectCreateResponse = V2ProjectCreateResponses[keyof V2ProjectCreateResponses]
 
+export type V2ProjectListAttachmentsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/project/attachment"
+}
+
+export type V2ProjectListAttachmentsErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+}
+
+export type V2ProjectListAttachmentsError = V2ProjectListAttachmentsErrors[keyof V2ProjectListAttachmentsErrors]
+
+export type V2ProjectListAttachmentsResponses = {
+  /**
+   * Success
+   */
+  200: Array<ProjectAttachmentReceipt>
+}
+
+export type V2ProjectListAttachmentsResponse =
+  V2ProjectListAttachmentsResponses[keyof V2ProjectListAttachmentsResponses]
+
 export type V2ProjectAttachFolderData = {
   body: {
     folder: string
+    initiatingSessionID?: string
   }
   path: {
     projectID: string
@@ -13696,6 +13753,10 @@ export type V2ProjectAttachFolderErrors = {
    * ProjectNotFoundError
    */
   404: ProjectNotFoundError
+  /**
+   * ProjectAttachmentConflictError | ProjectSessionsActiveError
+   */
+  409: ProjectAttachmentConflictError | ProjectSessionsActiveError
 }
 
 export type V2ProjectAttachFolderError = V2ProjectAttachFolderErrors[keyof V2ProjectAttachFolderErrors]

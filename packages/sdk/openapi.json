@@ -14610,6 +14610,25 @@
               "pattern": "^ses"
             },
             "required": true
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "directory": {
+                  "type": "string"
+                },
+                "workspace": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
           }
         ],
         "security": [],
@@ -14704,6 +14723,25 @@
               "pattern": "^que"
             },
             "required": true
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "directory": {
+                  "type": "string"
+                },
+                "workspace": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
           }
         ],
         "security": [],
@@ -14794,6 +14832,25 @@
               "pattern": "^que"
             },
             "required": true
+          },
+          {
+            "name": "location",
+            "in": "query",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "directory": {
+                  "type": "string"
+                },
+                "workspace": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "required": false,
+            "style": "deepObject",
+            "explode": true
           }
         ],
         "security": [],
@@ -14929,6 +14986,272 @@
           {
             "lang": "js",
             "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.reference.list({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/project": {
+      "get": {
+        "tags": ["project"],
+        "operationId": "v2.project.list",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectChat"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List projects",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.project.list({\n  ...\n})"
+          }
+        ]
+      },
+      "post": {
+        "tags": ["project"],
+        "operationId": "v2.project.create",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Project.Chat",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectChat"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Create project",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreateInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.project.create({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/project/attachment": {
+      "get": {
+        "tags": ["project"],
+        "operationId": "v2.project.listAttachments",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectAttachmentReceipt"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvalidRequestError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List project attachments",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.project.listAttachments({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/project/{projectID}/folder": {
+      "put": {
+        "tags": ["project"],
+        "operationId": "v2.project.attachFolder",
+        "parameters": [
+          {
+            "name": "projectID",
+            "in": "path",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Project.Attachment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectAttachment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "ProjectFolderInvalidError | InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ProjectFolderInvalidError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ProjectNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectNotFoundError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ProjectAttachmentConflictError | ProjectSessionsActiveError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ProjectAttachmentConflictError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ProjectSessionsActiveError"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "summary": "Attach project folder",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "folder": {
+                    "type": "string"
+                  },
+                  "initiatingSessionID": {
+                    "type": "string",
+                    "pattern": "^ses"
+                  }
+                },
+                "required": ["folder"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.project.attachFolder({\n  ...\n})"
           }
         ]
       }
@@ -15417,6 +15740,12 @@
           },
           {
             "$ref": "#/components/schemas/EventPluginAdded"
+          },
+          {
+            "$ref": "#/components/schemas/EventProjectChatCreated"
+          },
+          {
+            "$ref": "#/components/schemas/EventProjectNextAttached"
           },
           {
             "$ref": "#/components/schemas/EventProjectDirectoriesUpdated"
@@ -17393,6 +17722,20 @@
         "required": ["messageID", "callID"],
         "additionalProperties": false
       },
+      "QuestionAction": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["attach-folder"]
+          },
+          "projectID": {
+            "type": "string"
+          }
+        },
+        "required": ["type", "projectID"],
+        "additionalProperties": false
+      },
       "QuestionAnswer": {
         "type": "array",
         "items": {
@@ -17799,6 +18142,9 @@
                       "sessionID": {
                         "type": "string",
                         "pattern": "^ses"
+                      },
+                      "projectID": {
+                        "type": "string"
                       },
                       "location": {
                         "$ref": "#/components/schemas/LocationRef"
@@ -19354,6 +19700,81 @@
                   },
                   "type": {
                     "type": "string",
+                    "enum": ["project.chat.created"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "directory": {
+                        "type": "string"
+                      },
+                      "time": {
+                        "type": "object",
+                        "properties": {
+                          "created": {
+                            "type": "number"
+                          },
+                          "updated": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["created", "updated"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["id", "name", "directory", "time"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["project.next.attached"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "projectID": {
+                        "type": "string"
+                      },
+                      "attachment": {
+                        "$ref": "#/components/schemas/ProjectAttachment"
+                      },
+                      "timestamp": {
+                        "type": "number"
+                      }
+                    },
+                    "required": ["projectID", "attachment", "timestamp"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
                     "enum": ["project.directories.updated"]
                   },
                   "properties": {
@@ -19527,6 +19948,9 @@
                         "type": "string",
                         "pattern": "^ses"
                       },
+                      "location": {
+                        "$ref": "#/components/schemas/LocationRef"
+                      },
                       "questions": {
                         "type": "array",
                         "items": {
@@ -19536,9 +19960,12 @@
                       },
                       "tool": {
                         "$ref": "#/components/schemas/QuestionV2Tool"
+                      },
+                      "action": {
+                        "$ref": "#/components/schemas/QuestionV2Action"
                       }
                     },
-                    "required": ["id", "sessionID", "questions"],
+                    "required": ["id", "sessionID", "location", "questions"],
                     "additionalProperties": false
                   }
                 },
@@ -19563,6 +19990,9 @@
                         "type": "string",
                         "pattern": "^ses"
                       },
+                      "location": {
+                        "$ref": "#/components/schemas/LocationRef"
+                      },
                       "requestID": {
                         "type": "string",
                         "pattern": "^que"
@@ -19574,7 +20004,7 @@
                         }
                       }
                     },
-                    "required": ["sessionID", "requestID", "answers"],
+                    "required": ["sessionID", "location", "requestID", "answers"],
                     "additionalProperties": false
                   }
                 },
@@ -19599,12 +20029,15 @@
                         "type": "string",
                         "pattern": "^ses"
                       },
+                      "location": {
+                        "$ref": "#/components/schemas/LocationRef"
+                      },
                       "requestID": {
                         "type": "string",
                         "pattern": "^que"
                       }
                     },
-                    "required": ["sessionID", "requestID"],
+                    "required": ["sessionID", "location", "requestID"],
                     "additionalProperties": false
                   }
                 },
@@ -20119,6 +20552,9 @@
                       },
                       "tool": {
                         "$ref": "#/components/schemas/QuestionTool"
+                      },
+                      "action": {
+                        "$ref": "#/components/schemas/QuestionAction"
                       }
                     },
                     "required": ["id", "sessionID", "questions"],
@@ -22795,6 +23231,9 @@
           },
           "tool": {
             "$ref": "#/components/schemas/QuestionTool"
+          },
+          "action": {
+            "$ref": "#/components/schemas/QuestionAction"
           }
         },
         "required": ["id", "sessionID", "questions"],
@@ -24142,6 +24581,12 @@
             "$ref": "#/components/schemas/PluginAdded"
           },
           {
+            "$ref": "#/components/schemas/ProjectChatCreated"
+          },
+          {
+            "$ref": "#/components/schemas/ProjectNextAttached"
+          },
+          {
             "$ref": "#/components/schemas/ProjectDirectoriesUpdated"
           },
           {
@@ -24267,6 +24712,64 @@
           }
         },
         "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "ProjectFolderInvalidError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["ProjectFolderInvalidError"]
+          },
+          "folder": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["_tag", "folder", "message"],
+        "additionalProperties": false
+      },
+      "ProjectAttachmentConflictError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["ProjectAttachmentConflictError"]
+          },
+          "projectID": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["_tag", "projectID", "message"],
+        "additionalProperties": false
+      },
+      "ProjectSessionsActiveError": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": ["ProjectSessionsActiveError"]
+          },
+          "projectID": {
+            "type": "string"
+          },
+          "sessionIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^ses"
+            }
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": ["_tag", "projectID", "sessionIDs", "message"],
         "additionalProperties": false
       },
       "ProjectCopyError": {
@@ -24755,6 +25258,40 @@
         "type": "string",
         "enum": ["once", "always", "reject"]
       },
+      "ProjectVcs": {
+        "type": "string",
+        "enum": ["git"]
+      },
+      "ProjectAttachment": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "directory": {
+                "type": "string"
+              },
+              "vcs": {
+                "$ref": "#/components/schemas/ProjectVcs"
+              }
+            },
+            "required": ["id", "directory"],
+            "additionalProperties": false
+          },
+          "sessionIDs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^ses"
+            }
+          }
+        },
+        "required": ["project", "sessionIDs"],
+        "additionalProperties": false
+      },
       "QuestionV2Option": {
         "type": "object",
         "properties": {
@@ -24811,15 +25348,25 @@
         "required": ["messageID", "callID"],
         "additionalProperties": false
       },
+      "QuestionV2Action": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["attach-folder"]
+          },
+          "projectID": {
+            "type": "string"
+          }
+        },
+        "required": ["type", "projectID"],
+        "additionalProperties": false
+      },
       "QuestionV2Answer": {
         "type": "array",
         "items": {
           "type": "string"
         }
-      },
-      "ProjectVcs": {
-        "type": "string",
-        "enum": ["git"]
       },
       "ProjectIcon": {
         "type": "object",
@@ -25399,6 +25946,9 @@
                   "sessionID": {
                     "type": "string",
                     "pattern": "^ses"
+                  },
+                  "projectID": {
+                    "type": "string"
                   },
                   "location": {
                     "$ref": "#/components/schemas/LocationRef"
@@ -28112,6 +28662,9 @@
               "sessionID": {
                 "type": "string",
                 "pattern": "^ses"
+              },
+              "projectID": {
+                "type": "string"
               },
               "location": {
                 "$ref": "#/components/schemas/LocationRef"
@@ -32001,6 +32554,125 @@
         "required": ["id", "type", "data"],
         "additionalProperties": false
       },
+      "ProjectChatCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["project.chat.created"]
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "directory": {
+                "type": "string"
+              },
+              "time": {
+                "type": "object",
+                "properties": {
+                  "created": {
+                    "type": "number"
+                  },
+                  "updated": {
+                    "type": "number"
+                  }
+                },
+                "required": ["created", "updated"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["id", "name", "directory", "time"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "ProjectNextAttached": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["project.next.attached"]
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "projectID": {
+                "type": "string"
+              },
+              "attachment": {
+                "$ref": "#/components/schemas/ProjectAttachment"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": ["projectID", "attachment", "timestamp"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
       "ProjectDirectoriesUpdated": {
         "type": "object",
         "properties": {
@@ -32337,6 +33009,9 @@
                 "type": "string",
                 "pattern": "^ses"
               },
+              "location": {
+                "$ref": "#/components/schemas/LocationRef"
+              },
               "questions": {
                 "type": "array",
                 "items": {
@@ -32346,9 +33021,12 @@
               },
               "tool": {
                 "$ref": "#/components/schemas/QuestionV2Tool"
+              },
+              "action": {
+                "$ref": "#/components/schemas/QuestionV2Action"
               }
             },
-            "required": ["id", "sessionID", "questions"],
+            "required": ["id", "sessionID", "location", "questions"],
             "additionalProperties": false
           }
         },
@@ -32395,6 +33073,9 @@
                 "type": "string",
                 "pattern": "^ses"
               },
+              "location": {
+                "$ref": "#/components/schemas/LocationRef"
+              },
               "requestID": {
                 "type": "string",
                 "pattern": "^que"
@@ -32406,7 +33087,7 @@
                 }
               }
             },
-            "required": ["sessionID", "requestID", "answers"],
+            "required": ["sessionID", "location", "requestID", "answers"],
             "additionalProperties": false
           }
         },
@@ -32453,12 +33134,15 @@
                 "type": "string",
                 "pattern": "^ses"
               },
+              "location": {
+                "$ref": "#/components/schemas/LocationRef"
+              },
               "requestID": {
                 "type": "string",
                 "pattern": "^que"
               }
             },
-            "required": ["sessionID", "requestID"],
+            "required": ["sessionID", "location", "requestID"],
             "additionalProperties": false
           }
         },
@@ -33252,6 +33936,9 @@
               },
               "tool": {
                 "$ref": "#/components/schemas/QuestionTool"
+              },
+              "action": {
+                "$ref": "#/components/schemas/QuestionAction"
               }
             },
             "required": ["id", "sessionID", "questions"],
@@ -33691,6 +34378,9 @@
             "type": "string",
             "pattern": "^ses"
           },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
           "questions": {
             "type": "array",
             "items": {
@@ -33700,9 +34390,12 @@
           },
           "tool": {
             "$ref": "#/components/schemas/QuestionV2Tool"
+          },
+          "action": {
+            "$ref": "#/components/schemas/QuestionV2Action"
           }
         },
-        "required": ["id", "sessionID", "questions"],
+        "required": ["id", "sessionID", "location", "questions"],
         "additionalProperties": false
       },
       "QuestionV2Reply": {
@@ -33792,6 +34485,58 @@
           }
         },
         "required": ["name", "path", "source"],
+        "additionalProperties": false
+      },
+      "ProjectChat": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "directory": {
+            "type": "string"
+          },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": {
+                "type": "number"
+              },
+              "updated": {
+                "type": "number"
+              }
+            },
+            "required": ["created", "updated"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "name", "directory", "time"],
+        "additionalProperties": false
+      },
+      "ProjectAttachmentReceipt": {
+        "type": "object",
+        "properties": {
+          "projectID": {
+            "type": "string"
+          },
+          "attachment": {
+            "$ref": "#/components/schemas/ProjectAttachment"
+          }
+        },
+        "required": ["projectID", "attachment"],
+        "additionalProperties": false
+      },
+      "ProjectCreateInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["name"],
         "additionalProperties": false
       },
       "ProjectCopyCopy": {
@@ -34190,6 +34935,9 @@
               "sessionID": {
                 "type": "string",
                 "pattern": "^ses"
+              },
+              "projectID": {
+                "type": "string"
               },
               "location": {
                 "$ref": "#/components/schemas/LocationRef"
@@ -35728,6 +36476,81 @@
         "required": ["id", "type", "properties"],
         "additionalProperties": false
       },
+      "EventProjectChatCreated": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["project.chat.created"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "directory": {
+                "type": "string"
+              },
+              "time": {
+                "type": "object",
+                "properties": {
+                  "created": {
+                    "type": "number"
+                  },
+                  "updated": {
+                    "type": "number"
+                  }
+                },
+                "required": ["created", "updated"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["id", "name", "directory", "time"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventProjectNextAttached": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["project.next.attached"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "projectID": {
+                "type": "string"
+              },
+              "attachment": {
+                "$ref": "#/components/schemas/ProjectAttachment"
+              },
+              "timestamp": {
+                "type": "number"
+              }
+            },
+            "required": ["projectID", "attachment", "timestamp"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
       "EventProjectDirectoriesUpdated": {
         "type": "object",
         "properties": {
@@ -35910,6 +36733,9 @@
                 "type": "string",
                 "pattern": "^ses"
               },
+              "location": {
+                "$ref": "#/components/schemas/LocationRef"
+              },
               "questions": {
                 "type": "array",
                 "items": {
@@ -35919,9 +36745,12 @@
               },
               "tool": {
                 "$ref": "#/components/schemas/QuestionV2Tool"
+              },
+              "action": {
+                "$ref": "#/components/schemas/QuestionV2Action"
               }
             },
-            "required": ["id", "sessionID", "questions"],
+            "required": ["id", "sessionID", "location", "questions"],
             "additionalProperties": false
           }
         },
@@ -35946,6 +36775,9 @@
                 "type": "string",
                 "pattern": "^ses"
               },
+              "location": {
+                "$ref": "#/components/schemas/LocationRef"
+              },
               "requestID": {
                 "type": "string",
                 "pattern": "^que"
@@ -35957,7 +36789,7 @@
                 }
               }
             },
-            "required": ["sessionID", "requestID", "answers"],
+            "required": ["sessionID", "location", "requestID", "answers"],
             "additionalProperties": false
           }
         },
@@ -35982,12 +36814,15 @@
                 "type": "string",
                 "pattern": "^ses"
               },
+              "location": {
+                "$ref": "#/components/schemas/LocationRef"
+              },
               "requestID": {
                 "type": "string",
                 "pattern": "^que"
               }
             },
-            "required": ["sessionID", "requestID"],
+            "required": ["sessionID", "location", "requestID"],
             "additionalProperties": false
           }
         },
@@ -36364,6 +37199,9 @@
               },
               "tool": {
                 "$ref": "#/components/schemas/QuestionTool"
+              },
+              "action": {
+                "$ref": "#/components/schemas/QuestionAction"
               }
             },
             "required": ["id", "sessionID", "questions"],
@@ -36916,6 +37754,10 @@
     {
       "name": "reference",
       "description": "Location-scoped project references."
+    },
+    {
+      "name": "project",
+      "description": "Folderless chat project routes."
     },
     {
       "name": "projectCopy",

@@ -16,6 +16,8 @@ import { batch } from "solid-js"
 import { produce, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State, VcsCache } from "./types"
 import type { ServerSession } from "../server-session"
+import type { ServerSDK } from "../server-sdk"
+import { currentQuestion, legacyQuestion, type BrowserQuestionRequest } from "../question"
 import { cmp, normalizeAgentList, normalizeProviderList } from "./utils"
 import { formatServerError } from "@/utils/server-errors"
 import { QueryClient, queryOptions } from "@tanstack/solid-query"
@@ -140,6 +142,14 @@ function groupBySession<T extends { id: string; sessionID: string }>(input: T[])
   }, {})
 }
 
+export function mergeQuestionProtocol(
+  current: readonly BrowserQuestionRequest[],
+  incoming: readonly BrowserQuestionRequest[],
+  protocol: BrowserQuestionRequest["protocol"],
+) {
+  return [...current.filter((item) => item.protocol !== protocol), ...incoming].sort((a, b) => cmp(a.id, b.id))
+}
+
 function projectID(directory: string, projects: Project[]) {
   return projects.find((project) => project.worktree === directory || project.sandboxes?.includes(directory))?.id
 }
@@ -208,6 +218,7 @@ export async function bootstrapDirectory(input: {
   scope: ServerScope
   mcp: boolean
   sdk: HenaClient
+  current?: ServerSDK["current"]
   store: Store<State>
   setStore: SetStoreFunction<State>
   vcsCache: VcsCache
@@ -335,12 +346,17 @@ export async function bootstrapDirectory(input: {
                 for (const sessionID of Object.keys(current)) {
                   if (grouped[sessionID]) continue
                   if (input.session?.get(sessionID)?.directory !== input.directory) continue
-                  if (input.session) input.session.set("question", sessionID, [])
-                  if (!input.session) input.setStore("question", sessionID, [])
+                  const value = mergeQuestionProtocol(current[sessionID] ?? [], [], "legacy")
+                  if (input.session) input.session.set("question", sessionID, value)
+                  if (!input.session) input.setStore("question", sessionID, value)
                 }
                 for (const [sessionID, questions] of Object.entries(grouped)) {
                   const value = reconcile(
-                    questions.filter((q) => !!q?.id).sort((a, b) => cmp(a.id, b.id)),
+                    mergeQuestionProtocol(
+                      current[sessionID] ?? [],
+                      questions.filter((q) => !!q?.id).map((question) => legacyQuestion(question, input.directory)),
+                      "legacy",
+                    ),
                     { key: "id" },
                   )
                   if (input.session) input.session.set("question", sessionID, value)
@@ -350,6 +366,42 @@ export async function bootstrapDirectory(input: {
             )
           }),
         ),
+      input.current &&
+        (() =>
+          retry(() =>
+            input.current!.questions.listRequests({ location: { directory: input.directory } }).then((x) => {
+              const requests = x.data.map((question) =>
+                currentQuestion({
+                  ...question,
+                  location: { directory: x.location.directory, workspaceID: x.location.workspaceID },
+                }),
+              )
+              const ids = requests.map((question) => question.sessionID)
+              const grouped = groupBySession(requests)
+              const warm = input.session
+                ? Promise.all(ids.map((sessionID) => input.session!.resolve(sessionID))).then(() => undefined)
+                : warmSessions({ ids, store: input.store, setStore: input.setStore, sdk: input.sdk })
+              return warm.then(() =>
+                batch(() => {
+                  const current = input.session?.data.question ?? input.store.question
+                  for (const sessionID of Object.keys(current)) {
+                    if (grouped[sessionID]) continue
+                    if (input.session?.get(sessionID)?.directory !== input.directory) continue
+                    const value = mergeQuestionProtocol(current[sessionID] ?? [], [], "current")
+                    if (input.session) input.session.set("question", sessionID, value)
+                    if (!input.session) input.setStore("question", sessionID, value)
+                  }
+                  for (const [sessionID, questions] of Object.entries(grouped)) {
+                    const value = reconcile(mergeQuestionProtocol(current[sessionID] ?? [], questions, "current"), {
+                      key: "id",
+                    })
+                    if (input.session) input.session.set("question", sessionID, value)
+                    if (!input.session) input.setStore("question", sessionID, value)
+                  }
+                }),
+              )
+            }),
+          )),
       () => Promise.resolve(input.loadSessions(input.directory)),
       input.mcp && (() => input.queryClient.fetchQuery(loadMcpQuery(input.scope, input.directory, input.sdk))),
       input.mcp && (() => input.queryClient.fetchQuery(loadMcpResourcesQuery(input.scope, input.directory, input.sdk))),

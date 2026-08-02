@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import type { PermissionRequest, QuestionRequest, Session } from "@hena/sdk/v2/client"
 import { todoDockAtBoundary, todoState } from "./session-composer-state"
 import { sessionPermissionRequest, sessionQuestionRequest } from "./session-request-tree"
+import { legacyQuestion } from "@/context/question"
 
 const session = (input: { id: string; parentID?: string }) =>
   ({
@@ -16,11 +17,14 @@ const permission = (id: string, sessionID: string) =>
   }) as PermissionRequest
 
 const question = (id: string, sessionID: string) =>
-  ({
-    id,
-    sessionID,
-    questions: [],
-  }) as QuestionRequest
+  legacyQuestion(
+    {
+      id,
+      sessionID,
+      questions: [],
+    } as QuestionRequest,
+    "/tmp",
+  )
 
 describe("sessionPermissionRequest", () => {
   test("prefers the current session permission", () => {

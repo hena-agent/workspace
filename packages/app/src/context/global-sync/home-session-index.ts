@@ -85,6 +85,8 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
   const indexKey = homeSessionIndexKey(server)
   const eventsKey = homeSessionEventsKey(server)
   let connected = false
+  let initial = true
+  let resolveConnection: (() => void) | undefined
   const refetch = () => queryClient.refetchQueries({ queryKey: indexKey, exact: true, type: "active" })
 
   return {
@@ -96,6 +98,26 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
     complete(sequence: number) {
       // Keep events received after the fetch began so its response cannot overwrite them.
       queryClient.setQueryData<HomeSessionEvents>(eventsKey, (current) => trimHomeSessionEvents(current, sequence))
+    },
+    initialLoad<T>(load: () => Promise<T>, signal?: AbortSignal) {
+      if (!initial) return load()
+      initial = false
+      return load().catch(async () => {
+        if (!connected) {
+          await new Promise<void>((resolve, reject) => {
+            const abort = () => {
+              resolveConnection = undefined
+              reject(signal?.reason)
+            }
+            resolveConnection = () => {
+              signal?.removeEventListener("abort", abort)
+              resolve()
+            }
+            signal?.addEventListener("abort", abort, { once: true })
+          })
+        }
+        return load()
+      })
     },
     sessions(index: HomeSessionIndex | undefined, events: HomeSessionEvents | undefined) {
       return homeSessionIndexSessions(index, events)
@@ -126,6 +148,10 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
     refresh(event: Event["type"]) {
       const result = homeSessionIndexRefresh(event, connected)
       connected = result.connected
+      if (event === "server.connected") {
+        resolveConnection?.()
+        resolveConnection = undefined
+      }
       if (!result.refetch) return
       void refetch()
     },

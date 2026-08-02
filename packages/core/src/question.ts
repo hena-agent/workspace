@@ -5,6 +5,7 @@ import { Context, Deferred, Effect, Layer, Schema } from "effect"
 import { Question } from "@hena/schema/question"
 import { EventV2 } from "./event"
 import { SessionSchema } from "./session/schema"
+import { Location } from "./location"
 
 export const ID = Question.ID
 export type ID = typeof ID.Type
@@ -80,7 +81,9 @@ const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const events = yield* EventV2.Service
+    const location = yield* Location.Service
     const pending = new Map<ID, Pending>()
+    const locationRef = Location.Ref.make({ directory: location.directory, workspaceID: location.workspaceID })
 
     yield* Effect.addFinalizer(() =>
       Effect.forEach(pending.values(), (item) => Deferred.fail(item.deferred, new RejectedError()), {
@@ -99,9 +102,9 @@ const layer = Layer.effect(
         Effect.gen(function* () {
           const id = ID.ascending()
           const deferred = yield* Deferred.make<ReadonlyArray<Answer>, RejectedError>()
-          const request: Request = { id, ...input }
+          const request: Request = { id, ...input, location: locationRef }
           pending.set(id, { request, deferred })
-          return yield* events.publish(Event.Asked, request).pipe(
+          return yield* events.publish(Event.Asked, request, { location: locationRef }).pipe(
             Effect.andThen(restore(Deferred.await(deferred))),
             Effect.ensuring(
               Effect.sync(() => {
@@ -118,13 +121,19 @@ const layer = Layer.effect(
         Effect.gen(function* () {
           const existing = pending.get(input.requestID)
           if (!existing) return yield* new NotFoundError({ requestID: input.requestID })
-          yield* events.publish(Event.Replied, {
-            sessionID: existing.request.sessionID,
-            requestID: existing.request.id,
-            answers: input.answers.map((answer) => [...answer]),
-          })
-          yield* Deferred.succeed(existing.deferred, input.answers)
-          pending.delete(input.requestID)
+          yield* Effect.gen(function* () {
+            yield* events.publish(
+              Event.Replied,
+              {
+                sessionID: existing.request.sessionID,
+                location: existing.request.location,
+                requestID: existing.request.id,
+                answers: input.answers.map((answer) => [...answer]),
+              },
+              { location: existing.request.location },
+            )
+            yield* Deferred.succeed(existing.deferred, input.answers)
+          }).pipe(Effect.ensuring(Effect.sync(() => pending.delete(input.requestID))))
         }),
       ),
     )
@@ -134,12 +143,18 @@ const layer = Layer.effect(
         Effect.gen(function* () {
           const existing = pending.get(requestID)
           if (!existing) return yield* new NotFoundError({ requestID })
-          yield* events.publish(Event.Rejected, {
-            sessionID: existing.request.sessionID,
-            requestID: existing.request.id,
-          })
-          yield* Deferred.fail(existing.deferred, new RejectedError())
-          pending.delete(requestID)
+          yield* Effect.gen(function* () {
+            yield* events.publish(
+              Event.Rejected,
+              {
+                sessionID: existing.request.sessionID,
+                location: existing.request.location,
+                requestID: existing.request.id,
+              },
+              { location: existing.request.location },
+            )
+            yield* Deferred.fail(existing.deferred, new RejectedError())
+          }).pipe(Effect.ensuring(Effect.sync(() => pending.delete(requestID))))
         }),
       ),
     )
@@ -154,4 +169,4 @@ const layer = Layer.effect(
 
 export const locationLayer = layer
 
-export const node = makeLocationNode({ service: Service, layer, deps: [EventV2.node] })
+export const node = makeLocationNode({ service: Service, layer, deps: [EventV2.node, Location.node] })

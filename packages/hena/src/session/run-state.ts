@@ -7,6 +7,7 @@ import { Effect, Latch, Layer, Scope, Context } from "effect"
 import { Session } from "./session"
 import { SessionID } from "./schema"
 import { SessionStatus } from "./status"
+import { SessionActivity } from "@hena/core/session/activity"
 
 export interface Interface {
   readonly assertNotBusy: (sessionID: SessionID) => Effect.Effect<void, Session.BusyError>
@@ -31,6 +32,7 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const background = yield* BackgroundJob.Service
     const status = yield* SessionStatus.Service
+    const activity = yield* SessionActivity.Service
 
     const state = yield* InstanceState.make(
       Effect.fn("SessionRunState.state")(function* () {
@@ -90,7 +92,11 @@ const layer = Layer.effect(
       onInterrupt: Effect.Effect<SessionV1.WithParts>,
       work: Effect.Effect<SessionV1.WithParts>,
     ) {
-      return yield* (yield* runner(sessionID, onInterrupt)).ensureRunning(work)
+      return yield* Effect.acquireUseRelease(
+        activity.register(sessionID),
+        () => Effect.flatMap(runner(sessionID, onInterrupt), (runner) => runner.ensureRunning(work)),
+        (release) => release,
+      )
     })
 
     const startShell = Effect.fn("SessionRunState.startShell")(function* (
@@ -99,9 +105,14 @@ const layer = Layer.effect(
       work: Effect.Effect<SessionV1.WithParts>,
       ready?: Latch.Latch,
     ) {
-      return yield* (yield* runner(sessionID, onInterrupt))
-        .startShell(work, ready)
-        .pipe(Effect.catchTag("RunnerBusy", () => Effect.fail(busyError(sessionID))))
+      return yield* Effect.acquireUseRelease(
+        activity.register(sessionID),
+        () =>
+          Effect.flatMap(runner(sessionID, onInterrupt), (runner) => runner.startShell(work, ready)).pipe(
+            Effect.catchTag("RunnerBusy", () => Effect.fail(busyError(sessionID))),
+          ),
+        (release) => release,
+      )
     })
 
     return Service.of({ assertNotBusy, cancel, ensureRunning, startShell })
@@ -146,6 +157,10 @@ function busyError(sessionID: SessionID) {
   return new Session.BusyError({ sessionID })
 }
 
-export const node = LayerNode.make({ service: Service, layer: layer, deps: [BackgroundJob.node, SessionStatus.node] })
+export const node = LayerNode.make({
+  service: Service,
+  layer: layer,
+  deps: [BackgroundJob.node, SessionStatus.node, SessionActivity.node],
+})
 
 export * as SessionRunState from "./run-state"

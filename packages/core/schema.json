@@ -1,8 +1,8 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "527b2d42-a05a-4909-9ce4-1746b78a2038",
-  "prevIds": ["f14a9b18-8207-487e-a3d3-227e629ba9ad"],
+  "id": "0f30e6cd-2496-43fb-bda6-f1fe5a145f26",
+  "prevIds": ["527b2d42-a05a-4909-9ce4-1746b78a2038"],
   "ddl": [
     {
       "name": "workspace",
@@ -38,6 +38,10 @@
     },
     {
       "name": "permission",
+      "entityType": "tables"
+    },
+    {
+      "name": "project_attachment",
       "entityType": "tables"
     },
     {
@@ -599,6 +603,96 @@
       "name": "time_updated",
       "entityType": "columns",
       "table": "permission"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_project_id",
+      "entityType": "columns",
+      "table": "project_attachment"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "requested_folder",
+      "entityType": "columns",
+      "table": "project_attachment"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "source_scratch",
+      "entityType": "columns",
+      "table": "project_attachment"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "attachment",
+      "entityType": "columns",
+      "table": "project_attachment"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "relocations",
+      "entityType": "columns",
+      "table": "project_attachment"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "checkout",
+      "entityType": "columns",
+      "table": "project_attachment"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "cleanup_status",
+      "entityType": "columns",
+      "table": "project_attachment"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_created",
+      "entityType": "columns",
+      "table": "project_attachment"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "time_updated",
+      "entityType": "columns",
+      "table": "project_attachment"
     },
     {
       "type": "text",
@@ -1698,6 +1792,13 @@
       "nameExplicit": false,
       "name": "permission_pk",
       "table": "permission",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["source_project_id"],
+      "nameExplicit": false,
+      "name": "project_attachment_pk",
+      "table": "project_attachment",
       "entityType": "pks"
     },
     {

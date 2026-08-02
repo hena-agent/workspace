@@ -5,7 +5,7 @@ import { Persist, persisted } from "@/utils/persist"
 import { pathKey } from "@/utils/path-key"
 import { ServerScope } from "@/utils/server-scope"
 
-export type StoredProject = { worktree: string; expanded: boolean }
+export type StoredProject = { worktree: string; expanded: boolean; type?: "chat"; id?: string }
 type StoredServer = string | ServerConnection.HttpBase | ServerConnection.Http
 type ServerProjectState = {
   projects: Record<string, StoredProject[]>
@@ -85,6 +85,11 @@ export function createServerProjects<T extends ServerProjectState>(input: {
   const current = () => input.store.projects[input.scope()] ?? []
   const currentClosed = () => input.store.recentlyClosed?.[input.scope()] ?? []
   const samePath = (left: string, right: string) => pathKey(left) === pathKey(right)
+  const chatID = (project: StoredProject) => {
+    if (project.type === "chat") return project.id
+    const match = project.worktree.match(/^hena:\/\/project\/([^/]+)$/)
+    return match?.[1]
+  }
   const remove = (directory: string) => {
     setStore(
       "projects",
@@ -100,7 +105,7 @@ export function createServerProjects<T extends ServerProjectState>(input: {
       return currentClosed().some((worktree) => pathKey(worktree) === key)
     },
     remove,
-    open(directory: string) {
+    open(directory: string, chat?: { type: "chat"; id: string }) {
       const scope = input.scope()
       const normalized = pathKey(directory)
       const closed = currentClosed()
@@ -111,8 +116,72 @@ export function createServerProjects<T extends ServerProjectState>(input: {
           closed.filter((worktree) => pathKey(worktree) !== normalized),
         )
       }
-      if (current().some((project) => samePath(project.worktree, normalized))) return
-      setStore("projects", scope, [{ worktree: normalized, expanded: true }, ...current()])
+      const index = current().findIndex((project) => samePath(project.worktree, normalized))
+      if (index !== -1) {
+        if (chat && (current()[index]?.type !== chat.type || current()[index]?.id !== chat.id)) {
+          setStore("projects", scope, index, { ...current()[index]!, ...chat })
+        }
+        return
+      }
+      setStore("projects", scope, [{ worktree: normalized, expanded: true, ...chat }, ...current()])
+    },
+    reconcileChats(chats: Array<{ id: string; directory: string }>) {
+      const scope = input.scope()
+      const byID = new Map(chats.map((chat) => [chat.id, chat]))
+      const currentIDs = new Set<string>()
+      const removed: string[] = []
+      const retained = current().flatMap((project) => {
+        const id = chatID(project)
+        if (!id) return [project]
+        const chat = byID.get(id)
+        if (!chat) {
+          removed.push(id)
+          return []
+        }
+        currentIDs.add(id)
+        return [{ ...project, type: "chat" as const, id, worktree: pathKey(chat.directory) }]
+      })
+      const added = chats.flatMap((chat) => {
+        if (currentIDs.has(chat.id) || currentClosed().some((worktree) => samePath(worktree, chat.directory))) return []
+        return [{ worktree: pathKey(chat.directory), expanded: true, type: "chat" as const, id: chat.id }]
+      })
+      const next = [...added, ...retained]
+      const closed = currentClosed().filter((worktree) => {
+        const id = worktree.match(/^hena:\/\/project\/([^/]+)$/)?.[1]
+        return !id || byID.has(id)
+      })
+      batch(() => {
+        if (
+          next.length !== current().length ||
+          next.some(
+            (project, index) =>
+              project.worktree !== current()[index]?.worktree ||
+              project.expanded !== current()[index]?.expanded ||
+              project.type !== current()[index]?.type ||
+              project.id !== current()[index]?.id,
+          )
+        )
+          setStore("projects", scope, next)
+        if (closed.length !== currentClosed().length) setStore("recentlyClosed", scope, closed)
+      })
+      return removed
+    },
+    replaceChat(id: string, directory_: string) {
+      const source = current().find((project) => chatID(project) === id)
+      if (!source) return
+      const directory = pathKey(directory_)
+      const sourceIndex = current().indexOf(source)
+      const targetIndex = current().findIndex((project) => samePath(project.worktree, directory))
+      const next = current().flatMap((project, index) => {
+        if (index === sourceIndex) return [{ worktree: directory, expanded: project.expanded }]
+        return index === targetIndex ? [] : [project]
+      })
+      batch(() => {
+        setStore("projects", input.scope(), next)
+        const last = input.store.lastProject[input.scope()]
+        if (last && samePath(last, source.worktree)) setStore("lastProject", input.scope(), directory)
+      })
+      return source.worktree
     },
     replace(previous_: string, directory_: string) {
       const scope = input.scope()
@@ -129,11 +198,14 @@ export function createServerProjects<T extends ServerProjectState>(input: {
         previousIndex === -1
           ? list
           : list.flatMap((project, index) => {
-              if (index === previousIndex) return [{ ...project, worktree: directory }]
+              if (index === previousIndex) return [{ worktree: directory, expanded: project.expanded }]
               return index === targetIndex ? [] : [project]
             })
       const recentlyClosed = currentRecentlyClosed.reduce<string[]>((items, worktree) => {
-        if ((previousIndex !== -1 || targetIndex !== -1) && (samePath(worktree, previous) || samePath(worktree, directory))) {
+        if (
+          (previousIndex !== -1 || targetIndex !== -1) &&
+          (samePath(worktree, previous) || samePath(worktree, directory))
+        ) {
           return items
         }
         const value = samePath(worktree, previous) ? directory : pathKey(worktree)

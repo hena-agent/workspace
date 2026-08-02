@@ -124,8 +124,6 @@ export interface PublishOptions {
   readonly commit?: (seq: number) => Effect.Effect<void>
   /** Defer subscriber notification until `broadcast` is called after an enclosing transaction commits. */
   readonly deferBroadcast?: boolean
-  /** Skip registered projectors when `commit` performs the local projection atomically. Replay still projects normally. */
-  readonly project?: boolean
 }
 
 export interface Interface {
@@ -219,7 +217,6 @@ export const layerWith = (options?: LayerOptions) =>
         },
         commit?: (seq: number) => Effect.Effect<void>,
         wake = true,
-        project = true,
       ) {
         return Effect.gen(function* () {
           const durable = definition?.durable
@@ -325,9 +322,7 @@ export const layerWith = (options?: LayerOptions) =>
                             ...event,
                             durable: { aggregateID, seq, version: durable.version },
                           } as Payload
-                          if (project) {
-                            for (const projector of list) yield* projector(committed)
-                          }
+                          for (const projector of list) yield* projector(committed)
                           if (commit) yield* commit(seq)
                           yield* db
                             .insert(EventSequenceTable)
@@ -390,7 +385,6 @@ export const layerWith = (options?: LayerOptions) =>
               undefined,
               options?.commit,
               !options?.deferBroadcast,
-              options?.project !== false,
             )
             if (committed) {
               event = {

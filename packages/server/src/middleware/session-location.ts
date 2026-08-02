@@ -7,10 +7,10 @@ import { SessionTable } from "@hena/core/session/sql"
 import { WorkspaceV2 } from "@hena/core/workspace"
 import { eq } from "drizzle-orm"
 import { Effect, Layer, Schema } from "effect"
-import { HttpRouter } from "effect/unstable/http"
+import { HttpRouter, HttpServerRequest } from "effect/unstable/http"
 import { HttpApiMiddleware } from "effect/unstable/httpapi"
 import { InvalidRequestError, SessionNotFoundError } from "@hena/protocol/errors"
-import type { LocationServices } from "../location"
+import { hasLocationQuery, ref, type LocationServices } from "../location"
 
 export class SessionLocationMiddleware extends HttpApiMiddleware.Service<
   SessionLocationMiddleware,
@@ -51,14 +51,15 @@ export const sessionLocationLayer = Layer.effect(
             message: `Session not found: ${sessionID}`,
           })
 
+        const request = yield* HttpServerRequest.HttpServerRequest
+        const sessionLocation = Location.Ref.make({
+          directory: AbsolutePath.make(row.directory),
+          workspaceID: row.workspaceID ? WorkspaceV2.ID.make(row.workspaceID) : undefined,
+        })
+
         return yield* effect.pipe(
           Effect.provide(
-            locations.get(
-              Location.Ref.make({
-                directory: AbsolutePath.make(row.directory),
-                workspaceID: row.workspaceID ? WorkspaceV2.ID.make(row.workspaceID) : undefined,
-              }),
-            ),
+            locations.get(hasLocationQuery(request) ? ref(request, sessionLocation) : sessionLocation),
           ),
         )
       }),

@@ -20,7 +20,10 @@ export default {
         \`sandboxes\` text NOT NULL,
         \`commands\` text
       );`)
-      yield* tx.run(`INSERT INTO \`__new_project\` SELECT
+      yield* tx.run(`INSERT INTO \`__new_project\` (
+        \`id\`, \`worktree\`, \`vcs\`, \`name\`, \`icon_url\`, \`icon_url_override\`, \`icon_color\`,
+        \`time_created\`, \`time_updated\`, \`time_initialized\`, \`sandboxes\`, \`commands\`
+      ) SELECT
         \`id\`, \`worktree\`, \`vcs\`, \`name\`, \`icon_url\`, \`icon_url_override\`, \`icon_color\`,
         \`time_created\`, \`time_updated\`, \`time_initialized\`, \`sandboxes\`, \`commands\`
         FROM \`project\`;`)

@@ -36,6 +36,7 @@
         "@dnd-kit/dom": "0.5.0",
         "@dnd-kit/helpers": "0.5.0",
         "@dnd-kit/solid": "0.5.0",
+        "@hena/client": "workspace:*",
         "@hena/core": "workspace:*",
         "@hena/schema": "workspace:*",
         "@hena/sdk": "workspace:*",

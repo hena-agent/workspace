@@ -1,6 +1,6 @@
 import { createSimpleContext } from "@hena/ui/context"
 import { createEffect, createMemo, createResource, createRoot, onCleanup } from "solid-js"
-import type { ProjectChat } from "@hena/sdk/v2/client"
+import type { ProjectAttachment, ProjectAttachmentReceipt, ProjectChat } from "@hena/sdk/v2/client"
 import { createStore } from "solid-js/store"
 import { createServerProjects, RECENTLY_CLOSED_DISPLAY_LIMIT, ServerConnection, useServer } from "./server"
 import { pathKey } from "@/utils/path-key"
@@ -10,6 +10,7 @@ import { createServerSyncContext } from "./server-sync"
 import { getOwner } from "solid-js/web"
 import { QueryClient } from "@tanstack/solid-query"
 import type { ServerScope } from "@/utils/server-scope"
+import { createProjectChatCache } from "./project-chat-cache"
 
 export const { use: useGlobal, provider: GlobalProvider } = createSimpleContext({
   name: "Global",
@@ -110,32 +111,67 @@ function createServerCtx(
   })
   const sdk = createServerSdkContext(conn, scope)
   const sync = createServerSyncContext(sdk)
-  const chatOverrides = new Map<string, ProjectChat | undefined>()
-  let latestChats: ProjectChat[] | undefined
+  const chatCache = createProjectChatCache()
+  let attachmentReceipts: ProjectAttachmentReceipt[] = []
   const [chats, { mutate: setChats, refetch: refetchChats }] = createResource(() =>
-    sdk.client.v2.project
-      .list()
-      .then((response) => response.data ?? [])
-      .then((items) => {
-        const merged = new Map(items.map((item) => [item.id, item]))
-        for (const [id, chat] of chatOverrides) {
-          if (chat && merged.has(id)) chatOverrides.delete(id)
-          if (!chat && !merged.has(id)) chatOverrides.delete(id)
-          if (chat) merged.set(id, chat)
-          else merged.delete(id)
-        }
-        return [...merged.values()]
-      }),
+    chatCache
+      .load(async () => {
+        const [projectsResponse, attachmentsResponse] = await Promise.all([
+          sdk.client.v2.project.list(),
+          sdk.client.v2.project.listAttachments(),
+        ])
+        if (!projectsResponse.data) throw projectsResponse.error
+        if (!attachmentsResponse.data) throw attachmentsResponse.error
+        attachmentReceipts = attachmentsResponse.data
+        attachmentReceipts.forEach((receipt) => chatCache.remove(receipt.projectID))
+        return projectsResponse.data
+      })
+      .catch(() => chatCache.list()),
   )
 
   createEffect(() => {
     if (chats.error) return
     const value = chats()
-    if (value) latestChats = value
+    if (!value || !chatCache.loaded()) return
+    const recovered = attachmentReceipts.flatMap((receipt) =>
+      projects.replaceChat(receipt.projectID, receipt.attachment.project.directory)
+        ? receipt.attachment.sessionIDs
+        : [],
+    )
+    const removed = projects.reconcileChats(value)
+    if (recovered.length > 0) {
+      void Promise.all(recovered.map((sessionID) => sync.session.resolve(sessionID, { force: true }).catch(() => {}))).then(
+        () => sync.homeSessions.invalidate().catch(() => {}),
+      )
+      return
+    }
+    if (removed.length > 0) void sync.homeSessions.invalidate().catch(() => {})
   })
 
   const stopProjectRefresh = sdk.event.listen((event) => {
     if (event.name !== "global") return
+    const created = projectChatCreated(event.details)
+    if (created) {
+      chatCache.upsert(created)
+      setChats(chatCache.list())
+      projects.open(created.directory, { type: "chat", id: created.id })
+      return
+    }
+    const properties = projectAttached(event.details)
+    if (properties) {
+      const previous = chatCache.list().find((chat) => chat.id === properties.projectID)?.directory
+      chatCache.remove(properties.projectID)
+      setChats(chatCache.list())
+      const replaced = projects.replaceChat(properties.projectID, properties.attachment.project.directory)
+      if (!replaced && previous) projects.replace(previous, properties.attachment.project.directory)
+      void Promise.all(
+        properties.attachment.sessionIDs.map((sessionID) =>
+          sync.session.resolve(sessionID, { force: true }).catch(() => {}),
+        ),
+      ).then(() => sync.homeSessions.invalidate().catch(() => {}))
+      void refetchChats()
+      return
+    }
     if (
       event.details.type !== "server.connected" &&
       event.details.type !== "global.disposed" &&
@@ -145,17 +181,12 @@ function createServerCtx(
     void refetchChats()
   })
   onCleanup(stopProjectRefresh)
-  const chatList = () => (chats.error ? latestChats : chats())
-
-  createEffect(() =>
-    chatList()
-      ?.filter((chat) => !projects.closed(chat.directory))
-      .forEach((chat) => projects.open(chat.directory)),
-  )
+  const chatList = () => chats() ?? chatCache.list()
 
   function enrich(project: { worktree: string; expanded: boolean }) {
-    const [childStore] = sync.child(project.worktree, { bootstrap: false })
-    const projectID = childStore.project
+    const stored = project as typeof project & { type?: "chat"; id?: string }
+    const childStore = stored.type === "chat" ? undefined : sync.child(project.worktree, { bootstrap: false })[0]
+    const projectID = stored.id ?? childStore?.project
     const chat = chatList()?.find(
       (item) => item.id === projectID || pathKey(item.directory) === pathKey(project.worktree),
     )
@@ -177,7 +208,7 @@ function createServerCtx(
       time: metadata?.time ?? chat?.time,
       icon: metadata?.icon,
     }
-    if (childStore.icon) {
+    if (childStore?.icon) {
       return { ...base, icon: { ...base.icon, override: childStore.icon } }
     }
     return base
@@ -203,25 +234,23 @@ function createServerCtx(
     const response = await sdk.client.v2.project.create({ projectCreateInput: { name } })
     if (!response.data) throw response.error
     const chat = response.data
-    chatOverrides.set(chat.id, chat)
-    latestChats = [chat, ...(latestChats ?? []).filter((item) => item.id !== chat.id)]
-    setChats(latestChats)
-    projects.open(chat.directory)
+    chatCache.upsert(chat)
+    setChats(chatCache.list())
+    projects.open(chat.directory, { type: "chat", id: chat.id })
     projects.touch(chat.directory)
     void refetchChats()
     return { chat, directory: chat.directory }
   }
 
-  const attachFolder = async (projectID: string, folder: string) => {
+  const attachFolder = async (projectID: string, folder: string, initiatingSessionID?: string) => {
     const chat = (chatList() ?? []).find((item) => item.id === projectID)
     if (!chat) throw new Error(`Chat project not found: ${projectID}`)
-    const response = await sdk.client.v2.project.attachFolder({ projectID, folder })
+    const response = await sdk.client.v2.project.attachFolder({ projectID, folder, initiatingSessionID })
     if (!response.data) throw response.error
     const attachment = response.data
-    chatOverrides.set(projectID, undefined)
-    latestChats = (latestChats ?? []).filter((item) => item.id !== projectID)
-    setChats(latestChats)
-    projects.replace(chat.directory, attachment.project.directory)
+    chatCache.remove(projectID)
+    setChats(chatCache.list())
+    projects.replaceChat(projectID, attachment.project.directory)
     void refetchChats()
     await Promise.all(
       attachment.sessionIDs.map((sessionID) => sync.session.resolve(sessionID, { force: true }).catch(() => {})),
@@ -252,6 +281,39 @@ function createServerCtx(
 }
 
 export type ServerCtx = ReturnType<typeof createServerCtx>
+
+function projectChatCreated(event: { type: string; properties?: unknown }) {
+  if (event.type !== "project.chat.created" || !isRecord(event.properties)) return
+  if (
+    typeof event.properties.id !== "string" ||
+    typeof event.properties.name !== "string" ||
+    typeof event.properties.directory !== "string"
+  )
+    return
+  return event.properties as ProjectChat
+}
+
+function projectAttached(event: { type: string; properties?: unknown }) {
+  if (event.type !== "project.next.attached" || !isRecord(event.properties)) return
+  const attachment = event.properties.attachment
+  if (
+    typeof event.properties.projectID !== "string" ||
+    !isRecord(attachment) ||
+    !isRecord(attachment.project) ||
+    typeof attachment.project.directory !== "string" ||
+    !Array.isArray(attachment.sessionIDs) ||
+    !attachment.sessionIDs.every((id) => typeof id === "string")
+  )
+    return
+  return {
+    projectID: event.properties.projectID,
+    attachment: attachment as ProjectAttachment,
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
 
 function isLocalHost(url: string) {
   const host = url.replace(/^https?:\/\//, "").split(":")[0]

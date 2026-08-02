@@ -6,9 +6,15 @@ import { EventV2 } from "@hena/core/event"
 import { QuestionV2 } from "@hena/core/question"
 import { ProjectV2 } from "@hena/core/project"
 import { SessionV2 } from "@hena/core/session"
+import { Location } from "@hena/core/location"
+import { AbsolutePath } from "@hena/core/schema"
+import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
 
-const questions = AppNodeBuilder.build(LayerNode.group([EventV2.node, QuestionV2.node]))
+const locationRef = Location.Ref.make({ directory: AbsolutePath.make("/project") })
+const questions = AppNodeBuilder.build(LayerNode.group([EventV2.node, QuestionV2.node]), [
+  [Location.node, Layer.succeed(Location.Service, Location.Service.of(location(locationRef)))],
+])
 const it = testEffect(questions)
 
 const sessionID = SessionV2.ID.make("ses_question_test")
@@ -54,14 +60,19 @@ describe("QuestionV2", () => {
 
       expect(request.id).toMatch(/^que_/)
       expect(request.action).toEqual(action)
+      expect(request.location).toEqual(locationRef)
       expect(yield* service.list()).toEqual([request])
       yield* service.reply({ requestID: request.id, answers: [["One"]] })
 
       expect(yield* Fiber.join(fiber)).toEqual([["One"]])
       expect(yield* service.list()).toEqual([])
+      expect(published.every((event) => event.location?.directory === locationRef.directory)).toBe(true)
       expect(published.map((event) => [event.type, event.data])).toEqual([
         [QuestionV2.Event.Asked.type, request],
-        [QuestionV2.Event.Replied.type, { sessionID, requestID: request.id, answers: [["One"]] }],
+        [
+          QuestionV2.Event.Replied.type,
+          { sessionID, location: locationRef, requestID: request.id, answers: [["One"]] },
+        ],
       ])
     }),
   )
@@ -83,7 +94,9 @@ describe("QuestionV2", () => {
       const exit = yield* Fiber.await(fiber)
       expect(Exit.isFailure(exit)).toBe(true)
       if (Exit.isFailure(exit)) expect(exit.cause.toString()).toContain("QuestionV2.RejectedError")
-      expect(published.map((event) => event.data)).toEqual([{ sessionID, requestID: request.id }])
+      expect(published.map((event) => event.data)).toEqual([
+        { sessionID, location: locationRef, requestID: request.id },
+      ])
 
       const unknown = QuestionV2.ID.ascending("que_unknown")
       expect(yield* service.reply({ requestID: unknown, answers: [] }).pipe(Effect.flip)).toEqual(

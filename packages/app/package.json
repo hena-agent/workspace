@@ -54,6 +54,7 @@
     "@dnd-kit/solid": "0.5.0",
     "@kobalte/core": "catalog:",
     "@hena/core": "workspace:*",
+    "@hena/client": "workspace:*",
     "@hena/schema": "workspace:*",
     "@hena/sdk": "workspace:*",
     "@hena/session-ui": "workspace:*",

@@ -310,6 +310,63 @@ describe("createServerProjects", () => {
     })
   })
 
+  test("reconciles identified chat routes without removing folder projects", () => {
+    createRoot((dispose) => {
+      const [scope] = createSignal(ServerScope.local)
+      const [store, setStore] = createStore({
+        projects: {
+          local: [
+            { worktree: "/folder", expanded: true },
+            { worktree: "hena://project/stale", expanded: false },
+            { worktree: "hena://project/current", expanded: true, type: "chat" as const, id: "current" },
+          ],
+        },
+        lastProject: {},
+        recentlyClosed: { local: ["hena://project/stale-closed"] },
+      })
+      const projects = createServerProjects({ scope, store, setStore })
+
+      expect(
+        projects.reconcileChats([
+          { id: "newest", directory: "hena://project/newest" },
+          { id: "current", directory: "hena://project/current" },
+        ]),
+      ).toEqual(["stale"])
+      expect(projects.list()).toEqual([
+        { worktree: "hena://project/newest", expanded: true, type: "chat", id: "newest" },
+        { worktree: "/folder", expanded: true },
+        { worktree: "hena://project/current", expanded: true, type: "chat", id: "current" },
+      ])
+      expect(projects.recentlyClosed()).toEqual([])
+      dispose()
+    })
+  })
+
+  test("replaces a remotely attached chat by stored identity", () => {
+    createRoot((dispose) => {
+      const [scope] = createSignal(ServerScope.local)
+      const [store, setStore] = createStore({
+        projects: {
+          local: [
+            { worktree: "/other", expanded: true },
+            { worktree: "hena://project/chat", expanded: false, type: "chat" as const, id: "chat" },
+          ],
+        },
+        lastProject: { local: "hena://project/chat" },
+        recentlyClosed: {},
+      })
+      const projects = createServerProjects({ scope, store, setStore })
+
+      expect(projects.replaceChat("chat", "/attached/repo")).toBe("hena://project/chat")
+      expect(projects.list()).toEqual([
+        { worktree: "/other", expanded: true },
+        { worktree: "/attached/repo", expanded: false },
+      ])
+      expect(projects.last()).toBe("/attached/repo")
+      dispose()
+    })
+  })
+
   test("retains recently closed history beyond the visible display limit", () => {
     createRoot((dispose) => {
       const [scope] = createSignal(ServerScope.local)

@@ -1,5 +1,6 @@
 import { Project } from "@hena/schema/project"
 import { AbsolutePath } from "@hena/schema/schema"
+import { SessionID } from "@hena/schema/session-id"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 
@@ -21,11 +22,30 @@ export class ProjectFolderInvalidError extends Schema.TaggedErrorClass<ProjectFo
   { httpApiStatus: 400 },
 ) {}
 
+export class ProjectAttachmentConflictError extends Schema.TaggedErrorClass<ProjectAttachmentConflictError>()(
+  "ProjectAttachmentConflictError",
+  { projectID: Project.ID, message: Schema.String },
+  { httpApiStatus: 409 },
+) {}
+
+export class ProjectSessionsActiveError extends Schema.TaggedErrorClass<ProjectSessionsActiveError>()(
+  "ProjectSessionsActiveError",
+  { projectID: Project.ID, sessionIDs: Schema.Array(SessionID), message: Schema.String },
+  { httpApiStatus: 409 },
+) {}
+
 export const ProjectGroup = HttpApiGroup.make("server.project")
   .add(
     HttpApiEndpoint.get("project.list", "/api/project", {
       success: Schema.Array(Project.Chat),
     }).annotateMerge(OpenApi.annotations({ identifier: "v2.project.list", summary: "List projects" })),
+  )
+  .add(
+    HttpApiEndpoint.get("project.listAttachments", "/api/project/attachment", {
+      success: Schema.Array(Project.AttachmentReceipt),
+    }).annotateMerge(
+      OpenApi.annotations({ identifier: "v2.project.listAttachments", summary: "List project attachments" }),
+    ),
   )
   .add(
     HttpApiEndpoint.post("project.create", "/api/project", {
@@ -38,9 +58,14 @@ export const ProjectGroup = HttpApiGroup.make("server.project")
       params: { projectID: Project.ID },
       // Re-declaring the required field avoids losing its requiredness when
       // projecting it from the composite input schema.
-      payload: Schema.Struct({ folder: AbsolutePath }),
+      payload: Schema.Struct({ folder: AbsolutePath, initiatingSessionID: Schema.optional(SessionID) }),
       success: Project.Attachment,
-      error: [ProjectNotFoundError, ProjectFolderInvalidError],
+      error: [
+        ProjectNotFoundError,
+        ProjectFolderInvalidError,
+        ProjectAttachmentConflictError,
+        ProjectSessionsActiveError,
+      ],
     }).annotateMerge(OpenApi.annotations({ identifier: "v2.project.attachFolder", summary: "Attach project folder" })),
   )
   .annotateMerge(OpenApi.annotations({ title: "project", description: "Folderless chat project routes." }))

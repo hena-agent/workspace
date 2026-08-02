@@ -9,7 +9,6 @@ import type {
   Part,
   Path,
   PermissionRequest,
-  QuestionRequest,
   ReferenceInfo,
   Session,
   SessionStatus,
@@ -20,6 +19,7 @@ import type {
 import { NormalizedProviderListResponse } from "@hena/session-ui/context"
 import type { Accessor } from "solid-js"
 import type { SetStoreFunction, Store } from "solid-js/store"
+import type { BrowserQuestionRequest } from "../question"
 
 export type ProjectMeta = {
   name?: string
@@ -60,7 +60,7 @@ export type State = {
     [sessionID: string]: PermissionRequest[]
   }
   question: {
-    [sessionID: string]: QuestionRequest[]
+    [sessionID: string]: BrowserQuestionRequest[]
   }
   mcp_ready: boolean
   mcp: {

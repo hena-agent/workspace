@@ -62,6 +62,12 @@ export const Attachment = Schema.Struct({
   sessionIDs: Schema.Array(SessionID),
 }).annotate({ identifier: "Project.Attachment" })
 
+export interface AttachmentReceipt extends Schema.Schema.Type<typeof AttachmentReceipt> {}
+export const AttachmentReceipt = Schema.Struct({
+  projectID: ID,
+  attachment: Attachment,
+}).annotate({ identifier: "Project.AttachmentReceipt" })
+
 export const CreateInput = Schema.Struct({
   name: Schema.String,
 }).annotate({ identifier: "Project.CreateInput" })
@@ -71,7 +77,6 @@ const Updated = define({ type: "project.updated", schema: Info.fields })
 const ChatCreated = define({ type: "project.chat.created", schema: Chat.fields })
 const Attached = define({
   type: "project.next.attached",
-  durable: { aggregate: "projectID", version: 1 },
   schema: {
     projectID: ID,
     attachment: Attachment,

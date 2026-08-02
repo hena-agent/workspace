@@ -1,13 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import type {
-  Message,
-  Part,
-  PermissionRequest,
-  QuestionRequest,
-  SessionStatus,
-  SnapshotFileDiff,
-  Todo,
-} from "@hena/sdk/v2/client"
+import type { Message, Part, PermissionRequest, SessionStatus, SnapshotFileDiff, Todo } from "@hena/sdk/v2/client"
+import type { BrowserQuestionRequest } from "../question"
 import { dropSessionCaches, pickSessionCacheEvictions } from "./session-cache"
 
 const msg = (id: string, sessionID: string) =>
@@ -38,7 +31,7 @@ describe("app session cache", () => {
       message: Record<string, Message[] | undefined>
       part: Record<string, Part[] | undefined>
       permission: Record<string, PermissionRequest[] | undefined>
-      question: Record<string, QuestionRequest[] | undefined>
+      question: Record<string, BrowserQuestionRequest[] | undefined>
       part_text_accum_delta: Record<string, string | undefined>
     } = {
       session_status: { ses_1: { type: "busy" } as SessionStatus },
@@ -47,7 +40,7 @@ describe("app session cache", () => {
       message: {},
       part: { msg_1: [part("prt_1", "ses_1", "msg_1")] },
       permission: { ses_1: [] as PermissionRequest[] },
-      question: { ses_1: [] as QuestionRequest[] },
+      question: { ses_1: [] as BrowserQuestionRequest[] },
       part_text_accum_delta: { prt_1: "streamed text" },
     }
 
@@ -72,7 +65,7 @@ describe("app session cache", () => {
       message: Record<string, Message[] | undefined>
       part: Record<string, Part[] | undefined>
       permission: Record<string, PermissionRequest[] | undefined>
-      question: Record<string, QuestionRequest[] | undefined>
+      question: Record<string, BrowserQuestionRequest[] | undefined>
       part_text_accum_delta: Record<string, string | undefined>
     } = {
       session_status: {},

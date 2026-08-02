@@ -1,4 +1,5 @@
-import type { PermissionRequest, QuestionRequest, Session } from "@hena/sdk/v2/client"
+import type { PermissionRequest, Session } from "@hena/sdk/v2/client"
+import type { BrowserQuestionRequest } from "@/context/question"
 
 function sessionTreeRequest<T>(
   session: Session[],
@@ -44,9 +45,9 @@ export function sessionPermissionRequest(
 
 export function sessionQuestionRequest(
   session: Session[],
-  request: Record<string, QuestionRequest[] | undefined>,
+  request: Record<string, BrowserQuestionRequest[] | undefined>,
   sessionID?: string,
-  include?: (item: QuestionRequest) => boolean,
+  include?: (item: BrowserQuestionRequest) => boolean,
 ) {
   return sessionTreeRequest(session, request, sessionID, include)
 }

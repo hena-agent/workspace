@@ -316,6 +316,8 @@ import type {
   V2ProjectCopyRemoveResponses,
   V2ProjectCreateErrors,
   V2ProjectCreateResponses,
+  V2ProjectListAttachmentsErrors,
+  V2ProjectListAttachmentsResponses,
   V2ProjectListErrors,
   V2ProjectListResponses,
   V2ProviderGetErrors,
@@ -5339,10 +5341,24 @@ export class Question2 extends HeyApiClient {
   public list<ThrowOnError extends boolean = false>(
     parameters: {
       sessionID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
     },
     options?: Options<never, ThrowOnError>,
   ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }])
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "location" },
+          ],
+        },
+      ],
+    )
     return (options?.client ?? this.client).get<
       V2SessionQuestionListResponses,
       V2SessionQuestionListErrors,
@@ -5363,6 +5379,10 @@ export class Question2 extends HeyApiClient {
     parameters: {
       sessionID: string
       requestID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
       questionV2Reply: QuestionV2Reply
     },
     options?: Options<never, ThrowOnError>,
@@ -5374,6 +5394,7 @@ export class Question2 extends HeyApiClient {
           args: [
             { in: "path", key: "sessionID" },
             { in: "path", key: "requestID" },
+            { in: "query", key: "location" },
             { key: "questionV2Reply", map: "body" },
           ],
         },
@@ -5404,6 +5425,10 @@ export class Question2 extends HeyApiClient {
     parameters: {
       sessionID: string
       requestID: string
+      location?: {
+        directory?: string
+        workspace?: string
+      }
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -5414,6 +5439,7 @@ export class Question2 extends HeyApiClient {
           args: [
             { in: "path", key: "sessionID" },
             { in: "path", key: "requestID" },
+            { in: "query", key: "location" },
           ],
         },
       ],
@@ -6912,12 +6938,24 @@ export class Project2 extends HeyApiClient {
   }
 
   /**
+   * List project attachments
+   */
+  public listAttachments<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
+    return (options?.client ?? this.client).get<
+      V2ProjectListAttachmentsResponses,
+      V2ProjectListAttachmentsErrors,
+      ThrowOnError
+    >({ url: "/api/project/attachment", ...options })
+  }
+
+  /**
    * Attach project folder
    */
   public attachFolder<ThrowOnError extends boolean = false>(
     parameters: {
       projectID: string
       folder: string
+      initiatingSessionID?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -6928,6 +6966,7 @@ export class Project2 extends HeyApiClient {
           args: [
             { in: "path", key: "projectID" },
             { in: "body", key: "folder" },
+            { in: "body", key: "initiatingSessionID" },
           ],
         },
       ],

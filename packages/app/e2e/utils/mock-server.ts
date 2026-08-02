@@ -1,5 +1,5 @@
 import type { Page, Route } from "@playwright/test"
-import type { ProjectAttachment, ProjectChat } from "@hena/sdk/v2/client"
+import type { ProjectAttachment, ProjectAttachmentReceipt, ProjectChat } from "@hena/sdk/v2/client"
 import type { QuestionAnswer } from "@hena/sdk/v2"
 import { posix, win32 } from "node:path"
 
@@ -12,6 +12,9 @@ export interface MockServerConfig {
   project: unknown
   projects?: ProjectChat[]
   sessions: ({ id: string } & Record<string, unknown>)[]
+  onSessionList?: () => void
+  sessionListResponse?: () => { status?: number; body?: unknown } | void
+  onSession?: (sessionID: string) => void
   pageMessages: (sessionId: string, limit: number, before?: string) => { items: unknown[]; cursor?: string }
   vcsDiff?: unknown[]
   messageDelay?: number
@@ -24,8 +27,11 @@ export interface MockServerConfig {
   todos?: (sessionID: string) => unknown[]
   permissions?: unknown[] | (() => unknown[])
   questions?: unknown[] | (() => unknown[])
+  currentQuestions?: unknown[] | (() => unknown[])
   onProjectList?: (projects: ProjectChat[]) => void
-  projectListResponse?: (projects: ProjectChat[]) => { status?: number; body?: unknown } | void
+  projectListResponse?: (
+    projects: ProjectChat[],
+  ) => { status?: number; body?: unknown } | void | Promise<{ status?: number; body?: unknown } | void>
   onProjectCreate?: (project: ProjectChat) => void
   projectAttachment?: (input: { projectID: string; folder: string; sessionIDs: string[] }) => ProjectAttachment
   onProjectAttach?: (input: { projectID: string; folder: string; attachment: ProjectAttachment }) => void
@@ -46,6 +52,7 @@ export async function mockHenaServer(page: Page, config: MockServerConfig) {
   const projects = [...(config.projects ?? [])]
   const attachments = new Map<string, { folder: string; attachment: ProjectAttachment }>()
   const questionReplyAttempts = new Map<string, number>()
+  let currentProject = config.project
   let nextCursor = 0
   const staticRoutes: Record<string, unknown> = {
     "/provider": config.provider,
@@ -56,8 +63,6 @@ export async function mockHenaServer(page: Page, config: MockServerConfig) {
       directory: config.directory,
       home: "C:/Hena",
     },
-    "/project": [config.project],
-    "/project/current": config.project,
     "/agent": [{ name: "build", mode: "primary" }],
     "/vcs": { branch: "main", default_branch: "main" },
     "/session": config.sessions,
@@ -74,15 +79,27 @@ export async function mockHenaServer(page: Page, config: MockServerConfig) {
     const path = url.pathname
     if (path === "/global/event" || path === "/event") return sse(route, config.events?.(), config.eventRetry)
     if (path === "/global/health") return json(route, { healthy: true })
-    if (path === "/api/session")
+    if (path === "/api/session") {
+      config.onSessionList?.()
+      const result = config.sessionListResponse?.()
+      if (result) return json(route, result.body, undefined, result.status ?? 200)
       return json(route, {
         data: config.sessions.map((session) => v2Session(session, config.directory)),
         cursor: {},
       })
+    }
     if (path === "/api/project" && route.request().method() === "GET") {
       config.onProjectList?.([...projects])
-      const result = config.projectListResponse?.([...projects])
+      const result = await config.projectListResponse?.([...projects])
       return json(route, result?.body ?? projects, undefined, result?.status ?? 200)
+    }
+    if (path === "/api/project/attachment" && route.request().method() === "GET") {
+      return json(
+        route,
+        [...attachments].map(
+          ([projectID, receipt]): ProjectAttachmentReceipt => ({ projectID, attachment: receipt.attachment }),
+        ),
+      )
     }
     if (path === "/api/project" && route.request().method() === "POST") {
       const body = route.request().postDataJSON() as { name: string }
@@ -110,20 +127,29 @@ export async function mockHenaServer(page: Page, config: MockServerConfig) {
       const source = projects[index]
       if (!source) return json(route, { message: "Project not found" }, undefined, 404)
       projects.splice(index, 1)
-      const sessionIDs = config.sessions.filter((session) => session.projectID === projectID).map((session) => session.id)
+      const sessionIDs = config.sessions
+        .filter((session) => session.projectID === projectID)
+        .map((session) => session.id)
       const attachment = config.projectAttachment?.({ projectID, folder: body.folder, sessionIDs }) ?? {
-        project: { id: "project_attached", directory: body.folder, vcs: "git" as const },
+        project: { id: `project_attached_${projectID}`, directory: body.folder, vcs: "git" as const },
         sessionIDs,
       }
       config.sessions.forEach((session) => {
         if (session.projectID !== projectID) return
-        const paths = /^[A-Za-z]:[\\/]/.test(source.directory) ? win32 : posix
+        const paths = /^[A-Za-z]:[\\/]/.test(attachment.project.directory) ? win32 : posix
         const relative = paths.relative(source.directory, String(session.directory ?? source.directory))
-        const subpath = relative === ".." || relative.startsWith(`..${paths.sep}`) || paths.isAbsolute(relative) ? "" : relative
+        const candidate = typeof session.path === "string" ? session.path : relative
+        const subpath =
+          candidate === ".." || candidate.startsWith(`..${paths.sep}`) || paths.isAbsolute(candidate) ? "" : candidate
         session.projectID = attachment.project.id
         session.directory = paths.resolve(attachment.project.directory, subpath)
         session.path = subpath || undefined
       })
+      currentProject = {
+        ...(typeof currentProject === "object" && currentProject !== null ? currentProject : {}),
+        ...attachment.project,
+        worktree: attachment.project.directory,
+      }
       attachments.set(projectID, { folder: body.folder, attachment })
       config.onProjectAttach?.({ projectID, folder: body.folder, attachment })
       return json(route, attachment)
@@ -133,6 +159,15 @@ export async function mockHenaServer(page: Page, config: MockServerConfig) {
       return json(route, typeof config.permissions === "function" ? config.permissions() : (config.permissions ?? []))
     if (path === "/question")
       return json(route, typeof config.questions === "function" ? config.questions() : (config.questions ?? []))
+    if (path === "/api/question/request")
+      return json(route, {
+        location: {
+          directory: config.directory,
+          project: { id: (currentProject as { id?: string }).id, directory: config.directory },
+        },
+        data:
+          typeof config.currentQuestions === "function" ? config.currentQuestions() : (config.currentQuestions ?? []),
+      })
     const questionReplyMatch = path.match(/^\/question\/([^/]+)\/reply$/)
     if (questionReplyMatch && route.request().method() === "POST" && config.questionReply) {
       const requestID = decodeURIComponent(questionReplyMatch[1]!)
@@ -145,6 +180,19 @@ export async function mockHenaServer(page: Page, config: MockServerConfig) {
         attempt,
       })
       return json(route, result?.body ?? true, undefined, result?.status ?? 200)
+    }
+    const currentQuestionReplyMatch = path.match(/^\/api\/session\/([^/]+)\/question\/([^/]+)\/reply$/)
+    if (currentQuestionReplyMatch && route.request().method() === "POST" && config.questionReply) {
+      const requestID = decodeURIComponent(currentQuestionReplyMatch[2]!)
+      const attempt = (questionReplyAttempts.get(requestID) ?? 0) + 1
+      questionReplyAttempts.set(requestID, attempt)
+      const result = config.questionReply({
+        requestID,
+        directory: requestDirectory(route, url),
+        answers: (route.request().postDataJSON() as { answers: QuestionAnswer[] }).answers,
+        attempt,
+      })
+      return route.fulfill({ status: result?.status ?? 204 })
     }
     if (path === "/session/status") return json(route, config.sessionStatus ?? {})
     if (path === "/vcs/diff" && config.vcsDiff) return json(route, config.vcsDiff)
@@ -165,22 +213,25 @@ export async function mockHenaServer(page: Page, config: MockServerConfig) {
       return json(route, {
         location: {
           directory: config.directory,
-          project: { id: (config.project as { id?: string }).id, directory: config.directory },
+          project: { id: (currentProject as { id?: string }).id, directory: config.directory },
         },
         data: [],
       })
+    if (path === "/project") return json(route, [currentProject])
+    if (path === "/project/current") return json(route, currentProject)
     if (emptyObject.has(path)) return json(route, {})
     if (emptyList.has(path)) return json(route, [])
     if (path in staticRoutes) return json(route, staticRoutes[path])
 
     const sessionMatch = path.match(/^\/session\/([^/]+)$/)
     if (sessionMatch) {
+      config.onSession?.(sessionMatch[1]!)
       const session = config.sessions.find((s) => s.id === sessionMatch[1])
       return json(route, session ?? {})
     }
 
     const projectMatch = path.match(/^\/project\/([^/]+)$/)
-    if (projectMatch) return json(route, config.project)
+    if (projectMatch) return json(route, currentProject)
 
     const messageMatch = path.match(/^\/session\/([^/]+)\/message\/([^/]+)$/)
     if (messageMatch) {
@@ -216,7 +267,15 @@ export async function mockHenaServer(page: Page, config: MockServerConfig) {
     return route.fallback()
   })
 
-  return { projects }
+  return {
+    projects,
+    get project() {
+      return currentProject
+    },
+    setProject(project: unknown) {
+      currentProject = project
+    },
+  }
 }
 
 function v2Session(session: { id: string } & Record<string, unknown>, fallbackDirectory: string) {

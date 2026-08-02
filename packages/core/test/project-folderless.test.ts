@@ -10,15 +10,18 @@ import { EventTable } from "@hena/core/event/sql"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { Project } from "@hena/core/project"
-import { ProjectDirectoryTable, ProjectTable } from "@hena/core/project/sql"
+import { ProjectAttachmentTable, ProjectDirectoryTable, ProjectTable } from "@hena/core/project/sql"
 import { AbsolutePath } from "@hena/core/schema"
 import { SessionV2 } from "@hena/core/session"
 import { SessionEvent } from "@hena/core/session/event"
 import { SessionContextEpochTable, SessionTable } from "@hena/core/session/sql"
+import { SessionActivity } from "@hena/core/session/activity"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 
-const it = testEffect(AppNodeBuilder.build(LayerNode.group([Project.node, Database.node, EventV2.node])))
+const it = testEffect(
+  AppNodeBuilder.build(LayerNode.group([Project.node, Database.node, EventV2.node, SessionActivity.node])),
+)
 
 describe("folderless projects", () => {
   it.live("creates and lists a chat project with a null worktree and private directory", () =>
@@ -67,6 +70,7 @@ describe("folderless projects", () => {
       const sourceRoot = SessionV2.ID.create()
       const sourceChild = SessionV2.ID.create()
       const sourceDotChild = SessionV2.ID.create()
+      const sourceWindowsChild = SessionV2.ID.create()
       const existing = SessionV2.ID.create()
       yield* db
         .insert(SessionTable)
@@ -74,6 +78,12 @@ describe("folderless projects", () => {
           session(sourceRoot, source.id, source.directory, ""),
           session(sourceChild, source.id, AbsolutePath.make(path.join(source.directory, "notes")), "notes"),
           session(sourceDotChild, source.id, AbsolutePath.make(path.join(source.directory, "..notes")), "..notes"),
+          session(
+            sourceWindowsChild,
+            source.id,
+            AbsolutePath.make(path.join(source.directory, "windows\\child")),
+            "windows\\child",
+          ),
           session(existing, destination.id, destination.directory, "keep"),
         ])
         .run()
@@ -84,6 +94,7 @@ describe("folderless projects", () => {
           epoch(sourceRoot),
           epoch(sourceChild),
           epoch(sourceDotChild),
+          epoch(sourceWindowsChild),
           epoch(existing),
         ])
         .run()
@@ -98,17 +109,22 @@ describe("folderless projects", () => {
       const result = yield* projects.attachFolder({ projectID: source.id, folder: repo.path })
       yield* unsubscribe
       expect(result.project).toMatchObject({ id: destination.id, directory: destination.directory, vcs: "git" })
-      expect(new Set(result.sessionIDs)).toEqual(new Set([sourceRoot, sourceChild, sourceDotChild]))
+      expect(new Set(result.sessionIDs)).toEqual(new Set([sourceRoot, sourceChild, sourceDotChild, sourceWindowsChild]))
 
       const rows = yield* db
         .select()
         .from(SessionTable)
-        .where(inArray(SessionTable.id, [sourceRoot, sourceChild, sourceDotChild, existing]))
+        .where(inArray(SessionTable.id, [sourceRoot, sourceChild, sourceDotChild, sourceWindowsChild, existing]))
         .all()
         .pipe(Effect.orDie)
       expect(rows).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ id: sourceRoot, project_id: destination.id, directory: destination.directory, path: null }),
+          expect.objectContaining({
+            id: sourceRoot,
+            project_id: destination.id,
+            directory: destination.directory,
+            path: null,
+          }),
           expect.objectContaining({
             id: sourceChild,
             project_id: destination.id,
@@ -121,7 +137,18 @@ describe("folderless projects", () => {
             directory: path.join(destination.directory, "..notes"),
             path: "..notes",
           }),
-          expect.objectContaining({ id: existing, project_id: destination.id, directory: destination.directory, path: "keep" }),
+          expect.objectContaining({
+            id: sourceWindowsChild,
+            project_id: destination.id,
+            directory: path.join(destination.directory, "windows", "child"),
+            path: "windows/child",
+          }),
+          expect.objectContaining({
+            id: existing,
+            project_id: destination.id,
+            directory: destination.directory,
+            path: "keep",
+          }),
         ]),
       )
       expect(
@@ -135,7 +162,14 @@ describe("folderless projects", () => {
           .get()
           .pipe(Effect.orDie),
       ).toBeUndefined()
-      expect(yield* Effect.promise(() => fs.stat(source.directory).then(() => true, () => false))).toBe(false)
+      expect(
+        yield* Effect.promise(() =>
+          fs.stat(source.directory).then(
+            () => true,
+            () => false,
+          ),
+        ),
+      ).toBe(false)
       const epochs = yield* db.select().from(SessionContextEpochTable).all().pipe(Effect.orDie)
       expect(epochs.map((item) => item.session_id)).toEqual([existing])
       expect(observed.map((event) => event.data)).toEqual(
@@ -154,12 +188,34 @@ describe("folderless projects", () => {
           .where(eq(EventTable.type, EventV2.versionedType(SessionEvent.Moved.type, 1)))
           .all()
           .pipe(Effect.orDie),
-      ).toHaveLength(3)
+      ).toHaveLength(4)
 
       expect(yield* projects.attachFolder({ projectID: source.id, folder: repo.path })).toEqual(result)
       expect(
         yield* Effect.flip(projects.attachFolder({ projectID: source.id, folder: conflictingRepo.path })),
-      ).toBeInstanceOf(Project.NotFoundError)
+      ).toBeInstanceOf(Project.AttachmentConflictError)
+
+      const operation = yield* db
+        .select()
+        .from(ProjectAttachmentTable)
+        .where(eq(ProjectAttachmentTable.source_project_id, source.id))
+        .get()
+        .pipe(Effect.orDie)
+      expect(operation).toMatchObject({
+        requested_folder: repo.path.replaceAll("\\", "/"),
+        source_scratch: source.directory,
+        attachment: result,
+        cleanup_status: "complete",
+        checkout: { projectID: destination.id, directory: destination.directory, vcs: "git" },
+      })
+      expect(operation?.relocations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ sessionID: sourceChild, subpath: "notes" }),
+          expect.objectContaining({ sessionID: sourceDotChild, subpath: "..notes" }),
+          expect.objectContaining({ sessionID: sourceWindowsChild, subpath: "windows/child" }),
+        ]),
+      )
+      expect(yield* projects.listAttachments()).toEqual([{ projectID: source.id, attachment: result }])
     }),
   )
 
@@ -190,6 +246,7 @@ describe("folderless projects", () => {
       )
 
       const attached = yield* projects.attachFolder({ projectID: source.id, folder: destination.path })
+      yield* Effect.promise(() => fs.rm(destination.path, { recursive: true, force: true }))
 
       expect(attached.sessionIDs).toEqual([])
       expect(yield* projects.attachFolder({ projectID: source.id, folder: destination.path })).toEqual(attached)
@@ -209,22 +266,157 @@ describe("folderless projects", () => {
         Effect.promise(() => fs.rm(project.directory, { recursive: true, force: true })),
       )
       const sessionID = SessionV2.ID.create()
-      yield* db.insert(SessionTable).values(session(sessionID, source.id, source.directory, "")).run().pipe(Effect.orDie)
       yield* db
-        .run(`CREATE TRIGGER reject_folderless_delete BEFORE DELETE ON project
-          WHEN OLD.id = '${source.id}' BEGIN SELECT RAISE(ABORT, 'reject delete'); END;`)
+        .insert(SessionTable)
+        .values(session(sessionID, source.id, source.directory, ""))
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .run(
+          `CREATE TRIGGER reject_folderless_delete BEFORE DELETE ON project
+          WHEN OLD.id = '${source.id}' BEGIN SELECT RAISE(ABORT, 'reject delete'); END;`,
+        )
         .pipe(Effect.orDie)
       const observed = new Array<EventV2.Payload>()
       yield* events.listen((event) => Effect.sync(() => observed.push(event)))
 
-      expect(Exit.isFailure(yield* projects.attachFolder({ projectID: source.id, folder: destination.path }).pipe(Effect.exit))).toBe(
-        true,
-      )
+      expect(
+        Exit.isFailure(
+          yield* projects.attachFolder({ projectID: source.id, folder: destination.path }).pipe(Effect.exit),
+        ),
+      ).toBe(true)
       const row = yield* db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get().pipe(Effect.orDie)
       expect(row).toMatchObject({ project_id: source.id, directory: source.directory })
       expect(yield* projects.isFolderless(source.id)).toBe(true)
       expect(yield* db.select().from(EventTable).all().pipe(Effect.orDie)).toEqual([])
       expect(observed).toEqual([])
+    }),
+  )
+
+  it.live("serializes concurrent exact retries", () =>
+    Effect.gen(function* () {
+      const destination = yield* temporaryRepo
+      const projects = yield* Project.Service
+      const source = yield* Effect.acquireRelease(projects.create({ name: "Concurrent" }), (project) =>
+        Effect.promise(() => fs.rm(project.directory, { recursive: true, force: true })),
+      )
+
+      const results = yield* Effect.all(
+        [
+          projects.attachFolder({ projectID: source.id, folder: destination.path }),
+          projects.attachFolder({ projectID: source.id, folder: destination.path }),
+        ],
+        { concurrency: 2 },
+      )
+      expect(results[0]).toEqual(results[1])
+    }),
+  )
+
+  it.live("rejects active siblings and allows only the initiating session", () =>
+    Effect.gen(function* () {
+      const destination = yield* temporaryRepo
+      const db = (yield* Database.Service).db
+      const projects = yield* Project.Service
+      const activity = yield* SessionActivity.Service
+      const source = yield* Effect.acquireRelease(projects.create({ name: "Active" }), (project) =>
+        Effect.promise(() => fs.rm(project.directory, { recursive: true, force: true })),
+      )
+      const initiating = SessionV2.ID.create()
+      const sibling = SessionV2.ID.create()
+      yield* db
+        .insert(SessionTable)
+        .values([
+          session(initiating, source.id, source.directory, ""),
+          session(sibling, source.id, source.directory, ""),
+        ])
+        .run()
+        .pipe(Effect.orDie)
+      const releaseInitiating = yield* activity.register(initiating)
+      const releaseSibling = yield* activity.register(sibling)
+
+      const rejected = yield* Effect.flip(
+        projects.attachFolder({ projectID: source.id, folder: destination.path, initiatingSessionID: initiating }),
+      )
+      expect(rejected).toBeInstanceOf(Project.SessionsActiveError)
+      expect((rejected as Project.SessionsActiveError).sessionIDs).toEqual([sibling])
+
+      yield* releaseSibling
+      const attached = yield* projects.attachFolder({
+        projectID: source.id,
+        folder: destination.path,
+        initiatingSessionID: initiating,
+      })
+      expect(attached.sessionIDs).toEqual([initiating, sibling])
+      expect(
+        (yield* db
+          .select({ status: ProjectAttachmentTable.cleanup_status })
+          .from(ProjectAttachmentTable)
+          .where(eq(ProjectAttachmentTable.source_project_id, source.id))
+          .get()
+          .pipe(Effect.orDie))?.status,
+      ).toBe("pending")
+
+      yield* releaseInitiating
+      yield* projects.attachFolder({ projectID: source.id, folder: destination.path })
+      expect(
+        yield* Effect.promise(() =>
+          fs.stat(source.directory).then(
+            () => true,
+            () => false,
+          ),
+        ),
+      ).toBe(false)
+    }),
+  )
+
+  it.live("keeps committed project scratch when a notification listener fails", () =>
+    Effect.gen(function* () {
+      const db = (yield* Database.Service).db
+      const events = yield* EventV2.Service
+      const projects = yield* Project.Service
+      yield* events.listen(() => Effect.die("listener failed"))
+
+      const created = yield* projects.create({ name: "Listener" })
+      expect(
+        yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, created.id)).get().pipe(Effect.orDie),
+      ).toBeDefined()
+      expect(
+        yield* Effect.promise(() =>
+          fs.stat(created.directory).then(
+            () => true,
+            () => false,
+          ),
+        ),
+      ).toBe(true)
+      yield* Effect.promise(() => fs.rm(created.directory, { recursive: true, force: true }))
+    }),
+  )
+
+  it.live("never cleans a scratch path outside the managed project root", () =>
+    Effect.gen(function* () {
+      const destination = yield* temporaryRepo
+      const db = (yield* Database.Service).db
+      const projects = yield* Project.Service
+      const source = yield* Effect.acquireRelease(projects.create({ name: "Strict cleanup" }), (project) =>
+        Effect.promise(() => fs.rm(project.directory, { recursive: true, force: true })),
+      )
+      const attached = yield* projects.attachFolder({ projectID: source.id, folder: destination.path })
+      yield* db
+        .update(ProjectAttachmentTable)
+        .set({ source_scratch: AbsolutePath.make(destination.path), cleanup_status: "pending" })
+        .where(eq(ProjectAttachmentTable.source_project_id, source.id))
+        .run()
+        .pipe(Effect.orDie)
+
+      expect(yield* projects.attachFolder({ projectID: source.id, folder: destination.path })).toEqual(attached)
+      expect(
+        yield* Effect.promise(() =>
+          fs.stat(destination.path).then(
+            () => true,
+            () => false,
+          ),
+        ),
+      ).toBe(true)
     }),
   )
 })

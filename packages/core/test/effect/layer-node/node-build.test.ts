@@ -78,6 +78,7 @@ describe("node build", () => {
         acquisitions++
         return Project.Service.of({
           list: () => Effect.succeed([]),
+          listAttachments: () => Effect.succeed([]),
           isFolderless: () => Effect.succeed(false),
           create: (input) => Effect.fail(new Project.InvalidNameError({ name: input.name ?? "" })),
           attachFolder: (input) => Effect.fail(new Project.InvalidFolderError({ folder: input.folder })),

@@ -37,6 +37,8 @@ const run = <A, E>(effect: Effect.Effect<A, E, SqlClientService>) =>
   )
 
 const makeDb = EffectDrizzleSqlite.makeWithDefaults()
+const withFileDb = <A, E>(filename: string, use: (db: Effect.Success<typeof makeDb>) => Effect.Effect<A, E>) =>
+  Effect.flatMap(makeDb, use).pipe(Effect.provide(SqliteClient.layer({ filename, disableWAL: true })), Effect.scoped)
 
 describe("DatabaseMigration", () => {
   test("serializes concurrent embedded initialization for one database path", async () => {
@@ -183,18 +185,14 @@ describe("DatabaseMigration", () => {
 
         yield* DatabaseMigration.applyOnly(db, [folderlessProjectMigration])
 
-        expect(yield* db.all(sql`SELECT id, worktree FROM project`)).toEqual([
-          { id: "project", worktree: "/project" },
-        ])
+        expect(yield* db.all(sql`SELECT id, worktree FROM project`)).toEqual([{ id: "project", worktree: "/project" }])
         expect(yield* db.all(sql`SELECT id, project_id FROM session`)).toEqual([
           { id: "session", project_id: "project" },
         ])
         expect(yield* db.all(sql`SELECT id, session_id FROM message`)).toEqual([
           { id: "message", session_id: "session" },
         ])
-        expect(yield* db.all(sql`SELECT id, message_id FROM part`)).toEqual([
-          { id: "part", message_id: "message" },
-        ])
+        expect(yield* db.all(sql`SELECT id, message_id FROM part`)).toEqual([{ id: "part", message_id: "message" }])
         expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
         expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
         expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([{ id: folderlessProjectMigration.id }])
@@ -202,7 +200,69 @@ describe("DatabaseMigration", () => {
         yield* db.run(
           sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('folderless', NULL, 3, 3, '[]')`,
         )
+        yield* DatabaseMigration.applyOnly(db, [folderlessProjectMigration])
+
+        expect(yield* db.all(sql`SELECT id, worktree FROM project ORDER BY id`)).toEqual([
+          { id: "folderless", worktree: null },
+          { id: "project", worktree: "/project" },
+        ])
+        expect(yield* db.get(sql`SELECT COUNT(*) AS count FROM migration`)).toEqual({ count: 1 })
       }),
+    )
+  })
+
+  test("serializes a table rebuild across independent connections", async () => {
+    await using tmp = await tmpdir()
+    const filename = path.join(tmp.path, "concurrent.sqlite")
+
+    await Effect.runPromise(
+      withFileDb(filename, (db) =>
+        Effect.gen(function* () {
+          yield* db.run(sql`PRAGMA foreign_keys = ON`)
+          yield* db.run(
+            sql`CREATE TABLE project (id text PRIMARY KEY, worktree text NOT NULL, vcs text, name text, icon_url text, icon_url_override text, icon_color text, time_created integer NOT NULL, time_updated integer NOT NULL, time_initialized integer, sandboxes text NOT NULL, commands text)`,
+          )
+          yield* db.run(
+            sql`CREATE TABLE session (id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id) ON DELETE CASCADE)`,
+          )
+          yield* db.run(
+            sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('project', '/project', 1, 1, '[]')`,
+          )
+          yield* db.run(sql`INSERT INTO session (id, project_id) VALUES ('session', 'project')`)
+        }),
+      ),
+    )
+    await Effect.runPromise(
+      Effect.all(
+        [
+          withFileDb(filename, (db) =>
+            Effect.gen(function* () {
+              yield* db.run(sql`PRAGMA busy_timeout = 5000`)
+              yield* db.run(sql`PRAGMA foreign_keys = ON`)
+              yield* DatabaseMigration.applyOnly(db, [folderlessProjectMigration])
+            }),
+          ),
+          withFileDb(filename, (db) =>
+            Effect.gen(function* () {
+              yield* db.run(sql`PRAGMA busy_timeout = 5000`)
+              yield* db.run(sql`PRAGMA foreign_keys = ON`)
+              yield* DatabaseMigration.applyOnly(db, [folderlessProjectMigration])
+            }),
+          ),
+        ],
+        { concurrency: "unbounded" },
+      ),
+    )
+    await Effect.runPromise(
+      withFileDb(filename, (db) =>
+        Effect.gen(function* () {
+          expect(yield* db.all(sql`SELECT id, project_id FROM session`)).toEqual([
+            { id: "session", project_id: "project" },
+          ])
+          expect(yield* db.get(sql`SELECT COUNT(*) AS count FROM migration`)).toEqual({ count: 1 })
+          expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
+        }),
+      ),
     )
   })
 
@@ -224,6 +284,54 @@ describe("DatabaseMigration", () => {
         expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'project'`)).toEqual({
           name: "project",
         })
+      }),
+    )
+  })
+
+  test("restores foreign keys when a table rebuild is interrupted", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+
+        const exit = yield* DatabaseMigration.applyOnly(db, [
+          {
+            id: "interrupted-rebuild",
+            disableForeignKeys: true,
+            up: () => Effect.never,
+          },
+        ]).pipe(Effect.timeout("10 millis"), Effect.exit)
+
+        expect(exit._tag).toBe("Failure")
+        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
+        expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([])
+      }),
+    )
+  })
+
+  test("rolls back a rebuild with foreign key violations before journaling", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* db.run(sql`CREATE TABLE parent (id text PRIMARY KEY)`)
+        yield* db.run(sql`CREATE TABLE child (id text PRIMARY KEY, parent_id text REFERENCES parent(id))`)
+
+        const exit = yield* Effect.exit(
+          DatabaseMigration.applyOnly(db, [
+            {
+              id: "invalid-rebuild",
+              disableForeignKeys: true,
+              up: (tx) =>
+                tx.run(sql`INSERT INTO child (id, parent_id) VALUES ('child', 'missing')`).pipe(Effect.asVoid),
+            },
+          ]),
+        )
+
+        expect(exit._tag).toBe("Failure")
+        expect(yield* db.all(sql`SELECT id FROM child`)).toEqual([])
+        expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([])
+        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
       }),
     )
   })

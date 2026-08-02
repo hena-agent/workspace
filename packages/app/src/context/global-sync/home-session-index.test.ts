@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import type { SessionV2Info } from "@hena/sdk/v2/client"
+import { QueryClient } from "@tanstack/solid-query"
 import {
   applyHomeSessionEvent,
   appendHomeSessionEvent,
+  createHomeSessionIndexCache,
   HOME_V2_SESSION_PAGE_LIMIT,
   loadHomeSessionIndex,
   homeSessionIndexSessions,
@@ -150,5 +152,21 @@ describe("Home V2 session index", () => {
     expect(homeSessionIndexRefresh("server.connected", true)).toEqual({ connected: true, refetch: true })
     expect(homeSessionIndexRefresh("global.disposed", true).refetch).toBe(true)
     expect(homeSessionIndexRefresh("session.next.moved", true).refetch).toBe(true)
+  })
+
+  test("retries a failed initial index load on the first connection", async () => {
+    const cache = createHomeSessionIndexCache(new QueryClient(), "server")
+    let attempts = 0
+    const load = cache.initialLoad(async () => {
+      attempts += 1
+      if (attempts === 1) throw new Error("offline")
+      return "loaded"
+    })
+
+    await Promise.resolve()
+    expect(attempts).toBe(1)
+    cache.refresh("server.connected")
+    expect(await load).toBe("loaded")
+    expect(attempts).toBe(2)
   })
 })

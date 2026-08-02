@@ -1,12 +1,5 @@
-import type {
-  Message,
-  Part,
-  PermissionRequest,
-  QuestionRequest,
-  SessionStatus,
-  SnapshotFileDiff,
-  Todo,
-} from "@hena/sdk/v2/client"
+import type { Message, Part, PermissionRequest, SessionStatus, SnapshotFileDiff, Todo } from "@hena/sdk/v2/client"
+import type { BrowserQuestionRequest } from "../question"
 
 export const SESSION_CACHE_LIMIT = 40
 
@@ -17,7 +10,7 @@ type SessionCache = {
   message: Record<string, Message[] | undefined>
   part: Record<string, Part[] | undefined>
   permission: Record<string, PermissionRequest[] | undefined>
-  question: Record<string, QuestionRequest[] | undefined>
+  question: Record<string, BrowserQuestionRequest[] | undefined>
   part_text_accum_delta: Record<string, string | undefined>
 }
 

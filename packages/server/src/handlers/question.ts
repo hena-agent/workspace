@@ -9,6 +9,14 @@ function missingRequest(id: QuestionV2.ID) {
   return new QuestionNotFoundError({ requestID: id, message: `Question request not found: ${id}` })
 }
 
+export function ownsRequest(
+  requests: ReadonlyArray<QuestionV2.Request>,
+  sessionID: QuestionV2.Request["sessionID"],
+  requestID: QuestionV2.ID,
+) {
+  return requests.some((request) => request.id === requestID && request.sessionID === sessionID)
+}
+
 export const QuestionHandler = HttpApiBuilder.group(Api, "server.question", (handlers) =>
   Effect.gen(function* () {
     const withOwnedQuestion = Effect.fnUntraced(function* <A, E>(
@@ -17,8 +25,7 @@ export const QuestionHandler = HttpApiBuilder.group(Api, "server.question", (han
       use: (question: QuestionV2.Interface) => Effect.Effect<A, E>,
     ) {
       const question = yield* QuestionV2.Service
-      const request = (yield* question.list()).find((request) => request.id === requestID)
-      if (!request || request.sessionID !== sessionID) return yield* missingRequest(requestID)
+      if (!ownsRequest(yield* question.list(), sessionID, requestID)) return yield* missingRequest(requestID)
       return yield* use(question)
     })
 

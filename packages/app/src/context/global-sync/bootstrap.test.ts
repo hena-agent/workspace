@@ -3,10 +3,11 @@ import { createStore } from "solid-js/store"
 import { QueryClient } from "@tanstack/solid-query"
 import type { Config, HenaClient, Project, Session } from "@hena/sdk/v2/client"
 import type { NormalizedProviderListResponse } from "@hena/session-ui/context"
-import { bootstrapDirectory, loadPathQuery, loadProvidersQuery } from "./bootstrap"
+import { bootstrapDirectory, loadPathQuery, loadProvidersQuery, mergeQuestionProtocol } from "./bootstrap"
 import type { State, VcsCache } from "./types"
 import { createServerSession } from "../server-session"
 import { ServerScope } from "@/utils/server-scope"
+import { currentQuestion, legacyQuestion } from "../question"
 
 const provider = { all: new Map(), connected: [], default: {} } satisfies NormalizedProviderListResponse
 
@@ -173,4 +174,22 @@ describe("query keys", () => {
       "providers",
     ])
   })
+})
+
+test("question bootstrap replaces only the matching protocol", () => {
+  const legacy = legacyQuestion({ id: "legacy", sessionID: "session", questions: [] }, "/legacy")
+  const stale = currentQuestion({
+    id: "stale",
+    sessionID: "session",
+    location: { directory: "/current" },
+    questions: [],
+  })
+  const current = currentQuestion({
+    id: "current",
+    sessionID: "session",
+    location: { directory: "/current" },
+    questions: [],
+  })
+
+  expect(mergeQuestionProtocol([legacy, stale], [current], "current")).toEqual([current, legacy])
 })

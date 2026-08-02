@@ -11,6 +11,8 @@ import type {
   SnapshotFileDiff,
   Todo,
 } from "@hena/sdk/v2/client"
+import type { BrowserQuestionRequest } from "./question"
+import { currentQuestion, legacyQuestion } from "./question"
 import { batch } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { diffs as cleanDiffs, message as cleanMessage } from "@/utils/diffs"
@@ -144,7 +146,7 @@ export function createServerSession(client: HenaClient, options?: { retry?: type
     session_diff: {} as Record<string, SnapshotFileDiff[]>,
     todo: {} as Record<string, Todo[]>,
     permission: {} as Record<string, PermissionRequest[]>,
-    question: {} as Record<string, QuestionRequest[]>,
+    question: {} as Record<string, BrowserQuestionRequest[]>,
     message: {} as Record<string, Message[]>,
     part: {} as Record<string, Part[]>,
     part_text_accum_delta: {} as Record<string, string>,
@@ -1030,20 +1032,24 @@ export function createServerSession(client: HenaClient, options?: { retry?: type
         return
       }
       case "question.asked": {
-        const question = event.properties as QuestionRequest
+        const raw = event.properties as QuestionRequest & { location?: { directory: string } }
+        const question = legacyQuestion(raw, raw.location?.directory ?? data.info[raw.sessionID]?.directory ?? "")
         const questions = data.question[question.sessionID]
         if (!questions) {
           setData("question", question.sessionID, [question])
           return
         }
+        const existing = questions.findIndex((item) => item.id === question.id && item.protocol === "legacy")
+        if (existing !== -1) {
+          setData("question", question.sessionID, existing, reconcile(question))
+          return
+        }
         const result = Binary.search(questions, question.id, (item) => item.id)
-        if (result.found) setData("question", question.sessionID, result.index, reconcile(question))
-        if (!result.found)
-          setData(
-            "question",
-            question.sessionID,
-            produce((draft) => void draft.splice(result.index, 0, question)),
-          )
+        setData(
+          "question",
+          question.sessionID,
+          produce((draft) => void draft.splice(result.index, 0, question)),
+        )
         return
       }
       case "question.replied":
@@ -1054,10 +1060,45 @@ export function createServerSession(client: HenaClient, options?: { retry?: type
           props.sessionID,
           produce((draft) => {
             if (!draft) return
-            const result = Binary.search(draft, props.requestID, (item) => item.id)
-            if (result.found) draft.splice(result.index, 1)
+            const index = draft.findIndex((item) => item.id === props.requestID && item.protocol === "legacy")
+            if (index !== -1) draft.splice(index, 1)
           }),
         )
+        return
+      }
+      case "question.v2.asked": {
+        const question = currentQuestion(event.properties as Extract<BrowserQuestionRequest, { protocol: "current" }>)
+        const questions = data.question[question.sessionID]
+        if (!questions) {
+          setData("question", question.sessionID, [question])
+          return
+        }
+        const existing = questions.findIndex((item) => item.id === question.id && item.protocol === "current")
+        if (existing !== -1) {
+          setData("question", question.sessionID, existing, reconcile(question))
+          return
+        }
+        const result = Binary.search(questions, question.id, (item) => item.id)
+        setData(
+          "question",
+          question.sessionID,
+          produce((draft) => void draft.splice(result.index, 0, question)),
+        )
+        return
+      }
+      case "question.v2.replied":
+      case "question.v2.rejected": {
+        const props = event.properties as { sessionID: string; requestID: string }
+        setData(
+          "question",
+          props.sessionID,
+          produce((draft) => {
+            if (!draft) return
+            const index = draft.findIndex((item) => item.id === props.requestID && item.protocol === "current")
+            if (index !== -1) draft.splice(index, 1)
+          }),
+        )
+        return
       }
     }
   }

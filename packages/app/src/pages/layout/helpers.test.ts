@@ -15,6 +15,7 @@ import {
   errorMessage,
   hasProjectPermissions,
   homeProjectNavigation,
+  homeProjectSelected,
   homeSessionServerStatus,
   latestRootSession,
   toggleHomeProjectSelection,
@@ -23,6 +24,14 @@ import { pathKey } from "@/utils/path-key"
 import { ServerConnection } from "@/context/server"
 
 const serverKey = ServerConnection.Key.make
+
+describe("home project selection", () => {
+  test("compares normalized directory paths", () => {
+    const server = serverKey("local")
+    expect(homeProjectSelected({ server, directory: "C:\\work\\demo\\" }, server, "C:/work/demo")).toBe(true)
+    expect(toggleHomeProjectSelection({ server, directory: "/work/demo/" }, server, "/work/demo")).toEqual({ server })
+  })
+})
 
 const session = (input: Partial<Session> & Pick<Session, "id" | "directory">) =>
   ({

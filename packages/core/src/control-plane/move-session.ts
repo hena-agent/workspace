@@ -105,6 +105,7 @@ const layer = Layer.effect(
 
       yield* events.publish(SessionEvent.Moved, {
         sessionID: input.sessionID,
+        projectID: current.projectID,
         location: Location.Ref.make({ directory }),
         subdirectory: RelativePath.make(path.relative(destination.directory, directory).replaceAll("\\", "/")),
         timestamp: yield* DateTime.now,

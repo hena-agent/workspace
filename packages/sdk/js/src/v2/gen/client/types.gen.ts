@@ -62,7 +62,7 @@ export interface RequestOptions<
     }>,
     Pick<
       ServerSentEventsOptions<TData>,
-      "onSseError" | "onSseEvent" | "sseDefaultRetryDelay" | "sseMaxRetryAttempts" | "sseMaxRetryDelay"
+      "onRequest" | "onSseError" | "onSseEvent" | "sseDefaultRetryDelay" | "sseMaxRetryAttempts" | "sseMaxRetryDelay"
     > {
   /**
    * Any body that you want to add to your request.
@@ -181,7 +181,7 @@ export type Client = CoreClient<RequestFn, Config, MethodFn, BuildUrlFn, SseFn> 
  */
 export type CreateClientConfig<T extends ClientOptions = ClientOptions> = (
   override?: Config<ClientOptions & T>,
-) => Config<Required<ClientOptions> & T>
+) => Config<Required<ClientOptions> & T> | Promise<Config<Required<ClientOptions> & T>>
 
 export interface TDataShape {
   body?: unknown

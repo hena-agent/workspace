@@ -54,6 +54,7 @@ import {
   displayName,
   errorMessage,
   getProjectAvatarSource,
+  homeProjectSelected,
   projectForSession,
   toggleHomeProjectSelection,
 } from "@/pages/layout/helpers"
@@ -306,6 +307,7 @@ export function NewHome() {
   const notification = useNotification()
   const marked = useMarked()
   const openSettings = useSettingsCommand()
+  const attachingProjects = new Set<string>()
   let focusSessionSearch: (() => void) | undefined
   let sessionViewport: HTMLDivElement | undefined
   const [sessionThumbTrack, setSessionThumbTrack] = createSignal<HTMLDivElement>()
@@ -331,7 +333,9 @@ export function NewHome() {
     () => focusedServerCtx()?.projects.recentlyClosed() ?? layout.projects.recentlyClosed(),
   )
   const homedir = createMemo(() => focusedSync().data.path.home ?? "")
-  const selectedProject = createMemo(() => projects().find((project) => project.worktree === selection().directory))
+  const selectedProject = createMemo(() =>
+    projects().find((project) => homeProjectSelected(selection(), selection().server, project.worktree)),
+  )
   const newSessionProject = createMemo(
     () =>
       selectedProject() ??
@@ -526,7 +530,7 @@ export function NewHome() {
       !global
         .ensureServerCtx(conn)
         .projects.list()
-        .some((project) => project.worktree === directory)
+        .some((project) => pathKey(project.worktree) === pathKey(directory))
     )
       return
     setSelection(toggleHomeProjectSelection(selection(), key, directory))
@@ -666,6 +670,8 @@ export function NewHome() {
 
   function attachFolder(conn: ServerConnection.Any, project: LocalProject, chat: ProjectChat) {
     if (global.servers.health[ServerConnection.key(conn)]?.healthy === false) return
+    const attachmentKey = `${ServerConnection.key(conn)}\0${chat.id}`
+    if (attachingProjects.has(attachmentKey)) return
     pickDirectory({
       server: conn,
       title: language.t("home.project.attachFolder"),
@@ -675,12 +681,14 @@ export function NewHome() {
       onSelect: (result) => {
         const folder = Array.isArray(result) ? result[0] : result
         if (!folder) return
+        if (attachingProjects.has(attachmentKey)) return
+        attachingProjects.add(attachmentKey)
         void global
           .ensureServerCtx(conn)
           .projects.attachFolder(chat.id, folder)
           .then(async ({ previous, directory }) => {
             await tabs.replaceDirectory(ServerConnection.key(conn), previous, directory)
-            if (selection().server === ServerConnection.key(conn) && selection().directory === project.worktree)
+            if (homeProjectSelected(selection(), ServerConnection.key(conn), project.worktree))
               setSelection({ server: ServerConnection.key(conn), directory })
           })
           .catch((error) =>
@@ -689,6 +697,7 @@ export function NewHome() {
               description: errorMessage(error, language.t("common.requestFailed")),
             }),
           )
+          .finally(() => attachingProjects.delete(attachmentKey))
       },
     })
   }
@@ -1218,9 +1227,7 @@ function HomeProjectSlot(
           server={props.server}
           index={props.index}
           serverSelected={props.selected.server === ServerConnection.key(props.server)}
-          selected={
-            props.selected.server === ServerConnection.key(props.server) && props.selected.directory === item().worktree
-          }
+          selected={homeProjectSelected(props.selected, ServerConnection.key(props.server), item().worktree)}
           unseenCount={props.unseenCount(props.server, item())}
           selectProject={props.selectProject}
           openNewSession={props.openNewSession}

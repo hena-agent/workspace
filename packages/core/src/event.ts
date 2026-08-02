@@ -6,7 +6,8 @@ import type { Data, Definition, Payload } from "@hena/schema/event"
 import { and, asc, eq, gt, inArray } from "drizzle-orm"
 import { Database } from "./database/database"
 import { EventSequenceTable, EventTable } from "./event/sql"
-import { Location } from "./location"
+import { Location } from "@hena/schema/location"
+import { LocationService } from "./location/service"
 import { makeGlobalNode } from "./effect/app-node"
 import { isDeepStrictEqual } from "node:util"
 import { Durable } from "@hena/schema/durable-event-manifest"
@@ -121,6 +122,10 @@ export interface PublishOptions {
   readonly location?: Location.Ref
   /** Local operational projection committed atomically with a new durable event. Not replayed or serialized. */
   readonly commit?: (seq: number) => Effect.Effect<void>
+  /** Defer subscriber notification until `broadcast` is called after an enclosing transaction commits. */
+  readonly deferBroadcast?: boolean
+  /** Skip registered projectors when `commit` performs the local projection atomically. Replay still projects normally. */
+  readonly project?: boolean
 }
 
 export interface Interface {
@@ -129,6 +134,7 @@ export interface Interface {
     data: Data<D>,
     options?: PublishOptions,
   ) => Effect.Effect<Payload<D>>
+  readonly broadcast: (event: Payload) => Effect.Effect<void>
   readonly subscribe: <D extends Definition>(definition: D) => Stream.Stream<Payload<D>>
   readonly all: () => Stream.Stream<Payload>
   readonly durable: (input: { readonly aggregateID: string; readonly after?: number }) => Stream.Stream<Payload>
@@ -212,6 +218,8 @@ export const layerWith = (options?: LayerOptions) =>
           readonly strictOwner?: boolean
         },
         commit?: (seq: number) => Effect.Effect<void>,
+        wake = true,
+        project = true,
       ) {
         return Effect.gen(function* () {
           const durable = definition?.durable
@@ -317,8 +325,8 @@ export const layerWith = (options?: LayerOptions) =>
                             ...event,
                             durable: { aggregateID, seq, version: durable.version },
                           } as Payload
-                          for (const projector of list) {
-                            yield* projector(committed)
+                          if (project) {
+                            for (const projector of list) yield* projector(committed)
                           }
                           if (commit) yield* commit(seq)
                           yield* db
@@ -351,7 +359,7 @@ export const layerWith = (options?: LayerOptions) =>
                       { behavior: "immediate" },
                     )
                     .pipe(Effect.orDie)
-                  if (committed) {
+                  if (committed && wake) {
                     yield* Effect.forEach(
                       pubsub.durable.get(committed.aggregateID) ?? [],
                       (wake) => PubSub.publish(wake, undefined),
@@ -366,9 +374,9 @@ export const layerWith = (options?: LayerOptions) =>
         })
       }
 
-      function publishEvent<D extends Definition>(definition: D, event: Payload<D>, commit?: PublishOptions["commit"]) {
+      function publishEvent<D extends Definition>(definition: D, event: Payload<D>, options?: PublishOptions) {
         return Effect.gen(function* () {
-          if (!definition?.durable && commit)
+          if (!definition?.durable && options?.commit)
             return yield* Effect.die(
               new InvalidDurableEventError({
                 type: event.type,
@@ -376,7 +384,14 @@ export const layerWith = (options?: LayerOptions) =>
               }),
             )
           if (definition?.durable) {
-            const committed = yield* commitDurableEvent(definition, event as Payload, undefined, commit)
+            const committed = yield* commitDurableEvent(
+              definition,
+              event as Payload,
+              undefined,
+              options?.commit,
+              !options?.deferBroadcast,
+              options?.project !== false,
+            )
             if (committed) {
               event = {
                 ...event,
@@ -386,7 +401,7 @@ export const layerWith = (options?: LayerOptions) =>
                   version: definition.durable.version,
                 },
               }
-              yield* notify(event as Payload, true)
+              if (!options?.deferBroadcast) yield* notify(event as Payload, true)
               return event
             }
           }
@@ -416,9 +431,22 @@ export const layerWith = (options?: LayerOptions) =>
         })
       }
 
+      function broadcast(event: Payload) {
+        return Effect.gen(function* () {
+          if (event.durable) {
+            yield* Effect.forEach(
+              pubsub.durable.get(event.durable.aggregateID) ?? [],
+              (wake) => PubSub.publish(wake, undefined),
+              { discard: true },
+            )
+          }
+          yield* notify(event, event.durable !== undefined)
+        })
+      }
+
       function publish<D extends Definition>(definition: D, data: Data<D>, options?: PublishOptions) {
         return Effect.gen(function* () {
-          const serviceLocation = Option.getOrUndefined(yield* Effect.serviceOption(Location.Service))
+          const serviceLocation = Option.getOrUndefined(yield* Effect.serviceOption(LocationService.Service))
           const location =
             options?.location ??
             (serviceLocation
@@ -433,7 +461,7 @@ export const layerWith = (options?: LayerOptions) =>
               ...(location ? { location } : {}),
               data,
             } as Payload<D>,
-            options?.commit,
+            options,
           )
         })
       }
@@ -621,6 +649,7 @@ export const layerWith = (options?: LayerOptions) =>
 
       return Service.of({
         publish,
+        broadcast,
         subscribe,
         all: streamAll,
         durable,

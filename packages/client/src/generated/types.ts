@@ -735,6 +735,7 @@ export type SessionsHistoryOutput = {
         readonly data: {
           readonly timestamp: number
           readonly sessionID: string
+          readonly projectID?: string
           readonly location: { readonly directory: string; readonly workspaceID?: string }
           readonly subdirectory?: string
         }
@@ -1193,6 +1194,7 @@ export type SessionsEventsOutput =
       readonly data: {
         readonly timestamp: number
         readonly sessionID: string
+        readonly projectID?: string
         readonly location: { readonly directory: string; readonly workspaceID?: string }
         readonly subdirectory?: string
       }

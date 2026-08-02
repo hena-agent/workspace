@@ -1,28 +1,26 @@
-import { Context, Effect, Layer } from "effect"
+import { Effect, Layer } from "effect"
 import { Info, Ref, response } from "@hena/schema/location"
 import { Project } from "./project"
 import { LayerNode } from "./effect/layer-node"
 import { makeLocationNode, tags } from "./effect/app-node"
+import { LocationService } from "./location/service"
 
 export * as Location from "./location"
 
 export { Info, Ref, response }
+export { Service } from "./location/service"
 
-export interface Interface extends Info {
-  readonly vcs?: Project.Vcs
-}
+export type Interface = LocationService.Interface
 
-export class Service extends Context.Service<Service, Interface>()("@hena/Location") {}
-
-export const node = LayerNode.unbound(Service, tags.values.location)
+export const node = LayerNode.unbound(LocationService.Service, tags.values.location)
 
 const layer = (ref: Ref) =>
   Layer.effect(
-    Service,
+    LocationService.Service,
     Effect.gen(function* () {
       const project = yield* Project.Service
       const resolved = yield* project.resolve(ref.directory)
-      return Service.of({
+      return LocationService.Service.of({
         directory: ref.directory,
         workspaceID: ref.workspaceID,
         project: { id: resolved.id, directory: resolved.directory },
@@ -33,7 +31,7 @@ const layer = (ref: Ref) =>
 
 export const boundNode = (ref: Ref) =>
   makeLocationNode({
-    service: Service,
+    service: LocationService.Service,
     layer: layer(ref),
     deps: [Project.node],
   })

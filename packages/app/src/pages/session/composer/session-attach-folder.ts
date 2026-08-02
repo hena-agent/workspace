@@ -1,20 +1,32 @@
 import type { QuestionAnswer } from "@hena/sdk/v2"
 
-export function createAttachFolderController(input: {
+type AttachFolderControllerInput<T> = {
+  source: T
   attach: (folder: string) => Promise<unknown>
-  reply: (answers: QuestionAnswer[]) => Promise<unknown>
+  reply: (source: T, answers: QuestionAnswer[]) => Promise<unknown>
   onSubmit: () => void
-}) {
-  let committed = false
+  committed?: boolean | (() => boolean)
+  onCommit?: () => void
+}
+
+type AttachFolderController = {
+  committed: () => boolean
+  submit: (folder?: string) => Promise<void>
+}
+
+export function createAttachFolderController<T>(input: AttachFolderControllerInput<T>): AttachFolderController {
+  let committed = typeof input.committed === "boolean" ? input.committed : false
+  const isCommitted = () => (typeof input.committed === "function" ? input.committed() : committed)
   return {
-    committed: () => committed,
+    committed: isCommitted,
     async submit(folder?: string) {
-      if (!committed) {
+      if (!isCommitted()) {
         if (!folder) throw new Error("Folder is required")
         await input.attach(folder)
         committed = true
+        input.onCommit?.()
       }
-      await input.reply([])
+      await input.reply(input.source, [])
       input.onSubmit()
     },
   }

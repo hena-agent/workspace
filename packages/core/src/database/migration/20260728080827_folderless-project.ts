@@ -3,9 +3,9 @@ import type { DatabaseMigration } from "../migration"
 
 export default {
   id: "20260728080827_folderless-project",
+  disableForeignKeys: true,
   up(tx) {
     return Effect.gen(function* () {
-      yield* tx.run(`PRAGMA foreign_keys=OFF;`)
       yield* tx.run(`CREATE TABLE \`__new_project\` (
         \`id\` text PRIMARY KEY,
         \`worktree\` text,
@@ -26,7 +26,6 @@ export default {
         FROM \`project\`;`)
       yield* tx.run(`DROP TABLE \`project\`;`)
       yield* tx.run(`ALTER TABLE \`__new_project\` RENAME TO \`project\`;`)
-      yield* tx.run(`PRAGMA foreign_keys=ON;`)
     })
   },
 } satisfies DatabaseMigration.Migration

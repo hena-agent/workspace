@@ -763,19 +763,21 @@ sessionID -&gt; { directory, workspaceID? }</code></pre>
                 <td class="body"><code>{}</code></td>
                 <td><span class="context-tag server">server</span></td>
                 <td class="route"><code>GET /api/project</code></td>
-                <td>List projects known to this server.</td>
+                <td>List folderless chat projects known to this server.</td>
               </tr>
               <tr>
-                <td class="operation"><code>project.update</code></td>
-                <td class="body">
-                  <code
-                    >{ projectID: ProjectID name?: string icon?: string commands?: Array&lt;{ name: string command:
-                    string }&gt; }</code
-                  >
-                </td>
+                <td class="operation"><code>project.create</code></td>
+                <td class="body"><code>{ name: string }</code></td>
                 <td><span class="context-tag server">server</span></td>
-                <td class="route"><code>PATCH /api/project/:projectID</code></td>
-                <td>Update project metadata.</td>
+                <td class="route"><code>POST /api/project</code></td>
+                <td>Create a folderless chat project.</td>
+              </tr>
+              <tr>
+                <td class="operation"><code>project.attachFolder</code></td>
+                <td class="body"><code>{ projectID: ProjectID folder: AbsolutePath }</code></td>
+                <td><span class="context-tag server">server</span></td>
+                <td class="route"><code>PUT /api/project/:projectID/folder</code></td>
+                <td>Attach a folder and relocate the project's sessions.</td>
               </tr>
               <tr>
                 <td class="operation"><code>provider.list</code></td>

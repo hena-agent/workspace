@@ -101,6 +101,57 @@ test("shows a pending permission dock", async ({ page }) => {
   expect(request.postDataJSON()).toEqual({ response: "once" })
 })
 
+test("keeps attach-folder replies on the source directory and retries only the reply", async ({ page }) => {
+  const attached: string[] = []
+  const replies: Array<{ directory?: string; attempt: number }> = []
+  await mockServer(page, {
+    projects: [
+      {
+        id: projectID,
+        name: "Request docks",
+        directory,
+        time: { created: 1700000000000, updated: 1700000000000 },
+      },
+    ],
+    questions: [
+      {
+        id: "question-attach",
+        sessionID,
+        questions: [{ header: "Folder", question: "Attach a folder to continue?", options: [] }],
+        action: { type: "attach-folder", projectID },
+      },
+    ],
+    findFiles: () => ["Attached"],
+    onProjectAttach: (input) => attached.push(input.folder),
+    questionReply: (input) => {
+      replies.push({ directory: input.directory, attempt: input.attempt })
+      if (input.attempt === 1) return { status: 503, body: { message: "retry reply" } }
+    },
+  })
+
+  await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
+  await expectSessionTitle(page, title)
+
+  const dock = page.locator('[data-component="session-attach-folder-dock"]')
+  await expect(dock).toBeVisible()
+  await dock.getByRole("button", { name: "Attach folder" }).click()
+  const picker = page.getByRole("dialog")
+  await picker.getByRole("textbox", { name: "Search folders" }).fill("Attached")
+  await picker.getByText("Attached", { exact: false }).last().click()
+
+  await expect.poll(() => attached.length).toBe(1)
+  await expect.poll(() => replies.length).toBe(1)
+  await expect(dock.getByRole("button", { name: "Attach folder" })).toBeEnabled()
+  await dock.getByRole("button", { name: "Attach folder" }).click()
+
+  await expect.poll(() => replies.length).toBe(2)
+  expect(attached).toEqual(["C:\\Hena\\Attached"])
+  expect(replies).toEqual([
+    { directory, attempt: 1 },
+    { directory, attempt: 2 },
+  ])
+})
+
 test("restores the draft caret before typing after a request dock closes", async ({ page }) => {
   const transport = await installSseTransport(page, {
     server: `http://${process.env.PLAYWRIGHT_SERVER_HOST ?? "127.0.0.1"}:${process.env.PLAYWRIGHT_SERVER_PORT ?? "4096"}`,
@@ -167,7 +218,7 @@ async function mockServer(
   requests: {
     permissions?: unknown[] | (() => unknown[])
     questions?: unknown[] | (() => unknown[])
-  },
+  } & Partial<Parameters<typeof mockHenaServer>[1]>,
 ) {
   await mockHenaServer(page, {
     directory,
@@ -210,6 +261,7 @@ async function mockServer(
     pageMessages: () => ({ items: [] }),
     permissions: requests.permissions,
     questions: requests.questions,
+    ...requests,
   })
   await page.addInitScript(() => {
     localStorage.setItem("settings.v3", JSON.stringify({ general: { newLayoutDesigns: true } }))

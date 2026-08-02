@@ -1,5 +1,5 @@
 import { createSimpleContext } from "@hena/ui/context"
-import { createEffect, createMemo, createResource, createRoot } from "solid-js"
+import { createEffect, createMemo, createResource, createRoot, onCleanup } from "solid-js"
 import type { ProjectChat } from "@hena/sdk/v2/client"
 import { createStore } from "solid-js/store"
 import { createServerProjects, RECENTLY_CLOSED_DISPLAY_LIMIT, ServerConnection, useServer } from "./server"
@@ -111,23 +111,44 @@ function createServerCtx(
   const sdk = createServerSdkContext(conn, scope)
   const sync = createServerSyncContext(sdk)
   const chatOverrides = new Map<string, ProjectChat | undefined>()
-  const [chats, { mutate: setChats }] = createResource(() =>
+  let latestChats: ProjectChat[] | undefined
+  const [chats, { mutate: setChats, refetch: refetchChats }] = createResource(() =>
     sdk.client.v2.project
       .list()
       .then((response) => response.data ?? [])
       .then((items) => {
         const merged = new Map(items.map((item) => [item.id, item]))
         for (const [id, chat] of chatOverrides) {
+          if (chat && merged.has(id)) chatOverrides.delete(id)
+          if (!chat && !merged.has(id)) chatOverrides.delete(id)
           if (chat) merged.set(id, chat)
           else merged.delete(id)
         }
         return [...merged.values()]
-      })
-      .catch(() => [...chatOverrides.values()].filter((chat): chat is ProjectChat => chat !== undefined)),
+      }),
   )
 
+  createEffect(() => {
+    if (chats.error) return
+    const value = chats()
+    if (value) latestChats = value
+  })
+
+  const stopProjectRefresh = sdk.event.listen((event) => {
+    if (event.name !== "global") return
+    if (
+      event.details.type !== "server.connected" &&
+      event.details.type !== "global.disposed" &&
+      !event.details.type.startsWith("project.")
+    )
+      return
+    void refetchChats()
+  })
+  onCleanup(stopProjectRefresh)
+  const chatList = () => (chats.error ? latestChats : chats())
+
   createEffect(() =>
-    chats()
+    chatList()
       ?.filter((chat) => !projects.closed(chat.directory))
       .forEach((chat) => projects.open(chat.directory)),
   )
@@ -135,7 +156,9 @@ function createServerCtx(
   function enrich(project: { worktree: string; expanded: boolean }) {
     const [childStore] = sync.child(project.worktree, { bootstrap: false })
     const projectID = childStore.project
-    const chat = chats()?.find((item) => item.id === projectID || pathKey(item.directory) === pathKey(project.worktree))
+    const chat = chatList()?.find(
+      (item) => item.id === projectID || pathKey(item.directory) === pathKey(project.worktree),
+    )
     const metadata = projectID
       ? sync.data.project.find((x) => x.id === projectID)
       : sync.data.project.find((x) => x.worktree === project.worktree)
@@ -164,7 +187,7 @@ function createServerCtx(
   const recentlyClosedList = createMemo(() => {
     const known = new Set([
       ...sync.data.project.map((project) => pathKey(project.worktree)),
-      ...(chats()?.map((chat) => pathKey(chat.directory)) ?? []),
+      ...(chatList()?.map((chat) => pathKey(chat.directory)) ?? []),
     ])
     return projects
       .recentlyClosed()
@@ -181,21 +204,25 @@ function createServerCtx(
     if (!response.data) throw response.error
     const chat = response.data
     chatOverrides.set(chat.id, chat)
-    setChats((current) => [chat, ...(current ?? []).filter((item) => item.id !== chat.id)])
+    latestChats = [chat, ...(latestChats ?? []).filter((item) => item.id !== chat.id)]
+    setChats(latestChats)
     projects.open(chat.directory)
     projects.touch(chat.directory)
+    void refetchChats()
     return { chat, directory: chat.directory }
   }
 
   const attachFolder = async (projectID: string, folder: string) => {
-    const chat = (chats() ?? []).find((item) => item.id === projectID)
+    const chat = (chatList() ?? []).find((item) => item.id === projectID)
     if (!chat) throw new Error(`Chat project not found: ${projectID}`)
     const response = await sdk.client.v2.project.attachFolder({ projectID, folder })
     if (!response.data) throw response.error
     const attachment = response.data
     chatOverrides.set(projectID, undefined)
-    setChats((current) => (current ?? []).filter((item) => item.id !== projectID))
+    latestChats = (latestChats ?? []).filter((item) => item.id !== projectID)
+    setChats(latestChats)
     projects.replace(chat.directory, attachment.project.directory)
+    void refetchChats()
     await Promise.all(
       attachment.sessionIDs.map((sessionID) => sync.session.resolve(sessionID, { force: true }).catch(() => {})),
     )
@@ -217,7 +244,7 @@ function createServerCtx(
       ...projects,
       list: projectsList,
       recentlyClosed: recentlyClosedList,
-      chats: () => chats() ?? [],
+      chats: () => chatList() ?? [],
       createChat,
       attachFolder,
     },

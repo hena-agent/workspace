@@ -13,6 +13,8 @@ export type Chat = Project.Chat
 export const Attachment = Project.Attachment
 export type Attachment = Project.Attachment
 
+export const Event = Project.Event
+
 export const Vcs = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("git"),

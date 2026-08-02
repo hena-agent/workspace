@@ -748,6 +748,7 @@ describe("SessionRunnerLLM", () => {
 
       yield* events.publish(SessionEvent.Moved, {
         sessionID,
+        projectID: Project.ID.global,
         timestamp: DateTime.makeUnsafe(1),
         location: Location.Ref.make({ directory: AbsolutePath.make("/moved") }),
       })

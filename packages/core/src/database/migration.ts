@@ -13,6 +13,7 @@ const lock = Semaphore.makeUnsafe(1)
 export type Migration = {
   id: string
   up: (tx: Transaction) => Effect.Effect<void, unknown>
+  disableForeignKeys?: boolean
 }
 
 export function apply(db: Database) {
@@ -68,13 +69,32 @@ export function applyOnly(db: Database, input: Migration[]) {
 
     for (const migration of input) {
       if (completed.has(migration.id)) continue
-      yield* db.transaction((tx) =>
+      const migrate = db.transaction((tx) =>
         Effect.gen(function* () {
           yield* migration.up(tx)
           yield* tx.run(
             sql`INSERT INTO ${sql.identifier("migration")} (id, time_completed) VALUES (${migration.id}, ${Date.now()})`,
           )
         }),
+      )
+      if (!migration.disableForeignKeys) {
+        yield* migrate
+        continue
+      }
+
+      const foreignKeys = yield* db.get<{ foreign_keys: number }>(sql`PRAGMA foreign_keys`)
+      if (foreignKeys?.foreign_keys !== 1) {
+        yield* migrate
+        continue
+      }
+
+      // SQLite ignores PRAGMA foreign_keys changes made after BEGIN. Table
+      // rebuilds must disable it before opening their transaction, otherwise
+      // dropping a referenced table can cascade-delete dependent rows.
+      yield* Effect.uninterruptibleMask((restore) =>
+        Effect.flatMap(db.run(sql`PRAGMA foreign_keys = OFF`), () =>
+          restore(migrate).pipe(Effect.ensuring(db.run(sql`PRAGMA foreign_keys = ON`).pipe(Effect.orDie))),
+        ),
       )
     }
   })

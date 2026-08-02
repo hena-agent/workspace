@@ -58,6 +58,8 @@ export type Event =
   | EventPermissionV2Asked
   | EventPermissionV2Replied
   | EventPluginAdded
+  | EventProjectChatCreated
+  | EventProjectNextAttached
   | EventProjectDirectoriesUpdated
   | EventFileWatcherUpdated
   | EventPtyCreated
@@ -849,6 +851,7 @@ export type GlobalEvent = {
         properties: {
           timestamp: number
           sessionID: string
+          projectID?: string
           location: LocationRef
           subdirectory?: string
         }
@@ -1291,6 +1294,28 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "project.chat.created"
+        properties: {
+          id: string
+          name: string
+          directory: string
+          time: {
+            created: number
+            updated: number
+          }
+        }
+      }
+    | {
+        id: string
+        type: "project.next.attached"
+        properties: {
+          projectID: string
+          attachment: ProjectAttachment
+          timestamp: number
+        }
+      }
+    | {
+        id: string
         type: "project.directories.updated"
         properties: {
           projectID: string
@@ -1643,6 +1668,7 @@ export type GlobalEvent = {
     | SyncEventSessionNextRevertStaged
     | SyncEventSessionNextRevertCleared
     | SyncEventSessionNextRevertCommitted
+    | SyncEventProjectNextAttached
 }
 
 /**
@@ -1713,31 +1739,7 @@ export type AgentConfig = {
   steps?: number
   maxSteps?: number
   permission?: PermissionConfig
-  [key: string]:
-    | unknown
-    | string
-    | number
-    | {
-        [key: string]: boolean
-      }
-    | boolean
-    | "subagent"
-    | "primary"
-    | "all"
-    | {
-        [key: string]: unknown
-      }
-    | string
-    | "primary"
-    | "secondary"
-    | "accent"
-    | "success"
-    | "warning"
-    | "error"
-    | "info"
-    | number
-    | PermissionConfig
-    | undefined
+  [key: string]: unknown
 }
 
 export type ProviderConfig = {
@@ -1762,7 +1764,7 @@ export type ProviderConfig = {
      */
     headerTimeout?: number | false
     chunkTimeout?: number
-    [key: string]: unknown | string | boolean | number | false | number | false | number | undefined
+    [key: string]: unknown
   }
   models?: {
     [key: string]: {
@@ -1818,7 +1820,7 @@ export type ProviderConfig = {
       variants?: {
         [key: string]: {
           disabled?: boolean
-          [key: string]: unknown | boolean | undefined
+          [key: string]: unknown
         }
       }
     }
@@ -2910,6 +2912,8 @@ export type V2Event =
   | PermissionV2Asked
   | PermissionV2Replied
   | PluginAdded
+  | ProjectChatCreated
+  | ProjectNextAttached
   | ProjectDirectoriesUpdated
   | FileWatcherUpdated
   | PtyCreated
@@ -3137,6 +3141,17 @@ export type PermissionV2Source = {
 
 export type PermissionV2Reply = "once" | "always" | "reject"
 
+export type ProjectVcs = "git"
+
+export type ProjectAttachment = {
+  project: {
+    id: string
+    directory: string
+    vcs?: ProjectVcs
+  }
+  sessionIDs: Array<string>
+}
+
 export type QuestionV2Option = {
   /**
    * Display text (1-5 words, concise)
@@ -3176,8 +3191,6 @@ export type QuestionV2Action = {
 }
 
 export type QuestionV2Answer = Array<string>
-
-export type ProjectVcs = "git"
 
 export type ProjectIcon = {
   url?: string
@@ -3358,6 +3371,7 @@ export type SyncEventSessionNextMoved = {
     data: {
       timestamp: number
       sessionID: string
+      projectID?: string
       location: LocationRef
       subdirectory?: string
     }
@@ -3838,6 +3852,22 @@ export type SyncEventSessionNextRevertCommitted = {
   }
 }
 
+export type SyncEventProjectNextAttached = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "project.next.attached.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      projectID: string
+      attachment: ProjectAttachment
+      timestamp: number
+    }
+  }
+}
+
 export type ConfigV2ReferenceGit = {
   repository: string
   branch?: string
@@ -4232,6 +4262,7 @@ export type SessionNextMoved = {
   data: {
     timestamp: number
     sessionID: string
+    projectID?: string
     location: LocationRef
     subdirectory?: string
   }
@@ -5509,6 +5540,48 @@ export type PluginAdded = {
   }
 }
 
+export type ProjectChatCreated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "project.chat.created"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    id: string
+    name: string
+    directory: string
+    time: {
+      created: number
+      updated: number
+    }
+  }
+}
+
+export type ProjectNextAttached = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "project.next.attached"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    projectID: string
+    attachment: ProjectAttachment
+    timestamp: number
+  }
+}
+
 export type ProjectDirectoriesUpdated = {
   id: string
   metadata?: {
@@ -6179,15 +6252,6 @@ export type ProjectCreateInput = {
   name: string
 }
 
-export type ProjectAttachment = {
-  project: {
-    id: string
-    directory: string
-    vcs?: ProjectVcs
-  }
-  sessionIDs: Array<string>
-}
-
 export type ProjectCopyCopy = {
   directory: string
 }
@@ -6317,6 +6381,7 @@ export type EventSessionNextMoved = {
   properties: {
     timestamp: number
     sessionID: string
+    projectID?: string
     location: LocationRef
     subdirectory?: string
   }
@@ -6794,6 +6859,30 @@ export type EventPluginAdded = {
   type: "plugin.added"
   properties: {
     id: string
+  }
+}
+
+export type EventProjectChatCreated = {
+  id: string
+  type: "project.chat.created"
+  properties: {
+    id: string
+    name: string
+    directory: string
+    time: {
+      created: number
+      updated: number
+    }
+  }
+}
+
+export type EventProjectNextAttached = {
+  id: string
+  type: "project.next.attached"
+  properties: {
+    projectID: string
+    attachment: ProjectAttachment
+    timestamp: number
   }
 }
 

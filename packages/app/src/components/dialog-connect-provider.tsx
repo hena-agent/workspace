@@ -981,6 +981,7 @@ function ProviderConnection(props: {
         setFormStore("error", language.t("provider.connect.oauth.code.required"))
         return
       }
+      if (store.methodIndex === undefined) return
 
       setFormStore("error", undefined)
       const result = await serverSDK()
@@ -1077,6 +1078,7 @@ function ProviderConnection(props: {
 
     onMount(() => {
       void (async () => {
+        if (store.methodIndex === undefined) return
         const result = await serverSDK()
           .client.provider.oauth.callback({
             providerID: props.provider,

@@ -2,9 +2,11 @@ export * as ProjectV2 from "./project"
 export * as Project from "./project"
 
 import { and, desc, eq, inArray, isNull } from "drizzle-orm"
-import { Context, DateTime, Effect, Exit, Layer, Schema } from "effect"
+import { Context, DateTime, Effect, Exit, Layer, Option, Schema } from "effect"
 import path from "path"
 import { Database } from "./database/database"
+import { EventV2 } from "./event"
+import { EventTable } from "./event/sql"
 import { makeGlobalNode } from "./effect/app-node"
 import { FSUtil } from "./fs-util"
 import { Git } from "./git"
@@ -14,6 +16,7 @@ import { ProjectSchema } from "./project/schema"
 import { ProjectDirectoryTable, ProjectTable } from "./project/sql"
 import { AbsolutePath, RelativePath } from "./schema"
 import { SessionSchema } from "./session/schema"
+import { SessionEvent } from "./session/event"
 import { SessionContextEpochTable, SessionTable } from "./session/sql"
 import { Hash } from "./util/hash"
 
@@ -80,6 +83,7 @@ const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const db = (yield* Database.Service).db
+    const events = yield* EventV2.Service
     const fs = yield* FSUtil.Service
     const git = yield* Git.Service
     const global = yield* Global.Service
@@ -139,7 +143,9 @@ const layer = Layer.effect(
               }),
             )
             .pipe(Effect.orDie)
-          return fromChatRow({ project: row, directory })
+          const chat = fromChatRow({ project: row, directory })
+          yield* events.publish(ProjectSchema.Event.ChatCreated, chat)
+          return chat
         }).pipe(
           Effect.onExit((exit) =>
             Exit.isFailure(exit) ? fs.remove(scratch, { recursive: true, force: true }).pipe(Effect.ignore) : Effect.void,
@@ -224,16 +230,26 @@ const layer = Layer.effect(
       const destination = yield* resolve(selected)
       if (destination.id === input.projectID) return yield* new InvalidFolderError({ folder: input.folder })
       const directory = destination.vcs ? destination.directory : selected
+      const timestamp = yield* DateTime.now
       return yield* db
         .transaction((tx) =>
           Effect.gen(function* () {
+            const destinationProject = yield* tx
+              .select({ worktree: ProjectTable.worktree })
+              .from(ProjectTable)
+              .where(eq(ProjectTable.id, destination.id))
+              .get()
+            if (destinationProject?.worktree === null) {
+              return yield* new InvalidFolderError({ folder: input.folder })
+            }
+
             const source = yield* tx
               .select({ directory: ProjectDirectoryTable.directory })
               .from(ProjectTable)
               .innerJoin(ProjectDirectoryTable, eq(ProjectDirectoryTable.project_id, ProjectTable.id))
               .where(and(eq(ProjectTable.id, input.projectID), isNull(ProjectTable.worktree)))
               .get()
-            if (!source) return yield* new NotFoundError({ projectID: input.projectID })
+            if (!source) return yield* reconcileAttachment(input.projectID, destination, directory)
 
             yield* tx
               .insert(ProjectTable)
@@ -251,43 +267,63 @@ const layer = Layer.effect(
               .from(SessionTable)
               .where(eq(SessionTable.project_id, input.projectID))
               .all()
-            yield* Effect.forEach(
+            const movedEvents = yield* Effect.forEach(
               sessions,
               (session) => {
                 const relative = path.relative(source.directory, session.directory)
                 const subpath =
                   relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative) ? "" : relative
-                return tx
-                  .update(SessionTable)
-                  .set({
-                    project_id: destination.id,
-                    directory: AbsolutePath.make(path.resolve(directory, subpath)),
-                    path: subpath ? RelativePath.make(subpath) : null,
-                    time_updated: Date.now(),
-                  })
-                  .where(eq(SessionTable.id, session.id))
-                  .run()
-              },
-              { discard: true },
-            )
-            if (sessions.length > 0) {
-              yield* tx
-                .delete(SessionContextEpochTable)
-                .where(
-                  inArray(
-                    SessionContextEpochTable.session_id,
-                    sessions.map((session) => session.id),
-                  ),
+                const sessionID = SessionSchema.ID.make(session.id)
+                const sessionDirectory = AbsolutePath.make(path.resolve(directory, subpath))
+                return events.publish(
+                  SessionEvent.Moved,
+                  {
+                    sessionID,
+                    projectID: destination.id,
+                    location: { directory: sessionDirectory },
+                    subdirectory: subpath ? RelativePath.make(subpath) : undefined,
+                    timestamp,
+                  },
+                  {
+                    deferBroadcast: true,
+                    project: false,
+                    commit: () =>
+                      Effect.gen(function* () {
+                        yield* tx
+                          .update(SessionTable)
+                          .set({
+                            project_id: destination.id,
+                            directory: sessionDirectory,
+                            path: subpath ? RelativePath.make(subpath) : null,
+                            time_updated: DateTime.toEpochMillis(timestamp),
+                          })
+                          .where(and(eq(SessionTable.id, session.id), eq(SessionTable.project_id, input.projectID)))
+                          .run()
+                          .pipe(Effect.orDie)
+                        yield* tx
+                          .delete(SessionContextEpochTable)
+                          .where(eq(SessionContextEpochTable.session_id, session.id))
+                          .run()
+                          .pipe(Effect.orDie)
+                      }),
+                  },
                 )
-                .run()
-            }
+              },
+            )
+            const attachment = ProjectSchema.Attachment.make({
+              project: { id: destination.id, directory, vcs: destination.vcs?.type },
+              sessionIDs: sessions.map((session) => SessionSchema.ID.make(session.id)),
+            })
+            const attachedEvent = yield* events.publish(
+              ProjectSchema.Event.Attached,
+              { projectID: input.projectID, attachment, timestamp },
+              { deferBroadcast: true },
+            )
             yield* tx.delete(ProjectTable).where(eq(ProjectTable.id, input.projectID)).run()
             return {
-              attachment: ProjectSchema.Attachment.make({
-                project: { id: destination.id, directory, vcs: destination.vcs?.type },
-                sessionIDs: sessions.map((session) => SessionSchema.ID.make(session.id)),
-              }),
-              scratch: source.directory,
+              attachment,
+              scratch: source.directory as AbsolutePath | undefined,
+              events: [...movedEvents, attachedEvent],
             }
           }),
         )
@@ -296,9 +332,43 @@ const layer = Layer.effect(
             EffectDrizzleQueryError: Effect.die,
             SqlError: Effect.die,
           }),
-          Effect.tap((result) => fs.remove(result.scratch, { recursive: true, force: true }).pipe(Effect.ignore)),
+          Effect.tap((result) => Effect.forEach(result.events, events.broadcast, { discard: true })),
+          Effect.uninterruptible,
+          Effect.tap((result) =>
+            result.scratch
+              ? fs.remove(result.scratch, { recursive: true, force: true }).pipe(Effect.ignore)
+              : Effect.void,
+          ),
           Effect.map((result) => result.attachment),
         )
+    })
+
+    const reconcileAttachment = Effect.fnUntraced(function* (
+      sourceID: ID,
+      destination: Resolved,
+      directory: AbsolutePath,
+    ) {
+      const rows = yield* db
+        .select({ data: EventTable.data })
+        .from(EventTable)
+        .where(
+          and(
+            eq(EventTable.aggregate_id, sourceID),
+            eq(EventTable.type, EventV2.versionedType(ProjectSchema.Event.Attached.type, 1)),
+          ),
+        )
+        .all()
+      const receipt = rows.flatMap((row) =>
+        Option.toArray(Schema.decodeUnknownOption(ProjectSchema.Event.Attached.data)(row.data)),
+      )[0]
+      if (!receipt) return yield* new NotFoundError({ projectID: sourceID })
+      if (receipt.attachment.project.id !== destination.id || receipt.attachment.project.directory !== directory)
+        return yield* new NotFoundError({ projectID: sourceID })
+      return {
+        attachment: receipt.attachment,
+        scratch: undefined,
+        events: [],
+      }
     })
 
     const directories = Effect.fn("Project.directories")(function* (input: DirectoriesInput) {
@@ -316,7 +386,7 @@ const layer = Layer.effect(
 export const node = makeGlobalNode({
   service: Service,
   layer,
-  deps: [Database.node, FSUtil.node, Git.node, Global.node, ProjectDirectories.node],
+  deps: [Database.node, EventV2.node, FSUtil.node, Git.node, Global.node, ProjectDirectories.node],
 })
 
 function fromChatRow(input: {

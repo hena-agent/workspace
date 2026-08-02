@@ -6,9 +6,10 @@ describe("session attach folder controller", () => {
     const calls: string[] = []
 
     const controller = createAttachFolderController({
+      source: undefined,
       attach: async (folder) => void calls.push(`attach:${folder}`),
       onSubmit: () => void calls.push("close"),
-      reply: async (answers) => void calls.push(`reply:${JSON.stringify(answers)}`),
+      reply: async (_, answers) => void calls.push(`reply:${JSON.stringify(answers)}`),
     })
     await controller.submit("/folder")
 
@@ -20,6 +21,7 @@ describe("session attach folder controller", () => {
 
     await expect(
       createAttachFolderController({
+        source: undefined,
         attach: async () => {
           throw new Error("failed")
         },
@@ -34,6 +36,7 @@ describe("session attach folder controller", () => {
     const calls: string[] = []
     let replies = 0
     const controller = createAttachFolderController({
+      source: undefined,
       attach: async () => void calls.push("attach"),
       reply: async () => {
         calls.push("reply")

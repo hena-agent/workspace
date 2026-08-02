@@ -12,6 +12,7 @@ import { SessionID } from "./session-id"
 import { Location } from "./location"
 import { SessionMessage } from "./session-message"
 import { Revert } from "./revert"
+import { ProjectID } from "./project-id"
 
 export { FileAttachment }
 
@@ -78,6 +79,8 @@ export const Moved = Event.define({
   ...options,
   schema: {
     ...Base,
+    // Optional for replay compatibility with Moved events written before relocation included project identity.
+    projectID: ProjectID.pipe(optional),
     location: Location.Ref,
     subdirectory: RelativePath.pipe(optional),
   },

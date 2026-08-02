@@ -62,9 +62,15 @@ export function toggleHomeProjectSelection(
   server: ServerConnection.Key,
   directory: string,
 ): HomeProjectSelection {
-  if (current?.server === server && current.directory === directory) return { server }
+  if (homeProjectSelected(current, server, directory)) return { server }
   return { server, directory }
 }
+
+export const homeProjectSelected = (
+  selected: HomeProjectSelection | undefined,
+  server: ServerConnection.Key,
+  directory: string,
+) => selected?.server === server && !!selected.directory && pathKey(selected.directory) === pathKey(directory)
 
 export function closeHomeProject(
   selected: HomeProjectSelection | undefined,
@@ -73,7 +79,7 @@ export function closeHomeProject(
   directory: string,
 ) {
   projects.close(directory)
-  if (selected?.server === server && selected.directory === directory) return { server }
+  if (homeProjectSelected(selected, server, directory)) return { server }
   return selected
 }
 

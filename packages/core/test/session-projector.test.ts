@@ -17,6 +17,8 @@ import { SessionMessage } from "@hena/core/session/message"
 import { Prompt } from "@hena/core/session/prompt"
 import { SessionMessageUpdater } from "@hena/core/session/message-updater"
 import { SessionProjector } from "@hena/core/session/projector"
+import { Location } from "@hena/core/location"
+import { RelativePath } from "@hena/core/schema"
 import { SessionExecution } from "@hena/core/session/execution"
 import { SessionInput } from "@hena/core/session/input"
 import { SessionInputTable, SessionMessageTable, SessionTable } from "@hena/core/session/sql"
@@ -44,6 +46,52 @@ const assistantRow = (
 }
 
 describe("SessionProjector", () => {
+  it.effect("projects a complete session relocation", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      const destinationID = Project.ID.make("project_destination")
+      yield* db
+        .insert(ProjectTable)
+        .values([
+          { id: Project.ID.global, worktree: AbsolutePath.make("/source"), sandboxes: [] },
+          { id: destinationID, worktree: AbsolutePath.make("/destination"), sandboxes: [] },
+        ])
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          project_id: Project.ID.global,
+          slug: "test",
+          directory: "/source",
+          title: "test",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      yield* EventV2.Service.use((events) =>
+        events.publish(SessionEvent.Moved, {
+          sessionID,
+          projectID: destinationID,
+          location: Location.Ref.make({ directory: AbsolutePath.make("/destination/packages/core") }),
+          subdirectory: RelativePath.make("packages/core"),
+          timestamp: DateTime.makeUnsafe(1),
+        }),
+      )
+
+      expect(
+        yield* db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get().pipe(Effect.orDie),
+      ).toMatchObject({
+        project_id: destinationID,
+        directory: "/destination/packages/core",
+        path: "packages/core",
+        time_updated: 1,
+      })
+    }),
+  )
+
   it.effect("projects staged, cleared, and committed reverts", () =>
     Effect.gen(function* () {
       const db = (yield* Database.Service).db

@@ -68,4 +68,14 @@ export const CreateInput = Schema.Struct({
 export type CreateInput = typeof CreateInput.Type
 
 const Updated = define({ type: "project.updated", schema: Info.fields })
-export const Event = { Updated, Definitions: inventory(Updated) }
+const ChatCreated = define({ type: "project.chat.created", schema: Chat.fields })
+const Attached = define({
+  type: "project.next.attached",
+  durable: { aggregate: "projectID", version: 1 },
+  schema: {
+    projectID: ID,
+    attachment: Attachment,
+    timestamp: DateTimeUtcFromMillis,
+  },
+})
+export const Event = { Updated, ChatCreated, Attached, Definitions: inventory(Updated, ChatCreated, Attached) }

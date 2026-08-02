@@ -1,5 +1,5 @@
-name: Run OpenCode review
-description: Restore OpenCode auth.json from a secret, install a pinned OpenCode CLI, and run a PR review with a specific model and variant.
+name: Run OpenCode
+description: Restore OpenCode auth.json from a secret, install a pinned OpenCode CLI, and run `opencode github run` with a specific model and variant.
 
 inputs:
   model:
@@ -12,7 +12,7 @@ inputs:
     description: Contents of ~/.local/share/opencode/auth.json (pass via secrets)
     required: true
   github-token:
-    description: Token used by the OpenCode action to post review comments
+    description: Token used by the OpenCode action to post comments and reach the GitHub API
     required: true
   prompt:
     description: Final prompt passed to opencode github run.
@@ -46,18 +46,18 @@ runs:
     # OPENCODE_VERSION is the single source of truth for the cache key and the
     # install below. Bump intentionally; do not float to latest.
     #
-    # It is also the floor for which `model:` values in pr-review.yml work: the
-    # CLI embeds its models.dev snapshot at build time, and this build's
-    # model-id parsing decides which reasoning options a model gets. A model
-    # missing from the snapshot fails the job outright; one whose id shape the
-    # build does not recognize silently loses adaptive thinking instead. So
-    # changing `model:` there may require bumping this pin, and nothing
-    # enforces that pairing.
+    # It is also the floor for which `model:` values in the calling workflows
+    # (pr-review.yml, pr-brief.yml) work: the CLI embeds its models.dev snapshot
+    # at build time, and this build's model-id parsing decides which reasoning
+    # options a model gets. A model missing from the snapshot fails the job
+    # outright; one whose id shape the build does not recognize silently loses
+    # adaptive thinking instead. So changing `model:` there may require bumping
+    # this pin, and nothing enforces that pairing.
     - name: Pin opencode CLI version
       shell: bash
       run: echo "OPENCODE_VERSION=1.18.5" >> "$GITHUB_ENV"
 
-    # The review agent shells out to this repo's bun scripts (typecheck, test,
+    # The agent shells out to this repo's bun scripts (typecheck, test,
     # lint, etc.), but the ubuntu-latest runner has no bun preinstalled. Install
     # it here so bun is on PATH before the agent runs. bun-version-file reads the
     # `packageManager` field in package.json (bun@1.3.14) as the single source of
@@ -90,7 +90,7 @@ runs:
     # Mirrors the wrapper action's env-driven entrypoint. use_github_token=true
     # makes opencode skip OIDC and use GITHUB_TOKEN for the GitHub API; provider
     # (model) auth comes from the auth.json restored above.
-    - name: Run opencode review
+    - name: Run opencode
       shell: bash
       env:
         MODEL: ${{ inputs.model }}

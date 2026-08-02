@@ -1,20 +1,20 @@
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core"
 import * as DatabasePath from "../database/path"
 import { Timestamps } from "../database/schema.sql"
 import { ProjectSchema } from "./schema"
 
 export const ProjectTable = sqliteTable("project", {
-    id: text().$type<ProjectSchema.ID>().primaryKey(),
-    worktree: DatabasePath.absoluteColumn(),
-    vcs: text(),
-    name: text(),
-    icon_url: text(),
-    icon_url_override: text(),
-    icon_color: text(),
-    ...Timestamps,
-    time_initialized: integer(),
-    sandboxes: DatabasePath.absoluteArrayColumn().notNull(),
-    commands: text({ mode: "json" }).$type<{ start?: string }>(),
+  id: text().$type<ProjectSchema.ID>().primaryKey(),
+  worktree: DatabasePath.absoluteColumn(),
+  vcs: text(),
+  name: text(),
+  icon_url: text(),
+  icon_url_override: text(),
+  icon_color: text(),
+  ...Timestamps,
+  time_initialized: integer(),
+  sandboxes: DatabasePath.absoluteArrayColumn().notNull(),
+  commands: text({ mode: "json" }).$type<{ start?: string }>(),
 })
 
 export const ProjectDirectoryTable = sqliteTable(

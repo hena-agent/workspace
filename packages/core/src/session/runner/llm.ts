@@ -217,7 +217,6 @@ const layer = Layer.effect(
       const request = LLM.request({
         model,
         providerOptions: { openai: { promptCacheKey } },
-        // The persisted system-context baseline is required in both coding and general-chat modes.
         system: [agentSystem, system.baseline]
           .filter((part): part is string => part !== undefined && part.length > 0)
           .map(SystemPart.make),

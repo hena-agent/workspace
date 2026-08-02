@@ -150,16 +150,23 @@ const echo = Layer.effectDiscard(
         output: Schema.Struct({}),
         execute: () => Effect.die("unexpected tool defect"),
       }),
-      [AttachFolderTool.name]: Tool.make({
+    }),
+  ),
+)
+const echoNode = makeLocationNode({ name: "test/session-runner-tools", layer: echo, deps: [ToolRegistry.node] })
+const registerAttachFolder = ToolRegistry.Service.use((registry) =>
+  registry.register({
+    [AttachFolderTool.name]: Tool.withPermission(
+      Tool.make({
         description: AttachFolderTool.description,
         input: AttachFolderTool.Input,
         output: AttachFolderTool.Output,
         execute: () => Effect.succeed({ attached: true }),
       }),
-    }),
-  ),
+      "question",
+    ),
+  }),
 )
-const echoNode = makeLocationNode({ name: "test/session-runner-tools", layer: echo, deps: [ToolRegistry.node] })
 let modelResolveHook = Effect.void
 let currentModel = model
 const models = SessionRunnerModel.layerWith((session) =>
@@ -655,7 +662,7 @@ describe("SessionRunnerLLM", () => {
 
       expect(requests).toHaveLength(1)
       expect(requests[0]?.model).toBe(model)
-      expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "defect", AttachFolderTool.name])
+      expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "defect"])
       expect(requests[0]?.messages.map((message) => ({ role: message.role, content: message.content }))).toEqual([
         { role: "user", content: [{ type: "text", text: "First" }] },
         { role: "user", content: [{ type: "text", text: "Second" }] },
@@ -667,6 +674,7 @@ describe("SessionRunnerLLM", () => {
   it.effect("limits general chat provider requests to the safe tool set", () =>
     Effect.gen(function* () {
       yield* setup
+      yield* registerAttachFolder
       const db = (yield* Database.Service).db
       yield* db
         .update(ProjectTable)
@@ -687,7 +695,7 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(generalChatSessionID)
 
       expect(requests).toHaveLength(1)
-      expect(requests[0]?.tools).toEqual([])
+      expect(requests[0]?.tools.map((tool) => tool.name)).toEqual([AttachFolderTool.name])
       expect(requests[0]?.system.map((part) => part.text)).toEqual([
         GeneralChat.GENERAL_CHAT_SYSTEM,
         "Initial context",
@@ -1405,7 +1413,7 @@ describe("SessionRunnerLLM", () => {
       yield* session.resume(sessionID)
 
       expect(requests).toHaveLength(1)
-      expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "defect", AttachFolderTool.name])
+      expect(requests[0]?.tools.map((tool) => tool.name)).toEqual(["echo", "defect"])
       expect(yield* session.context(sessionID)).toMatchObject([
         { type: "user", text: "Use tools" },
         {
@@ -1506,6 +1514,7 @@ describe("SessionRunnerLLM", () => {
   it.effect("stops after a folder is attached instead of continuing the provider loop", () =>
     Effect.gen(function* () {
       yield* setup
+      yield* registerAttachFolder
       const session = yield* SessionV2.Service
       yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Attach my folder" }), resume: false })
 

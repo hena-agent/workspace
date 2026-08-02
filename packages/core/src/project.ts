@@ -20,21 +20,12 @@ import { Hash } from "./util/hash"
 export const ID = ProjectSchema.ID
 export type ID = ProjectSchema.ID
 
-export const Name = ProjectSchema.Name
-export type Name = ProjectSchema.Name
-
 export const Vcs = ProjectSchema.Vcs
 export type Vcs = ProjectSchema.Vcs
 
 export class Info extends Schema.Class<Info>("Project.Info")({
   id: ID,
 }) {}
-
-export const Chat = ProjectSchema.Chat
-export type Chat = ProjectSchema.Chat
-
-export const Attachment = ProjectSchema.Attachment
-export type Attachment = ProjectSchema.Attachment
 
 export class InvalidNameError extends Schema.TaggedErrorClass<InvalidNameError>()("Project.InvalidNameError", {
   name: Schema.String,
@@ -62,20 +53,20 @@ export interface Resolved {
 }
 
 export interface Interface {
-  readonly list: () => Effect.Effect<ReadonlyArray<Chat>>
-  readonly get: (projectID: ID) => Effect.Effect<Chat, NotFoundError>
+  readonly list: () => Effect.Effect<ReadonlyArray<ProjectSchema.Chat>>
+  readonly get: (projectID: ID) => Effect.Effect<ProjectSchema.Chat, NotFoundError>
   readonly isFolderless: (projectID: ID) => Effect.Effect<boolean>
-  readonly create: (input: { readonly name: string }) => Effect.Effect<Chat, InvalidNameError>
+  readonly create: (input: { readonly name: string }) => Effect.Effect<ProjectSchema.Chat, InvalidNameError>
   readonly attachFolder: (input: {
     readonly projectID: ID
     readonly folder: string
-  }) => Effect.Effect<Attachment, NotFoundError | InvalidFolderError>
+  }) => Effect.Effect<ProjectSchema.Attachment, NotFoundError | InvalidFolderError>
   readonly directories: (input: DirectoriesInput) => Effect.Effect<Directories>
   readonly resolve: (input: AbsolutePath) => Effect.Effect<Resolved>
   /**
    * Temporary bridge method for writing the resolved project ID to the repo-local cache.
    *
-   * This exists while the legacy project service and this core project
+    * This exists while the legacy project service and this core project
    * service work together: core resolves the ID, while the old service still owns
    * database migration and persistence. The old service should call this after it
    * finishes migrating from `resolve().previous` to `resolve().id`; once project

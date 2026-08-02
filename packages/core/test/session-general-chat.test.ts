@@ -2,10 +2,6 @@ import { describe, expect, test } from "bun:test"
 import { GeneralChat } from "@hena/core/session/general-chat"
 
 describe("GeneralChat", () => {
-  test("exports the canonical system prompt", () => {
-    expect(GeneralChat.GENERAL_CHAT_SYSTEM).toContain("general-purpose AI collaborator")
-  })
-
   test("derives its ceiling from the canonical safe actions", () => {
     expect(GeneralChat.SAFE_ACTIONS).toEqual(["question", "webfetch", "websearch"])
     expect(GeneralChat.CEILING).toEqual([

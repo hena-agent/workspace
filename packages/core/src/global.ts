@@ -22,6 +22,7 @@ const paths = {
   bin: path.join(cache, "bin"),
   log: path.join(data, "log"),
   repos: path.join(data, "repos"),
+  projects: path.join(data, "projects"),
   cache,
   config,
   state,
@@ -40,6 +41,7 @@ await Promise.all([
   fs.mkdir(Path.log, { recursive: true }),
   fs.mkdir(Path.bin, { recursive: true }),
   fs.mkdir(Path.repos, { recursive: true }),
+  fs.mkdir(Path.projects, { recursive: true, mode: 0o700 }),
 ])
 
 export class Service extends Context.Service<Service, Interface>()("@hena/Global") {}
@@ -54,12 +56,14 @@ export interface Interface {
   readonly bin: string
   readonly log: string
   readonly repos: string
+  readonly projects: string
 }
 
 export function make(input: Partial<Interface> = {}): Interface {
+  const data = input.data ?? Path.data
   return {
     home: Path.home,
-    data: Path.data,
+    data,
     cache: Path.cache,
     config: Flag.HENA_CONFIG_DIR ?? Path.config,
     state: Path.state,
@@ -67,6 +71,7 @@ export function make(input: Partial<Interface> = {}): Interface {
     bin: Path.bin,
     log: Path.log,
     repos: Path.repos,
+    projects: path.join(data, "projects"),
     ...input,
   }
 }

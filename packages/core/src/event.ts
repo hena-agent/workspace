@@ -3,11 +3,10 @@ export * as EventV2 from "./event"
 import { Cause, Context, Effect, Layer, Option, PubSub, Queue, Schema, Stream } from "effect"
 import { Event } from "@hena/schema/event"
 import type { Data, Definition, Payload } from "@hena/schema/event"
-import type { Ref } from "@hena/schema/location"
 import { and, asc, eq, gt, inArray } from "drizzle-orm"
 import { Database } from "./database/database"
 import { EventSequenceTable, EventTable } from "./event/sql"
-import { LocationContext } from "./location-context"
+import { Location } from "./location"
 import { makeGlobalNode } from "./effect/app-node"
 import { isDeepStrictEqual } from "node:util"
 import { Durable } from "@hena/schema/durable-event-manifest"
@@ -119,8 +118,7 @@ export const versionedType = Event.versionedType
 export interface PublishOptions {
   readonly id?: ID
   readonly metadata?: Record<string, unknown>
-  readonly location?: Ref
-  readonly isolateListeners?: boolean
+  readonly location?: Location.Ref
   /** Local operational projection committed atomically with a new durable event. Not replayed or serialized. */
   readonly commit?: (seq: number) => Effect.Effect<void>
 }
@@ -368,12 +366,7 @@ export const layerWith = (options?: LayerOptions) =>
         })
       }
 
-      function publishEvent<D extends Definition>(
-        definition: D,
-        event: Payload<D>,
-        commit?: PublishOptions["commit"],
-        isolateListeners?: boolean,
-      ) {
+      function publishEvent<D extends Definition>(definition: D, event: Payload<D>, commit?: PublishOptions["commit"]) {
         return Effect.gen(function* () {
           if (!definition?.durable && commit)
             return yield* Effect.die(
@@ -397,7 +390,7 @@ export const layerWith = (options?: LayerOptions) =>
               return event
             }
           }
-          yield* notify(event as Payload, isolateListeners ?? false)
+          yield* notify(event as Payload, false)
           return event
         })
       }
@@ -425,7 +418,7 @@ export const layerWith = (options?: LayerOptions) =>
 
       function publish<D extends Definition>(definition: D, data: Data<D>, options?: PublishOptions) {
         return Effect.gen(function* () {
-          const serviceLocation = Option.getOrUndefined(yield* Effect.serviceOption(LocationContext.Service))
+          const serviceLocation = Option.getOrUndefined(yield* Effect.serviceOption(Location.Service))
           const location =
             options?.location ??
             (serviceLocation
@@ -441,7 +434,6 @@ export const layerWith = (options?: LayerOptions) =>
               data,
             } as Payload<D>,
             options?.commit,
-            options?.isolateListeners,
           )
         })
       }

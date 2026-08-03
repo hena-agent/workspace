@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect"
+import { Context, Effect, Layer } from "effect"
 import { Info, Ref, response } from "@hena/schema/location"
 import { Project } from "./project"
 import { LayerNode } from "./effect/layer-node"
@@ -7,10 +7,12 @@ import { makeLocationNode, tags } from "./effect/app-node"
 export * as Location from "./location"
 
 export { Info, Ref, response }
-export { Service } from "./location-context"
-export type { Interface } from "./location-context"
 
-import { Service } from "./location-context"
+export interface Interface extends Info {
+  readonly vcs?: Project.Vcs
+}
+
+export class Service extends Context.Service<Service, Interface>()("@hena/Location") {}
 
 export const node = LayerNode.unbound(Service, tags.values.location)
 

@@ -27,17 +27,9 @@ import { WorkspaceV2 } from "@hena/core/workspace"
 import { testEffect } from "./lib/effect"
 import { tmpdir } from "./fixture/tmpdir"
 
-const projects = Layer.succeed(
-  ProjectV2.Service,
-  ProjectV2.Service.of({
-    list: () => Effect.succeed([]),
-    isFolderless: () => Effect.succeed(false),
-    create: () => Effect.die("not implemented"),
-    resolve: (directory) => Effect.succeed({ id: ProjectV2.ID.global, directory }),
-    directories: () => Effect.succeed([]),
-    commit: () => Effect.void,
-  }),
-)
+const projects = Layer.mock(ProjectV2.Service, {
+  resolve: (directory) => Effect.succeed({ id: ProjectV2.ID.global, directory }),
+})
 const it = testEffect(
   AppNodeBuilder.build(
     LayerNode.group([Database.node, EventV2.node, SessionProjector.node, SessionStore.node, SessionV2.node]),

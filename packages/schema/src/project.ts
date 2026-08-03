@@ -2,7 +2,7 @@ export * as Project from "./project"
 
 import { Schema } from "effect"
 import { define, inventory } from "./event"
-import { AbsolutePath, DateTimeUtcFromMillis, NonNegativeInt, optional } from "./schema"
+import { NonNegativeInt, optional } from "./schema"
 import { ProjectID } from "./project-id"
 
 export const ID = ProjectID
@@ -40,27 +40,5 @@ export const Info = Schema.Struct({
 }).annotate({ identifier: "Project" })
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 
-export const Name = Schema.Trim.pipe(Schema.check(Schema.isNonEmpty()), Schema.brand("Project.Name")).annotate({
-  identifier: "Project.Name",
-})
-export type Name = typeof Name.Type
-
-export interface Chat extends Schema.Schema.Type<typeof Chat> {}
-export const Chat = Schema.Struct({
-  id: ID,
-  name: Name,
-  directory: AbsolutePath,
-  time: Schema.Struct({
-    created: DateTimeUtcFromMillis,
-    updated: DateTimeUtcFromMillis,
-  }),
-}).annotate({ identifier: "Project.Chat" })
-
-export const CreateInput = Schema.Struct({
-  name: Name,
-}).annotate({ identifier: "Project.CreateInput" })
-export type CreateInput = typeof CreateInput.Type
-
 const Updated = define({ type: "project.updated", schema: Info.fields })
-const ChatCreated = define({ type: "project.chat.created", schema: Chat.fields })
-export const Event = { Updated, ChatCreated, Definitions: inventory(Updated, ChatCreated) }
+export const Event = { Updated, Definitions: inventory(Updated) }

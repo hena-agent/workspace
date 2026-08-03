@@ -1,0 +1,120 @@
+name: pr-brief
+
+# Publishes a "review companion" page for large PRs so reviewers can understand
+# the change without reading the diff. Runs automatically when a PR is opened or
+# marked ready for review; adding the `pr-brief` label re-runs it on demand.
+on:
+  pull_request:
+    types: [opened, ready_for_review, labeled]
+
+# A called (reusable) workflow cannot exceed the caller's token scopes, and this
+# repo's default workflow permission is read-only. The reusable workflow needs
+# pull-requests/issues write, so grant those scopes explicitly at the caller.
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+# github.ref is refs/pull/<n>/merge here, so this is scoped per-PR and never
+# cancels another PR. Re-labelling supersedes an in-flight brief for the same PR.
+concurrency:
+  group: pr-brief-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Gates the (expensive) model run so it only fires for PRs big enough to be
+  # worth summarizing. Fork PRs are excluded unconditionally because
+  # OPENCODE_AUTH_JSON is not exposed to them and the run would hard-fail.
+  # An explicit `pr-brief` label is a deliberate human request, so it also works
+  # on drafts; the automatic triggers do not. GitHub fires `labeled` once per
+  # label, so re-running means removing the label and adding it again.
+  gate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        (github.event.action == 'labeled' && github.event.label.name == 'pr-brief') ||
+        (github.event.action != 'labeled' && github.event.pull_request.draft == false)
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      large: ${{ steps.size.outputs.large }}
+    steps:
+      # The webhook payload also carries additions/deletions, but GitHub computes
+      # the diff asynchronously and can deliver 0 for a freshly opened PR, so
+      # read the counts back from the API instead.
+      - name: Measure diff size
+        id: size
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          changed=$(gh api "repos/$REPO/pulls/$PR" --jq '.additions + .deletions')
+          echo "PR #$PR changes $changed lines (threshold 150)"
+          # Written as if/else because `[ ... ] && x=true` aborts under `set -e`
+          # when the test is false.
+          if [ "$changed" -ge 150 ]; then
+            echo "large=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "large=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  brief:
+    needs: gate
+    if: needs.gate.outputs.large == 'true'
+    uses: ./.github/workflows/_opencode.yml
+    with:
+      model: anthropic/claude-opus-5
+      variant: max
+      # Posts as hena-claude-reviewer[bot], the same identity as pr-review.yml.
+      app-client-id: ${{ vars.CLAUDE_REVIEWER_CLIENT_ID }}
+      # `tmp/` in step 2 is load-bearing: `opencode github run` commits and
+      # pushes any dirty worktree onto the PR branch once the agent finishes, and
+      # `tmp` is git-ignored (see .gitignore) so the page never lands in the PR.
+      # Dropping that ignore rule would silently start committing HTML.
+      prompt: |
+        Produce a review companion page for this pull request so a reviewer can grasp the
+        change without reading the diff themselves.
+
+        1. Read the full diff first with `gh pr diff ${{ github.event.pull_request.number }}`,
+           plus whatever surrounding source files you need to understand intent. If it is
+           too large to read at once, walk it file by file. Never speculate about code you
+           have not read.
+
+        2. Write a self-contained `index.html` into `tmp/pr-brief/` relative to the repo
+           root, inlining CSS and JS; if you must split them out, keep every file in that
+           directory. Do NOT create or modify files anywhere else in the repository, and do
+           not run installers, formatters, or code generators: any change to a tracked file
+           is automatically committed and pushed to this PR branch after you finish. `tmp/`
+           is git-ignored, which is the only reason it is safe to write there.
+
+        3. Budget the whole page for a 2-3 minute read: 400 words of prose maximum, at
+           most four sections, at most two diagrams. Treat that as a hard cap, not a
+           target — anyone who wants full detail will read the diff instead, and a long
+           page defeats the point. Open with a 2-3 line plain-language summary of what the
+           PR does and why, then add only what genuinely speeds up review: a map of the
+           changed files ranked by how much attention each needs, a before/after diagram of
+           whatever structure changed, and call-outs for parts that are risky or easy to
+           miss. Drop any of those that earns nothing on this particular PR rather than
+           filling it in for completeness. Prefer one compact table or diagram over
+           paragraphs, never make the same point twice in both prose and a diagram, and cut
+           anything a reviewer could infer from the file names alone. Draw diagrams as
+           inline SVG or with Mermaid from a CDN. Explain behaviour and intent, not
+           line-by-line code.
+
+        4. Publish with the BrewPage API documented at https://brewpage.app/llms.txt. Send
+           a `User-Agent` header on every request. Always pass `ns=hena-pr-brief` and
+           `ttl=30`: this repository is private, and omitting `ns` would publish the page
+           to BrewPage's public gallery and sitemap. Use `POST /api/html` for a single
+           file, or `POST /api/sites` if you split into several.
+
+        5. Your final response is posted verbatim as a single top-level PR comment. Keep it
+           to the BrewPage link plus the same 2-3 line summary. Do not paste the page
+           contents, do not post the comment yourself, and do not add disclaimers.
+    secrets:
+      app-private-key: ${{ secrets.CLAUDE_REVIEWER_PRIVATE_KEY }}
+      opencode-auth-json: ${{ secrets.OPENCODE_AUTH_JSON }}

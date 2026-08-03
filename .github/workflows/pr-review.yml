@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 # Same-repo PRs only (OPENCODE_AUTH_JSON is not exposed to fork PRs).
-# Each reviewer runs via the shared _opencode-review.yml reusable workflow and
+# Each reviewer runs via the shared _opencode.yml reusable workflow and
 # posts under its own GitHub App identity:
 #   gpt-review    -> disabled, see the job below
 #   claude-review -> hena-claude-reviewer[bot]
@@ -30,25 +30,31 @@ jobs:
     # re-enable, flip this to `if: true` and register
     # GPT_REVIEWER_CLIENT_ID (var) + GPT_REVIEWER_PRIVATE_KEY (secret).
     if: ${{ false }}
-    uses: ./.github/workflows/_opencode-review.yml
+    uses: ./.github/workflows/_opencode.yml
     with:
       model: openai/gpt-5.6-sol
       variant: high
       app-client-id: ${{ vars.GPT_REVIEWER_CLIENT_ID }}
       prompt: |
         Use the `thermo-nuclear-code-quality-review` skill to review it.
+
+        Leave detailed findings as line-level comments on the PR diff.
+        The final response is posted automatically as one top-level PR comment.
     secrets:
       app-private-key: ${{ secrets.GPT_REVIEWER_PRIVATE_KEY }}
       opencode-auth-json: ${{ secrets.OPENCODE_AUTH_JSON }}
 
   claude-review:
-    uses: ./.github/workflows/_opencode-review.yml
+    uses: ./.github/workflows/_opencode.yml
     with:
       model: anthropic/claude-opus-5
       variant: max
       app-client-id: ${{ vars.CLAUDE_REVIEWER_CLIENT_ID }}
       prompt: |
         Use the `thermo-nuclear-code-quality-review` skill to review it.
+
+        Leave detailed findings as line-level comments on the PR diff.
+        The final response is posted automatically as one top-level PR comment.
     secrets:
       app-private-key: ${{ secrets.CLAUDE_REVIEWER_PRIVATE_KEY }}
       opencode-auth-json: ${{ secrets.OPENCODE_AUTH_JSON }}

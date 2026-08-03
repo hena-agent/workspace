@@ -15,6 +15,7 @@ import eventSourcedSessionInputMigration from "@hena/core/database/migration/202
 import contextEpochAgentMigration from "@hena/core/database/migration/20260605042240_add_context_epoch_agent"
 import simplifyIntegrationCredentialsMigration from "@hena/core/database/migration/20260611192811_lush_chimera"
 import simplifySessionInputMigration from "@hena/core/database/migration/20260622202450_simplify_session_input"
+import folderlessProjectMigration from "@hena/core/database/migration/20260728080827_folderless-project"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { EventV2 } from "@hena/core/event"
@@ -152,6 +153,54 @@ describe("DatabaseMigration", () => {
         expect(yield* db.get(sql`SELECT connector_id, method_id, active FROM credential WHERE id = 'current'`)).toEqual(
           { connector_id: null, method_id: null, active: null },
         )
+      }),
+    )
+  })
+
+  test("preserves project dependents when making project worktrees nullable", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* db.run(
+          sql`CREATE TABLE project (id text PRIMARY KEY, worktree text NOT NULL, vcs text, name text, icon_url text, icon_url_override text, icon_color text, time_created integer NOT NULL, time_updated integer NOT NULL, time_initialized integer, sandboxes text NOT NULL, commands text)`,
+        )
+        yield* db.run(
+          sql`CREATE TABLE session (id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id) ON DELETE CASCADE)`,
+        )
+        yield* db.run(
+          sql`CREATE TABLE message (id text PRIMARY KEY, session_id text NOT NULL REFERENCES session(id) ON DELETE CASCADE)`,
+        )
+        yield* db.run(
+          sql`CREATE TABLE part (id text PRIMARY KEY, message_id text NOT NULL REFERENCES message(id) ON DELETE CASCADE)`,
+        )
+        yield* db.run(
+          sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('project', '/project', 1, 2, '[]')`,
+        )
+        yield* db.run(sql`INSERT INTO session (id, project_id) VALUES ('session', 'project')`)
+        yield* db.run(sql`INSERT INTO message (id, session_id) VALUES ('message', 'session')`)
+        yield* db.run(sql`INSERT INTO part (id, message_id) VALUES ('part', 'message')`)
+
+        yield* DatabaseMigration.applyOnly(db, [folderlessProjectMigration])
+
+        expect(yield* db.all(sql`SELECT id, worktree FROM project`)).toEqual([{ id: "project", worktree: "/project" }])
+        expect(yield* db.all(sql`SELECT id, project_id FROM session`)).toEqual([
+          { id: "session", project_id: "project" },
+        ])
+        expect(yield* db.all(sql`SELECT id, session_id FROM message`)).toEqual([
+          { id: "message", session_id: "session" },
+        ])
+        expect(yield* db.all(sql`SELECT id, message_id FROM part`)).toEqual([{ id: "part", message_id: "message" }])
+        expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
+        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
+
+        yield* db.run(
+          sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('folderless', NULL, 3, 3, '[]')`,
+        )
+        expect(yield* db.all(sql`SELECT id, worktree FROM project ORDER BY id`)).toEqual([
+          { id: "folderless", worktree: null },
+          { id: "project", worktree: "/project" },
+        ])
       }),
     )
   })

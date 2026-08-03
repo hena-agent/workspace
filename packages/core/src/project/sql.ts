@@ -5,7 +5,7 @@ import { ProjectSchema } from "./schema"
 
 export const ProjectTable = sqliteTable("project", {
   id: text().$type<ProjectSchema.ID>().primaryKey(),
-  worktree: DatabasePath.absoluteColumn().notNull(),
+  worktree: DatabasePath.absoluteColumn(),
   vcs: text(),
   name: text(),
   icon_url: text(),

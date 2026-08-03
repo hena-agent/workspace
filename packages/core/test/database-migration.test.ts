@@ -165,6 +165,9 @@ describe("DatabaseMigration", () => {
         yield* db.run(
           sql`CREATE TABLE project (id text PRIMARY KEY, worktree text NOT NULL, vcs text, name text, icon_url text, icon_url_override text, icon_color text, time_created integer NOT NULL, time_updated integer NOT NULL, time_initialized integer, sandboxes text NOT NULL, commands text)`,
         )
+        const shapeBefore = yield* db.all<{ name: string; notnull: number }>(
+          sql`SELECT * FROM pragma_table_info('project')`,
+        )
         yield* db.run(
           sql`CREATE TABLE session (id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id) ON DELETE CASCADE)`,
         )
@@ -175,7 +178,7 @@ describe("DatabaseMigration", () => {
           sql`CREATE TABLE part (id text PRIMARY KEY, message_id text NOT NULL REFERENCES message(id) ON DELETE CASCADE)`,
         )
         yield* db.run(
-          sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('project', '/project', 1, 2, '[]')`,
+          sql`INSERT INTO project VALUES ('project', '/project', 'git', 'Name', 'u', 'o', '#fff', 1, 2, 3, '[]', '{"start":"bun dev"}')`,
         )
         yield* db.run(sql`INSERT INTO session (id, project_id) VALUES ('session', 'project')`)
         yield* db.run(sql`INSERT INTO message (id, session_id) VALUES ('message', 'session')`)
@@ -183,7 +186,25 @@ describe("DatabaseMigration", () => {
 
         yield* DatabaseMigration.applyOnly(db, [folderlessProjectMigration])
 
-        expect(yield* db.all(sql`SELECT id, worktree FROM project`)).toEqual([{ id: "project", worktree: "/project" }])
+        expect(yield* db.all(sql`SELECT * FROM project`)).toEqual([
+          {
+            id: "project",
+            worktree: "/project",
+            vcs: "git",
+            name: "Name",
+            icon_url: "u",
+            icon_url_override: "o",
+            icon_color: "#fff",
+            time_created: 1,
+            time_updated: 2,
+            time_initialized: 3,
+            sandboxes: "[]",
+            commands: '{"start":"bun dev"}',
+          },
+        ])
+        expect(yield* db.all(sql`SELECT * FROM pragma_table_info('project')`)).toEqual(
+          shapeBefore.map((column) => (column.name === "worktree" ? { ...column, notnull: 0 } : column)),
+        )
         expect(yield* db.all(sql`SELECT id, project_id FROM session`)).toEqual([
           { id: "session", project_id: "project" },
         ])

@@ -677,22 +677,37 @@ describe("Project.setInitialized", () => {
 })
 
 describe("Project.addSandbox and Project.removeSandbox", () => {
-  it.live("addSandbox adds directory and removeSandbox removes it", () =>
+  it.live("adds, removes, and prunes sandboxes without reordering", () =>
     Effect.gen(function* () {
       const project = yield* Project.Service
       const tmp = yield* tmpdirScoped({ git: true })
       const result = yield* project.fromDirectory(tmp)
-      const sandboxDir = path.join(tmp, "sandbox-test")
+      const sandboxes = ["second", "missing", "first"].map((name) => path.join(tmp, name))
+      yield* Effect.promise(() => $`mkdir -p ${sandboxes[0]} ${sandboxes[2]}`.quiet())
+      yield* Effect.forEach(sandboxes, (sandbox) => project.addSandbox(result.project.id, sandbox))
+      yield* project.addSandbox(result.project.id, sandboxes[0])
+      const kept = [sandboxes[0], sandboxes[2]]
 
-      yield* project.addSandbox(result.project.id, sandboxDir)
+      expect(yield* project.sandboxes(result.project.id)).toEqual(kept)
+      expect((yield* project.fromDirectory(tmp)).project.sandboxes).toEqual(kept)
+      yield* project.removeSandbox(result.project.id, kept[1])
+      expect((yield* project.get(result.project.id))?.sandboxes).toEqual([kept[0]])
+    }),
+  )
 
-      let found = yield* project.get(result.project.id)
-      expect(found?.sandboxes).toContain(sandboxDir)
+  it.live("addSandbox only mutates the target project", () =>
+    Effect.gen(function* () {
+      const project = yield* Project.Service
+      const tmpA = yield* tmpdirScoped({ git: true })
+      const tmpB = yield* tmpdirScoped({ git: true })
+      const resultA = yield* project.fromDirectory(tmpA)
+      const resultB = yield* project.fromDirectory(tmpB)
+      const sandboxDir = path.join(tmpB, "sandbox-scope")
 
-      yield* project.removeSandbox(result.project.id, sandboxDir)
+      yield* project.addSandbox(resultB.project.id, sandboxDir)
 
-      found = yield* project.get(result.project.id)
-      expect(found?.sandboxes).not.toContain(sandboxDir)
+      expect((yield* project.get(resultB.project.id))?.sandboxes).toContain(sandboxDir)
+      expect((yield* project.get(resultA.project.id))?.sandboxes).not.toContain(sandboxDir)
     }),
   )
 
@@ -711,6 +726,41 @@ describe("Project.addSandbox and Project.removeSandbox", () => {
       yield* project.addSandbox(result.project.id, sandboxDir)
 
       expect(events.some((e) => e.payload.type === Project.Event.Updated.type)).toBe(true)
+    }),
+  )
+})
+
+describe("Project folderless rows", () => {
+  it.live("are hidden from reads and refused by writes", () =>
+    Effect.gen(function* () {
+      const project = yield* Project.Service
+      const { db } = yield* Database.Service
+      const tmp = yield* tmpdirScoped({ git: true })
+      const result = yield* project.fromDirectory(tmp)
+      const sandbox = path.join(tmp, "sandbox")
+      yield* Effect.promise(() => $`mkdir -p ${sandbox}`.quiet())
+      yield* project.addSandbox(result.project.id, sandbox)
+      yield* db
+        .update(ProjectTable)
+        .set({ worktree: null })
+        .where(eq(ProjectTable.id, result.project.id))
+        .run()
+        .pipe(Effect.orDie)
+      const before = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()
+
+      expect(yield* project.list()).toEqual([])
+      expect(yield* project.get(result.project.id)).toBeUndefined()
+      expect(yield* project.sandboxes(result.project.id)).toEqual([])
+      yield* project.setInitialized(result.project.id)
+      expect((yield* Effect.flip(project.update({ projectID: result.project.id, name: "x" })))._tag).toBe(
+        "Project.NotFoundError",
+      )
+      expect((yield* Effect.flip(project.addSandbox(result.project.id, path.join(tmp, "x"))))._tag).toBe(
+        "Project.NotFoundError",
+      )
+      expect((yield* Effect.flip(project.removeSandbox(result.project.id, sandbox)))._tag).toBe("Project.NotFoundError")
+      expect(yield* Effect.exit(project.fromDirectory(tmp))).toEqual(expect.objectContaining({ _tag: "Failure" }))
+      expect(yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()).toEqual(before)
     }),
   )
 })

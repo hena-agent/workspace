@@ -3,15 +3,12 @@ import { path } from "@hena/core/effect/app-node-platform"
 import { Global } from "@/global"
 import { InstanceStore } from "@/project/instance-store"
 import { Project } from "@/project/project"
-import { Database } from "@hena/core/database/database"
-import { eq } from "drizzle-orm"
-import { ProjectTable } from "@hena/core/project/sql"
 import type { ProjectV2 } from "@hena/core/project"
 import { Slug } from "@hena/core/util/slug"
 import { errorMessage } from "../util/error"
 import { GlobalBus } from "@/bus/global"
 import { Git } from "@/git"
-import { Effect, Layer, Path, Schema, Scope, Context } from "effect"
+import { Cause, Effect, Layer, Path, Schema, Scope, Context } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { FSUtil } from "@hena/core/fs-util"
 import { AppProcess } from "@hena/core/process"
@@ -121,7 +118,7 @@ export interface Interface {
   readonly createFromInfo: (info: Info, startCommand?: string) => Effect.Effect<void, Error>
   readonly create: (input?: CreateInput) => Effect.Effect<Info, Error>
   readonly list: () => Effect.Effect<(Omit<Info, "branch"> & { branch?: string })[], Error>
-  readonly remove: (input: RemoveInput) => Effect.Effect<boolean, Error>
+  readonly remove: (input: RemoveInput) => Effect.Effect<void, Error>
   readonly reset: (input: ResetInput) => Effect.Effect<boolean, Error>
 }
 
@@ -132,13 +129,7 @@ type GitResult = { code: number; text: string; stderr: string }
 const layer: Layer.Layer<
   Service,
   never,
-  | FSUtil.Service
-  | Path.Path
-  | AppProcess.Service
-  | Git.Service
-  | Project.Service
-  | InstanceStore.Service
-  | Database.Service
+  FSUtil.Service | Path.Path | AppProcess.Service | Git.Service | Project.Service | InstanceStore.Service
 > = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -146,7 +137,6 @@ const layer: Layer.Layer<
     const fs = yield* FSUtil.Service
     const pathSvc = yield* Path.Path
     const appProcess = yield* AppProcess.Service
-    const { db } = yield* Database.Service
     const gitSvc = yield* Git.Service
     const project = yield* Project.Service
     const store = yield* InstanceStore.Service
@@ -220,12 +210,10 @@ const layer: Layer.Layer<
         { cwd: ctx.worktree },
       )
       if (created.code !== 0) {
-        return yield* new CreateFailedError({
+        yield* new CreateFailedError({
           message: created.stderr || created.text || "Failed to create git worktree",
         })
       }
-
-      yield* project.addSandbox(ctx.project.id, info.directory).pipe(Effect.catch(() => Effect.void))
     })
 
     const boot = Effect.fnUntraced(function* (info: Info, startCommand?: string) {
@@ -249,9 +237,9 @@ const layer: Layer.Layer<
 
       const booted = yield* store.load({ directory: info.directory }).pipe(
         Effect.as(true),
-        Effect.catch((error) =>
+        Effect.catchCause((cause) =>
           Effect.gen(function* () {
-            const message = errorMessage(error)
+            const message = errorMessage(Cause.squash(cause))
             yield* Effect.logError("worktree bootstrap failed", { directory: info.directory, message })
             GlobalBus.emit("event", {
               directory: info.directory,
@@ -385,48 +373,34 @@ const layer: Layer.Layer<
       })
     }
 
-    const remove = Effect.fn("Worktree.remove")(function* (input: RemoveInput) {
-      const ctx = yield* InstanceState.context
-      if (ctx.project.vcs !== "git") {
-        return yield* new NotGitError({ message: "Worktrees are only supported for git projects" })
-      }
-
-      const directory = yield* canonical(input.directory)
-
-      // Preserve the loaded path casing for the store cache; `directory` is lowercased on Windows.
-      if (directory !== (yield* canonical(ctx.worktree))) yield* store.disposeDirectory(input.directory)
-
-      const list = yield* git(["worktree", "list", "--porcelain"], { cwd: ctx.worktree })
+    const removeGitWorktree = Effect.fnUntraced(function* (root: string, input: string, directory: string) {
+      const list = yield* git(["worktree", "list", "--porcelain"], { cwd: root })
       if (list.code !== 0) {
         return yield* new RemoveFailedError({ message: list.stderr || list.text || "Failed to read git worktrees" })
       }
 
-      const entries = parseWorktreeList(list.text)
-      const entry = yield* locateWorktree(entries, directory)
-
+      const entry = yield* locateWorktree(parseWorktreeList(list.text), directory)
       if (!entry?.path) {
-        const directoryExists = yield* fs.exists(directory).pipe(Effect.orDie)
-        if (directoryExists) {
+        if (yield* fs.exists(directory).pipe(Effect.orDie)) {
           yield* stopFsmonitor(directory)
           yield* cleanDirectory(directory)
         }
-        return true
+        return { directory: input }
       }
 
       // Git may return the original casing when a caller supplied a normalized Windows path.
       yield* store.disposeDirectory(entry.path)
       yield* stopFsmonitor(entry.path)
-      const removed = yield* git(["worktree", "remove", "--force", entry.path], { cwd: ctx.worktree })
+      const removed = yield* git(["worktree", "remove", "--force", entry.path], { cwd: root })
       if (removed.code !== 0) {
-        const next = yield* git(["worktree", "list", "--porcelain"], { cwd: ctx.worktree })
+        const next = yield* git(["worktree", "list", "--porcelain"], { cwd: root })
         if (next.code !== 0) {
           return yield* new RemoveFailedError({
             message: removed.stderr || removed.text || next.stderr || next.text || "Failed to remove git worktree",
           })
         }
 
-        const stale = yield* locateWorktree(parseWorktreeList(next.text), directory)
-        if (stale?.path) {
+        if ((yield* locateWorktree(parseWorktreeList(next.text), directory))?.path) {
           return yield* new RemoveFailedError({
             message: removed.stderr || removed.text || "Failed to remove git worktree",
           })
@@ -434,18 +408,34 @@ const layer: Layer.Layer<
       }
 
       yield* cleanDirectory(entry.path)
+      return { directory: entry.path, branch: entry.branch?.replace(/^refs\/heads\//, "") }
+    })
 
-      const branch = entry.branch?.replace(/^refs\/heads\//, "")
-      if (branch) {
-        const deleted = yield* git(["branch", "-D", branch], { cwd: ctx.worktree })
+    const remove = Effect.fn("Worktree.remove")(function* (input: RemoveInput) {
+      const ctx = yield* InstanceState.context
+      if (ctx.project.vcs !== "git") {
+        yield* new NotGitError({ message: "Worktrees are only supported for git projects" })
+      }
+
+      const directory = yield* canonical(input.directory)
+      // Preserve the loaded path casing for the store cache; `directory` is lowercased on Windows.
+      if (directory !== (yield* canonical(ctx.worktree))) yield* store.disposeDirectory(input.directory)
+
+      const removed = yield* removeGitWorktree(ctx.worktree, input.directory, directory)
+
+      // Metadata is best-effort after removal: the project row may become folderless or be deleted after boot.
+      yield* project
+        .removeSandbox(ctx.project.id, removed.directory)
+        .pipe(Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("sandbox removal failed", error)))
+
+      if (removed.branch) {
+        const deleted = yield* git(["branch", "-D", removed.branch], { cwd: ctx.worktree })
         if (deleted.code !== 0) {
-          return yield* new RemoveFailedError({
+          yield* new RemoveFailedError({
             message: deleted.stderr || deleted.text || "Failed to delete worktree branch",
           })
         }
       }
-
-      return true
     })
 
     const gitExpect = Effect.fnUntraced(function* (
@@ -462,7 +452,7 @@ const layer: Layer.Layer<
       function* (directory: string, cmd: string) {
         const [shell, args] = process.platform === "win32" ? ["cmd", ["/c", cmd]] : ["bash", ["-lc", cmd]]
         const result = yield* appProcess.run(
-          ChildProcess.make(shell, args as string[], { cwd: directory, extendEnv: true, stdin: "ignore" }),
+          ChildProcess.make(shell, args, { cwd: directory, extendEnv: true, stdin: "ignore" }),
         )
         return { code: result.exitCode, stderr: result.stderr.toString("utf8") }
       },
@@ -482,14 +472,8 @@ const layer: Layer.Layer<
       directory: string,
       input: { projectID: ProjectV2.ID; extra?: string },
     ) {
-      const row = yield* db
-        .select()
-        .from(ProjectTable)
-        .where(eq(ProjectTable.id, input.projectID))
-        .get()
-        .pipe(Effect.orDie)
-      const project = row ? Project.fromRow(row) : undefined
-      const startup = project?.commands?.start?.trim() ?? ""
+      const info = yield* project.get(input.projectID)
+      const startup = info?.commands?.start?.trim() ?? ""
       const ok = yield* runStartScript(directory, startup, "project")
       if (!ok) return false
       yield* runStartScript(directory, input.extra ?? "", "worktree")
@@ -617,7 +601,7 @@ const layer: Layer.Layer<
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [FSUtil.node, path, AppProcess.node, Git.node, Project.node, InstanceStore.node, Database.node],
+  deps: [FSUtil.node, path, AppProcess.node, Git.node, Project.node, InstanceStore.node],
 })
 
 export * as Worktree from "."

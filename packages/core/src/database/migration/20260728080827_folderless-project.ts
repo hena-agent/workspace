@@ -3,7 +3,6 @@ import type { DatabaseMigration } from "../migration"
 
 export default {
   id: "20260728080827_folderless-project",
-  disableForeignKeys: true,
   up(tx) {
     return Effect.gen(function* () {
       yield* tx.run(`
@@ -25,6 +24,9 @@ export default {
       yield* tx.run(
         `INSERT INTO \`__new_project\`(\`id\`, \`worktree\`, \`vcs\`, \`name\`, \`icon_url\`, \`icon_url_override\`, \`icon_color\`, \`time_created\`, \`time_updated\`, \`time_initialized\`, \`sandboxes\`, \`commands\`) SELECT \`id\`, \`worktree\`, \`vcs\`, \`name\`, \`icon_url\`, \`icon_url_override\`, \`icon_color\`, \`time_created\`, \`time_updated\`, \`time_initialized\`, \`sandboxes\`, \`commands\` FROM \`project\`;`,
       )
+      // Safe only because applyOnly wraps pending migrations with
+      // PRAGMA foreign_keys = OFF. With enforcement on, the ON DELETE
+      // CASCADE children of project would also be deleted.
       yield* tx.run(`DROP TABLE \`project\`;`)
       yield* tx.run(`ALTER TABLE \`__new_project\` RENAME TO \`project\`;`)
     })

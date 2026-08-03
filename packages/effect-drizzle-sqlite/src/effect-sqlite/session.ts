@@ -108,7 +108,9 @@ export class EffectSQLiteSession<TRelations extends AnyRelations> extends SQLite
   }
 
   private isInTransaction() {
-    return Effect.serviceOption(this.client.transactionService).pipe(Effect.map((option) => option._tag === "Some"))
+    return Effect.serviceOption(this.client.transactionService).pipe(
+      Effect.map((option) => option._tag === "Some" && option.value[1] >= 0),
+    )
   }
 
   private executeTransactionStatement(connection: Effect.Success<SqlClient["reserve"]>, query: string) {

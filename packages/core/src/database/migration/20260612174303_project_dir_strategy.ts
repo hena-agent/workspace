@@ -3,10 +3,10 @@ import type { DatabaseMigration } from "../migration"
 
 export default {
   id: "20260612174303_project_dir_strategy",
+  disableForeignKeys: true,
   up(tx) {
     return Effect.gen(function* () {
       yield* tx.run(`ALTER TABLE \`project_directory\` ADD \`strategy\` text;`)
-      yield* tx.run(`PRAGMA foreign_keys=OFF;`)
       yield* tx.run(`
         CREATE TABLE \`__new_project_directory\` (
           \`project_id\` text NOT NULL,
@@ -23,7 +23,6 @@ export default {
       )
       yield* tx.run(`DROP TABLE \`project_directory\`;`)
       yield* tx.run(`ALTER TABLE \`__new_project_directory\` RENAME TO \`project_directory\`;`)
-      yield* tx.run(`PRAGMA foreign_keys=ON;`)
     })
   },
 } satisfies DatabaseMigration.Migration

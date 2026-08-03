@@ -3,9 +3,9 @@ import type { DatabaseMigration } from "../migration"
 
 export default {
   id: "20260410174513_workspace-name",
+  disableForeignKeys: true,
   up(tx) {
     return Effect.gen(function* () {
-      yield* tx.run(`PRAGMA foreign_keys=OFF;`)
       yield* tx.run(`
         CREATE TABLE \`__new_workspace\` (
           \`id\` text PRIMARY KEY,
@@ -23,7 +23,6 @@ export default {
       )
       yield* tx.run(`DROP TABLE \`workspace\`;`)
       yield* tx.run(`ALTER TABLE \`__new_workspace\` RENAME TO \`workspace\`;`)
-      yield* tx.run(`PRAGMA foreign_keys=ON;`)
     })
   },
 } satisfies DatabaseMigration.Migration

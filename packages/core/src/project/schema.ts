@@ -14,3 +14,14 @@ export const Vcs = Schema.Union([
   }),
 ])
 export type Vcs = typeof Vcs.Type
+
+export const Name = Project.Name
+export type Name = Project.Name
+
+export const Chat = Project.Chat
+export type Chat = Project.Chat
+
+export const CreateInput = Project.CreateInput
+export type CreateInput = Project.CreateInput
+
+export const Event = Project.Event

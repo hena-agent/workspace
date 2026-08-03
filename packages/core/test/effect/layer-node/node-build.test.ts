@@ -77,6 +77,9 @@ describe("node build", () => {
       Effect.sync(() => {
         acquisitions++
         return Project.Service.of({
+          list: () => Effect.succeed([]),
+          isFolderless: () => Effect.succeed(false),
+          create: () => Effect.die("not implemented"),
           directories: () => Effect.succeed([]),
           resolve: (directory) => Effect.succeed({ id: Project.ID.global, directory }),
           commit: () => Effect.void,

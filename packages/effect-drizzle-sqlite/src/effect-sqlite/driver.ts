@@ -20,6 +20,11 @@ export class EffectSQLiteDatabase<TRelations extends AnyRelations = EmptyRelatio
   static override readonly [entityKind]: string = "EffectSQLiteDatabase"
 }
 
+export type EffectSQLiteDatabaseWithClient<TRelations extends AnyRelations = EmptyRelations> =
+  EffectSQLiteDatabase<TRelations> & {
+    $client: SqlClient
+  }
+
 export type EffectDrizzleSQLiteConfig<TRelations extends AnyRelations = EmptyRelations> = Omit<
   DrizzleConfig<Record<string, never>, TRelations>,
   "cache" | "logger" | "schema"
@@ -60,9 +65,7 @@ export const make = Effect.fn("SQLiteDrizzle.make")(function* <TRelations extend
     cache,
     useJitMappers: jitCompatCheck(config.jit),
   })
-  const db = new EffectSQLiteDatabase(dialect, session, relations) as EffectSQLiteDatabase<TRelations> & {
-    $client: SqlClient
-  }
+  const db = new EffectSQLiteDatabase(dialect, session, relations) as EffectSQLiteDatabaseWithClient<TRelations>
   db.$client = client
   db.$cache.invalidate = cache.onMutate
 
@@ -75,3 +78,22 @@ export const make = Effect.fn("SQLiteDrizzle.make")(function* <TRelations extend
 export const makeWithDefaults = <TRelations extends AnyRelations = EmptyRelations>(
   config: EffectDrizzleSQLiteConfig<TRelations> = {},
 ) => make(config).pipe(Effect.provide(DefaultServices))
+
+const reservedConnectionDepth = -1
+
+/** Runs database operations on one reserved connection without opening a transaction. */
+export function withReservedConnection<A, E, R>(db: EffectSQLiteDatabaseWithClient, effect: Effect.Effect<A, E, R>) {
+  return Effect.scoped(
+    Effect.gen(function* () {
+      const current = yield* Effect.serviceOption(db.$client.transactionService)
+      if (current._tag === "Some") {
+        return yield* Effect.die(new Error("withReservedConnection cannot be nested"))
+      }
+      const connection = yield* db.$client.reserve
+      return yield* Effect.provideService(effect, db.$client.transactionService, [
+        connection,
+        reservedConnectionDepth,
+      ] as const)
+    }),
+  )
+}

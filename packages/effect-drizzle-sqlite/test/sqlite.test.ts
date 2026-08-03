@@ -99,6 +99,40 @@ test("rolls back explicit transaction rollback", async () => {
   )
 })
 
+test("opens transactions on a reserved connection", async () => {
+  await run(
+    Effect.gen(function* () {
+      const db = yield* makeDb
+
+      yield* EffectDrizzleSqlite.withReservedConnection(
+        db,
+        Effect.gen(function* () {
+          yield* db.run(sql`pragma foreign_keys = off`)
+          expect(yield* db.get<{ foreign_keys: number }>(sql`pragma foreign_keys`)).toEqual({ foreign_keys: 0 })
+          yield* db.transaction((tx) => tx.insert(users).values({ name: "Reserved" }), { behavior: "immediate" })
+          expect(yield* db.get<{ foreign_keys: number }>(sql`pragma foreign_keys`)).toEqual({ foreign_keys: 0 })
+        }),
+      )
+
+      expect(yield* db.select().from(users)).toEqual([{ id: 1, name: "Reserved" }])
+    }),
+  )
+})
+
+test("rejects a reserved connection inside a transaction", async () => {
+  await run(
+    Effect.gen(function* () {
+      const db = yield* makeDb
+
+      const exit = yield* db
+        .transaction(() => EffectDrizzleSqlite.withReservedConnection(db, Effect.void))
+        .pipe(Effect.exit)
+
+      expect(exit._tag).toBe("Failure")
+    }),
+  )
+})
+
 test("preserves failed transaction begin errors", async () => {
   const dir = await mkdtemp(join(tmpdir(), "effect-drizzle-sqlite-"))
   const filename = join(dir, "locked.db")

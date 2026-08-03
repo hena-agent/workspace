@@ -4,7 +4,7 @@ import { fileURLToPath } from "url"
 import path from "path"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
 import { EffectDrizzleSqlite } from "@hena/effect-drizzle-sqlite"
-import { Deferred, Effect, Fiber, Layer } from "effect"
+import { Effect, Layer } from "effect"
 import { eq, inArray, sql } from "drizzle-orm"
 import { DatabaseMigration } from "@hena/core/database/migration"
 import { migrations } from "@hena/core/database/migration.gen"
@@ -36,6 +36,22 @@ const run = <A, E>(effect: Effect.Effect<A, E, SqlClientService>) =>
   )
 
 const makeDb = EffectDrizzleSqlite.makeWithDefaults()
+const withFileDb = <A, E>(filename: string, use: (db: Effect.Success<typeof makeDb>) => Effect.Effect<A, E>) =>
+  Effect.flatMap(makeDb, use).pipe(Effect.provide(SqliteClient.layer({ filename, disableWAL: true })), Effect.scoped)
+
+function rebuildParent(id = "rebuild-parent"): DatabaseMigration.Migration {
+  return {
+    id,
+    disableForeignKeys: true,
+    up: (tx) =>
+      Effect.gen(function* () {
+        yield* tx.run(sql`CREATE TABLE __new_parent (id text PRIMARY KEY)`)
+        yield* tx.run(sql`INSERT INTO __new_parent SELECT id FROM parent`)
+        yield* tx.run(sql`DROP TABLE parent`)
+        yield* tx.run(sql`ALTER TABLE __new_parent RENAME TO parent`)
+      }),
+  }
+}
 
 describe("DatabaseMigration", () => {
   test("serializes concurrent embedded initialization for one database path", async () => {
@@ -156,60 +172,141 @@ describe("DatabaseMigration", () => {
     )
   })
 
-  test("restores foreign keys when a migration is interrupted", async () => {
+  test("preserves dependent rows during a foreign-key-disabled table rebuild", async () => {
     await run(
       Effect.gen(function* () {
         const db = yield* makeDb
-        const started = yield* Deferred.make<void>()
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* db.run(sql`CREATE TABLE parent (id text PRIMARY KEY)`)
+        yield* db.run(
+          sql`CREATE TABLE child (id text PRIMARY KEY, parent_id text NOT NULL REFERENCES parent(id) ON DELETE CASCADE)`,
+        )
+        yield* db.run(sql`INSERT INTO parent (id) VALUES ('parent')`)
+        yield* db.run(sql`INSERT INTO child (id, parent_id) VALUES ('child', 'parent')`)
+
+        yield* DatabaseMigration.applyOnly(db, [rebuildParent()])
+
+        expect(yield* db.all(sql`SELECT id FROM parent`)).toEqual([{ id: "parent" }])
+        expect(yield* db.all(sql`SELECT id, parent_id FROM child`)).toEqual([{ id: "child", parent_id: "parent" }])
+        expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
+        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
+        expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([{ id: "rebuild-parent" }])
+      }),
+    )
+  })
+
+  test("serializes a table rebuild across independent connections", async () => {
+    await using tmp = await tmpdir()
+    const filename = path.join(tmp.path, "concurrent.sqlite")
+
+    await Effect.runPromise(
+      withFileDb(filename, (db) =>
+        Effect.gen(function* () {
+          yield* db.run(sql`PRAGMA foreign_keys = ON`)
+          yield* db.run(sql`CREATE TABLE parent (id text PRIMARY KEY)`)
+          yield* db.run(
+            sql`CREATE TABLE child (id text PRIMARY KEY, parent_id text NOT NULL REFERENCES parent(id) ON DELETE CASCADE)`,
+          )
+          yield* db.run(sql`INSERT INTO parent (id) VALUES ('parent')`)
+          yield* db.run(sql`INSERT INTO child (id, parent_id) VALUES ('child', 'parent')`)
+        }),
+      ),
+    )
+    await Effect.runPromise(
+      Effect.all(
+        [
+          withFileDb(filename, (db) =>
+            Effect.gen(function* () {
+              yield* db.run(sql`PRAGMA busy_timeout = 5000`)
+              yield* db.run(sql`PRAGMA foreign_keys = ON`)
+              yield* DatabaseMigration.applyOnly(db, [rebuildParent()])
+            }),
+          ),
+          withFileDb(filename, (db) =>
+            Effect.gen(function* () {
+              yield* db.run(sql`PRAGMA busy_timeout = 5000`)
+              yield* db.run(sql`PRAGMA foreign_keys = ON`)
+              yield* DatabaseMigration.applyOnly(db, [rebuildParent()])
+            }),
+          ),
+        ],
+        { concurrency: "unbounded" },
+      ),
+    )
+    await Effect.runPromise(
+      withFileDb(filename, (db) =>
+        Effect.gen(function* () {
+          expect(yield* db.all(sql`SELECT id, parent_id FROM child`)).toEqual([{ id: "child", parent_id: "parent" }])
+          expect(yield* db.get(sql`SELECT COUNT(*) AS count FROM migration`)).toEqual({ count: 1 })
+          expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
+        }),
+      ),
+    )
+  })
+
+  test("restores foreign keys and leaves the journal incomplete when a table rebuild fails", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* db.run(sql`CREATE TABLE parent (id text PRIMARY KEY)`)
+        yield* db.run(sql`CREATE TABLE __new_parent (id text PRIMARY KEY)`)
+
+        const exit = yield* Effect.exit(DatabaseMigration.applyOnly(db, [rebuildParent()]))
+
+        expect(exit._tag).toBe("Failure")
+        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
+        expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([])
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'parent'`)).toEqual({
+          name: "parent",
+        })
+      }),
+    )
+  })
+
+  test("restores foreign keys when a table rebuild is interrupted", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
         yield* db.run(sql`PRAGMA foreign_keys = ON`)
 
-        const fiber = yield* DatabaseMigration.applyOnly(db, [
+        const exit = yield* DatabaseMigration.applyOnly(db, [
           {
-            id: "interrupted",
-            up: (tx) =>
-              tx
-                .run(sql`CREATE TABLE rolled_back (id text)`)
-                .pipe(Effect.andThen(Deferred.succeed(started, undefined)), Effect.andThen(Effect.never)),
+            id: "interrupted-rebuild",
+            disableForeignKeys: true,
+            up: () => Effect.never,
           },
-        ]).pipe(Effect.forkChild)
-        yield* Deferred.await(started)
-        yield* Fiber.interrupt(fiber)
+        ]).pipe(Effect.timeout("10 millis"), Effect.exit)
 
+        expect(exit._tag).toBe("Failure")
         expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
-        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE name = 'rolled_back'`)).toBeUndefined()
         expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([])
       }),
     )
   })
 
-  test("rebuilds tables with foreign keys disabled", async () => {
+  test("rolls back a rebuild with foreign key violations before journaling", async () => {
     await run(
       Effect.gen(function* () {
         const db = yield* makeDb
-        yield* db.run(sql`CREATE TABLE project (id text PRIMARY KEY)`)
-        yield* db.run(
-          sql`CREATE TABLE workspace (id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id))`,
-        )
-        yield* db.run(sql`PRAGMA foreign_keys = OFF`)
-        yield* db.run(sql`INSERT INTO workspace VALUES ('workspace', 'missing')`)
         yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* db.run(sql`CREATE TABLE parent (id text PRIMARY KEY)`)
+        yield* db.run(sql`CREATE TABLE child (id text PRIMARY KEY, parent_id text REFERENCES parent(id))`)
 
-        yield* DatabaseMigration.applyOnly(db, [
-          {
-            id: "rebuild",
-            up: (tx) =>
-              Effect.gen(function* () {
-                yield* tx.run(
-                  sql`CREATE TABLE new_workspace (id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id))`,
-                )
-                yield* tx.run(sql`INSERT INTO new_workspace SELECT * FROM workspace`)
-                yield* tx.run(sql`DROP TABLE workspace`)
-                yield* tx.run(sql`ALTER TABLE new_workspace RENAME TO workspace`)
-              }),
-          },
-        ])
+        const exit = yield* Effect.exit(
+          DatabaseMigration.applyOnly(db, [
+            {
+              id: "invalid-rebuild",
+              disableForeignKeys: true,
+              up: (tx) =>
+                tx.run(sql`INSERT INTO child (id, parent_id) VALUES ('child', 'missing')`).pipe(Effect.asVoid),
+            },
+          ]),
+        )
 
-        expect(yield* db.all(sql`SELECT * FROM workspace`)).toEqual([{ id: "workspace", project_id: "missing" }])
+        expect(exit._tag).toBe("Failure")
+        expect(yield* db.all(sql`SELECT id FROM child`)).toEqual([])
+        expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([])
         expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
       }),
     )

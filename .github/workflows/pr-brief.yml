@@ -92,13 +92,19 @@ jobs:
            is automatically committed and pushed to this PR branch after you finish. `tmp/`
            is git-ignored, which is the only reason it is safe to write there.
 
-        3. Open the page with a 2-3 line plain-language summary of what the PR does and
-           why. Below that, include whatever makes the change fast to review: a map of
-           changed files ranked by how much reviewer attention each needs, before/after
-           architecture or data-flow diagrams, sequence or state diagrams for behavioural
-           changes, and explicit call-outs for risky or easy-to-miss parts. Draw diagrams
-           as inline SVG or with Mermaid from a CDN. Explain behaviour and intent, not
-           line-by-line code. Keep it skimmable.
+        3. Budget the whole page for a 2-3 minute read: 400 words of prose maximum, at
+           most four sections, at most two diagrams. Treat that as a hard cap, not a
+           target — anyone who wants full detail will read the diff instead, and a long
+           page defeats the point. Open with a 2-3 line plain-language summary of what the
+           PR does and why, then add only what genuinely speeds up review: a map of the
+           changed files ranked by how much attention each needs, a before/after diagram of
+           whatever structure changed, and call-outs for parts that are risky or easy to
+           miss. Drop any of those that earns nothing on this particular PR rather than
+           filling it in for completeness. Prefer one compact table or diagram over
+           paragraphs, never make the same point twice in both prose and a diagram, and cut
+           anything a reviewer could infer from the file names alone. Draw diagrams as
+           inline SVG or with Mermaid from a CDN. Explain behaviour and intent, not
+           line-by-line code.
 
         4. Publish with the BrewPage API documented at https://brewpage.app/llms.txt. Send
            a `User-Agent` header on every request. Always pass `ns=hena-pr-brief` and

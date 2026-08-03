@@ -3,6 +3,7 @@ import type { DatabaseMigration } from "../migration"
 
 export default {
   id: "20260604172448_event_sourced_session_input",
+  disableForeignKeys: true,
   up(tx) {
     return Effect.gen(function* () {
       yield* tx.run(`DELETE FROM \`session_input\`;`)
@@ -17,7 +18,6 @@ export default {
       yield* tx.run(
         `CREATE UNIQUE INDEX \`session_message_session_seq_idx\` ON \`session_message\` (\`session_id\`,\`seq\`);`,
       )
-      yield* tx.run(`PRAGMA foreign_keys=OFF;`)
       yield* tx.run(`
         CREATE TABLE \`__new_session_input\` (
           \`id\` text PRIMARY KEY,
@@ -32,7 +32,6 @@ export default {
       `)
       yield* tx.run(`DROP TABLE \`session_input\`;`)
       yield* tx.run(`ALTER TABLE \`__new_session_input\` RENAME TO \`session_input\`;`)
-      yield* tx.run(`PRAGMA foreign_keys=ON;`)
       yield* tx.run(
         `CREATE INDEX \`session_input_session_pending_delivery_seq_idx\` ON \`session_input\` (\`session_id\`,\`promoted_seq\`,\`delivery\`,\`admitted_seq\`);`,
       )

@@ -6,7 +6,6 @@ import os from "os"
 import path from "path"
 import { pathToFileURL } from "url"
 import { parseArgs } from "util"
-import { renderMigration, renderSchema } from "./migration-render"
 
 const root = path.resolve(import.meta.dirname, "../../..")
 const snapshot = path.join(root, "packages/core/schema.json")
@@ -123,6 +122,54 @@ async function typescriptMigrations() {
   return (await Array.fromAsync(new Bun.Glob("*.ts").scan({ cwd: tsDir })))
     .map((file) => path.basename(file, ".ts"))
     .sort()
+}
+
+function renderMigration(name: string, sql: string) {
+  return `import { Effect } from "effect"
+import type { DatabaseMigration } from "../migration"
+
+export default {
+  id: ${JSON.stringify(name)},
+  up(tx) {
+    return Effect.gen(function* () {
+${renderStatements(sql)}
+    })
+  },
+} satisfies DatabaseMigration.Migration
+`
+}
+
+function renderSchema(sql: string) {
+  return `import { Effect } from "effect"
+import type { DatabaseMigration } from "./migration"
+
+export default {
+  up(tx) {
+    return Effect.gen(function* () {
+${renderStatements(sql)}
+    })
+  },
+} satisfies Omit<DatabaseMigration.Migration, "id">
+`
+}
+
+function renderStatements(sql: string) {
+  return sql
+    .split("--> statement-breakpoint")
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0)
+    .map(renderRun)
+    .join("\n")
+}
+
+function renderRun(statement: string) {
+  const lines = statement.replaceAll("\t", "  ").split("\n")
+  if (lines.length === 1) return `      yield* tx.run(\`${escapeTemplate(lines[0])}\`)`
+  return `      yield* tx.run(\`\n${lines.map((line) => `        ${escapeTemplate(line)}`).join("\n")}\n      \`)`
+}
+
+function escapeTemplate(line: string) {
+  return line.replaceAll("\\", "\\\\").replaceAll("`", "\\`").replaceAll("${", "\\${")
 }
 
 async function formatTypescript(input: string) {

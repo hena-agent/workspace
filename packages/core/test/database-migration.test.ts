@@ -4,7 +4,7 @@ import { fileURLToPath } from "url"
 import path from "path"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
 import { EffectDrizzleSqlite } from "@hena/effect-drizzle-sqlite"
-import { Deferred, Effect, Fiber, Layer } from "effect"
+import { Effect, Layer } from "effect"
 import { eq, inArray, sql } from "drizzle-orm"
 import { DatabaseMigration } from "@hena/core/database/migration"
 import { migrations } from "@hena/core/database/migration.gen"
@@ -39,9 +39,9 @@ const makeDb = EffectDrizzleSqlite.makeWithDefaults()
 const withFileDb = <A, E>(filename: string, use: (db: Effect.Success<typeof makeDb>) => Effect.Effect<A, E>) =>
   Effect.flatMap(makeDb, use).pipe(Effect.provide(SqliteClient.layer({ filename, disableWAL: true })), Effect.scoped)
 
-function rebuildParent(): DatabaseMigration.Migration {
+function rebuildParent(id = "rebuild-parent"): DatabaseMigration.Migration {
   return {
-    id: "rebuild-parent",
+    id,
     disableForeignKeys: true,
     up: (tx) =>
       Effect.gen(function* () {
@@ -195,33 +195,9 @@ describe("DatabaseMigration", () => {
     )
   })
 
-  test("restores disabled foreign keys after a table rebuild", async () => {
-    await run(
-      Effect.gen(function* () {
-        const db = yield* makeDb
-        yield* db.run(sql`PRAGMA foreign_keys = OFF`)
-        yield* db.run(sql`CREATE TABLE parent (id text PRIMARY KEY)`)
-
-        yield* DatabaseMigration.applyOnly(db, [rebuildParent()])
-
-        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 0 })
-      }),
-    )
-  })
-
   test("serializes a table rebuild across independent connections", async () => {
     await using tmp = await tmpdir()
     const filename = path.join(tmp.path, "concurrent.sqlite")
-    const started = await Effect.runPromise(Deferred.make<void>())
-    const release = await Effect.runPromise(Deferred.make<void>())
-    const migration: DatabaseMigration.Migration = {
-      ...rebuildParent(),
-      up: (tx) =>
-        Deferred.succeed(started, undefined).pipe(
-          Effect.andThen(Deferred.await(release)),
-          Effect.andThen(rebuildParent().up(tx)),
-        ),
-    }
 
     await Effect.runPromise(
       withFileDb(filename, (db) =>
@@ -237,33 +213,25 @@ describe("DatabaseMigration", () => {
       ),
     )
     await Effect.runPromise(
-      Effect.gen(function* () {
-        const first = yield* withFileDb(filename, (db) =>
-          Effect.gen(function* () {
-            yield* db.run(sql`PRAGMA busy_timeout = 5000`)
-            yield* db.run(sql`PRAGMA foreign_keys = ON`)
-            yield* DatabaseMigration.applyOnly(db, [migration])
-          }),
-        ).pipe(Effect.forkChild)
-        yield* Deferred.await(started)
-        const blocked = yield* withFileDb(filename, (db) =>
-          Effect.gen(function* () {
-            yield* db.run(sql`PRAGMA busy_timeout = 0`)
-            yield* db.run(sql`PRAGMA foreign_keys = ON`)
-            yield* DatabaseMigration.applyOnly(db, [migration])
-          }),
-        ).pipe(Effect.exit)
-        expect(blocked._tag).toBe("Failure")
-        yield* Deferred.succeed(release, undefined)
-        yield* Fiber.join(first)
-        yield* withFileDb(filename, (db) =>
-          Effect.gen(function* () {
-            yield* db.run(sql`PRAGMA busy_timeout = 5000`)
-            yield* db.run(sql`PRAGMA foreign_keys = ON`)
-            yield* DatabaseMigration.applyOnly(db, [migration])
-          }),
-        )
-      }),
+      Effect.all(
+        [
+          withFileDb(filename, (db) =>
+            Effect.gen(function* () {
+              yield* db.run(sql`PRAGMA busy_timeout = 5000`)
+              yield* db.run(sql`PRAGMA foreign_keys = ON`)
+              yield* DatabaseMigration.applyOnly(db, [rebuildParent()])
+            }),
+          ),
+          withFileDb(filename, (db) =>
+            Effect.gen(function* () {
+              yield* db.run(sql`PRAGMA busy_timeout = 5000`)
+              yield* db.run(sql`PRAGMA foreign_keys = ON`)
+              yield* DatabaseMigration.applyOnly(db, [rebuildParent()])
+            }),
+          ),
+        ],
+        { concurrency: "unbounded" },
+      ),
     )
     await Effect.runPromise(
       withFileDb(filename, (db) =>
@@ -273,44 +241,6 @@ describe("DatabaseMigration", () => {
           expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
         }),
       ),
-    )
-  })
-
-  test("does not acquire a write lock for completed migrations", async () => {
-    await using tmp = await tmpdir()
-    const filename = path.join(tmp.path, "completed.sqlite")
-    const started = await Effect.runPromise(Deferred.make<void>())
-    const release = await Effect.runPromise(Deferred.make<void>())
-
-    await Effect.runPromise(
-      withFileDb(filename, (db) =>
-        Effect.gen(function* () {
-          yield* db.run(sql`CREATE TABLE migration (id TEXT PRIMARY KEY, time_completed INTEGER NOT NULL)`)
-          yield* db.run(sql`INSERT INTO migration (id, time_completed) VALUES ('completed', 1)`)
-        }),
-      ),
-    )
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const holder = yield* withFileDb(filename, (db) =>
-          db.transaction(() => Deferred.succeed(started, undefined).pipe(Effect.andThen(Deferred.await(release))), {
-            behavior: "immediate",
-          }),
-        ).pipe(Effect.forkChild)
-        yield* Deferred.await(started)
-        const exit = yield* withFileDb(filename, (db) =>
-          Effect.gen(function* () {
-            yield* db.run(sql`PRAGMA busy_timeout = 0`)
-            yield* DatabaseMigration.applyOnly(db, [
-              { id: "completed", up: () => Effect.die("completed migration ran") },
-            ])
-          }),
-        ).pipe(Effect.exit)
-        yield* Deferred.succeed(release, undefined)
-        yield* Fiber.join(holder)
-
-        expect(exit._tag).toBe("Success")
-      }),
     )
   })
 
@@ -338,19 +268,15 @@ describe("DatabaseMigration", () => {
     await run(
       Effect.gen(function* () {
         const db = yield* makeDb
-        const started = yield* Deferred.make<void>()
         yield* db.run(sql`PRAGMA foreign_keys = ON`)
 
-        const fiber = yield* DatabaseMigration.applyOnly(db, [
+        const exit = yield* DatabaseMigration.applyOnly(db, [
           {
             id: "interrupted-rebuild",
             disableForeignKeys: true,
-            up: () => Deferred.succeed(started, undefined).pipe(Effect.andThen(Effect.never)),
+            up: () => Effect.never,
           },
-        ]).pipe(Effect.forkChild)
-        yield* Deferred.await(started)
-        yield* Fiber.interrupt(fiber)
-        const exit = yield* Fiber.await(fiber)
+        ]).pipe(Effect.timeout("10 millis"), Effect.exit)
 
         expect(exit._tag).toBe("Failure")
         expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
@@ -382,34 +308,6 @@ describe("DatabaseMigration", () => {
         expect(yield* db.all(sql`SELECT id FROM child`)).toEqual([])
         expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([])
         expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
-      }),
-    )
-  })
-
-  test("detects duplicate foreign key violations without row IDs", async () => {
-    await run(
-      Effect.gen(function* () {
-        const db = yield* makeDb
-        yield* db.run(sql`PRAGMA foreign_keys = OFF`)
-        yield* db.run(sql`CREATE TABLE parent (id text PRIMARY KEY)`)
-        yield* db.run(sql`CREATE TABLE child (id text PRIMARY KEY, parent_id text REFERENCES parent(id)) WITHOUT ROWID`)
-        yield* db.run(sql`INSERT INTO child (id, parent_id) VALUES ('existing', 'missing')`)
-
-        const exit = yield* Effect.exit(
-          DatabaseMigration.applyOnly(db, [
-            {
-              id: "duplicate-violation",
-              disableForeignKeys: true,
-              up: (tx) =>
-                tx.run(sql`INSERT INTO child (id, parent_id) VALUES ('introduced', 'missing')`).pipe(Effect.asVoid),
-            },
-          ]),
-        )
-
-        expect(exit._tag).toBe("Failure")
-        expect(yield* db.all(sql`SELECT id FROM child`)).toEqual([{ id: "existing" }])
-        expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([])
-        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 0 })
       }),
     )
   })

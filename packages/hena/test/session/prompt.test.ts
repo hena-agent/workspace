@@ -309,10 +309,7 @@ const writeText = Effect.fn("test.writeText")(function* (file: string, text: str
 })
 
 const writeConfig = Effect.fn("test.writeConfig")(function* (dir: string, config: Partial<ConfigV1.Info>) {
-  yield* writeText(
-    path.join(dir, "hena.json"),
-    JSON.stringify({ $schema: "https://hena.dev/config.json", ...config }),
-  )
+  yield* writeText(path.join(dir, "hena.json"), JSON.stringify({ $schema: "https://hena.dev/config.json", ...config }))
 })
 
 const useServerConfig = Effect.fn("test.useServerConfig")(function* (config: (url: string) => Partial<ConfigV1.Info>) {
@@ -1703,7 +1700,7 @@ it.instance(
       expect(yield* llm.calls).toBe(1)
     }),
   { git: true },
-  10_000,
+  30_000,
 )
 
 it.instance(

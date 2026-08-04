@@ -16,7 +16,7 @@ Options:
       --mdns         enable mDNS service discovery (defaults hostname to 0.0.0.0)
                                                                           [boolean] [default: false]
       --mdns-domain  custom domain name for mDNS service (default: hena.local)
-                                                              [string] [default: "hena.local"]
+                                                                    [string] [default: "hena.local"]
       --cors         additional domains to allow for CORS                      [array] [default: []]
       --cwd          working directory [string] [default: "<HOME>"]"
 `;
@@ -28,7 +28,7 @@ manage MCP (Model Context Protocol) servers
 
 Commands:
   hena mcp add [name]     add an MCP server
-  hena mcp list           list MCP servers and their status                        [aliases: ls]
+  hena mcp list           list MCP servers and their status                            [aliases: ls]
   hena mcp auth [name]    authenticate with an OAuth-enabled MCP server
   hena mcp logout [name]  remove OAuth credentials for an MCP server
   hena mcp debug <name>   debug OAuth connection for an MCP server
@@ -44,7 +44,7 @@ Options:
 exports[`hena CLI help-text snapshots every documented command emits stable help text: hena attach --help 1`] = `
 "hena attach <url>
 
-attach to a running hena server
+attach to a running Hena server
 
 Positionals:
   url  http://localhost:4096                                                     [string] [required]
@@ -59,9 +59,8 @@ Options:
   -c, --continue      continue the last session                                            [boolean]
   -s, --session       session id to continue                                                [string]
       --fork          fork the session when continuing (use with --continue or --session)  [boolean]
-  -p, --password      basic auth password (defaults to HENA_SERVER_PASSWORD)            [string]
-  -u, --username      basic auth username (defaults to HENA_SERVER_USERNAME or 'hena')
-                                                                                            [string]
+  -p, --password      basic auth password (defaults to HENA_SERVER_PASSWORD)                [string]
+  -u, --username      basic auth username (defaults to HENA_SERVER_USERNAME or 'hena')      [string]
       --mini          start the minimal interactive interface             [boolean] [default: false]
       --no-replay     disable mini session history replay on resume and after resize       [boolean]
       --replay-limit  cap visible mini replay to the newest N messages                      [number]"
@@ -70,7 +69,7 @@ Options:
 exports[`hena CLI help-text snapshots every documented command emits stable help text: hena run --help 1`] = `
 "hena run [message..]
 
-run hena with a message
+run Hena with a message
 
 Positionals:
   message  message to send                                                     [array] [default: []]
@@ -92,10 +91,9 @@ Options:
                                           [string] [choices: "default", "json"] [default: "default"]
   -f, --file         file(s) to attach to message                                            [array]
       --title        title for the session (uses truncated prompt if no value provided)     [string]
-      --attach       attach to a running hena server (e.g., http://localhost:4096)      [string]
-  -p, --password     basic auth password (defaults to HENA_SERVER_PASSWORD)             [string]
-  -u, --username     basic auth username (defaults to HENA_SERVER_USERNAME or 'hena')
-                                                                                            [string]
+      --attach       attach to a running Hena server (e.g., http://localhost:4096)          [string]
+  -p, --password     basic auth password (defaults to HENA_SERVER_PASSWORD)                 [string]
+  -u, --username     basic auth username (defaults to HENA_SERVER_USERNAME or 'hena')       [string]
       --dir          directory to run in, path on remote server if attaching                [string]
       --port         port for the local server (defaults to random port if no value provided)
                                                                                             [number]
@@ -141,7 +139,7 @@ exports[`hena CLI help-text snapshots every documented command emits stable help
 manage AI providers and credentials
 
 Commands:
-  hena providers list               list providers and credentials                 [aliases: ls]
+  hena providers list               list providers and credentials                     [aliases: ls]
   hena providers login [url]        log in to a provider
   hena providers logout [provider]  log out from a configured provider
 
@@ -173,7 +171,7 @@ Options:
 exports[`hena CLI help-text snapshots every documented command emits stable help text: hena upgrade --help 1`] = `
 "hena upgrade [target]
 
-upgrade hena to the latest or a specific version
+upgrade Hena to the latest or a specific version
 
 Positionals:
   target  version to upgrade to, for ex '0.1.48' or 'v0.1.48'                               [string]
@@ -191,7 +189,7 @@ Options:
 exports[`hena CLI help-text snapshots every documented command emits stable help text: hena uninstall --help 1`] = `
 "hena uninstall
 
-uninstall hena and remove all related files
+uninstall Hena and remove all related files
 
 Options:
   -h, --help         show help                                                             [boolean]
@@ -208,7 +206,7 @@ Options:
 exports[`hena CLI help-text snapshots every documented command emits stable help text: hena serve --help 1`] = `
 "hena serve
 
-starts a headless hena server
+starts a headless Hena server
 
 Options:
   -h, --help         show help                                                             [boolean]
@@ -221,14 +219,14 @@ Options:
       --mdns         enable mDNS service discovery (defaults hostname to 0.0.0.0)
                                                                           [boolean] [default: false]
       --mdns-domain  custom domain name for mDNS service (default: hena.local)
-                                                              [string] [default: "hena.local"]
+                                                                    [string] [default: "hena.local"]
       --cors         additional domains to allow for CORS                      [array] [default: []]"
 `;
 
 exports[`hena CLI help-text snapshots every documented command emits stable help text: hena web --help 1`] = `
 "hena web
 
-start hena server and open web interface
+start Hena server and open web interface
 
 Options:
   -h, --help         show help                                                             [boolean]
@@ -241,7 +239,7 @@ Options:
       --mdns         enable mDNS service discovery (defaults hostname to 0.0.0.0)
                                                                           [boolean] [default: false]
       --mdns-domain  custom domain name for mDNS service (default: hena.local)
-                                                              [string] [default: "hena.local"]
+                                                                    [string] [default: "hena.local"]
       --cors         additional domains to allow for CORS                      [array] [default: []]"
 `;
 
@@ -334,7 +332,7 @@ Options:
 exports[`hena CLI help-text snapshots every documented command emits stable help text: hena pr --help 1`] = `
 "hena pr <number>
 
-fetch and checkout a GitHub PR branch, then run hena
+fetch and checkout a GitHub PR branch, then run Hena
 
 Positionals:
   number  PR number to checkout                                                  [number] [required]
@@ -388,7 +386,7 @@ exports[`hena CLI help-text snapshots every documented command emits stable help
 database tools
 
 Commands:
-  hena db [query]     open an interactive sqlite3 shell or run a query                 [default]
+  hena db [query]     open an interactive sqlite3 shell or run a query                     [default]
   hena db path        print the database path
 
 Positionals:
@@ -441,7 +439,7 @@ exports[`hena CLI help-text snapshots every documented command emits stable help
 authenticate with an OAuth-enabled MCP server
 
 Commands:
-  hena mcp auth list  list OAuth-capable MCP servers and their auth status         [aliases: ls]
+  hena mcp auth list  list OAuth-capable MCP servers and their auth status             [aliases: ls]
 
 Positionals:
   name  name of the MCP server                                                              [string]
@@ -489,7 +487,7 @@ exports[`hena CLI help-text snapshots every documented command emits stable help
 log in to a provider
 
 Positionals:
-  url  hena auth provider                                                               [string]
+  url  Hena auth provider                                                                   [string]
 
 Options:
   -h, --help        show help                                                              [boolean]

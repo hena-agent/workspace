@@ -52,23 +52,36 @@ export namespace RipgrepBinary {
 
       const extract = Effect.fnUntraced(function* (
         archive: string,
+        bytes: Uint8Array,
         config: (typeof PLATFORM)[keyof typeof PLATFORM],
         target: string,
       ) {
         const dir = yield* fs.makeTempDirectoryScoped({ directory: Global.Path.bin, prefix: "ripgrep-" })
+        const extracted = path.join(
+          dir,
+          `ripgrep-${VERSION}-${config.platform}`,
+          process.platform === "win32" ? "rg.exe" : "rg",
+        )
 
         if (config.extension === "zip") {
-          const shell = (yield* Effect.sync(() => which("powershell.exe") ?? which("pwsh.exe"))) ?? "powershell.exe"
-          const result = yield* run(shell, [
-            "-NoProfile",
-            "-NonInteractive",
-            "-Command",
-            `$global:ProgressPreference = 'SilentlyContinue'; Expand-Archive -LiteralPath '${archive.replaceAll("'", "''")}' -DestinationPath '${dir.replaceAll("'", "''")}' -Force`,
-          ])
-          if (result.code !== 0)
-            throw new Error(
-              result.stderr.trim() || result.stdout.trim() || `ripgrep extraction failed with code ${result.code}`,
-            )
+          const { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } = yield* Effect.promise(
+            () => import("@zip.js/zip.js"),
+          )
+          const reader = yield* Effect.acquireRelease(
+            Effect.sync(
+              () =>
+                new ZipReader(new Uint8ArrayReader(bytes), {
+                  checkSignature: true,
+                  useWebWorkers: false,
+                }),
+            ),
+            (reader) => Effect.promise(() => reader.close()).pipe(Effect.ignore),
+          )
+          const expected = `ripgrep-${VERSION}-${config.platform}/rg.exe`
+          const entry = (yield* Effect.promise(() => reader.getEntries())).find((entry) => entry.filename === expected)
+          if (!entry?.getData) throw new Error(`ripgrep archive did not contain executable: ${expected}`)
+          const data = yield* Effect.promise(() => entry.getData!(new Uint8ArrayWriter()))
+          yield* fs.writeWithDirs(extracted, data)
         }
 
         if (config.extension === "tar.gz") {
@@ -79,11 +92,6 @@ export namespace RipgrepBinary {
             )
         }
 
-        const extracted = path.join(
-          dir,
-          `ripgrep-${VERSION}-${config.platform}`,
-          process.platform === "win32" ? "rg.exe" : "rg",
-        )
         if (!(yield* fs.isFile(extracted))) throw new Error(`ripgrep archive did not contain executable: ${extracted}`)
 
         if (process.platform !== "win32") yield* fs.chmod(extracted, 0o755)
@@ -124,8 +132,9 @@ export namespace RipgrepBinary {
                 )
                 if (bytes.byteLength === 0) throw new Error(`failed to download ripgrep from ${url}`)
 
-                yield* fs.writeFile(archive, new Uint8Array(bytes))
-                yield* extract(archive, config, target)
+                const archiveBytes = new Uint8Array(bytes)
+                yield* fs.writeFile(archive, archiveBytes)
+                yield* extract(archive, archiveBytes, config, target)
                 return target
               }).pipe(Effect.scoped),
               `ripgrep-install:${target}`,

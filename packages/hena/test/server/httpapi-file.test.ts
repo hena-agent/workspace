@@ -4,7 +4,7 @@ import path from "path"
 import { HttpApiApp } from "../../src/server/routes/instance/httpapi/server"
 import { FilePaths } from "../../src/server/routes/instance/httpapi/groups/file"
 import { resetDatabase } from "../fixture/db"
-import { disposeAllInstances, tmpdir } from "../fixture/fixture"
+import { tmpdir } from "../fixture/fixture"
 
 const context = Context.empty() as Context.Context<unknown>
 
@@ -24,7 +24,6 @@ function request(route: string, directory: string, query?: Record<string, string
 }
 
 afterEach(async () => {
-  await disposeAllInstances()
   await resetDatabase()
 })
 

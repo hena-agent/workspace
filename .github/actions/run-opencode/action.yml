@@ -35,6 +35,28 @@ runs:
         printf '%s' "$OPENCODE_AUTH_JSON" > "$HOME/.local/share/opencode/auth.json"
         chmod 600 "$HOME/.local/share/opencode/auth.json"
 
+    # CI must never receive Anthropic's rotating refresh token. Require enough
+    # access-token life for the reusable workflow's 30-minute cap plus 10m.
+    - name: Verify Anthropic OAuth credential
+      if: ${{ startsWith(inputs.model, 'anthropic/') }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        AUTH="$HOME/.local/share/opencode/auth.json"
+        MIN_EXPIRES_MS=$(( ($(date +%s) + 40 * 60) * 1000 ))
+
+        if ! jq -e --arg sentinel "ci-refresh-disabled" --argjson min "$MIN_EXPIRES_MS" '
+          .anthropic as $auth
+          | $auth.type == "oauth"
+            and (($auth.access | type) == "string" and ($auth.access | length) > 0)
+            and $auth.refresh == $sentinel
+            and (($auth.expires | type) == "number" and ($auth.expires | floor) == $auth.expires)
+            and $auth.expires >= $min
+        ' "$AUTH" >/dev/null 2>&1; then
+          echo "::error::Anthropic OAuth credential is invalid, refresh-capable, or has less than 40 minutes remaining. Republish OPENCODE_AUTH_JSON from the credential owner."
+          exit 1
+        fi
+
     # We inline the install + run steps that the anomalyco/opencode/github
     # wrapper action used to provide. That action derives its cache key from an
     # UNAUTHENTICATED `curl https://api.github.com/repos/anomalyco/opencode/releases/latest`

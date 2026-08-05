@@ -91,12 +91,13 @@ function applyMigration(db: Database, migration: Migration) {
   return db.transaction(
     (tx) =>
       Effect.gen(function* () {
+        // Recheck under BEGIN IMMEDIATE so concurrent processes cannot apply the same migration.
         if (yield* tx.get(sql`SELECT id FROM ${sql.identifier("migration")} WHERE id = ${migration.id}`)) return
         yield* migration.up(tx)
         yield* tx.run(
           sql`INSERT INTO ${sql.identifier("migration")} (id, time_completed) VALUES (${migration.id}, ${Date.now()})`,
         )
-    }),
+      }),
     { behavior: "immediate" },
   )
 }

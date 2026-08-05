@@ -13,7 +13,6 @@ const lock = Semaphore.makeUnsafe(1)
 export type Migration = {
   id: string
   up: (tx: Transaction) => Effect.Effect<void, unknown>
-  disableForeignKeys?: boolean
 }
 
 export function apply(db: Database) {
@@ -67,15 +66,28 @@ export function applyOnly(db: Database, input: Migration[]) {
       }
     }
 
-    for (const migration of input) {
-      if (completed.has(migration.id)) continue
-      yield* applyMigration(db, migration)
-    }
+    const pending = input.filter((migration) => !completed.has(migration.id))
+    if (pending.length === 0) return
+
+    // SQLite table rebuilds require foreign keys to be disabled outside the
+    // transaction. Migrations run during isolated database initialization.
+    yield* Effect.acquireUseRelease(
+      db.run(sql`PRAGMA foreign_keys = OFF`),
+      () => Effect.forEach(pending, (migration) => applyMigration(db, migration)),
+      () =>
+        db.run(sql`PRAGMA foreign_keys = ON`).pipe(
+          Effect.andThen(db.get<{ foreign_keys: number }>(sql`PRAGMA foreign_keys`)),
+          Effect.orDie,
+          Effect.flatMap((state) =>
+            state?.foreign_keys === 1 ? Effect.void : Effect.die("Failed to restore foreign keys after migrations"),
+          ),
+        ),
+    )
   })
 }
 
 function applyMigration(db: Database, migration: Migration) {
-  const migrate = db.transaction(
+  return db.transaction(
     (tx) =>
       Effect.gen(function* () {
         if (yield* tx.get(sql`SELECT id FROM ${sql.identifier("migration")} WHERE id = ${migration.id}`)) return
@@ -83,29 +95,7 @@ function applyMigration(db: Database, migration: Migration) {
         yield* tx.run(
           sql`INSERT INTO ${sql.identifier("migration")} (id, time_completed) VALUES (${migration.id}, ${Date.now()})`,
         )
-      }),
-    { behavior: "immediate" },
-  )
-  if (!migration.disableForeignKeys) return migrate
-
-  // Database setup enables foreign keys before migrations, and Core SQLite
-  // clients own one connection for their entire lifetime.
-  return Effect.uninterruptibleMask((restore) =>
-    Effect.gen(function* () {
-      yield* db.run(sql`PRAGMA foreign_keys = OFF`)
-      return yield* restore(migrate).pipe(
-        Effect.ensuring(
-          db.run(sql`PRAGMA foreign_keys = ON`).pipe(
-            Effect.andThen(db.get<{ foreign_keys: number }>(sql`PRAGMA foreign_keys`)),
-            Effect.flatMap((state) =>
-              state?.foreign_keys === 1
-                ? Effect.void
-                : Effect.die(`Failed to restore foreign keys after ${migration.id}`),
-            ),
-            Effect.orDie,
-          ),
-        ),
-      )
     }),
+    { behavior: "immediate" },
   )
 }

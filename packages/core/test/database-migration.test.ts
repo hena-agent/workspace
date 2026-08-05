@@ -166,7 +166,6 @@ describe("DatabaseMigration", () => {
         const fiber = yield* DatabaseMigration.applyOnly(db, [
           {
             id: "interrupted",
-            disableForeignKeys: true,
             up: (tx) =>
               tx
                 .run(sql`CREATE TABLE rolled_back (id text)`)
@@ -179,6 +178,39 @@ describe("DatabaseMigration", () => {
         expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
         expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE name = 'rolled_back'`)).toBeUndefined()
         expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([])
+      }),
+    )
+  })
+
+  test("rebuilds tables with foreign keys disabled", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE project (id text PRIMARY KEY)`)
+        yield* db.run(
+          sql`CREATE TABLE workspace (id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id))`,
+        )
+        yield* db.run(sql`PRAGMA foreign_keys = OFF`)
+        yield* db.run(sql`INSERT INTO workspace VALUES ('workspace', 'missing')`)
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+
+        yield* DatabaseMigration.applyOnly(db, [
+          {
+            id: "rebuild",
+            up: (tx) =>
+              Effect.gen(function* () {
+                yield* tx.run(
+                  sql`CREATE TABLE new_workspace (id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id))`,
+                )
+                yield* tx.run(sql`INSERT INTO new_workspace SELECT * FROM workspace`)
+                yield* tx.run(sql`DROP TABLE workspace`)
+                yield* tx.run(sql`ALTER TABLE new_workspace RENAME TO workspace`)
+              }),
+          },
+        ])
+
+        expect(yield* db.all(sql`SELECT * FROM workspace`)).toEqual([{ id: "workspace", project_id: "missing" }])
+        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
       }),
     )
   })

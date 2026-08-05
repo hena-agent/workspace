@@ -93,7 +93,19 @@ function applyMigration(db: Database, migration: Migration) {
   return Effect.uninterruptibleMask((restore) =>
     Effect.gen(function* () {
       yield* db.run(sql`PRAGMA foreign_keys = OFF`)
-      return yield* restore(migrate).pipe(Effect.ensuring(db.run(sql`PRAGMA foreign_keys = ON`).pipe(Effect.orDie)))
+      return yield* restore(migrate).pipe(
+        Effect.ensuring(
+          db.run(sql`PRAGMA foreign_keys = ON`).pipe(
+            Effect.andThen(db.get<{ foreign_keys: number }>(sql`PRAGMA foreign_keys`)),
+            Effect.flatMap((state) =>
+              state?.foreign_keys === 1
+                ? Effect.void
+                : Effect.die(`Failed to restore foreign keys after ${migration.id}`),
+            ),
+            Effect.orDie,
+          ),
+        ),
+      )
     }),
   )
 }

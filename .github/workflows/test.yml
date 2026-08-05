@@ -148,3 +148,25 @@ jobs:
           path: |
             packages/app/e2e/test-results
             packages/app/e2e/playwright-report
+
+  # The credential preflight in .github/actions/run-opencode guards the review
+  # jobs, but nothing runs those on a PR that only touches CI, and a preflight
+  # that wrongly passes is invisible by construction: the run fails later, for a
+  # reason that names the model rather than the secret. Three rounds of review
+  # found it accepting shapes opencode discards, each time by hand-extracting
+  # the logic to try inputs nobody had written down. This makes that table an
+  # artifact instead of an exercise.
+  ci-scripts:
+    name: ci-scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 1
+
+      - name: Lint CI shell scripts
+        run: shellcheck .github/actions/run-opencode/*.sh
+
+      - name: Test credential preflight
+        run: .github/actions/run-opencode/verify-credential.test.sh

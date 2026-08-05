@@ -28,146 +28,19 @@ inputs:
 runs:
   using: composite
   steps:
-    # Restoring the credential and judging it are one concern: "is there a
-    # usable credential here". They were two steps once, and the seam was the
-    # bug - a corrupt secret belonged to neither, so it passed both.
-    #
-    # What is being judged is not a set of interesting-looking fields but the
-    # contract the CLI enforces in packages/hena/src/auth/index.ts: the `Oauth`
-    # schema requires `type`, `access`, `refresh` and a non-negative integer
-    # `expires`, and `Auth.all()` runs the entry through `Record.filterMap`,
-    # which DISCARDS whatever fails to decode. A credential that violates the
-    # schema therefore produces no auth error at all - the provider silently
-    # never registers, and the run dies with `Model not found: <the model that
-    # was asked for>`, an error that points at the model and away from the
-    # secret. Every field below is checked because the schema requires it, not
-    # because it once broke.
-    #
-    # The freshness half exists because the Anthropic refresh token rotates on
-    # use: refreshing mints a new one and kills the old, so whichever holder
-    # refreshes first wins and every other holder is left with `invalid_grant`.
-    # A runner that refreshed would rotate the chain, discard the new token when
-    # the job ended, and break the developer's machine and every other repo
-    # sharing the credential. Two things stop that, and both are asserted here:
-    # the publisher (hena-sync-opencode-auth.sh) swaps the refresh token for an
-    # inert value so a runner holds nothing that can rotate anything, and a
-    # local refresher (hena-opencode-token-refresh.sh) renews at 2h remaining so
-    # the published copy outlives any job that could pick it up.
-    - name: Restore and verify OpenCode credential
+    - name: Restore OpenCode credential
       shell: bash
       env:
         OPENCODE_AUTH_JSON: ${{ inputs.opencode-auth-json }}
-        MODEL: ${{ inputs.model }}
-        JOB_TIMEOUT_MINUTES: ${{ inputs.job-timeout-minutes }}
       run: |
         set -euo pipefail
-
-        AUTH="$HOME/.local/share/opencode/auth.json"
-        PROVIDER="${MODEL%%/*}"
-
-        # The demand is derived from the cap the caller set rather than written
-        # down beside it, so the two cannot drift apart. The arithmetic lives
-        # here because GitHub expressions have no arithmetic operators at all:
-        # multiplying an input inside an expression does not merely misbehave,
-        # it fails to parse and the whole file is rejected before the step runs.
-        #
-        # For the same reason this comment describes that in prose rather than
-        # quoting it - expression delimiters are substituted everywhere in a
-        # run block, shell comments included, so an illustrative example here
-        # would itself be evaluated and break the action.
-        HEADROOM_SEC=600
-        MIN_REMAINING_SEC=$(( JOB_TIMEOUT_MINUTES * 60 + HEADROOM_SEC ))
-
         if [ -z "${OPENCODE_AUTH_JSON}" ]; then
           echo "::error::OPENCODE_AUTH_JSON is empty. This typically happens for PRs from forks, where repo secrets are not exposed."
           exit 1
         fi
-
         install -d -m 700 "$HOME/.local/share/opencode"
-        printf '%s' "$OPENCODE_AUTH_JSON" > "$AUTH"
-        chmod 600 "$AUTH"
-
-        # One pass, one verdict. jq's own exit status covers the shapes bash
-        # cannot see - a truncated or non-JSON secret aborts here rather than
-        # being mistaken for "no OAuth provider, nothing to check". Its stderr
-        # is deliberately not redirected: the parse error is the diagnosis.
-        #
-        # A live refresh token is recognised by Anthropic's `sk-ant-` key prefix
-        # rather than by comparing against the publisher's sentinel string. That
-        # keeps this check from silently decaying into noise if the publisher
-        # ever changes the sentinel, and it is the property actually worth
-        # asserting: not "is this the expected placeholder" but "can this rotate
-        # the real credential chain".
-        #
-        # Only a verdict crosses this boundary. No token value is ever printed.
-        STATUS="$(jq -r --arg p "$PROVIDER" --argjson now "$(date +%s)" '
-          if type != "object" then "not-object"
-          else .[$p] as $e
-          | if $e == null                                                  then "no-entry"
-            elif ($e.type // "") != "oauth"                                then "skip"
-            elif ($e.access  | type) != "string"                           then "invalid:access"
-            elif $e.access  == ""                                          then "empty:access"
-            elif ($e.refresh | type) != "string"                           then "invalid:refresh"
-            elif $e.refresh == ""                                          then "empty:refresh"
-            elif ($e.expires | type) != "number"
-              or ($e.expires | floor) != $e.expires
-              or $e.expires < 0                                            then "bad-expires"
-            elif ($e.refresh | startswith("sk-ant-"))                      then "live-refresh"
-            else "ok:\($e.expires / 1000 - $now | floor):\($e.expires / 1000 | floor | todate)"
-            end
-          end
-        ' "$AUTH")" || {
-          echo "::error::OPENCODE_AUTH_JSON is not valid JSON (see jq error above). The secret is corrupt or was truncated in transit; republish it from the developer machine."
-          exit 1
-        }
-
-        case "$STATUS" in
-          not-object)
-            echo "::error::OPENCODE_AUTH_JSON is valid JSON but not an object. It must map provider ids to credentials, as ~/.local/share/opencode/auth.json does. Republish the secret."
-            exit 1
-            ;;
-          no-entry)
-            echo "::error::OPENCODE_AUTH_JSON has no '$PROVIDER' entry, and it is the only credential source this job has. The run would fail with a misleading 'Model not found: $MODEL'. Either the secret was published from a machine not logged into $PROVIDER, or the caller's model: no longer matches the credential."
-            exit 1
-            ;;
-          skip)
-            echo "$PROVIDER is present but not an OAuth credential; nothing time-based to verify."
-            exit 0
-            ;;
-          invalid:*)
-            echo "::error::OPENCODE_AUTH_JSON is missing \`${STATUS#invalid:}\` for $PROVIDER, or it is not a string. The Oauth schema requires one, and opencode discards the entire entry when decoding fails, so this run would fail with a misleading 'Model not found: $MODEL'. Republish the secret with every required field present."
-            exit 1
-            ;;
-          empty:*)
-            echo "::error::OPENCODE_AUTH_JSON has an empty \`${STATUS#empty:}\` for $PROVIDER. An empty string is schema-valid, so opencode keeps the credential and the failure surfaces later as an authentication error rather than a missing provider - but the secret is malformed either way. Republish it."
-            exit 1
-            ;;
-          bad-expires)
-            echo "::error::OPENCODE_AUTH_JSON has a malformed \`expires\` for $PROVIDER: it must be a non-negative integer of milliseconds. opencode discards the entry, so this run would fail with a misleading 'Model not found: $MODEL'."
-            exit 1
-            ;;
-          live-refresh)
-            echo "::error::OPENCODE_AUTH_JSON carries a live $PROVIDER refresh token. A runner that can refresh can rotate the shared credential chain, which permanently breaks the developer machine and every other repo using it - recoverable only by re-running \`opencode auth login\`. Failing this one job is the cheaper outcome. Check NEUTER_REFRESH_PROVIDERS in hena-sync-opencode-auth.sh."
-            exit 1
-            ;;
-          ok:*)
-            IFS=: read -r _ REMAINING EXPIRES_AT <<<"$STATUS"
-            ;;
-          *)
-            echo "::error::credential check produced an unrecognised verdict '$STATUS'; refusing to guess."
-            exit 1
-            ;;
-        esac
-
-        # The expiry instant is reported alongside the delta because the delta
-        # alone cannot distinguish "the publisher slept through a weekend" from
-        # "this field is junk" - both are large negatives.
-        if [ "$REMAINING" -lt "$MIN_REMAINING_SEC" ]; then
-          echo "::error::$PROVIDER access token expires at $EXPIRES_AT (${REMAINING}s from now), but this job may run for ${MIN_REMAINING_SEC}s. It would reach expiry mid-run and try to refresh, which it deliberately cannot do. If that instant is merely hours old the publishing machine is likely asleep and will republish on its own; if it is implausible, the secret itself is wrong."
-          exit 1
-        fi
-
-        echo "$PROVIDER credential OK: expires at $EXPIRES_AT, ${REMAINING}s away, at least ${MIN_REMAINING_SEC}s required."
+        printf '%s' "$OPENCODE_AUTH_JSON" > "$HOME/.local/share/opencode/auth.json"
+        chmod 600 "$HOME/.local/share/opencode/auth.json"
 
     # We inline the install + run steps that the anomalyco/opencode/github
     # wrapper action used to provide. That action derives its cache key from an
@@ -220,6 +93,27 @@ runs:
     - name: Add opencode to PATH
       shell: bash
       run: echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+
+    # Runs after the install so the credential can be checked against the
+    # decoder that will actually read it, not only against this repo's copy of
+    # the schema. See verify-credential.sh for what is asserted and why; it is a
+    # file rather than an inline block so verify-credential.test.sh can exercise
+    # it, which is how the shapes it used to wave through were found.
+    #
+    # AUTH_FILE must be the path the CLI itself reads, or the cross-check
+    # compares two different files and always agrees.
+    - name: Verify OpenCode credential
+      shell: bash
+      env:
+        MODEL: ${{ inputs.model }}
+        JOB_TIMEOUT_MINUTES: ${{ inputs.job-timeout-minutes }}
+      run: |
+        set -euo pipefail
+        # $HOME is resolved here rather than in env:, where values are template
+        # strings and no shell expansion happens.
+        AUTH_FILE="$HOME/.local/share/opencode/auth.json" \
+        OPENCODE_BIN="$(command -v opencode)" \
+          "$GITHUB_ACTION_PATH/verify-credential.sh"
 
     # Mirrors the wrapper action's env-driven entrypoint. use_github_token=true
     # makes opencode skip OIDC and use GITHUB_TOKEN for the GitHub API; provider

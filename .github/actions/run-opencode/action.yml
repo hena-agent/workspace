@@ -42,16 +42,17 @@ runs:
     # developer's machine and every other repo sharing the credential. CI must
     # therefore never refresh. Two mechanisms enforce that:
     #
-    #   1. the publisher (hena-sync-opencode-auth.sh) strips the refresh token
-    #      from this secret, so a runner cannot rotate the chain even if it
-    #      tried - it can only fail
+    #   1. the publisher (hena-sync-opencode-auth.sh) replaces the refresh token
+    #      in this secret with an inert sentinel, so a runner cannot rotate the
+    #      chain even if it tried - it can only fail its own job
     #   2. a local refresher (hena-opencode-token-refresh.sh) renews the token
     #      at 2h remaining, so the published copy always carries >= ~1h50m of
     #      life and a job capped at 30m can never reach expiry
     #
-    # This step verifies (2) actually held. Without it a stale secret surfaces
-    # as an opaque `Token refresh failed: 400` from inside the auth plugin,
-    # which says nothing about the real cause.
+    # This step verifies both actually held. Without it a stale secret surfaces
+    # as an opaque `Token refresh failed: 400` from inside the auth plugin, and
+    # a missing refresh key surfaces as `Model not found` - neither of which
+    # says anything about the real cause.
     - name: Verify credential freshness
       shell: bash
       env:
@@ -64,6 +65,9 @@ runs:
         # valid stays valid through its longest permitted run.
         MIN_REMAINING_SEC=2400
 
+        # Must match REFRESH_SENTINEL in hena-sync-opencode-auth.sh.
+        REFRESH_SENTINEL="ci-refresh-disabled"
+
         PROVIDER="${MODEL%%/*}"
 
         if ! jq -e --arg p "$PROVIDER" '.[$p].type == "oauth"' "$AUTH" >/dev/null 2>&1; then
@@ -74,8 +78,18 @@ runs:
         EXPIRES_MS="$(jq -r --arg p "$PROVIDER" '.[$p].expires // 0' "$AUTH")"
         REMAINING=$(( EXPIRES_MS / 1000 - $(date +%s) ))
 
-        if jq -e --arg p "$PROVIDER" '.[$p].refresh' "$AUTH" >/dev/null 2>&1; then
-          echo "::warning::OPENCODE_AUTH_JSON still carries a $PROVIDER refresh token. CI is not supposed to be able to rotate the credential chain - check the strip list in hena-sync-opencode-auth.sh."
+        # opencode's Oauth schema marks `refresh` required and Auth.all()
+        # silently drops entries that fail to decode, so a missing key never
+        # surfaces as an auth error: the provider simply never registers and the
+        # run dies with `Model not found: <the model being requested>`. Catch it
+        # here, where the message can name the actual problem.
+        REFRESH="$(jq -r --arg p "$PROVIDER" '.[$p].refresh // empty' "$AUTH")"
+        if [ -z "$REFRESH" ]; then
+          echo "::error::OPENCODE_AUTH_JSON carries no $PROVIDER refresh key. opencode requires it and will silently discard the entire credential without it, so this run would fail with a misleading 'Model not found: $MODEL'. The publisher must write the '$REFRESH_SENTINEL' sentinel, not delete the field."
+          exit 1
+        fi
+        if [ "$REFRESH" != "$REFRESH_SENTINEL" ]; then
+          echo "::warning::OPENCODE_AUTH_JSON carries a real-looking $PROVIDER refresh token rather than the '$REFRESH_SENTINEL' sentinel. A runner that can refresh can rotate the shared credential chain and break every other holder - check NEUTER_REFRESH_PROVIDERS in hena-sync-opencode-auth.sh."
         fi
 
         if [ "$REMAINING" -lt "$MIN_REMAINING_SEC" ]; then

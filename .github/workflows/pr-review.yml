@@ -28,7 +28,9 @@ jobs:
   gpt-review:
     # Disabled: only the Claude reviewer is enabled in this repo. To
     # re-enable, flip this to `if: true` and register
-    # GPT_REVIEWER_CLIENT_ID (var) + GPT_REVIEWER_PRIVATE_KEY (secret).
+    # GPT_REVIEWER_CLIENT_ID (var) + GPT_REVIEWER_PRIVATE_KEY (secret), then
+    # add a separate OpenAI OAuth publisher and preflight. OPENCODE_AUTH_JSON
+    # intentionally contains only the sanitized Anthropic credential.
     if: ${{ false }}
     uses: ./.github/workflows/_opencode.yml
     with:

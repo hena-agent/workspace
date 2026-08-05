@@ -9,7 +9,10 @@ inputs:
     description: Model variant for reasoning effort / thinking budget (e.g., max, xhigh)
     required: true
   opencode-auth-json:
-    description: Contents of ~/.local/share/opencode/auth.json (pass via secrets)
+    description: Anthropic-only CI credential JSON published from ~/.local/share/opencode/auth.json
+    required: true
+  timeout-minutes:
+    description: Calling job timeout; the OAuth lease must outlive it by 10 minutes
     required: true
   github-token:
     description: Token used by the OpenCode action to post comments and reach the GitHub API
@@ -36,24 +39,31 @@ runs:
         chmod 600 "$HOME/.local/share/opencode/auth.json"
 
     # CI must never receive Anthropic's rotating refresh token. Require enough
-    # access-token life for the reusable workflow's 30-minute cap plus 10m.
+    # access-token life for the calling job's cap plus 10 minutes.
     - name: Verify Anthropic OAuth credential
       if: ${{ startsWith(inputs.model, 'anthropic/') }}
       shell: bash
+      env:
+        TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
       run: |
         set -euo pipefail
         AUTH="$HOME/.local/share/opencode/auth.json"
-        MIN_EXPIRES_MS=$(( ($(date +%s) + 40 * 60) * 1000 ))
+        if ! [[ "$TIMEOUT_MINUTES" =~ ^[1-9][0-9]*$ ]]; then
+          echo "::error::timeout-minutes must be a positive whole number, got '$TIMEOUT_MINUTES'."
+          exit 1
+        fi
+        MIN_EXPIRES_MS=$(( ($(date +%s) + TIMEOUT_MINUTES * 60 + 600) * 1000 ))
 
         if ! jq -e --arg sentinel "ci-refresh-disabled" --argjson min "$MIN_EXPIRES_MS" '
           .anthropic as $auth
-          | $auth.type == "oauth"
+          | keys == ["anthropic"]
+            and $auth.type == "oauth"
             and (($auth.access | type) == "string" and ($auth.access | length) > 0)
             and $auth.refresh == $sentinel
             and (($auth.expires | type) == "number" and ($auth.expires | floor) == $auth.expires)
             and $auth.expires >= $min
-        ' "$AUTH" >/dev/null 2>&1; then
-          echo "::error::Anthropic OAuth credential is invalid, refresh-capable, or has less than 40 minutes remaining. Republish OPENCODE_AUTH_JSON from the credential owner."
+        ' "$AUTH" >/dev/null; then
+          echo "::error::OPENCODE_AUTH_JSON must contain only a valid Anthropic OAuth credential with refresh='ci-refresh-disabled' and at least ${TIMEOUT_MINUTES}m + 10m remaining. Run ~/.local/bin/hena-sync-opencode-auth.sh on the credential owner."
           exit 1
         fi
 

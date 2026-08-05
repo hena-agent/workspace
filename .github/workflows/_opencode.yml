@@ -23,12 +23,17 @@ on:
         description: Full prompt passed to `opencode github run`, verbatim. Nothing is appended, so callers own every task-specific instruction including how findings should be posted.
         required: true
         type: string
+      timeout-minutes:
+        description: Hard cap for the job and basis for the OAuth lease check
+        required: false
+        default: 30
+        type: number
     secrets:
       app-private-key:
         description: Private key of the GitHub App
         required: true
       opencode-auth-json:
-        description: Contents of ~/.local/share/opencode/auth.json
+        description: Anthropic-only CI credential derived from ~/.local/share/opencode/auth.json
         required: true
 
 jobs:
@@ -39,7 +44,7 @@ jobs:
     # command never replies. Without a cap that hang would burn the 6-hour
     # default and hold the caller's concurrency group for all of it. Observed
     # runs finish in 4-10 minutes.
-    timeout-minutes: 30
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       contents: read
       pull-requests: write
@@ -66,3 +71,4 @@ jobs:
           opencode-auth-json: ${{ secrets.opencode-auth-json }}
           github-token: ${{ steps.app-token.outputs.token }}
           prompt: ${{ inputs.prompt }}
+          timeout-minutes: ${{ inputs.timeout-minutes }}

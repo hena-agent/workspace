@@ -42,6 +42,10 @@ export const AcpCommand = effectCmd({
         })
       },
     })
+    const ended = new Promise<void>((resolve, reject) => {
+      process.stdin.once("end", resolve)
+      process.stdin.once("error", reject)
+    })
     const output = new ReadableStream<Uint8Array>({
       start(controller) {
         process.stdin.on("data", (chunk: Buffer) => {
@@ -62,12 +66,6 @@ export const AcpCommand = effectCmd({
 
     yield* Effect.logInfo("setup connection")
     process.stdin.resume()
-    yield* Effect.promise(
-      () =>
-        new Promise<void>((resolve, reject) => {
-          process.stdin.on("end", () => resolve())
-          process.stdin.on("error", reject)
-        }),
-    )
+    yield* Effect.promise(() => ended)
   }),
 })

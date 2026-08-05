@@ -4,11 +4,13 @@ import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
+import { Global } from "@hena/core/global"
 import { Cause, Effect, Exit, Fiber } from "effect"
 import { bootstrap as cliBootstrap } from "../../src/cli/bootstrap"
 import { InstanceBootstrap } from "../../src/project/bootstrap"
 import { InstanceStore } from "../../src/project/instance-store"
 import { disposeAllInstances, tmpdirScoped } from "../fixture/fixture"
+import { markPluginDependenciesReady } from "../fixture/plugin"
 import { testEffect } from "../lib/effect"
 import { waitGlobalBusEvent } from "../server/global-bus"
 
@@ -31,7 +33,8 @@ afterEach(async () => {
 })
 
 const bootstrapFixture = Effect.gen(function* () {
-  const dir = yield* tmpdirScoped({ git: true })
+  yield* Effect.promise(() => markPluginDependenciesReady(Global.Path.config))
+  const dir = yield* tmpdirScoped()
   const marker = path.join(dir, "config-hook-fired")
   const pluginFile = path.join(dir, "plugin.ts")
   yield* Effect.promise(() =>
@@ -67,18 +70,15 @@ function waitDisposed(directory: string) {
   })
 }
 
-it.live(
-  "InstanceStore.provide runs InstanceBootstrap before effect",
-  () =>
-    Effect.gen(function* () {
-      const tmp = yield* bootstrapFixture
-      const store = yield* InstanceStore.Service
+it.live("InstanceStore.provide runs InstanceBootstrap before effect", () =>
+  Effect.gen(function* () {
+    const tmp = yield* bootstrapFixture
+    const store = yield* InstanceStore.Service
 
-      yield* store.provide({ directory: tmp.directory }, Effect.succeed("ok"))
+    yield* store.provide({ directory: tmp.directory }, Effect.succeed("ok"))
 
-      expect(existsSync(tmp.marker)).toBe(true)
-    }),
-  120_000,
+    expect(existsSync(tmp.marker)).toBe(true)
+  }),
 )
 
 it.live("CLI bootstrap runs InstanceBootstrap before callback", () =>

@@ -9,7 +9,7 @@ inputs:
     description: Model variant for reasoning effort / thinking budget (e.g., max, xhigh)
     required: true
   opencode-auth-json:
-    description: Anthropic-only CI credential JSON published from ~/.local/share/opencode/auth.json
+    description: Single-provider CI OAuth credential published from ~/.local/share/opencode/auth.json
     required: true
   timeout-minutes:
     description: Calling job timeout; the OAuth lease must outlive it by 10 minutes
@@ -27,45 +27,44 @@ runs:
     - name: Restore OpenCode auth.json
       shell: bash
       env:
+        MODEL: ${{ inputs.model }}
         OPENCODE_AUTH_JSON: ${{ inputs.opencode-auth-json }}
+        TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
       run: |
         set -euo pipefail
         if [ -z "${OPENCODE_AUTH_JSON}" ]; then
           echo "::error::OPENCODE_AUTH_JSON is empty. This typically happens for PRs from forks, where repo secrets are not exposed."
           exit 1
         fi
-        install -d -m 700 "$HOME/.local/share/opencode"
-        printf '%s' "$OPENCODE_AUTH_JSON" > "$HOME/.local/share/opencode/auth.json"
-        chmod 600 "$HOME/.local/share/opencode/auth.json"
-
-    # CI must never receive Anthropic's rotating refresh token. Require enough
-    # access-token life for the calling job's cap plus 10 minutes.
-    - name: Verify Anthropic OAuth credential
-      if: ${{ startsWith(inputs.model, 'anthropic/') }}
-      shell: bash
-      env:
-        TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
-      run: |
-        set -euo pipefail
-        AUTH="$HOME/.local/share/opencode/auth.json"
         if ! [[ "$TIMEOUT_MINUTES" =~ ^[1-9][0-9]*$ ]]; then
           echo "::error::timeout-minutes must be a positive whole number, got '$TIMEOUT_MINUTES'."
           exit 1
         fi
-        MIN_EXPIRES_MS=$(( ($(date +%s) + TIMEOUT_MINUTES * 60 + 600) * 1000 ))
+        PROVIDER="${MODEL%%/*}"
+        if [ "$PROVIDER" = "$MODEL" ] || [ -z "$PROVIDER" ]; then
+          echo "::error::model must use provider/model form, got '$MODEL'."
+          exit 1
+        fi
+        HEADROOM_MINUTES=10
+        MIN_EXPIRES_MS=$(( ($(date +%s) + (TIMEOUT_MINUTES + HEADROOM_MINUTES) * 60) * 1000 ))
 
-        if ! jq -e --arg sentinel "ci-refresh-disabled" --argjson min "$MIN_EXPIRES_MS" '
-          .anthropic as $auth
-          | keys == ["anthropic"]
+        if ! printf '%s' "$OPENCODE_AUTH_JSON" | jq -e \
+          --arg provider "$PROVIDER" --arg sentinel "ci-refresh-disabled" --argjson min "$MIN_EXPIRES_MS" '
+          .[$provider] as $auth
+          | keys == [$provider]
             and $auth.type == "oauth"
             and (($auth.access | type) == "string" and ($auth.access | length) > 0)
             and $auth.refresh == $sentinel
             and (($auth.expires | type) == "number" and ($auth.expires | floor) == $auth.expires)
             and $auth.expires >= $min
-        ' "$AUTH" >/dev/null; then
-          echo "::error::OPENCODE_AUTH_JSON must contain only a valid Anthropic OAuth credential with refresh='ci-refresh-disabled' and at least ${TIMEOUT_MINUTES}m + 10m remaining. Run ~/.local/bin/hena-sync-opencode-auth.sh on the credential owner."
+        ' >/dev/null; then
+          echo "::error::OPENCODE_AUTH_JSON must contain exactly one '$PROVIDER' OAuth credential with refresh='ci-refresh-disabled' and at least $((TIMEOUT_MINUTES + HEADROOM_MINUTES))m remaining. Ask the credential owner to refresh and republish it."
           exit 1
         fi
+
+        install -d -m 700 "$HOME/.local/share/opencode"
+        printf '%s' "$OPENCODE_AUTH_JSON" > "$HOME/.local/share/opencode/auth.json"
+        chmod 600 "$HOME/.local/share/opencode/auth.json"
 
     # We inline the install + run steps that the anomalyco/opencode/github
     # wrapper action used to provide. That action derives its cache key from an

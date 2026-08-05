@@ -33,7 +33,7 @@ on:
         description: Private key of the GitHub App
         required: true
       opencode-auth-json:
-        description: Anthropic-only CI credential derived from ~/.local/share/opencode/auth.json
+        description: Single-provider CI OAuth credential derived from ~/.local/share/opencode/auth.json
         required: true
 
 jobs:

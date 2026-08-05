@@ -69,8 +69,9 @@ export function applyOnly(db: Database, input: Migration[]) {
     const pending = input.filter((migration) => !completed.has(migration.id))
     if (pending.length === 0) return
 
-    // SQLite table rebuilds require foreign keys to be disabled outside the
-    // transaction. Migrations run during isolated database initialization.
+    // SQLite silently ignores foreign-key pragmas inside a transaction, so
+    // disable enforcement for the pending migration phase. Cascades and orphan
+    // validation do not run during this phase; migrations must not depend on either.
     yield* Effect.acquireUseRelease(
       db.run(sql`PRAGMA foreign_keys = OFF`),
       () => Effect.forEach(pending, (migration) => applyMigration(db, migration)),

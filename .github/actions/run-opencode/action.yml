@@ -17,87 +17,157 @@ inputs:
   prompt:
     description: Final prompt passed to opencode github run.
     required: true
+  job-timeout-minutes:
+    description: >-
+      The calling job's timeout-minutes. The credential is rejected unless the
+      OAuth access token outlives it by the headroom added below, so a run that
+      starts valid stays valid to its last permitted minute. Pass the same value
+      the job is capped at, so raising the cap raises the demand with it.
+    required: true
 
 runs:
   using: composite
   steps:
-    - name: Restore OpenCode auth.json
+    # Restoring the credential and judging it are one concern: "is there a
+    # usable credential here". They were two steps once, and the seam was the
+    # bug - a corrupt secret belonged to neither, so it passed both.
+    #
+    # What is being judged is not a set of interesting-looking fields but the
+    # contract the CLI enforces in packages/hena/src/auth/index.ts: the `Oauth`
+    # schema requires `type`, `access`, `refresh` and a non-negative integer
+    # `expires`, and `Auth.all()` runs the entry through `Record.filterMap`,
+    # which DISCARDS whatever fails to decode. A credential that violates the
+    # schema therefore produces no auth error at all - the provider silently
+    # never registers, and the run dies with `Model not found: <the model that
+    # was asked for>`, an error that points at the model and away from the
+    # secret. Every field below is checked because the schema requires it, not
+    # because it once broke.
+    #
+    # The freshness half exists because the Anthropic refresh token rotates on
+    # use: refreshing mints a new one and kills the old, so whichever holder
+    # refreshes first wins and every other holder is left with `invalid_grant`.
+    # A runner that refreshed would rotate the chain, discard the new token when
+    # the job ended, and break the developer's machine and every other repo
+    # sharing the credential. Two things stop that, and both are asserted here:
+    # the publisher (hena-sync-opencode-auth.sh) swaps the refresh token for an
+    # inert value so a runner holds nothing that can rotate anything, and a
+    # local refresher (hena-opencode-token-refresh.sh) renews at 2h remaining so
+    # the published copy outlives any job that could pick it up.
+    - name: Restore and verify OpenCode credential
       shell: bash
       env:
         OPENCODE_AUTH_JSON: ${{ inputs.opencode-auth-json }}
+        MODEL: ${{ inputs.model }}
+        JOB_TIMEOUT_MINUTES: ${{ inputs.job-timeout-minutes }}
       run: |
         set -euo pipefail
+
+        AUTH="$HOME/.local/share/opencode/auth.json"
+        PROVIDER="${MODEL%%/*}"
+
+        # The demand is derived from the cap the caller set rather than written
+        # down beside it, so the two cannot drift apart. The arithmetic lives
+        # here because GitHub expressions have no arithmetic operators at all:
+        # multiplying an input inside an expression does not merely misbehave,
+        # it fails to parse and the whole file is rejected before the step runs.
+        #
+        # For the same reason this comment describes that in prose rather than
+        # quoting it - expression delimiters are substituted everywhere in a
+        # run block, shell comments included, so an illustrative example here
+        # would itself be evaluated and break the action.
+        HEADROOM_SEC=600
+        MIN_REMAINING_SEC=$(( JOB_TIMEOUT_MINUTES * 60 + HEADROOM_SEC ))
+
         if [ -z "${OPENCODE_AUTH_JSON}" ]; then
           echo "::error::OPENCODE_AUTH_JSON is empty. This typically happens for PRs from forks, where repo secrets are not exposed."
           exit 1
         fi
+
         install -d -m 700 "$HOME/.local/share/opencode"
-        printf '%s' "$OPENCODE_AUTH_JSON" > "$HOME/.local/share/opencode/auth.json"
-        chmod 600 "$HOME/.local/share/opencode/auth.json"
+        printf '%s' "$OPENCODE_AUTH_JSON" > "$AUTH"
+        chmod 600 "$AUTH"
 
-    # The Anthropic OAuth refresh token rotates on use: refreshing mints a new
-    # one and kills the old, so whichever holder refreshes first wins and every
-    # other holder is left with `invalid_grant`. A runner that refreshed would
-    # rotate the chain, discard the new token when the job ended, and break the
-    # developer's machine and every other repo sharing the credential. CI must
-    # therefore never refresh. Two mechanisms enforce that:
-    #
-    #   1. the publisher (hena-sync-opencode-auth.sh) replaces the refresh token
-    #      in this secret with an inert sentinel, so a runner cannot rotate the
-    #      chain even if it tried - it can only fail its own job
-    #   2. a local refresher (hena-opencode-token-refresh.sh) renews the token
-    #      at 2h remaining, so the published copy always carries >= ~1h50m of
-    #      life and a job capped at 30m can never reach expiry
-    #
-    # This step verifies both actually held. Without it a stale secret surfaces
-    # as an opaque `Token refresh failed: 400` from inside the auth plugin, and
-    # a missing refresh key surfaces as `Model not found` - neither of which
-    # says anything about the real cause.
-    - name: Verify credential freshness
-      shell: bash
-      env:
-        MODEL: ${{ inputs.model }}
-      run: |
-        set -euo pipefail
-        AUTH="$HOME/.local/share/opencode/auth.json"
-
-        # Comfortably above this job's timeout-minutes, so a job that starts
-        # valid stays valid through its longest permitted run.
-        MIN_REMAINING_SEC=2400
-
-        # Must match REFRESH_SENTINEL in hena-sync-opencode-auth.sh.
-        REFRESH_SENTINEL="ci-refresh-disabled"
-
-        PROVIDER="${MODEL%%/*}"
-
-        if ! jq -e --arg p "$PROVIDER" '.[$p].type == "oauth"' "$AUTH" >/dev/null 2>&1; then
-          echo "$PROVIDER does not use OAuth in this credential; nothing to verify."
-          exit 0
-        fi
-
-        EXPIRES_MS="$(jq -r --arg p "$PROVIDER" '.[$p].expires // 0' "$AUTH")"
-        REMAINING=$(( EXPIRES_MS / 1000 - $(date +%s) ))
-
-        # opencode's Oauth schema marks `refresh` required and Auth.all()
-        # silently drops entries that fail to decode, so a missing key never
-        # surfaces as an auth error: the provider simply never registers and the
-        # run dies with `Model not found: <the model being requested>`. Catch it
-        # here, where the message can name the actual problem.
-        REFRESH="$(jq -r --arg p "$PROVIDER" '.[$p].refresh // empty' "$AUTH")"
-        if [ -z "$REFRESH" ]; then
-          echo "::error::OPENCODE_AUTH_JSON carries no $PROVIDER refresh key. opencode requires it and will silently discard the entire credential without it, so this run would fail with a misleading 'Model not found: $MODEL'. The publisher must write the '$REFRESH_SENTINEL' sentinel, not delete the field."
+        # One pass, one verdict. jq's own exit status covers the shapes bash
+        # cannot see - a truncated or non-JSON secret aborts here rather than
+        # being mistaken for "no OAuth provider, nothing to check". Its stderr
+        # is deliberately not redirected: the parse error is the diagnosis.
+        #
+        # A live refresh token is recognised by Anthropic's `sk-ant-` key prefix
+        # rather than by comparing against the publisher's sentinel string. That
+        # keeps this check from silently decaying into noise if the publisher
+        # ever changes the sentinel, and it is the property actually worth
+        # asserting: not "is this the expected placeholder" but "can this rotate
+        # the real credential chain".
+        #
+        # Only a verdict crosses this boundary. No token value is ever printed.
+        STATUS="$(jq -r --arg p "$PROVIDER" --argjson now "$(date +%s)" '
+          if type != "object" then "not-object"
+          else .[$p] as $e
+          | if $e == null                                                  then "no-entry"
+            elif ($e.type // "") != "oauth"                                then "skip"
+            elif ($e.access  | type) != "string"                           then "invalid:access"
+            elif $e.access  == ""                                          then "empty:access"
+            elif ($e.refresh | type) != "string"                           then "invalid:refresh"
+            elif $e.refresh == ""                                          then "empty:refresh"
+            elif ($e.expires | type) != "number"
+              or ($e.expires | floor) != $e.expires
+              or $e.expires < 0                                            then "bad-expires"
+            elif ($e.refresh | startswith("sk-ant-"))                      then "live-refresh"
+            else "ok:\($e.expires / 1000 - $now | floor):\($e.expires / 1000 | floor | todate)"
+            end
+          end
+        ' "$AUTH")" || {
+          echo "::error::OPENCODE_AUTH_JSON is not valid JSON (see jq error above). The secret is corrupt or was truncated in transit; republish it from the developer machine."
           exit 1
-        fi
-        if [ "$REFRESH" != "$REFRESH_SENTINEL" ]; then
-          echo "::warning::OPENCODE_AUTH_JSON carries a real-looking $PROVIDER refresh token rather than the '$REFRESH_SENTINEL' sentinel. A runner that can refresh can rotate the shared credential chain and break every other holder - check NEUTER_REFRESH_PROVIDERS in hena-sync-opencode-auth.sh."
-        fi
+        }
 
+        case "$STATUS" in
+          not-object)
+            echo "::error::OPENCODE_AUTH_JSON is valid JSON but not an object. It must map provider ids to credentials, as ~/.local/share/opencode/auth.json does. Republish the secret."
+            exit 1
+            ;;
+          no-entry)
+            echo "::error::OPENCODE_AUTH_JSON has no '$PROVIDER' entry, and it is the only credential source this job has. The run would fail with a misleading 'Model not found: $MODEL'. Either the secret was published from a machine not logged into $PROVIDER, or the caller's model: no longer matches the credential."
+            exit 1
+            ;;
+          skip)
+            echo "$PROVIDER is present but not an OAuth credential; nothing time-based to verify."
+            exit 0
+            ;;
+          invalid:*)
+            echo "::error::OPENCODE_AUTH_JSON is missing \`${STATUS#invalid:}\` for $PROVIDER, or it is not a string. The Oauth schema requires one, and opencode discards the entire entry when decoding fails, so this run would fail with a misleading 'Model not found: $MODEL'. Republish the secret with every required field present."
+            exit 1
+            ;;
+          empty:*)
+            echo "::error::OPENCODE_AUTH_JSON has an empty \`${STATUS#empty:}\` for $PROVIDER. An empty string is schema-valid, so opencode keeps the credential and the failure surfaces later as an authentication error rather than a missing provider - but the secret is malformed either way. Republish it."
+            exit 1
+            ;;
+          bad-expires)
+            echo "::error::OPENCODE_AUTH_JSON has a malformed \`expires\` for $PROVIDER: it must be a non-negative integer of milliseconds. opencode discards the entry, so this run would fail with a misleading 'Model not found: $MODEL'."
+            exit 1
+            ;;
+          live-refresh)
+            echo "::error::OPENCODE_AUTH_JSON carries a live $PROVIDER refresh token. A runner that can refresh can rotate the shared credential chain, which permanently breaks the developer machine and every other repo using it - recoverable only by re-running \`opencode auth login\`. Failing this one job is the cheaper outcome. Check NEUTER_REFRESH_PROVIDERS in hena-sync-opencode-auth.sh."
+            exit 1
+            ;;
+          ok:*)
+            IFS=: read -r _ REMAINING EXPIRES_AT <<<"$STATUS"
+            ;;
+          *)
+            echo "::error::credential check produced an unrecognised verdict '$STATUS'; refusing to guess."
+            exit 1
+            ;;
+        esac
+
+        # The expiry instant is reported alongside the delta because the delta
+        # alone cannot distinguish "the publisher slept through a weekend" from
+        # "this field is junk" - both are large negatives.
         if [ "$REMAINING" -lt "$MIN_REMAINING_SEC" ]; then
-          echo "::error::$PROVIDER access token has only ${REMAINING}s left (need >= ${MIN_REMAINING_SEC}s). OPENCODE_AUTH_JSON is stale, so this job would try to refresh it and fail. The publishing Mac is probably asleep or its crnd/launchd jobs are not running; once it is back, hena-opencode-token-refresh.sh republishes automatically."
+          echo "::error::$PROVIDER access token expires at $EXPIRES_AT (${REMAINING}s from now), but this job may run for ${MIN_REMAINING_SEC}s. It would reach expiry mid-run and try to refresh, which it deliberately cannot do. If that instant is merely hours old the publishing machine is likely asleep and will republish on its own; if it is implausible, the secret itself is wrong."
           exit 1
         fi
 
-        echo "$PROVIDER access token OK: ${REMAINING}s remaining (>= ${MIN_REMAINING_SEC}s required)."
+        echo "$PROVIDER credential OK: expires at $EXPIRES_AT, ${REMAINING}s away, at least ${MIN_REMAINING_SEC}s required."
 
     # We inline the install + run steps that the anomalyco/opencode/github
     # wrapper action used to provide. That action derives its cache key from an
@@ -117,11 +187,6 @@ runs:
     # outright; one whose id shape the build does not recognize silently loses
     # adaptive thinking instead. So changing `model:` there may require bumping
     # this pin, and nothing enforces that pairing.
-    #
-    # That is exactly how this pin fell behind: `model:` was moved to
-    # anthropic/claude-opus-5 while the pin stayed at 1.18.5, whose snapshot
-    # predates the model, so every run died with `Model not found:
-    # anthropic/claude-opus-5`. 1.18.13 carries both models the callers ask for.
     - name: Pin opencode CLI version
       shell: bash
       run: echo "OPENCODE_VERSION=1.18.13" >> "$GITHUB_ENV"

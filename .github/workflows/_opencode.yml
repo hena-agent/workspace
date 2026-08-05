@@ -23,6 +23,14 @@ on:
         description: Full prompt passed to `opencode github run`, verbatim. Nothing is appended, so callers own every task-specific instruction including how findings should be posted.
         required: true
         type: string
+      timeout-minutes:
+        description: >-
+          Hard cap on the run. Also the basis for the credential freshness
+          assertion below, so raising it automatically widens the token life the
+          action demands rather than silently outgrowing it.
+        required: false
+        default: 30
+        type: number
     secrets:
       app-private-key:
         description: Private key of the GitHub App
@@ -39,7 +47,7 @@ jobs:
     # command never replies. Without a cap that hang would burn the 6-hour
     # default and hold the caller's concurrency group for all of it. Observed
     # runs finish in 4-10 minutes.
-    timeout-minutes: 30
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       contents: read
       pull-requests: write
@@ -66,3 +74,7 @@ jobs:
           opencode-auth-json: ${{ secrets.opencode-auth-json }}
           github-token: ${{ steps.app-token.outputs.token }}
           prompt: ${{ inputs.prompt }}
+          # The same number that caps the job above. The action converts it to
+          # seconds and adds its own headroom, so the freshness it demands can
+          # never drift from the runtime it permits.
+          job-timeout-minutes: ${{ inputs.timeout-minutes }}

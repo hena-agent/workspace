@@ -55,7 +55,7 @@ runs:
     # this pin, and nothing enforces that pairing.
     - name: Pin opencode CLI version
       shell: bash
-      run: echo "OPENCODE_VERSION=1.18.5" >> "$GITHUB_ENV"
+      run: echo "OPENCODE_VERSION=1.18.13" >> "$GITHUB_ENV"
 
     # The agent shells out to this repo's bun scripts (typecheck, test,
     # lint, etc.), but the ubuntu-latest runner has no bun preinstalled. Install

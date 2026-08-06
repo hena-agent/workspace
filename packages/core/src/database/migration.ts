@@ -66,16 +66,38 @@ export function applyOnly(db: Database, input: Migration[]) {
       }
     }
 
-    for (const migration of input) {
-      if (completed.has(migration.id)) continue
-      yield* db.transaction((tx) =>
-        Effect.gen(function* () {
-          yield* migration.up(tx)
-          yield* tx.run(
-            sql`INSERT INTO ${sql.identifier("migration")} (id, time_completed) VALUES (${migration.id}, ${Date.now()})`,
-          )
-        }),
-      )
-    }
+    const pending = input.filter((migration) => !completed.has(migration.id))
+    if (pending.length === 0) return
+
+    // SQLite silently ignores foreign-key pragmas inside a transaction, so
+    // disable enforcement for the pending migration phase. Cascades and orphan
+    // validation do not run during this phase; migrations must not depend on either.
+    yield* Effect.acquireUseRelease(
+      db.run(sql`PRAGMA foreign_keys = OFF`),
+      () => Effect.forEach(pending, (migration) => applyMigration(db, migration)),
+      () =>
+        db.run(sql`PRAGMA foreign_keys = ON`).pipe(
+          Effect.andThen(db.get<{ foreign_keys: number }>(sql`PRAGMA foreign_keys`)),
+          Effect.orDie,
+          Effect.flatMap((state) =>
+            state?.foreign_keys === 1 ? Effect.void : Effect.die("Failed to restore foreign keys after migrations"),
+          ),
+        ),
+    )
   })
+}
+
+function applyMigration(db: Database, migration: Migration) {
+  return db.transaction(
+    (tx) =>
+      Effect.gen(function* () {
+        // Recheck under BEGIN IMMEDIATE so concurrent processes cannot apply the same migration.
+        if (yield* tx.get(sql`SELECT id FROM ${sql.identifier("migration")} WHERE id = ${migration.id}`)) return
+        yield* migration.up(tx)
+        yield* tx.run(
+          sql`INSERT INTO ${sql.identifier("migration")} (id, time_completed) VALUES (${migration.id}, ${Date.now()})`,
+        )
+      }),
+    { behavior: "immediate" },
+  )
 }

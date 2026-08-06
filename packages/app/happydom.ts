@@ -2,6 +2,25 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator"
 
 GlobalRegistrator.register()
 
+// Happy DOM keeps MutationObserver listeners only through WeakRef, so GC can silently kill them.
+const pinnedMutationCallbacks: unknown[] = []
+const nativeMutationObserve = MutationObserver.prototype.observe
+MutationObserver.prototype.observe = function (target: Node, options?: MutationObserverInit) {
+  const NativeWeakRef = globalThis.WeakRef
+  // @ts-expect-error - pin only the WeakRefs Happy DOM creates synchronously while observing
+  globalThis.WeakRef = class<T extends object> extends NativeWeakRef<T> {
+    constructor(value: T) {
+      super(value)
+      pinnedMutationCallbacks.push(value)
+    }
+  }
+  try {
+    return nativeMutationObserve.call(this, target, options)
+  } finally {
+    globalThis.WeakRef = NativeWeakRef
+  }
+}
+
 const originalGetContext = HTMLCanvasElement.prototype.getContext
 // @ts-expect-error - we're overriding with a simplified mock
 HTMLCanvasElement.prototype.getContext = function (contextType: string, _options?: unknown) {

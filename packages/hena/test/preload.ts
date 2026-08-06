@@ -38,7 +38,7 @@ process.env["XDG_STATE_HOME"] = path.join(dir, "state")
 process.env["HENA_MODELS_PATH"] = path.join(import.meta.dir, "tool", "fixtures", "models-api.json")
 process.env["HENA_EXPERIMENTAL_EVENT_SYSTEM"] = "true"
 process.env["HENA_EXPERIMENTAL_WORKSPACES"] = "true"
-// Any config directory we failed to seed must fail fast instead of reifying over the network.
+// Nothing in the suite needs a live registry; unseeded config directories must fail fast.
 process.env["npm_config_offline"] = "true"
 
 // Set test home directory to isolate tests from user's actual home directory
@@ -91,7 +91,7 @@ process.env["HENA_DB"] = ":memory:"
 // Now safe to import from src/
 const { Global } = await import("@hena/core/global")
 const { markPluginDependenciesReady } = await import("./fixture/plugin")
-// Unit tests must not race detached config dependency installs against the network.
+// Seed global config so detached installs skip Arborist's offline failure path on every instance.
 await markPluginDependenciesReady(Global.Path.config)
 
 const { initProjectors } = await import("../src/server/projectors")

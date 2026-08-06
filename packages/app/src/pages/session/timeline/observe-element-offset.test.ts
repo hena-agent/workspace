@@ -34,40 +34,31 @@ test("reports a divergent native offset once and ignores equal offsets and unrel
   } as unknown as Virtualizer<HTMLDivElement, HTMLDivElement>
   const calls: [number, boolean][] = []
   const reported = Promise.withResolvers<void>()
-  const observe = () =>
-    observeElementOffsetReconnectAware(instance, (offset, isScrolling) => {
-      calls.push([offset, isScrolling])
-      instance.scrollOffset = offset
-      reported.resolve()
-    })
+  const cleanup = observeElementOffsetReconnectAware(instance, (offset, isScrolling) => {
+    calls.push([offset, isScrolling])
+    instance.scrollOffset = offset
+    reported.resolve()
+  })
 
-  {
-    const cleanup = observe()
-    document.body.append(unrelated)
-    unrelated.remove()
-    await frames(2)
-    expect(calls).toEqual([])
-    cleanup?.()
-  }
+  document.body.append(unrelated)
+  unrelated.remove()
+  await frames(2)
+  expect(calls).toEqual([])
 
-  {
-    const cleanup = observe()
-    route.remove()
-    document.body.append(route)
-    await reported.promise
-    expect(calls).toEqual([[0, false]])
-    cleanup?.()
-  }
+  Bun.gc(true)
+  route.remove()
+  document.body.append(route)
+  await reported.promise
+  await frames(3)
+  expect(calls).toEqual([[0, false]])
 
-  {
-    const cleanup = observe()
-    route.remove()
-    document.body.append(route)
-    await frames(3)
-    expect(calls).toEqual([[0, false]])
-    cleanup?.()
-  }
+  Bun.gc(true)
+  route.remove()
+  document.body.append(route)
+  await frames(3)
+  expect(calls).toEqual([[0, false]])
 
+  cleanup?.()
   route.remove()
 })
 

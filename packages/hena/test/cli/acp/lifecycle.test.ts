@@ -18,7 +18,8 @@ describe("hena acp lifecycle subprocess", () => {
         const acp = yield* hena.acp()
         acp.close()
 
-        const code = yield* Effect.promise(() => acp.exited).pipe(Effect.timeout(Duration.seconds(5)))
+        // The deadline includes cold CLI startup before it can observe the already-closed pipe.
+        const code = yield* Effect.promise(() => acp.exited).pipe(Effect.timeout(Duration.seconds(15)))
         expect(code).toBe(0)
       }),
     60_000,

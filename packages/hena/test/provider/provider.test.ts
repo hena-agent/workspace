@@ -7,7 +7,6 @@ import { Effect, Layer } from "effect"
 import { ModelsDev } from "@hena/core/models-dev"
 import { FSUtil } from "@hena/core/fs-util"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
-import { Global } from "@hena/core/global"
 import { disposeAllInstances, provideInstanceEffect, tmpdirScoped, TestInstance } from "../fixture/fixture"
 import { markPluginDependenciesReady } from "../fixture/plugin"
 import { Auth } from "@/auth"
@@ -1916,7 +1915,6 @@ it.effect("plugin config providers persist after instance dispose", () =>
     const root = path.join(configDir, "plugin")
     yield* Effect.promise(() => mkdir(root, { recursive: true }))
     yield* Effect.promise(() => markPluginDependenciesReady(configDir))
-    yield* Effect.promise(() => markPluginDependenciesReady(Global.Path.config))
     yield* Effect.promise(() =>
       Bun.write(
         path.join(root, "demo-provider.ts"),

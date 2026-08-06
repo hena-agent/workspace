@@ -5,6 +5,7 @@ import path from "path"
 import fs from "fs/promises"
 import { setTimeout as sleep } from "node:timers/promises"
 import { afterAll } from "bun:test"
+import { markPluginDependenciesReady } from "./fixture/plugin"
 
 // Set XDG env vars FIRST, before any src/ imports
 const dir = path.join(os.tmpdir(), "hena-test-data-" + process.pid)
@@ -38,6 +39,9 @@ process.env["XDG_STATE_HOME"] = path.join(dir, "state")
 process.env["HENA_MODELS_PATH"] = path.join(import.meta.dir, "tool", "fixtures", "models-api.json")
 process.env["HENA_EXPERIMENTAL_EVENT_SYSTEM"] = "true"
 process.env["HENA_EXPERIMENTAL_WORKSPACES"] = "true"
+
+// Unit tests must not race detached config dependency installs against the network.
+await markPluginDependenciesReady(path.join(dir, "config", "hena"))
 
 // Set test home directory to isolate tests from user's actual home directory
 // This prevents tests from picking up real user configs/skills from ~/.claude/skills

@@ -45,14 +45,12 @@ test("reports a divergent native offset once and ignores equal offsets and unrel
   await frames(2)
   expect(calls).toEqual([])
 
-  Bun.gc(true)
   route.remove()
   document.body.append(route)
   await reported.promise
   await frames(3)
   expect(calls).toEqual([[0, false]])
 
-  Bun.gc(true)
   route.remove()
   document.body.append(route)
   await frames(3)

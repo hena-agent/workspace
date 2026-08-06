@@ -38,6 +38,8 @@ process.env["XDG_STATE_HOME"] = path.join(dir, "state")
 process.env["HENA_MODELS_PATH"] = path.join(import.meta.dir, "tool", "fixtures", "models-api.json")
 process.env["HENA_EXPERIMENTAL_EVENT_SYSTEM"] = "true"
 process.env["HENA_EXPERIMENTAL_WORKSPACES"] = "true"
+// Any config directory we failed to seed must fail fast instead of reifying over the network.
+process.env["npm_config_offline"] = "true"
 
 // Set test home directory to isolate tests from user's actual home directory
 // This prevents tests from picking up real user configs/skills from ~/.claude/skills

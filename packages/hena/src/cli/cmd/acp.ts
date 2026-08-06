@@ -1,7 +1,7 @@
 import { Effect } from "effect"
 import { effectCmd } from "../effect-cmd"
 import { AgentSideConnection, ndJsonStream } from "@agentclientprotocol/sdk"
-import { Readable, Writable } from "node:stream"
+import { Writable } from "node:stream"
 import { ServerAuth } from "@/server/auth"
 import { createHenaClient } from "@hena/sdk/v2"
 import { withNetworkOptions, resolveNetworkOptions } from "../network"
@@ -30,10 +30,7 @@ export const AcpCommand = effectCmd({
       headers: ServerAuth.headers(),
     })
 
-    const stream = ndJsonStream(
-      Writable.toWeb(process.stdout),
-      Readable.toWeb(process.stdin) as unknown as ReadableStream<Uint8Array>,
-    )
+    const stream = ndJsonStream(Writable.toWeb(process.stdout), Bun.stdin.stream())
     const agent = ACP.init({ sdk })
 
     const connection = new AgentSideConnection((conn) => {

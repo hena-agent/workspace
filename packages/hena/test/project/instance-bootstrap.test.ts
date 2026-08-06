@@ -4,10 +4,12 @@ import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
+import { Npm } from "@hena/core/npm"
 import { Cause, Effect, Exit, Fiber } from "effect"
 import { bootstrap as cliBootstrap } from "../../src/cli/bootstrap"
 import { InstanceBootstrap } from "../../src/project/bootstrap"
 import { InstanceStore } from "../../src/project/instance-store"
+import { NpmTest } from "../fake/npm"
 import { disposeAllInstances, tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 import { waitGlobalBusEvent } from "../server/global-bus"
@@ -15,6 +17,7 @@ import { waitGlobalBusEvent } from "../server/global-bus"
 const it = testEffect(
   LayerNode.compile(LayerNode.group([InstanceStore.node, CrossSpawnSpawner.node]), [
     [InstanceStore.bootstrapNode, InstanceBootstrap.node],
+    [Npm.node, NpmTest.noop],
   ]),
 )
 

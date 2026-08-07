@@ -3,6 +3,8 @@ import { GlobalRegistrator } from "@happy-dom/global-registrator"
 GlobalRegistrator.register()
 
 // Happy DOM keeps MutationObserver listeners only through WeakRef, so GC can silently kill them.
+// The only WeakRef it builds inside observe() holds the listener callback; its query and
+// computed-style caches hold DOM nodes and must stay collectable, hence the function filter.
 const pinnedMutationCallbacks = new WeakMap<MutationObserver, WeakKey[]>()
 const nativeMutationObserve = MutationObserver.prototype.observe
 MutationObserver.prototype.observe = function (target: Node, options?: MutationObserverInit) {
@@ -12,7 +14,7 @@ MutationObserver.prototype.observe = function (target: Node, options?: MutationO
   globalThis.WeakRef = class<T extends WeakKey> extends NativeWeakRef<T> {
     constructor(value: T) {
       super(value)
-      pinned.push(value)
+      if (typeof value === "function") pinned.push(value)
     }
   }
   try {

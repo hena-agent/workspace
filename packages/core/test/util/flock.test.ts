@@ -130,7 +130,7 @@ describe("util.flock", () => {
           done,
           active,
           holdMs: 30,
-          staleMs: 1_000,
+          staleMs: 10_000,
           timeoutMs: 15_000,
         }),
       ),

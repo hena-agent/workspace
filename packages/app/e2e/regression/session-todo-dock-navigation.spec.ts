@@ -72,7 +72,7 @@ test("animates todo lifecycle without replaying it across session tabs", async (
   await expect(page.getByRole("button", { name: "Stop" })).toBeVisible()
 
   await page.waitForTimeout(700)
-  const opening = sampleDock(page, 1_000)
+  const opening = sampleDock(page, 1_000, true)
   todos[sourceID] = activeTodos
   events.push(todoEvent(sourceID, activeTodos))
   await expect(dock).toBeVisible()
@@ -82,7 +82,7 @@ test("animates todo lifecycle without replaying it across session tabs", async (
   await switchSession(page, otherID, otherTitle)
   await expect(dock).toHaveCount(0)
 
-  const returningOpen = sampleDock(page, 700)
+  const returningOpen = sampleDock(page, 700, true)
   await switchSession(page, sourceID, sourceTitle)
   const openSamples = (await returningOpen).filter((sample) => sample.present)
   expect(openSamples.length).toBeGreaterThan(0)
@@ -100,7 +100,7 @@ test("animates todo lifecycle without replaying it across session tabs", async (
   events.push(todoEvent(sourceID, []))
 
   await switchSession(page, otherID, otherTitle)
-  const returningEmpty = sampleDock(page, 700)
+  const returningEmpty = sampleDockThroughSwitch(page, sourceTitle, 700)
   await switchSession(page, sourceID, sourceTitle)
   await expect(dock).toHaveCount(0)
   expect((await returningEmpty).every((sample) => !sample.present)).toBe(true)
@@ -166,21 +166,60 @@ async function switchSession(page: Page, sessionID: string, title: string) {
   await expectSessionTitle(page, title)
 }
 
-function sampleDock(page: Page, duration: number) {
-  return page.evaluate(async (duration) => {
-    const samples: { present: boolean; height: number; opacity: number }[] = []
-    const start = performance.now()
-    while (performance.now() - start < duration) {
-      const dock = document.querySelector<HTMLElement>('[data-component="session-todo-dock"]')
-      const clip = dock?.parentElement?.parentElement
-      const label = dock?.querySelector<HTMLElement>('[data-action="session-todo-toggle"] span[aria-label]')
-      samples.push({
-        present: !!dock,
-        height: clip?.getBoundingClientRect().height ?? 0,
-        opacity: label ? Number.parseFloat(getComputedStyle(label).opacity) : 0,
-      })
-      await new Promise(requestAnimationFrame)
-    }
-    return samples
-  }, duration)
+function sampleDock(page: Page, duration: number, waitForPresent = false) {
+  return page.evaluate(
+    async ({ duration, waitForPresent }) => {
+      const samples: { present: boolean; height: number; opacity: number }[] = []
+      const deadline = performance.now() + 30_000
+      let start = waitForPresent ? undefined : performance.now()
+      while (performance.now() < deadline) {
+        const dock = document.querySelector<HTMLElement>('[data-component="session-todo-dock"]')
+        if (start === undefined && dock) start = performance.now()
+        if (start === undefined) {
+          await new Promise(requestAnimationFrame)
+          continue
+        }
+        const clip = dock?.parentElement?.parentElement
+        const label = dock?.querySelector<HTMLElement>('[data-action="session-todo-toggle"] span[aria-label]')
+        samples.push({
+          present: !!dock,
+          height: clip?.getBoundingClientRect().height ?? 0,
+          opacity: label ? Number.parseFloat(getComputedStyle(label).opacity) : 0,
+        })
+        if (performance.now() - start >= duration) return samples
+        await new Promise(requestAnimationFrame)
+      }
+      return samples
+    },
+    { duration, waitForPresent },
+  )
+}
+
+function sampleDockThroughSwitch(page: Page, title: string, duration: number) {
+  return page.evaluate(
+    async ({ duration, title }) => {
+      const samples: { present: boolean; height: number; opacity: number }[] = []
+      const deadline = performance.now() + 30_000
+      let settled: number | undefined
+      while (performance.now() < deadline) {
+        const dock = document.querySelector<HTMLElement>('[data-component="session-todo-dock"]')
+        const clip = dock?.parentElement?.parentElement
+        const label = dock?.querySelector<HTMLElement>('[data-action="session-todo-toggle"] span[aria-label]')
+        samples.push({
+          present: !!dock,
+          height: clip?.getBoundingClientRect().height ?? 0,
+          opacity: label ? Number.parseFloat(getComputedStyle(label).opacity) : 0,
+        })
+        const ready = [...document.querySelectorAll("h1,h2,h3,h4,h5,h6,[role=heading]")].some(
+          (element) => element.textContent?.trim() === title && element.getClientRects().length > 0,
+        )
+        if (!ready) settled = undefined
+        if (ready && settled === undefined) settled = performance.now()
+        if (settled !== undefined && performance.now() - settled >= duration) return samples
+        await new Promise(requestAnimationFrame)
+      }
+      return samples
+    },
+    { duration, title },
+  )
 }

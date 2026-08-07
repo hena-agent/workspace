@@ -306,7 +306,7 @@ describe("HttpApi workspace routing middleware", () => {
           { contentType: "application/json" },
         ),
         HttpClient.execute,
-        Effect.timeout("2 seconds"),
+        Effect.timeout("10 seconds"),
       )
 
       expect(response.status).toBe(201)

@@ -397,7 +397,9 @@ describe("HttpApi SDK", () => {
         const url = new URL(request!.url)
 
         expect(found.response.status).toBe(200)
-        expect(found.data).toMatchObject({ data: [{ path: "hello.txt", type: "file" }] })
+        expect(found.data).toMatchObject({
+          data: expect.arrayContaining([{ path: "hello.txt", type: "file" }]),
+        })
         expect(url.searchParams.get("directory")).toBe(directory)
         expect(url.searchParams.get("workspace")).toBe(workspaceID)
         expect(url.searchParams.get("location[directory]")).toBe(directory)

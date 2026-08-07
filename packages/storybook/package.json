@@ -24,7 +24,7 @@
     "react-dom": "18.2.0",
     "solid-js": "catalog:",
     "storybook": "^10.2.13",
-    "storybook-solidjs-vite": "^10.0.9",
+    "storybook-solidjs-vite": "10.1.1",
     "typescript": "catalog:",
     "vite": "catalog:"
   }

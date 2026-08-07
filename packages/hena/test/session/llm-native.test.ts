@@ -422,7 +422,7 @@ describe("session.llm-native.request", () => {
         provider: { ...providerInfo, id: ProviderV2.ID.make("google") },
         auth: undefined,
       }),
-    ).toEqual({ type: "unsupported", reason: "provider is not openai, hena, or anthropic" })
+    ).toEqual({ type: "unsupported", reason: "provider is not Hena, OpenAI, or Anthropic" })
     expect(
       LLMNativeRuntime.status({
         model: baseModel,

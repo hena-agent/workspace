@@ -9,7 +9,10 @@ inputs:
     description: Model variant for reasoning effort / thinking budget (e.g., max, xhigh)
     required: true
   opencode-auth-json:
-    description: Contents of ~/.local/share/opencode/auth.json (pass via secrets)
+    description: Single-provider CI OAuth credential published from ~/.local/share/opencode/auth.json
+    required: true
+  timeout-minutes:
+    description: Calling job timeout; the OAuth lease must outlive it by 10 minutes
     required: true
   github-token:
     description: Token used by the OpenCode action to post comments and reach the GitHub API
@@ -24,13 +27,41 @@ runs:
     - name: Restore OpenCode auth.json
       shell: bash
       env:
+        MODEL: ${{ inputs.model }}
         OPENCODE_AUTH_JSON: ${{ inputs.opencode-auth-json }}
+        TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
       run: |
         set -euo pipefail
         if [ -z "${OPENCODE_AUTH_JSON}" ]; then
           echo "::error::OPENCODE_AUTH_JSON is empty. This typically happens for PRs from forks, where repo secrets are not exposed."
           exit 1
         fi
+        if ! [[ "$TIMEOUT_MINUTES" =~ ^[1-9][0-9]*$ ]]; then
+          echo "::error::timeout-minutes must be a positive whole number, got '$TIMEOUT_MINUTES'."
+          exit 1
+        fi
+        PROVIDER="${MODEL%%/*}"
+        if [ "$PROVIDER" = "$MODEL" ] || [ -z "$PROVIDER" ]; then
+          echo "::error::model must use provider/model form, got '$MODEL'."
+          exit 1
+        fi
+        HEADROOM_MINUTES=10
+        MIN_EXPIRES_MS=$(( ($(date +%s) + (TIMEOUT_MINUTES + HEADROOM_MINUTES) * 60) * 1000 ))
+
+        if ! printf '%s' "$OPENCODE_AUTH_JSON" | jq -e \
+          --arg provider "$PROVIDER" --arg sentinel "ci-refresh-disabled" --argjson min "$MIN_EXPIRES_MS" '
+          .[$provider] as $auth
+          | keys == [$provider]
+            and $auth.type == "oauth"
+            and (($auth.access | type) == "string" and ($auth.access | length) > 0)
+            and $auth.refresh == $sentinel
+            and (($auth.expires | type) == "number" and ($auth.expires | floor) == $auth.expires)
+            and $auth.expires >= $min
+        ' >/dev/null; then
+          echo "::error::OPENCODE_AUTH_JSON must contain exactly one '$PROVIDER' OAuth credential with refresh='ci-refresh-disabled' and at least $((TIMEOUT_MINUTES + HEADROOM_MINUTES))m remaining. Ask the credential owner to refresh and republish it."
+          exit 1
+        fi
+
         install -d -m 700 "$HOME/.local/share/opencode"
         printf '%s' "$OPENCODE_AUTH_JSON" > "$HOME/.local/share/opencode/auth.json"
         chmod 600 "$HOME/.local/share/opencode/auth.json"
@@ -55,7 +86,7 @@ runs:
     # this pin, and nothing enforces that pairing.
     - name: Pin opencode CLI version
       shell: bash
-      run: echo "OPENCODE_VERSION=1.18.5" >> "$GITHUB_ENV"
+      run: echo "OPENCODE_VERSION=1.18.13" >> "$GITHUB_ENV"
 
     # The agent shells out to this repo's bun scripts (typecheck, test,
     # lint, etc.), but the ubuntu-latest runner has no bun preinstalled. Install

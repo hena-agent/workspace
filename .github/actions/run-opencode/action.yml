@@ -3,7 +3,7 @@ description: Restore OpenCode auth.json from a secret, install a pinned OpenCode
 
 inputs:
   model:
-    description: Provider/model id (e.g., anthropic/claude-opus-5, openai/gpt-5.5)
+    description: Provider/model id (e.g., anthropic/claude-sonnet-5, openai/gpt-5.5)
     required: true
   variant:
     description: Model variant for reasoning effort / thinking budget (e.g., max, xhigh)

@@ -33,6 +33,7 @@ test("reports a divergent native offset once and ignores equal offsets and unrel
     },
   } as unknown as Virtualizer<HTMLDivElement, HTMLDivElement>
   const calls: [number, boolean][] = []
+  const reported = Promise.withResolvers<void>()
   const cleanup = observeElementOffsetReconnectAware(instance, (offset, isScrolling) => {
     calls.push([offset, isScrolling])
     instance.scrollOffset = offset
@@ -46,7 +47,6 @@ test("reports a divergent native offset once and ignores equal offsets and unrel
 
   route.remove()
   document.body.append(route)
-  const reported = Promise.withResolvers<void>()
   await reported.promise
   await frames(3)
   expect(calls).toEqual([[0, false]])

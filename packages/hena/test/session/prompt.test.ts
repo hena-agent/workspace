@@ -1666,11 +1666,13 @@ unixNoLLMServer(
   30_000,
 )
 
-unix(
+it.instance(
   "loop waits while shell runs and starts after shell exits",
   () =>
     Effect.gen(function* () {
-      const { llm } = yield* useServerConfig(providerCfg)
+      // Pin the shell so the busy-holding `sleep` resolves through Git Bash on Windows too.
+      if (!(yield* hasBash)) return
+      const { llm } = yield* useServerConfig((url) => ({ ...providerCfg(url), shell: "bash" }))
       const prompt = yield* SessionPrompt.Service
       const sessions = yield* Session.Service
       const chat = yield* sessions.create({
@@ -1703,11 +1705,13 @@ unix(
   30_000,
 )
 
-unix(
+it.instance(
   "shell completion resumes queued loop callers",
   () =>
     Effect.gen(function* () {
-      const { llm } = yield* useServerConfig(providerCfg)
+      // Pin the shell so the busy-holding `sleep` resolves through Git Bash on Windows too.
+      if (!(yield* hasBash)) return
+      const { llm } = yield* useServerConfig((url) => ({ ...providerCfg(url), shell: "bash" }))
       const prompt = yield* SessionPrompt.Service
       const sessions = yield* Session.Service
       const chat = yield* sessions.create({

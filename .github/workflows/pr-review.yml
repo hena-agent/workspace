@@ -47,6 +47,7 @@ jobs:
       opencode-auth-json: ${{ secrets.OPENCODE_AUTH_JSON }}
 
   claude-review:
+    if: ${{ !contains(github.event.pull_request.title, '[skip ci]') }}
     uses: ./.github/workflows/_opencode.yml
     with:
       model: anthropic/claude-opus-5

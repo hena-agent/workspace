@@ -30,6 +30,7 @@ jobs:
   # label, so re-running means removing the label and adding it again.
   gate:
     if: >-
+      !contains(github.event.pull_request.title, '[skip ci]') &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       (
         (github.event.action == 'labeled' && github.event.label.name == 'pr-brief') ||

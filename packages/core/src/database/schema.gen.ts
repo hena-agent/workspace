@@ -214,6 +214,7 @@ export default {
       `)
       yield* tx.run(`
         CREATE TABLE \`todo\` (
+          \`id\` text PRIMARY KEY,
           \`session_id\` text NOT NULL,
           \`content\` text NOT NULL,
           \`status\` text NOT NULL,
@@ -221,7 +222,6 @@ export default {
           \`position\` integer NOT NULL,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
-          CONSTRAINT \`todo_pk\` PRIMARY KEY(\`session_id\`, \`position\`),
           CONSTRAINT \`fk_todo_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
         );
       `)
@@ -268,6 +268,7 @@ export default {
       yield* tx.run(`CREATE INDEX \`session_project_idx\` ON \`session\` (\`project_id\`);`)
       yield* tx.run(`CREATE INDEX \`session_workspace_idx\` ON \`session\` (\`workspace_id\`);`)
       yield* tx.run(`CREATE INDEX \`session_parent_idx\` ON \`session\` (\`parent_id\`);`)
+      yield* tx.run(`CREATE UNIQUE INDEX \`todo_session_position_idx\` ON \`todo\` (\`session_id\`,\`position\`);`)
       yield* tx.run(`CREATE INDEX \`todo_session_idx\` ON \`todo\` (\`session_id\`);`)
     })
   },

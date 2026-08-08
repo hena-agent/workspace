@@ -255,8 +255,13 @@ describe("SessionStatus.Info", () => {
 describe("Todo.Info", () => {
   const decode = decodeUnknown(Todo.Info)
 
-  test("three-field round-trip", () => {
-    const input = Todo.Info.make({ content: "do a thing", status: "pending", priority: "high" })
+  test("stable ID round-trip", () => {
+    const input = Todo.Info.make({
+      id: Todo.ID.create(),
+      content: "do a thing",
+      status: "pending",
+      priority: "high",
+    })
     expect(decode(input)).toEqual(input)
   })
 })

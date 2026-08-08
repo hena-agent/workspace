@@ -15,6 +15,7 @@ import eventSourcedSessionInputMigration from "@hena/core/database/migration/202
 import contextEpochAgentMigration from "@hena/core/database/migration/20260605042240_add_context_epoch_agent"
 import simplifyIntegrationCredentialsMigration from "@hena/core/database/migration/20260611192811_lush_chimera"
 import simplifySessionInputMigration from "@hena/core/database/migration/20260622202450_simplify_session_input"
+import durableTodoIDMigration from "@hena/core/database/migration/20260808072148_durable_todo_id"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { EventV2 } from "@hena/core/event"
@@ -95,6 +96,33 @@ describe("DatabaseMigration", () => {
           { name: "session_message_session_time_created_id_idx" },
           { name: "session_message_session_type_seq_idx" },
         ])
+      }),
+    )
+  })
+
+  test("backfills stable IDs for existing todos", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`CREATE TABLE session (id text PRIMARY KEY)`)
+        yield* db.run(
+          sql`CREATE TABLE todo (session_id text NOT NULL, content text NOT NULL, status text NOT NULL, priority text NOT NULL, position integer NOT NULL, time_created integer NOT NULL, time_updated integer NOT NULL, PRIMARY KEY (session_id, position))`,
+        )
+        yield* db.run(sql`INSERT INTO session (id) VALUES ('ses_existing')`)
+        yield* db.run(
+          sql`INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated) VALUES ('ses_existing', 'first', 'pending', 'high', 0, 1, 2), ('ses_existing', 'second', 'completed', 'low', 1, 3, 4)`,
+        )
+
+        yield* DatabaseMigration.applyOnly(db, [durableTodoIDMigration])
+
+        const rows = yield* db.all<{ id: string; content: string; position: number; time_created: number }>(
+          sql`SELECT id, content, position, time_created FROM todo ORDER BY position`,
+        )
+        expect(rows).toEqual([
+          { id: expect.stringMatching(/^todo_[0-9a-f]{32}$/), content: "first", position: 0, time_created: 1 },
+          { id: expect.stringMatching(/^todo_[0-9a-f]{32}$/), content: "second", position: 1, time_created: 3 },
+        ])
+        expect(rows[0]?.id).not.toBe(rows[1]?.id)
       }),
     )
   })

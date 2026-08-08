@@ -75,7 +75,7 @@ const setup = Effect.gen(function* () {
     .pipe(Effect.orDie)
 })
 
-const call = (todos: ReadonlyArray<SessionTodo.Info>, id = "call-todowrite") => ({
+const call = (todos: ReadonlyArray<SessionTodo.Input>, id = "call-todowrite") => ({
   sessionID,
   ...toolIdentity,
   call: { type: "tool-call" as const, id, name: TodoWriteTool.name, input: { todos } },
@@ -87,20 +87,20 @@ describe("TodoWriteTool", () => {
       yield* setup
       const registry = yield* ToolRegistry.Service
       const service = yield* SessionTodo.Service
-      const todoList: ReadonlyArray<SessionTodo.Info> = [
+      const todoList: ReadonlyArray<SessionTodo.Input> = [
         { content: "Implement slice", status: "in_progress", priority: "high" },
       ]
 
       expect((yield* toolDefinitions(registry)).map((tool) => tool.name)).toEqual([TodoWriteTool.name])
-      expect(yield* settleTool(registry, call(todoList))).toEqual({
-        result: { type: "text", value: JSON.stringify(todoList, null, 2) },
-        output: {
-          structured: { todos: todoList },
-          content: [{ type: "text", text: JSON.stringify(todoList, null, 2) }],
-        },
+      const settled = yield* settleTool(registry, call(todoList))
+      expect(settled).toMatchObject({
+        output: { structured: { todos: [{ id: expect.stringMatching(/^todo_/), ...todoList[0] }] } },
       })
+      if (settled.output === undefined) throw new Error("Expected todo tool output")
+      const persisted = yield* service.get(sessionID)
+      expect(settled.result).toEqual({ type: "text", value: JSON.stringify(persisted, null, 2) })
+      expect(settled.output.content).toEqual([{ type: "text", text: JSON.stringify(persisted, null, 2) }])
       expect(assertions).toMatchObject([{ sessionID, action: "todowrite", resources: ["*"], save: ["*"] }])
-      expect(yield* service.get(sessionID)).toEqual(todoList)
     }),
   )
 
@@ -109,7 +109,10 @@ describe("TodoWriteTool", () => {
       yield* setup
       const registry = yield* ToolRegistry.Service
       const service = yield* SessionTodo.Service
-      yield* service.update({ sessionID, todos: [{ content: "keep", status: "pending", priority: "low" }] })
+      const current = yield* service.update({
+        sessionID,
+        todos: [{ content: "keep", status: "pending", priority: "low" }],
+      })
       deny = true
 
       expect(
@@ -118,7 +121,7 @@ describe("TodoWriteTool", () => {
         type: "error",
         value: "Unable to update todos",
       })
-      expect(yield* service.get(sessionID)).toEqual([{ content: "keep", status: "pending", priority: "low" }])
+      expect(yield* service.get(sessionID)).toEqual(current)
       expect(assertions).toMatchObject([{ sessionID, action: "todowrite", resources: ["*"], save: ["*"] }])
     }),
   )

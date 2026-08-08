@@ -38,7 +38,7 @@ const setup = Effect.gen(function* () {
 })
 
 describe("SessionTodo", () => {
-  it.effect("replaces persisted todos in order and publishes updates", () =>
+  it.effect("preserves server-issued IDs through edits and reorder", () =>
     Effect.gen(function* () {
       yield* setup
       const { db } = yield* Database.Service
@@ -52,43 +52,142 @@ describe("SessionTodo", () => {
       )
       yield* Effect.addFinalizer(() => unsubscribe)
 
-      yield* todos.update({
+      const initial = yield* todos.update({
         sessionID,
         todos: [
           { content: "second", status: "pending", priority: "low" },
           { content: "first", status: "in_progress", priority: "high" },
         ],
       })
-      expect(yield* todos.get(sessionID)).toEqual([
-        { content: "second", status: "pending", priority: "low" },
-        { content: "first", status: "in_progress", priority: "high" },
+      expect(initial).toEqual([
+        { id: expect.stringMatching(/^todo_/), content: "second", status: "pending", priority: "low" },
+        { id: expect.stringMatching(/^todo_/), content: "first", status: "in_progress", priority: "high" },
+      ])
+      expect(initial[0]?.id).not.toBe(initial[1]?.id)
+      expect(yield* todos.get(sessionID)).toEqual(initial)
+
+      const legacyReordered = yield* todos.update({
+        sessionID,
+        todos: [
+          { content: "first", status: "in_progress", priority: "high" },
+          { content: "second", status: "pending", priority: "low" },
+        ],
+      })
+      expect(legacyReordered.map((todo) => todo.id)).toEqual([initial[1]!.id, initial[0]!.id])
+
+      const reordered = yield* todos.update({
+        sessionID,
+        todos: [
+          { content: "second edited", status: "completed", priority: "medium" },
+          { content: "first", status: "in_progress", priority: "high" },
+        ],
+      })
+      expect(reordered).toEqual([
+        { id: initial[0]!.id, content: "second edited", status: "completed", priority: "medium" },
+        { id: initial[1]!.id, content: "first", status: "in_progress", priority: "high" },
       ])
       expect(
         (yield* db.select().from(TodoTable).orderBy(asc(TodoTable.position)).all().pipe(Effect.orDie)).map((row) => ({
+          id: row.id,
           content: row.content,
           position: row.position,
         })),
       ).toEqual([
-        { content: "second", position: 0 },
-        { content: "first", position: 1 },
+        { id: initial[0]!.id, content: "second edited", position: 0 },
+        { id: initial[1]!.id, content: "first", position: 1 },
       ])
-
-      yield* todos.update({ sessionID, todos: [{ content: "replacement", status: "completed", priority: "medium" }] })
-      expect(yield* todos.get(sessionID)).toEqual([{ content: "replacement", status: "completed", priority: "medium" }])
 
       yield* todos.update({ sessionID, todos: [] })
       expect(yield* todos.get(sessionID)).toEqual([])
       expect(published.map((event) => event.data)).toEqual([
-        {
-          sessionID,
-          todos: [
-            { content: "second", status: "pending", priority: "low" },
-            { content: "first", status: "in_progress", priority: "high" },
-          ],
-        },
-        { sessionID, todos: [{ content: "replacement", status: "completed", priority: "medium" }] },
+        { sessionID, todos: initial },
+        { sessionID, todos: legacyReordered },
+        { sessionID, todos: reordered },
         { sessionID, todos: [] },
       ])
+    }),
+  )
+
+  it.effect("rejects unknown and duplicate IDs without changing persisted todos", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const todos = yield* SessionTodo.Service
+      const current = yield* todos.update({
+        sessionID,
+        todos: [{ content: "keep", status: "pending", priority: "low" }],
+      })
+
+      expect(
+        yield* todos
+          .update({
+            sessionID,
+            todos: [
+              {
+                id: SessionTodo.ID.make("todo_unknown"),
+                content: "unknown",
+                status: "pending",
+                priority: "low",
+              },
+            ],
+          })
+          .pipe(Effect.flip),
+      ).toBeInstanceOf(SessionTodo.InvalidIDError)
+      expect(yield* todos.get(sessionID)).toEqual(current)
+
+      expect(
+        yield* todos
+          .update({
+            sessionID,
+            todos: [current[0]!, { ...current[0]!, content: "duplicate" }],
+          })
+          .pipe(Effect.flip),
+      ).toBeInstanceOf(SessionTodo.DuplicateIDError)
+      expect(yield* todos.get(sessionID)).toEqual(current)
+    }),
+  )
+
+  it.effect("does not reuse an existing ID for a newly inserted todo", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const todos = yield* SessionTodo.Service
+      const current = yield* todos.update({
+        sessionID,
+        todos: [{ content: "existing", status: "pending", priority: "low" }],
+      })
+
+      const updated = yield* todos.update({
+        sessionID,
+        todos: [
+          { content: "new", status: "pending", priority: "high" },
+          { content: "existing", status: "pending", priority: "low" },
+        ],
+      })
+      expect(updated[0]?.id).not.toBe(current[0]?.id)
+      expect(updated[1]?.id).toBe(current[0]?.id)
+    }),
+  )
+
+  it.effect("does not reuse a deleted ID for an equal-count replacement", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const todos = yield* SessionTodo.Service
+      const current = yield* todos.update({
+        sessionID,
+        todos: [
+          { content: "remove", status: "pending", priority: "low" },
+          { content: "keep", status: "pending", priority: "high" },
+        ],
+      })
+
+      const updated = yield* todos.update({
+        sessionID,
+        todos: [
+          { content: "replacement", status: "pending", priority: "medium" },
+          current[1]!,
+        ],
+      })
+      expect(updated[0]?.id).not.toBe(current[0]?.id)
+      expect(updated[1]?.id).toBe(current[1]?.id)
     }),
   )
 })

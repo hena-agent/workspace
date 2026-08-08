@@ -24,6 +24,7 @@ import * as HttpSessionError from "../../src/server/routes/instance/httpapi/hand
 import { ExperimentalPaths } from "../../src/server/routes/instance/httpapi/groups/experimental"
 import { SessionPaths } from "../../src/server/routes/instance/httpapi/groups/session"
 import { Session } from "@/session/session"
+import { Todo } from "@/session/todo"
 import { MessageID, PartID, SessionID, type SessionID as SessionIDType } from "../../src/session/schema"
 import { Database } from "@hena/core/database/database"
 import { SessionInputTable, SessionMessageTable, SessionTable } from "@hena/core/session/sql"
@@ -44,7 +45,15 @@ const noopBootstrapLayer = Layer.succeed(
   InstanceBootstrapService.Service.of({ run: Effect.void }),
 )
 const appLayer = AppNodeBuilder.build(
-  LayerNode.group([InstanceStore.node, Project.node, Session.node, Workspace.node, Database.node, Ripgrep.node]),
+  LayerNode.group([
+    InstanceStore.node,
+    Project.node,
+    Session.node,
+    Todo.node,
+    Workspace.node,
+    Database.node,
+    Ripgrep.node,
+  ]),
   [[InstanceStore.bootstrapNode, noopBootstrapLayer]],
 )
 const servedRoutes: Layer.Layer<never, Config.ConfigError, HttpServer.HttpServer> = HttpRouter.serve(
@@ -326,6 +335,12 @@ describe("session HttpApi", () => {
         const child = yield* createSession({ title: "child", parentID: parent.id })
         const message = yield* createTextMessage(parent.id, "hello")
         yield* createTextMessage(parent.id, "world")
+        const storedTodos = yield* Todo.Service.use((service) =>
+          service.update({
+            sessionID: parent.id,
+            todos: [{ content: "stable", status: "pending", priority: "high" }],
+          }),
+        )
 
         const listed = yield* requestJson<Session.Info[]>(`${SessionPaths.list}?roots=true`, { headers })
         expect(listed.map((item) => item.id)).toContain(parent.id)
@@ -344,8 +359,10 @@ describe("session HttpApi", () => {
         ).toEqual([child.id])
 
         expect(
-          yield* requestJson<unknown[]>(pathFor(SessionPaths.todo, { sessionID: parent.id }), { headers }),
-        ).toEqual([])
+          yield* requestJson<ReadonlyArray<Todo.Info>>(pathFor(SessionPaths.todo, { sessionID: parent.id }), {
+            headers,
+          }),
+        ).toEqual(storedTodos)
 
         expect(
           yield* requestJson<unknown[]>(pathFor(SessionPaths.diff, { sessionID: parent.id }), { headers }),

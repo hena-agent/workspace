@@ -12,7 +12,7 @@ import { Tools } from "./tools"
 export const name = "todowrite"
 
 export const Input = Schema.Struct({
-  todos: Schema.Array(SessionTodo.Info).annotate({ description: "The updated todo list" }),
+  todos: Schema.Array(SessionTodo.Input).annotate({ description: "The updated todo list" }),
 })
 
 export const Output = Schema.Struct({
@@ -20,7 +20,7 @@ export const Output = Schema.Struct({
 })
 export type Output = typeof Output.Type
 
-export const toModelOutput = (output: Output) => JSON.stringify(output.todos, null, 2)
+export const toModelOutput = (output: typeof Output.Encoded) => JSON.stringify(output.todos, null, 2)
 
 const layer = Layer.effectDiscard(
   Effect.gen(function* () {
@@ -46,8 +46,7 @@ const layer = Layer.effectDiscard(
                 agent: context.agent,
                 source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
               })
-              yield* todos.update({ sessionID: context.sessionID, todos: input.todos })
-              return { todos: input.todos }
+              return { todos: yield* todos.update({ sessionID: context.sessionID, todos: input.todos }) }
             }).pipe(Effect.mapError(() => new ToolFailure({ message: "Unable to update todos" }))),
         }),
       })

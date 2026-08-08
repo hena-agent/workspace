@@ -657,6 +657,10 @@ export type Pty = {
 
 export type Todo = {
   /**
+   * Server-issued todo ID; preserve it when updating an existing todo
+   */
+  id: string
+  /**
    * Brief description of the task
    */
   content: string

@@ -21,16 +21,22 @@ describe("contract hygiene", () => {
 
   test("todo status and priority preserve arbitrary strings", () => {
     const decode = Schema.decodeUnknownSync(SessionTodo.Info)
-    expect(decode({ content: "ship", status: "waiting", priority: "urgent" })).toEqual({
+    const id = SessionTodo.ID.create()
+    expect(decode({ id, content: "ship", status: "waiting", priority: "urgent" })).toEqual({
+      id,
       content: "ship",
       status: "waiting",
       priority: "urgent",
     })
+    expect(Schema.decodeUnknownSync(SessionTodo.Input)({ content: "new", status: "pending", priority: "low" })).toEqual(
+      { content: "new", status: "pending", priority: "low" },
+    )
   })
 
   test("current ID constructors expose create", () => {
     expect(Question.ID.create()).toStartWith("que_")
     expect(Pty.ID.create()).toStartWith("pty_")
+    expect(SessionTodo.ID.create()).toStartWith("todo_")
   })
 
   test("reusable public identifiers are stable and unique", () => {

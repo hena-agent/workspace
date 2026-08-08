@@ -251,9 +251,12 @@ describe("tool parameters", () => {
   describe("todo", () => {
     test("accepts todos array", () => {
       const parsed = parse(Todo, {
-        todos: [{ id: "t1", content: "do x", status: "pending", priority: "medium" }],
+        todos: [{ id: "todo_1", content: "do x", status: "pending", priority: "medium" }],
       })
       expect(parsed.todos.length).toBe(1)
+    })
+    test("accepts new todos without an ID", () => {
+      expect(accepts(Todo, { todos: [{ content: "do x", status: "pending", priority: "medium" }] })).toBe(true)
     })
     test("rejects missing todos", () => {
       expect(accepts(Todo, {})).toBe(false)

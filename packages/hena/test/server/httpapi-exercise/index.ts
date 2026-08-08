@@ -97,9 +97,7 @@ const scenarios: Scenario[] = [
         Effect.gen(function* () {
           object(body)
           check(body.username === "httpapi-global", "global config update should return patched config")
-          const text = yield* Effect.promise(() =>
-            Bun.file(path.join(exerciseConfigDirectory, "hena.jsonc")).text(),
-          )
+          const text = yield* Effect.promise(() => Bun.file(path.join(exerciseConfigDirectory, "hena.jsonc")).text())
           check(text.includes('"username": "httpapi-global"'), "global config update should write isolated config file")
         }),
       "status",
@@ -1255,8 +1253,9 @@ const scenarios: Scenario[] = [
     .seeded((ctx) =>
       Effect.gen(function* () {
         const session = yield* ctx.session({ title: "Todo session" })
-        const todos = [{ content: "cover session todo", status: "pending" as const, priority: "high" as const }]
-        yield* ctx.todos(session.id, todos)
+        const todos = yield* ctx.todos(session.id, [
+          { content: "cover session todo", status: "pending", priority: "high" },
+        ])
         return { session, todos }
       }),
     )

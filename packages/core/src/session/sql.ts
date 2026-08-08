@@ -14,6 +14,7 @@ import { Timestamps } from "../database/schema.sql"
 import type { SystemContext } from "../system-context/index"
 import { AgentV2 } from "../agent"
 import type { Revert } from "@hena/schema/revert"
+import type { SessionTodo } from "@hena/schema/session-todo"
 
 type SessionMessageData = Omit<(typeof SessionMessage.Message)["Encoded"], "type" | "id">
 type V1MessageData = Omit<SessionV1.Info, "id" | "sessionID">
@@ -100,6 +101,7 @@ export const PartTable = sqliteTable(
 export const TodoTable = sqliteTable(
   "todo",
   {
+    id: text().$type<SessionTodo.ID>().notNull().primaryKey(),
     session_id: text()
       .$type<SessionSchema.ID>()
       .notNull()
@@ -111,7 +113,7 @@ export const TodoTable = sqliteTable(
     ...Timestamps,
   },
   (table) => [
-    primaryKey({ columns: [table.session_id, table.position] }),
+    uniqueIndex("todo_session_position_idx").on(table.session_id, table.position),
     index("todo_session_idx").on(table.session_id),
   ],
 )

@@ -333,7 +333,10 @@ const waitForBusy = (sessionID: SessionID, duration: Duration.Input = "2 seconds
     duration,
   )
 
-const hasBash = Effect.sync(() => Bun.which("bash") !== null)
+// `shell: "bash"` degrades silently to win()[0] when bash is unresolvable, and Git Bash lives
+// off-PATH via gitbash()/HENA_GIT_BASH_PATH. Ask the resolution the runner will actually perform
+// rather than a bare PATH lookup, so the gate and the pin answer the same question.
+const hasBash = Effect.sync(() => Shell.name(Shell.preferred("bash") ?? "") === "bash")
 
 const deferredAsPromise = <A>(deferred: Deferred.Deferred<A>): PromiseLike<A> => ({
   then: (onfulfilled, onrejected) => {
@@ -1670,8 +1673,8 @@ it.instance(
   "loop waits while shell runs and starts after shell exits",
   () =>
     Effect.gen(function* () {
-      // Pin the shell so the busy-holding `sleep` resolves through Git Bash on Windows too.
       if (!(yield* hasBash)) return
+      // Pin the shell so the busy-holding `sleep` resolves through Git Bash on Windows too.
       const { llm } = yield* useServerConfig((url) => ({ ...providerCfg(url), shell: "bash" }))
       const prompt = yield* SessionPrompt.Service
       const sessions = yield* Session.Service
@@ -1709,8 +1712,8 @@ it.instance(
   "shell completion resumes queued loop callers",
   () =>
     Effect.gen(function* () {
-      // Pin the shell so the busy-holding `sleep` resolves through Git Bash on Windows too.
       if (!(yield* hasBash)) return
+      // Pin the shell so the busy-holding `sleep` resolves through Git Bash on Windows too.
       const { llm } = yield* useServerConfig((url) => ({ ...providerCfg(url), shell: "bash" }))
       const prompt = yield* SessionPrompt.Service
       const sessions = yield* Session.Service

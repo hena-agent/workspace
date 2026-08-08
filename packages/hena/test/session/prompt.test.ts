@@ -336,7 +336,8 @@ const waitForBusy = (sessionID: SessionID, duration: Duration.Input = "2 seconds
 // `shell: "bash"` degrades silently to win()[0] when bash is unresolvable, and Git Bash lives
 // off-PATH via gitbash()/HENA_GIT_BASH_PATH. Ask the resolution the runner will actually perform
 // rather than a bare PATH lookup, so the gate and the pin answer the same question.
-const hasBash = Effect.sync(() => Shell.name(Shell.preferred("bash") ?? "") === "bash")
+const hasBash = Shell.name(Shell.preferred("bash") ?? "") === "bash"
+const bash = hasBash ? it.instance : it.instance.skip
 
 const deferredAsPromise = <A>(deferred: Deferred.Deferred<A>): PromiseLike<A> => ({
   then: (onfulfilled, onrejected) => {
@@ -1548,7 +1549,7 @@ unixNoLLMServer(
   () =>
     withSh(() =>
       Effect.gen(function* () {
-        if (!(yield* hasBash)) return
+        if (!hasBash) return
 
         const { prompt, chat } = yield* boot()
         const result = yield* prompt.shell({
@@ -1669,11 +1670,10 @@ unixNoLLMServer(
   30_000,
 )
 
-it.instance(
+bash(
   "loop waits while shell runs and starts after shell exits",
   () =>
     Effect.gen(function* () {
-      if (!(yield* hasBash)) return
       // Pin the shell so the busy-holding `sleep` resolves through Git Bash on Windows too.
       const { llm } = yield* useServerConfig((url) => ({ ...providerCfg(url), shell: "bash" }))
       const prompt = yield* SessionPrompt.Service
@@ -1690,7 +1690,13 @@ it.instance(
       yield* waitForBusy(chat.id)
 
       const loop = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
-      yield* Effect.sleep(50)
+      // The zero-call assertion only means something while the shell still holds the runner.
+      expect(
+        yield* Effect.raceFirst(
+          Effect.sleep(50).pipe(Effect.as("shell-running" as const)),
+          Fiber.await(sh).pipe(Effect.as("shell-exited" as const)),
+        ),
+      ).toBe("shell-running")
 
       expect(yield* llm.calls).toBe(0)
 
@@ -1708,11 +1714,10 @@ it.instance(
   30_000,
 )
 
-it.instance(
+bash(
   "shell completion resumes queued loop callers",
   () =>
     Effect.gen(function* () {
-      if (!(yield* hasBash)) return
       // Pin the shell so the busy-holding `sleep` resolves through Git Bash on Windows too.
       const { llm } = yield* useServerConfig((url) => ({ ...providerCfg(url), shell: "bash" }))
       const prompt = yield* SessionPrompt.Service
@@ -1730,7 +1735,13 @@ it.instance(
 
       const a = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
       const b = yield* prompt.loop({ sessionID: chat.id }).pipe(Effect.forkChild)
-      yield* Effect.sleep(50)
+      // The zero-call assertion only means something while the shell still holds the runner.
+      expect(
+        yield* Effect.raceFirst(
+          Effect.sleep(50).pipe(Effect.as("shell-running" as const)),
+          Fiber.await(sh).pipe(Effect.as("shell-exited" as const)),
+        ),
+      ).toBe("shell-running")
 
       expect(yield* llm.calls).toBe(0)
 
@@ -1746,7 +1757,7 @@ it.instance(
       expect(yield* llm.calls).toBe(1)
     }),
   { git: true },
-  10_000,
+  30_000,
 )
 
 unix(
@@ -1754,7 +1765,7 @@ unix(
   () =>
     withSh(() =>
       Effect.gen(function* () {
-        if (!(yield* hasBash)) return
+        if (!hasBash) return
         const { llm } = yield* useServerConfig((url) => ({
           ...providerCfg(url),
           shell: "bash",

@@ -17,6 +17,18 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "@hena/schema#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@hena/protocol#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@hena/server#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
     "@hena/app#test": {
       "dependsOn": ["^build"],
       "outputs": []

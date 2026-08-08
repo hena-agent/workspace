@@ -69,7 +69,7 @@ jobs:
     if: needs.gate.outputs.large == 'true'
     uses: ./.github/workflows/_opencode.yml
     with:
-      model: anthropic/claude-opus-5
+      model: anthropic/claude-sonnet-5
       variant: max
       # Posts as hena-claude-reviewer[bot], the same identity as pr-review.yml.
       app-client-id: ${{ vars.CLAUDE_REVIEWER_CLIENT_ID }}

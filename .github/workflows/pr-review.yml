@@ -50,7 +50,7 @@ jobs:
     if: ${{ !contains(github.event.pull_request.title, '[skip ci]') }}
     uses: ./.github/workflows/_opencode.yml
     with:
-      model: anthropic/claude-opus-5
+      model: anthropic/claude-sonnet-5
       variant: max
       app-client-id: ${{ vars.CLAUDE_REVIEWER_CLIENT_ID }}
       prompt: |

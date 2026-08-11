@@ -8,7 +8,7 @@ import type * as PlatformError from "effect/PlatformError"
 import type * as Scope from "effect/Scope"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
+import { ChildProcessSpawner } from "effect/unstable/process"
 import type { Config } from "@/config/config"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { InstanceRef } from "../../src/effect/instance-ref"
@@ -54,13 +54,6 @@ function sanitizePath(p: string): string {
   return p.replace(/\0/g, "")
 }
 
-function exists(dir: string) {
-  return fs
-    .stat(dir)
-    .then(() => true)
-    .catch(() => false)
-}
-
 function clean(dir: string) {
   return fs.rm(dir, {
     recursive: true,
@@ -70,9 +63,14 @@ function clean(dir: string) {
   })
 }
 
-async function stop(dir: string) {
-  if (!(await exists(dir))) return
-  await $`git fsmonitor--daemon stop`.cwd(dir).quiet().nothrow()
+async function initializeGit(dir: string) {
+  await $`git init`.cwd(dir).quiet()
+  // Persist test-safe settings without paying for four more git processes per fixture.
+  await fs.appendFile(
+    path.join(dir, ".git", "config"),
+    "\n[core]\n\tfsmonitor = false\n[commit]\n\tgpgsign = false\n[user]\n\temail = test@hena.test\n\tname = Test\n",
+  )
+  await $`git commit --allow-empty -m "root commit ${dir}"`.cwd(dir).quiet()
 }
 
 type TmpDirOptions<T> = {
@@ -84,14 +82,7 @@ type TmpDirOptions<T> = {
 export async function tmpdir<T>(options?: TmpDirOptions<T>) {
   const dirpath = sanitizePath(path.join(os.tmpdir(), "hena-test-" + Math.random().toString(36).slice(2)))
   await fs.mkdir(dirpath, { recursive: true })
-  if (options?.git) {
-    await $`git init`.cwd(dirpath).quiet()
-    await $`git config core.fsmonitor false`.cwd(dirpath).quiet()
-    await $`git config commit.gpgsign false`.cwd(dirpath).quiet()
-    await $`git config user.email "test@hena.test"`.cwd(dirpath).quiet()
-    await $`git config user.name "Test"`.cwd(dirpath).quiet()
-    await $`git commit --allow-empty -m "root commit ${dirpath}"`.cwd(dirpath).quiet()
-  }
+  if (options?.git) await initializeGit(dirpath)
   if (options?.config) {
     await Bun.write(
       path.join(dirpath, "hena.json"),
@@ -108,7 +99,6 @@ export async function tmpdir<T>(options?: TmpDirOptions<T>) {
       try {
         await options?.dispose?.(realpath)
       } finally {
-        if (options?.git) await stop(realpath).catch(() => undefined)
         await clean(realpath).catch(() => undefined)
       }
     },
@@ -125,29 +115,17 @@ export function tmpdirScoped<E = never, R = never>(options?: {
   init?: (directory: string) => Effect.Effect<void, E, R>
 }) {
   return Effect.gen(function* () {
-    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
     const dirpath = sanitizePath(path.join(os.tmpdir(), "hena-test-" + Math.random().toString(36).slice(2)))
     yield* Effect.promise(() => fs.mkdir(dirpath, { recursive: true }))
     const dir = sanitizePath(yield* Effect.promise(() => fs.realpath(dirpath)))
 
     yield* Effect.addFinalizer(() =>
       Effect.promise(async () => {
-        if (options?.git) await stop(dir).catch(() => undefined)
         await clean(dir).catch(() => undefined)
       }),
     )
 
-    const git = (...args: string[]) =>
-      spawner.spawn(ChildProcess.make("git", args, { cwd: dir })).pipe(Effect.flatMap((handle) => handle.exitCode))
-
-    if (options?.git) {
-      yield* git("init")
-      yield* git("config", "core.fsmonitor", "false")
-      yield* git("config", "commit.gpgsign", "false")
-      yield* git("config", "user.email", "test@hena.test")
-      yield* git("config", "user.name", "Test")
-      yield* git("commit", "--allow-empty", "-m", `root commit ${dir}`)
-    }
+    if (options?.git) yield* Effect.promise(() => initializeGit(dir))
 
     if (options?.config) {
       const resolved = typeof options.config === "function" ? options.config() : options.config

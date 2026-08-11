@@ -140,11 +140,7 @@ jobs:
 
   gates:
     if: ${{ !contains(github.event.pull_request.title, '[skip ci]') }}
-    name: generated and HttpApi gates (${{ matrix.mode }})
-    strategy:
-      fail-fast: false
-      matrix:
-        mode: [coverage, auth, effect]
+    name: generated and HttpApi gates
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -162,13 +158,12 @@ jobs:
         run: bun turbo build --filter='hena^...'
 
       - name: Check generated client
-        if: matrix.mode == 'coverage'
         working-directory: packages/client
         run: bun run check:generated
 
       - name: Run HttpApi exerciser gates
         working-directory: packages/hena
-        run: bun run test:httpapi:${{ matrix.mode }}
+        run: bun run test:httpapi
 
   e2e:
     if: ${{ !contains(github.event.pull_request.title, '[skip ci]') }}

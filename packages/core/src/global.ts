@@ -41,7 +41,6 @@ await Promise.all([
   fs.mkdir(Path.log, { recursive: true }),
   fs.mkdir(Path.bin, { recursive: true }),
   fs.mkdir(Path.repos, { recursive: true }),
-  fs.mkdir(Path.projects, { recursive: true, mode: 0o700 }),
 ])
 
 export class Service extends Context.Service<Service, Interface>()("@hena/Global") {}
@@ -60,10 +59,9 @@ export interface Interface {
 }
 
 export function make(input: Partial<Interface> = {}): Interface {
-  const data = input.data ?? Path.data
   return {
     home: Path.home,
-    data,
+    data: Path.data,
     cache: Path.cache,
     config: Flag.HENA_CONFIG_DIR ?? Path.config,
     state: Path.state,
@@ -71,7 +69,7 @@ export function make(input: Partial<Interface> = {}): Interface {
     bin: Path.bin,
     log: Path.log,
     repos: Path.repos,
-    projects: path.join(data, "projects"),
+    projects: Path.projects,
     ...input,
   }
 }

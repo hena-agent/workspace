@@ -165,6 +165,7 @@ describe("Project.fromDirectory", () => {
 
       expect(result.project.id).toBe(managed.id)
       expect(result.project.worktree).toBe(managed.directory)
+      expect(result.project.vcs).toBeUndefined()
     }),
   )
 
@@ -760,7 +761,7 @@ describe("Project.addSandbox and Project.removeSandbox", () => {
 })
 
 describe("Project folderless rows", () => {
-  it.live("are hidden from reads and refused by writes", () =>
+  it.live("are hidden from reads and refused by writes until reopened", () =>
     Effect.gen(function* () {
       const project = yield* Project.Service
       const { db } = yield* Database.Service
@@ -775,8 +776,6 @@ describe("Project folderless rows", () => {
         .where(eq(ProjectTable.id, result.project.id))
         .run()
         .pipe(Effect.orDie)
-      const before = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()
-
       expect(yield* project.list()).toEqual([])
       expect(yield* project.get(result.project.id)).toBeUndefined()
       expect(yield* project.sandboxes(result.project.id)).toEqual([])
@@ -788,8 +787,13 @@ describe("Project folderless rows", () => {
         "Project.NotFoundError",
       )
       expect((yield* Effect.flip(project.removeSandbox(result.project.id, sandbox)))._tag).toBe("Project.NotFoundError")
-      expect(yield* Effect.exit(project.fromDirectory(tmp))).toEqual(expect.objectContaining({ _tag: "Failure" }))
-      expect(yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()).toEqual(before)
+      expect((yield* project.fromDirectory(tmp)).project).toMatchObject({
+        id: result.project.id,
+        worktree: result.project.worktree,
+      })
+      expect(yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()).toMatchObject({
+        worktree: result.project.worktree,
+      })
     }),
   )
 })

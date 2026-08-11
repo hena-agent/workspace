@@ -42,7 +42,7 @@ export interface Interface {
   /**
    * Temporary bridge method for writing the resolved project ID to the repo-local cache.
    *
-    * This exists while the legacy project service and this core project
+   * This exists while the legacy project service and this core project
    * service work together: core resolves the ID, while the old service still owns
    * database migration and persistence. The old service should call this after it
    * finishes migrating from `resolve().previous` to `resolve().id`; once project
@@ -61,11 +61,12 @@ const layer = Layer.effect(
     const global = yield* Global.Service
     const projectDirectories = yield* ProjectDirectories.Service
 
+    yield* fs.ensureDir(global.projects).pipe(Effect.orDie)
+    const projects = AbsolutePath.make(yield* fs.resolve(global.projects))
+    if (process.platform !== "win32") yield* fs.chmod(projects, 0o700).pipe(Effect.orDie)
+
     const create = Effect.fn("Project.create")(function* () {
       const id = ID.create()
-      yield* fs.ensureDir(global.projects).pipe(Effect.orDie)
-      const projects = AbsolutePath.make(yield* fs.resolve(global.projects))
-      if (process.platform !== "win32") yield* fs.chmod(projects, 0o700).pipe(Effect.orDie)
       const directory = AbsolutePath.make(path.join(projects, id))
       return yield* Effect.gen(function* () {
         yield* fs.ensureDir(directory).pipe(Effect.orDie)
@@ -125,15 +126,8 @@ const layer = Layer.effect(
 
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
       const directory = AbsolutePath.make(yield* fs.resolve(input))
-      const projects = AbsolutePath.make(yield* fs.resolve(global.projects))
-      const relative = path.relative(projects, directory)
-      const managedID = relative.split(path.sep)[0]
-      if (
-        managedID &&
-        !path.isAbsolute(relative) &&
-        !relative.startsWith(`..${path.sep}`) &&
-        /^prj_[0-9A-Za-z]+$/.test(managedID)
-      ) {
+      const managedID = path.relative(projects, directory).split(path.sep)[0]
+      if (managedID && ID.isManaged(managedID)) {
         return {
           id: ID.make(managedID),
           directory: AbsolutePath.make(path.join(projects, managedID)),

@@ -3,6 +3,7 @@ import { Project } from "../src/project"
 
 describe("Project", () => {
   test("creates path-safe managed IDs", () => {
-    expect(String(Project.ID.create())).toMatch(/^prj_[0-9A-Za-z]+$/)
+    expect(Project.ID.isManaged(Project.ID.create())).toBe(true)
+    expect(Project.ID.isManaged(Project.ID.global)).toBe(false)
   })
 })

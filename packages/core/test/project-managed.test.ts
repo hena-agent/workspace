@@ -11,10 +11,13 @@ import { AbsolutePath } from "@hena/core/schema"
 import { testEffect } from "./lib/effect"
 
 const data = await fs.mkdtemp(path.join(os.tmpdir(), "hena-managed-project-"))
+const projectsRoot = path.join(data, "projects")
 afterAll(() => fs.rm(data, { recursive: true, force: true }))
 
 const it = testEffect(
-  AppNodeBuilder.build(LayerNode.group([Project.node, Global.node]), [[Global.node, Global.layerWith({ data })]]),
+  AppNodeBuilder.build(LayerNode.group([Project.node, Global.node]), [
+    [Global.node, Global.layerWith({ data, projects: projectsRoot })],
+  ]),
 )
 
 describe("managed projects", () => {
@@ -26,13 +29,15 @@ describe("managed projects", () => {
       yield* Effect.promise(() => fs.mkdir(child))
       const root = AbsolutePath.make(path.dirname(created.directory))
       const outside = AbsolutePath.make(path.join(data, "projects-other", created.id))
+      const unmanaged = AbsolutePath.make(path.join(projectsRoot, "notes"))
       yield* Effect.promise(() => fs.mkdir(outside, { recursive: true }))
+      yield* Effect.promise(() => fs.mkdir(unmanaged))
 
-      expect(Global.make({ data }).projects).toBe(path.join(data, "projects"))
-      expect(String(created.id)).toMatch(/^prj_[0-9A-Za-z]+$/)
+      expect(Project.ID.isManaged(created.id)).toBe(true)
       expect(created.directory).toBe(AbsolutePath.make(path.join(root, created.id)))
       expect(yield* projects.resolve(child)).toEqual(created)
       expect((yield* projects.resolve(outside)).id).toBe(Project.ID.global)
+      expect((yield* projects.resolve(unmanaged)).id).toBe(Project.ID.global)
 
       if (process.platform !== "win32") {
         expect((yield* Effect.promise(() => fs.stat(root))).mode & 0o777).toBe(0o700)

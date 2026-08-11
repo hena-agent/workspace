@@ -210,8 +210,14 @@ const layer: Layer.Layer<
         { cwd: ctx.worktree },
       )
       if (created.code === 0) {
+        const resolved = yield* git(["rev-parse", "--show-toplevel"], { cwd: info.directory })
+        if (resolved.code !== 0) {
+          return yield* new CreateFailedError({
+            message: resolved.stderr || resolved.text || "Failed to resolve git worktree",
+          })
+        }
         yield* project
-          .addSandbox(ctx.project.id, yield* fs.resolve(info.directory))
+          .addSandbox(ctx.project.id, pathSvc.normalize(FSUtil.windowsPath(resolved.text.replace(/[\r\n]+$/, ""))))
           .pipe(
             Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("worktree sandbox failed", error)),
           )

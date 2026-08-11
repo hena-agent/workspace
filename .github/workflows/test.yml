@@ -63,7 +63,13 @@ jobs:
 
       - name: Run non-Hena unit tests
         timeout-minutes: 45
-        run: GITHUB_ACTIONS=false bun turbo test --filter='!hena'
+        run: GITHUB_ACTIONS=false bun turbo test --filter='!hena' --filter='!@hena/tui'
+        env:
+          HENA_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
+
+      - name: Run TUI unit tests
+        working-directory: packages/tui
+        run: bun test --timeout 30000 --only-failures
         env:
           HENA_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
 

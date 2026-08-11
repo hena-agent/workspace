@@ -49,7 +49,8 @@
       ],
       // github/, sdks/vscode/, and artifacts/ have independent package manifests and lockfiles.
       "project": ["script/**/*.{ts,mjs}", "infra/**/*.ts", "packages/containers/**/*.ts", ".hena/**/*.{ts,tsx}"],
-      "ignoreDependencies": ["turbo"],
+      // `marked` pins marked-shiki's peer for Bun's hoisted Windows linker.
+      "ignoreDependencies": ["turbo", "marked"],
       "ignoreBinaries": ["ulimit", "hena"],
       "ignoreUnresolved": [
         "./script/build.ts",

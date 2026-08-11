@@ -6,4 +6,4 @@ export function ModelSelectorPopover(props: { triggerAs: any; triggerProps?: Rec
   return <Trigger {...(local.triggerProps ?? {})}>{local.children}</Trigger>
 }
 
-export const ModelSelectorPopoverV2 = ModelSelectorPopover
+/** @alias */ export const ModelSelectorPopoverV2 = ModelSelectorPopover

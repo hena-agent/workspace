@@ -70,4 +70,4 @@ export const DebugWorkspacePlugin: Plugin = async ({ experimental_workspace }) =
   return {}
 }
 
-export default DebugWorkspacePlugin
+/** @alias */ export default DebugWorkspacePlugin

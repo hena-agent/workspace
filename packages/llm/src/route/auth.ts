@@ -102,7 +102,7 @@ export const remove = (name: string) => auth((input) => Effect.succeed(Headers.r
 
 export const custom = (apply: (input: AuthInput) => Effect.Effect<Headers.Headers, LLMError>) => auth(apply)
 
-export const passthrough = none
+/** @alias */ export const passthrough = none
 
 const credentialInput = (source: Secret | Credential) =>
   typeof source === "string" || Redacted.isRedacted(source) || Config.isConfig(source)
@@ -114,7 +114,7 @@ export function bearer(source: Secret | Credential) {
   return credentialInput(source).bearer()
 }
 
-export const apiKey = bearer
+/** @alias */ export const apiKey = bearer
 
 export function header(name: string): (source: Secret | Credential) => Auth
 export function header(name: string, source: Secret | Credential): Auth

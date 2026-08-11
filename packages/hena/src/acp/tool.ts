@@ -296,16 +296,16 @@ function isShell(toolName: string) {
   return tool === "bash" || tool === "shell"
 }
 
-export const mapToolKind = toToolKind
-export const extractLocations = toLocations
-export const buildCompletedToolContent = completedToolContent
-export const buildCompletedRawOutput = completedToolRawOutput
-export const extractShellOutputSnapshot = shellOutputSnapshot
-export const buildPendingToolCall = pendingToolCall
-export const buildRunningToolUpdate = runningToolUpdate
-export const buildDuplicateRunningToolUpdate = duplicateRunningToolUpdate
-export const buildCompletedToolUpdate = completedToolUpdate
-export const buildErrorToolUpdate = errorToolUpdate
+/** @alias */ export const mapToolKind = toToolKind
+/** @alias */ export const extractLocations = toLocations
+/** @alias */ export const buildCompletedToolContent = completedToolContent
+/** @alias */ export const buildCompletedRawOutput = completedToolRawOutput
+/** @alias */ export const extractShellOutputSnapshot = shellOutputSnapshot
+/** @alias */ export const buildPendingToolCall = pendingToolCall
+/** @alias */ export const buildRunningToolUpdate = runningToolUpdate
+/** @alias */ export const buildDuplicateRunningToolUpdate = duplicateRunningToolUpdate
+/** @alias */ export const buildCompletedToolUpdate = completedToolUpdate
+/** @alias */ export const buildErrorToolUpdate = errorToolUpdate
 
 function locationFrom(...values: unknown[]): ToolCallLocation[] {
   return Array.from(

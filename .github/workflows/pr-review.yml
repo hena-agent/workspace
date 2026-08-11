@@ -52,6 +52,7 @@ jobs:
       model: anthropic/claude-opus-5
       variant: max
       app-client-id: ${{ vars.CLAUDE_REVIEWER_CLIENT_ID }}
+      timeout-minutes: 60
       prompt: |
         Use the `thermo-nuclear-code-quality-review` skill to review it.
 

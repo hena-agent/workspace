@@ -190,15 +190,13 @@ describe("Worktree", () => {
         withCreatedWorktree(undefined, ({ info }) =>
           Effect.gen(function* () {
             const ctx = yield* InstanceState.context
+            const fs = yield* FSUtil.Service
             const project = yield* Project.Service
             const svc = yield* Worktree.Service
             expect(info.name).toBeDefined()
             expect(info.branch ?? "").toStartWith("hena/")
             expect(info.directory).toBeDefined()
-            const directory = (yield* svc.list()).find((item) => item.name === info.name)?.directory
-            expect(directory).toBeDefined()
-            if (!directory) return
-            expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([directory])
+            expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([yield* fs.resolve(info.directory)])
             yield* svc.remove({ directory: info.directory })
             expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([])
           }),
@@ -299,20 +297,19 @@ describe("Worktree", () => {
           yield* fs.ensureDir(root)
           yield* Effect.promise(() => symlink(root, alias, "dir"))
           yield* Effect.addFinalizer(() =>
-            Effect.promise(() =>
-              Promise.all([rm(alias, { force: true }), rm(root, { recursive: true, force: true })]),
-            ).pipe(Effect.asVoid),
+            Effect.promise(async () => {
+              await rm(alias, { force: true })
+              await rm(root, { recursive: true, force: true })
+            }),
           )
           const name = `aliased-${Date.now().toString(36)}`
           const info = { name, branch: `hena/${name}`, directory: path.join(alias, name) }
           const ready = yield* waitReady().pipe(Effect.forkScoped)
           yield* svc.createFromInfo(info)
           yield* Effect.addFinalizer(() => svc.remove({ directory: info.directory }).pipe(Effect.ignore))
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([yield* fs.resolve(info.directory)])
           yield* Fiber.join(ready)
-          const directory = (yield* svc.list()).find((item) => item.name === info.name)?.directory
-          expect(directory).toBeDefined()
-          if (!directory) return
-          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([directory])
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([yield* fs.resolve(info.directory)])
         }),
       { git: true },
     )

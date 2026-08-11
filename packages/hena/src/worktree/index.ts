@@ -209,11 +209,17 @@ const layer: Layer.Layer<
           : ["worktree", "add", "--no-checkout", "--detach", info.directory, "HEAD"],
         { cwd: ctx.worktree },
       )
-      if (created.code !== 0) {
-        yield* new CreateFailedError({
-          message: created.stderr || created.text || "Failed to create git worktree",
-        })
+      if (created.code === 0) {
+        yield* project
+          .addSandbox(ctx.project.id, yield* fs.resolve(info.directory))
+          .pipe(
+            Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("worktree sandbox failed", error)),
+          )
+        return
       }
+      return yield* new CreateFailedError({
+        message: created.stderr || created.text || "Failed to create git worktree",
+      })
     })
 
     const boot = Effect.fnUntraced(function* (info: Info, startCommand?: string) {
@@ -373,19 +379,20 @@ const layer: Layer.Layer<
       })
     }
 
-    const removeGitWorktree = Effect.fnUntraced(function* (root: string, input: string, directory: string) {
+    const removeGitWorktree = Effect.fnUntraced(function* (root: string, directory: string) {
       const list = yield* git(["worktree", "list", "--porcelain"], { cwd: root })
       if (list.code !== 0) {
         return yield* new RemoveFailedError({ message: list.stderr || list.text || "Failed to read git worktrees" })
       }
 
-      const entry = yield* locateWorktree(parseWorktreeList(list.text), directory)
+      const key = yield* canonical(directory)
+      const entry = yield* locateWorktree(parseWorktreeList(list.text), key)
       if (!entry?.path) {
         if (yield* fs.exists(directory).pipe(Effect.orDie)) {
           yield* stopFsmonitor(directory)
           yield* cleanDirectory(directory)
         }
-        return { directory: input }
+        return directory
       }
 
       // Git may return the original casing when a caller supplied a normalized Windows path.
@@ -400,7 +407,7 @@ const layer: Layer.Layer<
           })
         }
 
-        if ((yield* locateWorktree(parseWorktreeList(next.text), directory))?.path) {
+        if ((yield* locateWorktree(parseWorktreeList(next.text), key))?.path) {
           return yield* new RemoveFailedError({
             message: removed.stderr || removed.text || "Failed to remove git worktree",
           })
@@ -408,34 +415,32 @@ const layer: Layer.Layer<
       }
 
       yield* cleanDirectory(entry.path)
-      return { directory: entry.path, branch: entry.branch?.replace(/^refs\/heads\//, "") }
+      const branch = entry.branch?.replace(/^refs\/heads\//, "")
+      if (!branch) return entry.path
+      const deleted = yield* git(["branch", "-D", branch], { cwd: root })
+      if (deleted.code !== 0) {
+        return yield* new RemoveFailedError({
+          message: deleted.stderr || deleted.text || "Failed to delete worktree branch",
+        })
+      }
+      return entry.path
     })
 
     const remove = Effect.fn("Worktree.remove")(function* (input: RemoveInput) {
       const ctx = yield* InstanceState.context
       if (ctx.project.vcs !== "git") {
-        yield* new NotGitError({ message: "Worktrees are only supported for git projects" })
+        return yield* new NotGitError({ message: "Worktrees are only supported for git projects" })
       }
 
-      const directory = yield* canonical(input.directory)
-      // Preserve the loaded path casing for the store cache; `directory` is lowercased on Windows.
-      if (directory !== (yield* canonical(ctx.worktree))) yield* store.disposeDirectory(input.directory)
+      const directory = yield* fs.resolve(input.directory)
+      if ((yield* canonical(directory)) !== (yield* canonical(ctx.worktree))) yield* store.disposeDirectory(directory)
 
-      const removed = yield* removeGitWorktree(ctx.worktree, input.directory, directory)
+      const removed = yield* removeGitWorktree(ctx.worktree, directory)
 
       // Metadata is best-effort after removal: the project row may become folderless or be deleted after boot.
-      yield* project
-        .removeSandbox(ctx.project.id, removed.directory)
+      return yield* project
+        .removeSandbox(ctx.project.id, removed)
         .pipe(Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("sandbox removal failed", error)))
-
-      if (removed.branch) {
-        const deleted = yield* git(["branch", "-D", removed.branch], { cwd: ctx.worktree })
-        if (deleted.code !== 0) {
-          yield* new RemoveFailedError({
-            message: deleted.stderr || deleted.text || "Failed to delete worktree branch",
-          })
-        }
-      }
     })
 
     const gitExpect = Effect.fnUntraced(function* (

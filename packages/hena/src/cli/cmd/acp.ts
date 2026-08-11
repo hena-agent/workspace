@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 import { effectCmd } from "../effect-cmd"
 import { AgentSideConnection, ndJsonStream } from "@agentclientprotocol/sdk"
+import { Writable } from "node:stream"
 import { ServerAuth } from "@/server/auth"
 import { createHenaClient } from "@hena/sdk/v2"
 import { withNetworkOptions, resolveNetworkOptions } from "../network"
@@ -29,45 +30,15 @@ export const AcpCommand = effectCmd({
       headers: ServerAuth.headers(),
     })
 
-    const input = new WritableStream<Uint8Array>({
-      write(chunk) {
-        return new Promise<void>((resolve, reject) => {
-          process.stdout.write(chunk, (err) => {
-            if (err) {
-              reject(err)
-            } else {
-              resolve()
-            }
-          })
-        })
-      },
-    })
-    const output = new ReadableStream<Uint8Array>({
-      start(controller) {
-        process.stdin.on("data", (chunk: Buffer) => {
-          controller.enqueue(new Uint8Array(chunk))
-        })
-        process.stdin.on("end", () => controller.close())
-        process.stdin.on("error", (err) => controller.error(err))
-      },
-    })
-
-    const stream = ndJsonStream(input, output)
+    const stream = ndJsonStream(Writable.toWeb(process.stdout), Bun.stdin.stream())
     const agent = ACP.init({ sdk })
 
-    new AgentSideConnection((conn) => {
+    const connection = new AgentSideConnection((conn) => {
       ACPProfile.mark("cli.acp.connection.create")
       return agent.create(conn)
     }, stream)
 
     yield* Effect.logInfo("setup connection")
-    process.stdin.resume()
-    yield* Effect.promise(
-      () =>
-        new Promise<void>((resolve, reject) => {
-          process.stdin.on("end", () => resolve())
-          process.stdin.on("error", reject)
-        }),
-    )
+    yield* Effect.promise(() => connection.closed)
   }),
 })

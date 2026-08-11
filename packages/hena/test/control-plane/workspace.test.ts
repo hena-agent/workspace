@@ -1433,7 +1433,6 @@ describe("workspace sync state", () => {
                     payload: { type: "custom.remote", properties: { ok: true } },
                   },
                 ],
-                false,
               ),
             )
           if (url.pathname === "/sse-forward/sync/history") return HttpServerResponse.fromWeb(Response.json([]))
@@ -1465,6 +1464,7 @@ describe("workspace sync state", () => {
                     ),
                   ).toBe(true),
                 ),
+                5_000,
               )
               expect(
                 captured.events.some(

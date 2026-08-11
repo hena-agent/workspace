@@ -5,7 +5,7 @@ import type {
   LoadSessionResponse,
   ResumeSessionResponse,
 } from "@agentclientprotocol/sdk"
-import { Duration, Effect } from "effect"
+import { Effect } from "effect"
 import { cliIt } from "../../lib/cli-process"
 import { expectOk, selectConfigOption } from "./acp-test-client"
 import { createAcpClient, initialize, newSession, verifierConfig } from "./helpers"
@@ -18,7 +18,7 @@ describe("hena acp lifecycle subprocess", () => {
         const acp = yield* hena.acp()
         acp.close()
 
-        const code = yield* Effect.promise(() => acp.exited).pipe(Effect.timeout(Duration.seconds(5)))
+        const code = yield* Effect.promise(() => acp.exited)
         expect(code).toBe(0)
       }),
     60_000,

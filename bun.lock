@@ -411,18 +411,6 @@
         "@typescript/native-preview": "catalog:",
       },
     },
-    "packages/effect-sqlite-node": {
-      "name": "@hena/effect-sqlite-node",
-      "version": "1.18.4",
-      "dependencies": {
-        "effect": "catalog:",
-      },
-      "devDependencies": {
-        "@tsconfig/bun": "catalog:",
-        "@types/node": "catalog:",
-        "@typescript/native-preview": "catalog:",
-      },
-    },
     "packages/enterprise": {
       "name": "@hena/enterprise",
       "version": "1.18.4",
@@ -1550,8 +1538,6 @@
     "@hena/desktop": ["@hena/desktop@workspace:packages/desktop"],
 
     "@hena/effect-drizzle-sqlite": ["@hena/effect-drizzle-sqlite@workspace:packages/effect-drizzle-sqlite"],
-
-    "@hena/effect-sqlite-node": ["@hena/effect-sqlite-node@workspace:packages/effect-sqlite-node"],
 
     "@hena/enterprise": ["@hena/enterprise@workspace:packages/enterprise"],
 

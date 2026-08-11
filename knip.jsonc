@@ -3,7 +3,8 @@
   "treatConfigHintsAsErrors": true,
   "ignoreExportsUsedInFile": true,
   // Namespace self-exports are the repository's public API convention. Knip cannot safely
-  // distinguish their internal member usage and its fixer removes live declarations.
+  // distinguish their internal member usage and its fixer removes live declarations. Disabling
+  // these rules also prevents Knip from reporting ordinary unused exports and types elsewhere.
   "rules": {
     "exports": "off",
     "types": "off",
@@ -80,6 +81,7 @@
         "@parcel/watcher",
         "tree-sitter-bash",
         "tree-sitter-powershell",
+        // The Hena build injects this virtual module with the embedded web UI.
         "hena-web-ui.gen.ts",
         "ws",
         "@types/ws",
@@ -205,6 +207,7 @@
     },
     "packages/cli": {
       "entry": ["**/*.test.{ts,tsx}", "script/**/*.{js,cjs,mjs,ts,cts,mts}"],
+      // The build script reads this version to install every platform binary before packaging.
       "ignoreDependencies": ["@opentui/core"],
     },
     "packages/core": {

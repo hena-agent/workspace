@@ -306,8 +306,8 @@ const layer: Layer.Layer<
         }, [])
     }
 
-    function locateWorktree(entries: { path?: string; branch?: string }[], key: string) {
-      return entries.find((item) => item.path && pathKey(item.path) === key)
+    function locateWorktree(entries: { path?: string; branch?: string }[], directory: string) {
+      return entries.find((item) => item.path && pathKey(item.path) === fold(directory))
     }
 
     const list = Effect.fn("Worktree.list")(function* () {
@@ -365,14 +365,30 @@ const layer: Layer.Layer<
       })
     }
 
-    const removeGitWorktree = Effect.fnUntraced(function* (root: string, directory: string) {
-      const list = yield* git(["worktree", "list", "--porcelain"], { cwd: root })
-      if (list.code !== 0) {
-        return yield* new RemoveFailedError({ message: list.stderr || list.text || "Failed to read git worktrees" })
-      }
+    const gitExpect = Effect.fnUntraced(function* (
+      args: string[],
+      opts: { cwd: string },
+      error: (r: GitResult) => Error,
+    ) {
+      const result = yield* git(args, opts)
+      if (result.code !== 0) return yield* error(result)
+      return result
+    })
 
-      const key = fold(directory)
-      const entry = locateWorktree(parseWorktreeList(list.text), key)
+    const removeFailed = (results: GitResult[], fallback: string) =>
+      new RemoveFailedError({
+        message: results.flatMap((result) => [result.stderr, result.text]).find(Boolean) ?? fallback,
+      })
+
+    const worktreeEntries = Effect.fnUntraced(function* (root: string, fallback: string, ...prior: GitResult[]) {
+      const result = yield* gitExpect(["worktree", "list", "--porcelain"], { cwd: root }, (result) =>
+        removeFailed([...prior, result], fallback),
+      )
+      return parseWorktreeList(result.text)
+    })
+
+    const removeGitWorktree = Effect.fnUntraced(function* (root: string, directory: string) {
+      const entry = locateWorktree(yield* worktreeEntries(root, "Failed to read git worktrees"), directory)
       if (!entry?.path) {
         if (yield* fs.exists(directory).pipe(Effect.orDie)) {
           yield* stopFsmonitor(directory)
@@ -383,30 +399,19 @@ const layer: Layer.Layer<
 
       yield* stopFsmonitor(entry.path)
       const removed = yield* git(["worktree", "remove", "--force", entry.path], { cwd: root })
-      if (removed.code !== 0) {
-        const next = yield* git(["worktree", "list", "--porcelain"], { cwd: root })
-        if (next.code !== 0) {
-          return yield* new RemoveFailedError({
-            message: removed.stderr || removed.text || next.stderr || next.text || "Failed to remove git worktree",
-          })
-        }
-
-        if (locateWorktree(parseWorktreeList(next.text), key)?.path) {
-          return yield* new RemoveFailedError({
-            message: removed.stderr || removed.text || "Failed to remove git worktree",
-          })
-        }
+      if (
+        removed.code !== 0 &&
+        locateWorktree(yield* worktreeEntries(root, "Failed to remove git worktree", removed), directory)
+      ) {
+        return yield* removeFailed([removed], "Failed to remove git worktree")
       }
 
       yield* cleanDirectory(entry.path)
       const branch = entry.branch?.replace(/^refs\/heads\//, "")
       if (!branch) return
-      const deleted = yield* git(["branch", "-D", branch], { cwd: root })
-      if (deleted.code !== 0) {
-        return yield* new RemoveFailedError({
-          message: deleted.stderr || deleted.text || "Failed to delete worktree branch",
-        })
-      }
+      yield* gitExpect(["branch", "-D", branch], { cwd: root }, (result) =>
+        removeFailed([result], "Failed to delete worktree branch"),
+      )
     })
 
     const remove = Effect.fn("Worktree.remove")(function* (input: RemoveInput) {
@@ -424,16 +429,6 @@ const layer: Layer.Layer<
       return yield* project
         .removeSandbox(ctx.project.id, AbsolutePath.make(directory))
         .pipe(Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("sandbox removal failed", error)))
-    })
-
-    const gitExpect = Effect.fnUntraced(function* (
-      args: string[],
-      opts: { cwd: string },
-      error: (r: GitResult) => Error,
-    ) {
-      const result = yield* git(args, opts)
-      if (result.code !== 0) return yield* error(result)
-      return result
     })
 
     const runStartCommand = Effect.fnUntraced(
@@ -511,7 +506,7 @@ const layer: Layer.Layer<
         return yield* new ResetFailedError({ message: list.stderr || list.text || "Failed to read git worktrees" })
       }
 
-      const entry = locateWorktree(parseWorktreeList(list.text), fold(directory))
+      const entry = locateWorktree(parseWorktreeList(list.text), directory)
       if (!entry?.path) {
         return yield* new ResetFailedError({ message: "Worktree not found" })
       }

@@ -325,8 +325,8 @@ const layer: Layer.Layer<
       const primaryName = pathSvc.basename(primary).toLowerCase()
       return parseWorktreeList(result.text).flatMap((entry) => {
         if (!entry.path) return []
-        const directory = pathKey(entry.path)
-        if (directory === primary) return []
+        const directory = FSUtil.resolve(entry.path)
+        if (fold(directory) === primary) return []
         const name = pathSvc.basename(directory).toLowerCase()
         return [
           {

@@ -437,12 +437,12 @@ const layer = Layer.effect(
     })
 
     const addSandbox = Effect.fn("Project.addSandbox")(function* (id: ProjectV2.ID, directory: string) {
-      const sandbox = AbsolutePath.make(directory)
+      const sandbox = AbsolutePath.make(FSUtil.resolve(directory))
       yield* writeSandboxes(id, (sboxes) => (sboxes.includes(sandbox) ? sboxes : [...sboxes, sandbox]))
     })
 
     const removeSandbox = Effect.fn("Project.removeSandbox")(function* (id: ProjectV2.ID, directory: string) {
-      const sandbox = AbsolutePath.make(directory)
+      const sandbox = AbsolutePath.make(FSUtil.resolve(directory))
       yield* writeSandboxes(id, (sboxes) => sboxes.filter((s) => s !== sandbox))
     })
 

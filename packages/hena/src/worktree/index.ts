@@ -214,7 +214,7 @@ const layer: Layer.Layer<
           message: created.stderr || created.text || "Failed to create git worktree",
         })
       yield* project
-        .addSandbox(ctx.project.id, FSUtil.resolve(info.directory))
+        .addSandbox(ctx.project.id, info.directory)
         .pipe(Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("worktree sandbox failed", error)))
     })
 
@@ -282,9 +282,9 @@ const layer: Layer.Layer<
       return info
     })
 
+    const fold = (input: string) => (process.platform === "win32" ? input.toLowerCase() : input)
     const canonical = Effect.fnUntraced(function* (input: string) {
-      const resolved = yield* fs.resolve(input)
-      return process.platform === "win32" ? resolved.toLowerCase() : resolved
+      return fold(yield* fs.resolve(input))
     })
 
     function parseWorktreeList(text: string) {
@@ -379,7 +379,7 @@ const layer: Layer.Layer<
         return yield* new RemoveFailedError({ message: list.stderr || list.text || "Failed to read git worktrees" })
       }
 
-      const key = yield* canonical(directory)
+      const key = fold(directory)
       const entry = yield* locateWorktree(parseWorktreeList(list.text), key)
       if (!entry?.path) {
         if (yield* fs.exists(directory).pipe(Effect.orDie)) {
@@ -427,7 +427,7 @@ const layer: Layer.Layer<
       }
 
       const directory = yield* fs.resolve(input.directory)
-      if ((yield* canonical(directory)) !== (yield* canonical(ctx.worktree))) yield* store.disposeDirectory(directory)
+      if (fold(directory) !== (yield* canonical(ctx.worktree))) yield* store.disposeDirectory(directory)
 
       const removed = yield* removeGitWorktree(ctx.worktree, directory)
 

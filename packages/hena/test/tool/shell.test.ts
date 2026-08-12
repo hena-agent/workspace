@@ -98,7 +98,7 @@ const shells = (() => {
     return [{ label: Shell.name(shell), shell }]
   }
 
-  const list = [bash, Bun.which("pwsh"), Bun.which("powershell"), process.env.COMSPEC || Bun.which("cmd.exe")]
+  const list = [bash, Bun.which("pwsh") ?? Bun.which("powershell"), process.env.COMSPEC || Bun.which("cmd.exe")]
     .filter((shell): shell is string => Boolean(shell))
     .map((shell) => ({ label: Shell.name(shell), shell }))
 

@@ -28,6 +28,10 @@
     "@hena/session-ui#test": {
       "dependsOn": ["^build"],
       "outputs": []
+    },
+    "@hena/tui#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
     }
   }
 }

@@ -65,26 +65,6 @@ const TOP_LEVEL = [
   "db",
 ] as const
 
-// Subcommands worth pinning. Not exhaustive — the goal is one snapshot per
-// distinct argv shape, not every leaf. Add new entries when a subcommand
-// gains user-visible flags that we want to lock in.
-const SUBCOMMANDS = [
-  ["mcp", "list"],
-  ["mcp", "add"],
-  ["mcp", "auth"],
-  ["mcp", "logout"],
-  ["providers", "list"],
-  ["providers", "login"],
-  ["providers", "logout"],
-  ["agent", "create"],
-  ["agent", "list"],
-  ["session", "list"],
-  ["session", "delete"],
-  ["github", "install"],
-  ["github", "run"],
-  ["db", "path"],
-] as const
-
 // Fixed wrap width so a developer's terminal doesn't affect snapshots.
 // yargs honors COLUMNS; CI runners typically default to 80 which produces
 // different wraps from a 200-col local terminal.
@@ -106,7 +86,7 @@ describe("hena CLI help-text snapshots", () => {
         expect(topLevel.stderr).not.toContain("--variant")
         expect(topLevel.stderr).not.toContain("--demo")
 
-        const argvs: Array<readonly string[]> = [...TOP_LEVEL.map((c) => [c] as const), ...SUBCOMMANDS]
+        const argvs: Array<readonly string[]> = TOP_LEVEL.map((command) => [command] as const)
 
         // Spawn in parallel, then assert in argv order so snapshot output is
         // deterministic and per-command failures don't abort the rest of

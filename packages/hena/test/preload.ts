@@ -16,13 +16,12 @@ afterAll(async () => {
   const busy = (error: unknown) =>
     typeof error === "object" && error !== null && "code" in error && error.code === "EBUSY"
   const rm = async (left: number): Promise<void> => {
-    Bun.gc(true)
-    await sleep(100)
     return fs.rm(dir, { recursive: true, force: true }).catch((error) => {
       if (!busy(error)) throw error
       if (left <= 1 && process.platform !== "win32") throw error
       if (left <= 1) return
-      return rm(left - 1)
+      Bun.gc(true)
+      return sleep(100).then(() => rm(left - 1))
     })
   }
 

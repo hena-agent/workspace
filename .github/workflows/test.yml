@@ -23,15 +23,31 @@ env:
 jobs:
   unit:
     if: ${{ !contains(github.event.pull_request.title, '[skip ci]') }}
-    name: unit (${{ matrix.settings.name }})
+    name: unit (${{ matrix.settings.name }}, shard ${{ matrix.settings.shard }})
     strategy:
       fail-fast: false
       matrix:
         settings:
           - name: linux
             host: ubuntu-latest
+            shard: 1/2
+            primary: true
+          - name: linux
+            host: ubuntu-latest
+            shard: 2/2
+            primary: false
           - name: windows
             host: windows-latest
+            shard: 1/3
+            primary: true
+          - name: windows
+            host: windows-latest
+            shard: 2/3
+            primary: false
+          - name: windows
+            host: windows-latest
+            shard: 3/3
+            primary: false
     runs-on: ${{ matrix.settings.host }}
     defaults:
       run:
@@ -41,11 +57,6 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "24"
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
@@ -64,19 +75,56 @@ jobs:
             turbo-${{ runner.os }}-${{ hashFiles('turbo.json', '**/package.json') }}-
             turbo-${{ runner.os }}-
 
-      - name: Run unit tests
+      - name: Run non-Hena unit tests
+        if: matrix.settings.primary
         timeout-minutes: 45
-        run: GITHUB_ACTIONS=false bun turbo test
+        run: GITHUB_ACTIONS=false bun turbo test --filter='!hena' --filter='!@hena/tui'
         env:
           HENA_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
 
+      - name: Run TUI unit tests
+        if: matrix.settings.primary
+        timeout-minutes: 10
+        working-directory: packages/tui
+        run: bun test --timeout 30000 --only-failures
+        env:
+          HENA_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
+
+      - name: Build Hena test dependencies
+        run: bun turbo build --filter='hena^...'
+
+      - name: Run Hena unit tests
+        working-directory: packages/hena
+        run: bun test --timeout 30000 --only-failures --shard=${{ matrix.settings.shard }}
+        env:
+          GITHUB_ACTIONS: false
+          HENA_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
+        timeout-minutes: 30
+
+  gates:
+    if: ${{ !contains(github.event.pull_request.title, '[skip ci]') }}
+    name: generated and HttpApi gates
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Build Hena test dependencies
+        run: bun turbo build --filter='hena^...'
+
       - name: Check generated client
-        if: runner.os == 'Linux'
         working-directory: packages/client
         run: bun run check:generated
 
       - name: Run HttpApi exerciser gates
-        if: runner.os == 'Linux'
         working-directory: packages/hena
         run: bun run test:httpapi
 
@@ -102,11 +150,6 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "24"
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun

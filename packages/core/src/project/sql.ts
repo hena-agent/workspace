@@ -6,7 +6,7 @@ import { ProjectSchema } from "./schema"
 
 export const ProjectTable = sqliteTable("project", {
   id: text().$type<ProjectSchema.ID>().primaryKey(),
-  // Nullable for folderless projects; inserts must still state worktree explicitly.
+  // Nullable for folderless rows, which legacy Hena APIs exclude.
   worktree: DatabasePath.absoluteColumn(),
   vcs: text(),
   name: text(),

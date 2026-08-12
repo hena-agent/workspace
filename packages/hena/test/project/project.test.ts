@@ -15,6 +15,7 @@ import { WorkspaceV2 } from "@hena/core/workspace"
 import { Cause, Effect, Exit, Layer, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { ProjectV2 } from "@hena/core/project"
+import { AbsolutePath } from "@hena/core/schema"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
 import { testEffect } from "../lib/effect"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -680,15 +681,23 @@ describe("Project.addSandbox and Project.removeSandbox", () => {
   it.live("adds, removes, and prunes sandboxes without reordering", () =>
     Effect.gen(function* () {
       const project = yield* Project.Service
+      const { db } = yield* Database.Service
       const tmp = yield* tmpdirScoped({ git: true })
       const result = yield* project.fromDirectory(tmp)
-      const sandboxes = ["second", "missing", "first"].map((name) => path.join(tmp, name))
+      const sandboxes = ["second", "missing", "first"].map((name) => AbsolutePath.make(path.join(tmp, name)))
       yield* Effect.promise(() => $`mkdir -p ${sandboxes[0]} ${sandboxes[2]}`.quiet())
       yield* Effect.forEach(sandboxes, (sandbox) => project.addSandbox(result.project.id, sandbox))
       yield* project.addSandbox(result.project.id, sandboxes[0])
       const kept = [sandboxes[0], sandboxes[2]]
 
       expect(yield* project.sandboxes(result.project.id)).toEqual(kept)
+      expect((yield* project.fromDirectory(tmp)).project.sandboxes).toEqual(kept)
+      yield* db
+        .update(ProjectTable)
+        .set({ sandboxes: [kept[0], AbsolutePath.make(`${kept[0]}${path.sep}.`), kept[1]] })
+        .where(eq(ProjectTable.id, result.project.id))
+        .run()
+        .pipe(Effect.orDie)
       expect((yield* project.fromDirectory(tmp)).project.sandboxes).toEqual(kept)
       yield* project.removeSandbox(result.project.id, kept[1])
       expect((yield* project.get(result.project.id))?.sandboxes).toEqual([kept[0]])
@@ -737,7 +746,7 @@ describe("Project folderless rows", () => {
       const { db } = yield* Database.Service
       const tmp = yield* tmpdirScoped({ git: true })
       const result = yield* project.fromDirectory(tmp)
-      const sandbox = path.join(tmp, "sandbox")
+      const sandbox = AbsolutePath.make(path.join(tmp, "sandbox"))
       yield* Effect.promise(() => $`mkdir -p ${sandbox}`.quiet())
       yield* project.addSandbox(result.project.id, sandbox)
       yield* db

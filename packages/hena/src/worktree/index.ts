@@ -14,6 +14,7 @@ import { FSUtil } from "@hena/core/fs-util"
 import { AppProcess } from "@hena/core/process"
 import { InstanceState } from "@/effect/instance-state"
 import { WorktreeEvent } from "@hena/schema/worktree-event"
+import { AbsolutePath } from "@hena/core/schema"
 
 export const Event = WorktreeEvent
 
@@ -209,10 +210,11 @@ const layer: Layer.Layer<
           : ["worktree", "add", "--no-checkout", "--detach", info.directory, "HEAD"],
         { cwd: ctx.worktree },
       )
-      if (created.code !== 0)
+      if (created.code !== 0) {
         return yield* new CreateFailedError({
           message: created.stderr || created.text || "Failed to create git worktree",
         })
+      }
       yield* project
         .addSandbox(ctx.project.id, info.directory)
         .pipe(Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("worktree sandbox failed", error)))
@@ -283,9 +285,7 @@ const layer: Layer.Layer<
     })
 
     const fold = (input: string) => (process.platform === "win32" ? input.toLowerCase() : input)
-    const canonical = Effect.fnUntraced(function* (input: string) {
-      return fold(yield* fs.resolve(input))
-    })
+    const pathKey = (input: string) => fold(FSUtil.resolve(input))
 
     function parseWorktreeList(text: string) {
       return text
@@ -306,17 +306,9 @@ const layer: Layer.Layer<
         }, [])
     }
 
-    const locateWorktree = Effect.fnUntraced(function* (
-      entries: { path?: string; branch?: string }[],
-      directory: string,
-    ) {
-      for (const item of entries) {
-        if (!item.path) continue
-        const key = yield* canonical(item.path)
-        if (key === directory) return item
-      }
-      return undefined
-    })
+    function locateWorktree(entries: { path?: string; branch?: string }[], key: string) {
+      return entries.find((item) => item.path && pathKey(item.path) === key)
+    }
 
     const list = Effect.fn("Worktree.list")(function* () {
       const ctx = yield* InstanceState.context
@@ -329,21 +321,21 @@ const layer: Layer.Layer<
         return yield* new ListFailedError({ message: result.stderr || result.text || "Failed to read git worktrees" })
       }
 
-      const primary = yield* canonical(ctx.project.worktree)
+      const primary = pathKey(ctx.project.worktree)
       const primaryName = pathSvc.basename(primary).toLowerCase()
-      return yield* Effect.forEach(parseWorktreeList(result.text), (entry) =>
-        Effect.gen(function* () {
-          if (!entry.path) return undefined
-          const directory = yield* canonical(entry.path)
-          if (directory === primary) return undefined
-          const name = pathSvc.basename(directory).toLowerCase()
-          return {
+      return parseWorktreeList(result.text).flatMap((entry) => {
+        if (!entry.path) return []
+        const directory = pathKey(entry.path)
+        if (directory === primary) return []
+        const name = pathSvc.basename(directory).toLowerCase()
+        return [
+          {
             name: name === primaryName ? pathSvc.basename(pathSvc.dirname(directory)) : name,
             directory,
             ...(entry.branch ? { branch: entry.branch.replace(/^refs\/heads\//, "") } : {}),
-          }
-        }),
-      ).pipe(Effect.map((items) => items.filter((item) => item !== undefined)))
+          },
+        ]
+      })
     })
 
     function stopFsmonitor(target: string) {
@@ -380,17 +372,15 @@ const layer: Layer.Layer<
       }
 
       const key = fold(directory)
-      const entry = yield* locateWorktree(parseWorktreeList(list.text), key)
+      const entry = locateWorktree(parseWorktreeList(list.text), key)
       if (!entry?.path) {
         if (yield* fs.exists(directory).pipe(Effect.orDie)) {
           yield* stopFsmonitor(directory)
           yield* cleanDirectory(directory)
         }
-        return directory
+        return
       }
 
-      // Git may return the original casing when a caller supplied a normalized Windows path.
-      yield* store.disposeDirectory(entry.path)
       yield* stopFsmonitor(entry.path)
       const removed = yield* git(["worktree", "remove", "--force", entry.path], { cwd: root })
       if (removed.code !== 0) {
@@ -401,7 +391,7 @@ const layer: Layer.Layer<
           })
         }
 
-        if ((yield* locateWorktree(parseWorktreeList(next.text), key))?.path) {
+        if (locateWorktree(parseWorktreeList(next.text), key)?.path) {
           return yield* new RemoveFailedError({
             message: removed.stderr || removed.text || "Failed to remove git worktree",
           })
@@ -410,14 +400,13 @@ const layer: Layer.Layer<
 
       yield* cleanDirectory(entry.path)
       const branch = entry.branch?.replace(/^refs\/heads\//, "")
-      if (!branch) return entry.path
+      if (!branch) return
       const deleted = yield* git(["branch", "-D", branch], { cwd: root })
       if (deleted.code !== 0) {
         return yield* new RemoveFailedError({
           message: deleted.stderr || deleted.text || "Failed to delete worktree branch",
         })
       }
-      return entry.path
     })
 
     const remove = Effect.fn("Worktree.remove")(function* (input: RemoveInput) {
@@ -426,14 +415,14 @@ const layer: Layer.Layer<
         return yield* new NotGitError({ message: "Worktrees are only supported for git projects" })
       }
 
-      const directory = yield* fs.resolve(input.directory)
-      if (fold(directory) !== (yield* canonical(ctx.worktree))) yield* store.disposeDirectory(directory)
+      const directory = FSUtil.resolve(input.directory)
+      if (fold(directory) !== pathKey(ctx.worktree)) yield* store.disposeDirectory(directory)
 
-      const removed = yield* removeGitWorktree(ctx.worktree, directory)
+      yield* removeGitWorktree(ctx.worktree, directory)
 
       // Metadata is best-effort after removal: the project row may become folderless or be deleted after boot.
       return yield* project
-        .removeSandbox(ctx.project.id, removed)
+        .removeSandbox(ctx.project.id, AbsolutePath.make(directory))
         .pipe(Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("sandbox removal failed", error)))
     })
 
@@ -480,12 +469,12 @@ const layer: Layer.Layer<
     })
 
     const prune = Effect.fnUntraced(function* (root: string, entries: string[]) {
-      const base = yield* canonical(root)
+      const base = pathKey(root)
       yield* Effect.forEach(
         entries,
         (entry) =>
           Effect.gen(function* () {
-            const target = yield* canonical(pathSvc.resolve(root, entry))
+            const target = pathKey(pathSvc.resolve(root, entry))
             if (target === base) return
             if (!target.startsWith(`${base}${pathSvc.sep}`)) return
             yield* fs.remove(target, { recursive: true }).pipe(Effect.ignore)
@@ -511,9 +500,9 @@ const layer: Layer.Layer<
         return yield* new NotGitError({ message: "Worktrees are only supported for git projects" })
       }
 
-      const directory = yield* canonical(input.directory)
-      const primary = yield* canonical(ctx.worktree)
-      if (directory === primary) {
+      const directory = FSUtil.resolve(input.directory)
+      const primary = FSUtil.resolve(ctx.worktree)
+      if (fold(directory) === fold(primary)) {
         return yield* new ResetFailedError({ message: "Cannot reset the primary workspace" })
       }
 
@@ -522,7 +511,7 @@ const layer: Layer.Layer<
         return yield* new ResetFailedError({ message: list.stderr || list.text || "Failed to read git worktrees" })
       }
 
-      const entry = yield* locateWorktree(parseWorktreeList(list.text), directory)
+      const entry = locateWorktree(parseWorktreeList(list.text), fold(directory))
       if (!entry?.path) {
         return yield* new ResetFailedError({ message: "Worktree not found" })
       }

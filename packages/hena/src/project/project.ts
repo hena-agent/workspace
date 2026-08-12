@@ -96,8 +96,10 @@ export interface Interface {
   readonly initGit: (input: { directory: string; project: Info }) => Effect.Effect<Info>
   readonly setInitialized: (id: ProjectV2.ID) => Effect.Effect<void>
   readonly sandboxes: (id: ProjectV2.ID) => Effect.Effect<string[]>
+  /** Adds a sandbox using `FSUtil.resolve`'s native canonical spelling. */
   readonly addSandbox: (id: ProjectV2.ID, directory: string) => Effect.Effect<void, NotFoundError>
-  readonly removeSandbox: (id: ProjectV2.ID, directory: string) => Effect.Effect<void, NotFoundError>
+  /** Removes an exact canonical sandbox spelling. */
+  readonly removeSandbox: (id: ProjectV2.ID, sandbox: AbsolutePath) => Effect.Effect<void, NotFoundError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@hena/Project") {}
@@ -239,14 +241,16 @@ const layer = Layer.effect(
         ...existing,
         worktree: projectID === ProjectV2.ID.global ? worktree : existing.worktree,
         vcs: data.vcs?.type ?? fakeVcs,
+        sandboxes: [...new Set(existing.sandboxes.map(FSUtil.resolve))],
         time: { ...existing.time, updated: Date.now() },
       }
+      const sandbox = AbsolutePath.make(FSUtil.resolve(data.directory))
       if (
         projectID !== ProjectV2.ID.global &&
-        data.directory !== result.worktree &&
-        !result.sandboxes.includes(data.directory)
+        sandbox !== FSUtil.resolve(result.worktree) &&
+        !result.sandboxes.includes(sandbox)
       )
-        result.sandboxes.push(data.directory)
+        result.sandboxes.push(sandbox)
       result.sandboxes = yield* Effect.filter(result.sandboxes, (sandbox) => fs.exists(sandbox).pipe(Effect.orDie))
 
       yield* db
@@ -441,9 +445,8 @@ const layer = Layer.effect(
       yield* writeSandboxes(id, (sboxes) => (sboxes.includes(sandbox) ? sboxes : [...sboxes, sandbox]))
     })
 
-    const removeSandbox = Effect.fn("Project.removeSandbox")(function* (id: ProjectV2.ID, directory: string) {
-      const sandbox = AbsolutePath.make(FSUtil.resolve(directory))
-      yield* writeSandboxes(id, (sboxes) => sboxes.filter((s) => s !== sandbox))
+    const removeSandbox = Effect.fn("Project.removeSandbox")(function* (id: ProjectV2.ID, sandbox: AbsolutePath) {
+      yield* writeSandboxes(id, (sboxes) => sboxes.filter((item) => item !== sandbox))
     })
 
     return Service.of({

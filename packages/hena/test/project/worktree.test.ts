@@ -23,7 +23,7 @@ const it = testEffect(
     [InstanceStore.bootstrapNode, InstanceBootstrap.node],
   ]),
 )
-const wintest = process.platform !== "win32" ? it.instance : it.instance.skip
+const nonWindowsIt = process.platform !== "win32" ? it.instance : it.instance.skip
 
 function normalize(input: string) {
   return input.replace(/\\/g, "/").toLowerCase()
@@ -155,7 +155,7 @@ describe("Worktree", () => {
       }),
     )
 
-    wintest(
+    nonWindowsIt(
       "creates detached git worktree when info has no branch",
       () =>
         Effect.gen(function* () {
@@ -293,7 +293,7 @@ describe("Worktree", () => {
   })
 
   describe("createFromInfo", () => {
-    wintest(
+    nonWindowsIt(
       "records one resolved sandbox for an aliased directory",
       () =>
         Effect.gen(function* () {
@@ -316,15 +316,24 @@ describe("Worktree", () => {
           const info = { name, branch: `hena/${name}`, directory: path.join(alias, name) }
           const ready = yield* waitReady().pipe(Effect.forkScoped)
           yield* svc.createFromInfo(info)
-          yield* Effect.addFinalizer(() => svc.remove({ directory: info.directory }).pipe(Effect.ignore))
-          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([yield* fs.resolve(info.directory)])
+          yield* Effect.addFinalizer(() =>
+            fs.exists(info.directory).pipe(
+              Effect.orDie,
+              Effect.flatMap((exists) =>
+                exists ? svc.remove({ directory: info.directory }).pipe(Effect.ignore) : Effect.void,
+              ),
+            ),
+          )
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
           yield* Fiber.join(ready)
-          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([yield* fs.resolve(info.directory)])
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
+          yield* svc.remove({ directory: info.directory })
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([])
         }),
       { git: true },
     )
 
-    wintest(
+    nonWindowsIt(
       "creates git worktree and boots asynchronously",
       () =>
         Effect.gen(function* () {

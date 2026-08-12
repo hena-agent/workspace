@@ -187,19 +187,30 @@ describe("Worktree", () => {
     it.instance(
       "create returns worktree info and remove cleans up",
       () =>
-        withCreatedWorktree(undefined, ({ info }) =>
-          Effect.gen(function* () {
-            const ctx = yield* InstanceState.context
-            const project = yield* Project.Service
-            const svc = yield* Worktree.Service
-            expect(info.name).toBeDefined()
-            expect(info.branch ?? "").toStartWith("hena/")
-            expect(info.directory).toBeDefined()
-            expect((yield* project.get(ctx.project.id))?.sandboxes).toHaveLength(1)
-            yield* svc.remove({ directory: info.directory })
-            expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([])
-          }),
-        ),
+        Effect.gen(function* () {
+          const ctx = yield* InstanceState.context
+          const fs = yield* FSUtil.Service
+          const project = yield* Project.Service
+          const svc = yield* Worktree.Service
+          const ready = yield* waitReady().pipe(Effect.forkScoped)
+          const info = yield* svc.create()
+          yield* Effect.addFinalizer(() =>
+            fs.exists(info.directory).pipe(
+              Effect.orDie,
+              Effect.flatMap((exists) =>
+                exists ? svc.remove({ directory: info.directory }).pipe(Effect.ignore) : Effect.void,
+              ),
+            ),
+          )
+
+          expect(info.name).toBeDefined()
+          expect(info.branch ?? "").toStartWith("hena/")
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
+          yield* Fiber.join(ready)
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
+          yield* svc.remove({ directory: info.directory })
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([])
+        }),
       { git: true },
     )
 

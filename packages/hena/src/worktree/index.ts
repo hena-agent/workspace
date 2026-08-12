@@ -209,23 +209,13 @@ const layer: Layer.Layer<
           : ["worktree", "add", "--no-checkout", "--detach", info.directory, "HEAD"],
         { cwd: ctx.worktree },
       )
-      if (created.code === 0) {
-        const resolved = yield* git(["rev-parse", "--show-toplevel"], { cwd: info.directory })
-        if (resolved.code !== 0) {
-          return yield* new CreateFailedError({
-            message: resolved.stderr || resolved.text || "Failed to resolve git worktree",
-          })
-        }
-        yield* project
-          .addSandbox(ctx.project.id, pathSvc.normalize(FSUtil.windowsPath(resolved.text.replace(/[\r\n]+$/, ""))))
-          .pipe(
-            Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("worktree sandbox failed", error)),
-          )
-        return
-      }
-      return yield* new CreateFailedError({
-        message: created.stderr || created.text || "Failed to create git worktree",
-      })
+      if (created.code !== 0)
+        return yield* new CreateFailedError({
+          message: created.stderr || created.text || "Failed to create git worktree",
+        })
+      yield* project
+        .addSandbox(ctx.project.id, FSUtil.resolve(info.directory))
+        .pipe(Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("worktree sandbox failed", error)))
     })
 
     const boot = Effect.fnUntraced(function* (info: Info, startCommand?: string) {
@@ -293,10 +283,8 @@ const layer: Layer.Layer<
     })
 
     const canonical = Effect.fnUntraced(function* (input: string) {
-      const abs = pathSvc.resolve(input)
-      const real = yield* fs.realPath(abs).pipe(Effect.catch(() => Effect.succeed(abs)))
-      const normalized = pathSvc.normalize(real)
-      return process.platform === "win32" ? normalized.toLowerCase() : normalized
+      const resolved = yield* fs.resolve(input)
+      return process.platform === "win32" ? resolved.toLowerCase() : resolved
     })
 
     function parseWorktreeList(text: string) {

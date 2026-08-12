@@ -84,6 +84,7 @@ jobs:
 
       - name: Run TUI unit tests
         if: matrix.settings.primary
+        timeout-minutes: 10
         working-directory: packages/tui
         run: bun test --timeout 30000 --only-failures
         env:

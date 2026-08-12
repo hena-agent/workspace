@@ -1,0 +1,56 @@
+name: retry-revoked-oauth
+
+# Auto-recovers pr-review/pr-brief runs that failed on the Anthropic OAuth
+# token-rotation race documented in hena-opencode-token-refresh.sh (on the
+# credential-owner Mac): the refresh script's CI-idle gate is a point-in-time
+# poll, not a lock, so a run created within a few seconds of a rotation can be
+# bound to the access token that rotation just revoked -- unexpired by the
+# token's own `expires` field, but already dead at Anthropic. See run
+# 31481737771 (hena-agent/workspace#31, 2026-08-11T10:20:29Z) for the incident
+# that motivated this.
+#
+# This can't be a retry step inside _opencode.yml itself: OPENCODE_AUTH_JSON is
+# resolved once when a run is created and there is no API to re-read a secret
+# mid-run, so the token would still be dead on a second attempt in the same
+# run. The Mac-side sync script republishes the corrected secret within ~1s of
+# rotating, so a genuinely fresh run attempt (not a fresh step) picks it up --
+# but GitHub refuses to rerun a workflow while it is still in progress, so this
+# has to live in a separate listener that only acts once the failing run has
+# fully completed.
+on:
+  workflow_run:
+    workflows: [pr-review, pr-brief]
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  retry:
+    if: github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Rerun once if the failure was a revoked OAuth token
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+
+          # Fetched fresh rather than trusted from the webhook payload, and
+          # capped at one automatic retry so a second, unrelated failure on
+          # the rerun surfaces normally instead of looping.
+          run_attempt="$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq '.run_attempt')"
+          if [ "$run_attempt" -ge 2 ]; then
+            echo "Run $RUN_ID is already on attempt $run_attempt, not retrying again."
+            exit 0
+          fi
+
+          if gh run view "$RUN_ID" --repo "$REPO" --log-failed 2>/dev/null \
+            | grep -qF 'OAuth access token has been revoked'; then
+            echo "::notice::Run $RUN_ID failed on the known Anthropic OAuth token-rotation race (see hena-opencode-token-refresh.sh on the credential-owner Mac). The published credential is already fixed; rerunning the failed jobs now."
+            gh run rerun "$RUN_ID" --repo "$REPO" --failed
+          else
+            echo "Run $RUN_ID failed for an unrelated reason, not retrying."
+          fi

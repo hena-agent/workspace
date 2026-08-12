@@ -1,0 +1,224 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "treatConfigHintsAsErrors": true,
+  "ignoreExportsUsedInFile": true,
+  // Namespace self-exports are the repository's public API convention. Knip cannot safely
+  // distinguish their internal member usage and its fixer removes live declarations. Disabling
+  // these rules also prevents Knip from reporting ordinary unused exports and types elsewhere.
+  "rules": {
+    "exports": "off",
+    "types": "off",
+    "namespaceMembers": "off",
+  },
+  "ignoreIssues": {
+    "packages/sdk/js/src/{gen,v2/gen}/**": [
+      "nsExports",
+      "nsTypes",
+      "enumMembers",
+      "duplicates",
+    ],
+    "packages/client/src/{generated,generated-effect}/**": [
+      "nsExports",
+      "nsTypes",
+      "enumMembers",
+      "duplicates",
+    ],
+    "packages/core/src/database/{migration,schema}.gen.ts": [
+      "nsExports",
+      "nsTypes",
+      "enumMembers",
+      "duplicates",
+    ],
+  },
+  "workspaces": {
+    ".": {
+      "entry": [
+        "script/**/*.{ts,mjs}",
+        "infra/**/*.ts",
+        "packages/containers/script/**/*.ts",
+        ".hena/tool/*.ts",
+        ".hena/plugins/*.tsx",
+      ],
+      // github/, sdks/vscode/, and artifacts/ have independent package manifests and lockfiles.
+      "project": ["script/**/*.{ts,mjs}", "infra/**/*.ts", "packages/containers/**/*.ts", ".hena/**/*.{ts,tsx}"],
+      // `marked` pins marked-shiki's peer for Bun's hoisted Windows linker.
+      "ignoreDependencies": ["turbo", "marked"],
+      "ignoreBinaries": ["ulimit", "hena"],
+      "ignoreUnresolved": [
+        "./script/build.ts",
+        "./packages/sdk/js/script/build.ts",
+        "./packages/hena/script/publish.ts",
+        "./packages/cli/script/publish.ts",
+        "./packages/sdk/js/script/publish.ts",
+        "./packages/ui/script/publish.ts",
+        "./packages/desktop/scripts/finalize-latest-json.ts",
+        "./packages/desktop/scripts/finalize-latest-yml.ts",
+        "./script/format.ts",
+        "script/changelog.ts",
+      ],
+    },
+    "packages/hena": {
+      "entry": [
+        "src/{index,node}.ts",
+        "parsers-config.ts",
+        "specs/**/*.ts",
+        "**/*.test.{ts,tsx}",
+        "test/fixture/**/*.{js,ts,tsx}",
+        "script/**/*.{js,cjs,mjs,ts,cts,mts}",
+      ],
+      "includeEntryExports": true,
+      "ignoreDependencies": [
+        "@ff-labs/fff-bun",
+        "@parcel/watcher",
+        "tree-sitter-bash",
+        "tree-sitter-powershell",
+        // The Hena build injects this virtual module with the embedded web UI.
+        "hena-web-ui.gen.ts",
+        "ws",
+        "@types/ws",
+      ],
+      "ignoreBinaries": ["sqlite3", "sha256sum", "makepkg", "ldd"],
+    },
+    "packages/app": {
+      "entry": [
+        "src/**/*.stories.{js,jsx,mjs,ts,tsx}",
+        "**/*.test.{ts,tsx}",
+        "test-browser/**/*.{ts,tsx}",
+        "e2e/**/*.spec.ts",
+        "e2e/**/playwright*.config.ts",
+        "e2e/reproduction/**/*.{ts,tsx}",
+      ],
+      "ignoreUnresolved": ["@/context/global-sync"],
+    },
+    "packages/protocol": {
+      "entry": ["**/*.test.{ts,tsx}"],
+      "includeEntryExports": true,
+    },
+    "packages/schema": {
+      "entry": ["**/*.test.{ts,tsx}"],
+      "includeEntryExports": true,
+    },
+    "packages/server": {
+      "entry": ["**/*.test.{ts,tsx}"],
+      "includeEntryExports": true,
+    },
+    "packages/session-ui": {
+      "entry": ["src/**/*.stories.{js,jsx,mjs,ts,tsx}", "src/**/*.worker.ts", "**/*.test.{ts,tsx}"],
+      "includeEntryExports": true,
+    },
+    "packages/ui": {
+      "entry": ["src/**/*.stories.{js,jsx,mjs,ts,tsx}", "**/*.test.{ts,tsx}", "script/**/*.{js,cjs,mjs,ts,cts,mts}"],
+    },
+    "packages/console/core": {
+      "entry": ["drizzle.config.ts", "**/*.test.{ts,tsx}", "script/**/*.{ts,mts}"],
+      "includeEntryExports": true,
+      "ignoreBinaries": ["vim"],
+      // This config reads linked SST resources while being evaluated. Analyze it statically instead.
+      "drizzle": { "config": [] },
+    },
+    "packages/stats/core": {
+      "entry": ["drizzle.config.ts", "**/*.test.{ts,tsx}"],
+      "includeEntryExports": true,
+      // This config reads linked SST resources while being evaluated. Analyze it statically instead.
+      "drizzle": { "config": [] },
+    },
+    "packages/console/mail": { "includeEntryExports": true },
+    "packages/sdk/js": {
+      "entry": ["**/*.test.{ts,tsx}", "script/**/*.{js,cjs,mjs,ts,cts,mts}", "example/**/*.{js,jsx,ts,tsx}"],
+      "ignoreBinaries": ["dev"],
+      "ignoreFiles": ["src/{gen,v2/gen}/**"],
+    },
+    "packages/enterprise": {
+      "entry": [
+        "test-debug.ts",
+        "src/app.{ts,tsx}",
+        "src/entry-{client,server}.{ts,tsx}",
+        "src/routes/**/*.{ts,tsx}",
+        "**/*.test.{ts,tsx}",
+        "{script,scripts}/**/*.{js,cjs,mjs,ts,cts,mts}",
+      ],
+      // SolidStart's Vite config cannot be executed outside its virtual module runtime.
+      "vite": { "config": [] },
+    },
+    "packages/console/app": {
+      "entry": [
+        "src/app.{ts,tsx}",
+        "src/entry-{client,server}.{ts,tsx}",
+        "src/middleware.{ts,tsx}",
+        "src/routes/**/*.{ts,tsx}",
+        "**/*.test.{ts,tsx}",
+        "{script,scripts}/**/*.{js,cjs,mjs,ts,cts,mts}",
+      ],
+      // SolidStart's Vite config cannot be executed outside its virtual module runtime.
+      "vite": { "config": [] },
+    },
+    "packages/console/support": {
+      "entry": ["src/app.{ts,tsx}", "src/entry-{client,server}.{ts,tsx}", "src/routes/**/*.{ts,tsx}"],
+      // SolidStart's Vite config cannot be executed outside its virtual module runtime.
+      "vite": { "config": [] },
+    },
+    "packages/stats/app": {
+      "entry": ["app.config.ts", "src/app.{ts,tsx}", "src/entry-{client,server}.{ts,tsx}", "src/routes/**/*.{ts,tsx}"],
+      // SolidStart's Vite config cannot be executed outside its virtual module runtime.
+      "vite": { "config": [] },
+    },
+    "packages/console/function": {
+      "entry": ["src/{auth,log-processor,stat}.ts"],
+    },
+    "packages/function": {
+      "entry": ["src/api.ts"],
+      "ignoreDependencies": ["cloudflare"],
+    },
+    "packages/stats/server": {
+      "entry": ["src/{server,stat-sync}.ts"],
+    },
+    "packages/httpapi-codegen": {
+      "entry": ["**/*.test.{ts,tsx}", "test/generated-consumer.ts", "test/generated*/**/*.ts"],
+    },
+    "packages/llm": {
+      "entry": ["**/*.test.{ts,tsx}", "test/**/*.types.ts", "{script,example}/**/*.{js,cjs,mjs,ts,cts,mts}"],
+    },
+    "packages/plugin": {
+      "entry": ["src/example*.ts", "script/**/*.{js,cjs,mjs,ts,cts,mts}"],
+    },
+    "packages/desktop": {
+      "entry": [
+        "src/main/{index,sidecar}.ts",
+        "src/renderer/index.html",
+        "src/renderer/cli.ts",
+        "**/*.test.{ts,tsx}",
+        "scripts/**/*.{ts,mts}",
+        "electron-builder.config.ts",
+      ],
+      "ignoreBinaries": ["pwsh", "wsl"],
+      "ignoreUnresolved": ["./scripts/copy-icons.ts", "./scripts/copy-metainfo.ts", "script/build-node.ts"],
+    },
+    "packages/storybook": {
+      "entry": [".storybook/**/*.{ts,tsx}"],
+    },
+    "packages/cli": {
+      "entry": ["**/*.test.{ts,tsx}", "script/**/*.{js,cjs,mjs,ts,cts,mts}"],
+      // The build script reads this version to install every platform binary before packaging.
+      "ignoreDependencies": ["@opentui/core"],
+    },
+    "packages/core": {
+      "entry": [
+        "**/*.test.{ts,tsx}",
+        "test/{fixture,fixtures,config/fixtures,plugin/fixtures}/**/*.{js,ts,tsx}",
+        "script/**/*.{js,cjs,mjs,ts,cts,mts}",
+      ],
+      "includeEntryExports": true,
+      "ignoreDependencies": [
+        "@parcel/watcher-darwin-arm64",
+        "@parcel/watcher-darwin-x64",
+        "@parcel/watcher-linux-arm64-glibc",
+        "@parcel/watcher-linux-arm64-musl",
+        "@parcel/watcher-linux-x64-glibc",
+        "@parcel/watcher-linux-x64-musl",
+        "@parcel/watcher-win32-arm64",
+        "@parcel/watcher-win32-x64",
+      ],
+    },
+    "packages/effect-drizzle-sqlite": { "entry": ["examples/**/*.ts"] },
+  },
+}

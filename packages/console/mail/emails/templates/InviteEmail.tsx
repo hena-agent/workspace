@@ -79,4 +79,4 @@ export const InviteEmail = ({
   )
 }
 
-export default InviteEmail
+/** @alias */ export default InviteEmail

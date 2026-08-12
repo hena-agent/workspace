@@ -8,7 +8,6 @@
     "dev": "sst shell --stage production -- vite dev"
   },
   "dependencies": {
-    "@cloudflare/vite-plugin": "1.15.2",
     "@hena/console-core": "workspace:*",
     "@solidjs/meta": "catalog:",
     "@solidjs/router": "catalog:",
@@ -20,8 +19,7 @@
   "devDependencies": {
     "@types/bun": "catalog:",
     "@typescript/native-preview": "catalog:",
-    "typescript": "catalog:",
-    "wrangler": "4.50.0"
+    "typescript": "catalog:"
   },
   "engines": {
     "node": ">=22"

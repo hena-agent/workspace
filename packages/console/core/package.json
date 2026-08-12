@@ -6,7 +6,6 @@
   "type": "module",
   "license": "MIT",
   "dependencies": {
-    "@aws-sdk/client-sts": "3.782.0",
     "@jsx-email/render": "1.1.1",
     "@hena/console-mail": "workspace:*",
     "@hena/console-resource": "workspace:*",
@@ -46,6 +45,7 @@
     "@types/node": "catalog:",
     "drizzle-kit": "catalog:",
     "mysql2": "3.14.4",
+    "react": "18.2.0",
     "typescript": "catalog:",
     "@typescript/native-preview": "catalog:"
   }

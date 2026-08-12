@@ -31,4 +31,4 @@ export const FolderWorkspacePlugin: Plugin = async ({ experimental_workspace }) 
   return {}
 }
 
-export default FolderWorkspacePlugin
+/** @alias */ export default FolderWorkspacePlugin

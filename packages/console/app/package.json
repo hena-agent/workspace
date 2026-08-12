@@ -11,13 +11,10 @@
     "start": "vite start"
   },
   "dependencies": {
-    "@cloudflare/vite-plugin": "1.15.2",
     "@ibm/plex": "6.4.1",
-    "@jsx-email/render": "1.1.1",
     "@kobalte/core": "catalog:",
     "@openauthjs/openauth": "catalog:",
     "@hena/console-core": "workspace:*",
-    "@hena/console-mail": "workspace:*",
     "@hena/console-resource": "workspace:*",
     "@hena/ui": "workspace:*",
     "@smithy/eventstream-codec": "4.2.7",
@@ -39,8 +36,8 @@
     "@types/bun": "catalog:",
     "@typescript/native-preview": "catalog:",
     "@webgpu/types": "0.1.54",
-    "typescript": "catalog:",
-    "wrangler": "4.50.0"
+    "stripe": "18.0.0",
+    "typescript": "catalog:"
   },
   "engines": {
     "node": ">=22"

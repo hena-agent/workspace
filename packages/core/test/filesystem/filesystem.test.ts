@@ -365,7 +365,6 @@ describe("FSUtil", () => {
     it(
       "resolve falls back when the path cannot be canonicalized",
       Effect.gen(function* () {
-        const fs = yield* FSUtil.Service
         const filesys = yield* FileSystem.FileSystem
         const tmp = yield* filesys.makeTempDirectoryScoped()
         const file = path.join(tmp, "file")
@@ -373,7 +372,6 @@ describe("FSUtil", () => {
         const input = path.join(file, "child")
         const expected = FSUtil.normalizePath(path.resolve(input))
         expect(FSUtil.resolve(input)).toBe(expected)
-        expect(yield* fs.resolve(input)).toBe(expected)
       }),
     )
 

@@ -362,6 +362,17 @@ describe("FSUtil", () => {
   })
 
   describe("pure helpers", () => {
+    it(
+      "resolve falls back when the path cannot be canonicalized",
+      Effect.gen(function* () {
+        const filesys = yield* FileSystem.FileSystem
+        const tmp = yield* filesys.makeTempDirectoryScoped()
+        const file = path.join(tmp, "file")
+        yield* filesys.writeFileString(file, "")
+        expect(FSUtil.resolve(path.join(file, "child"))).toBe(FSUtil.normalizePath(path.resolve(file, "child")))
+      }),
+    )
+
     test("mimeType returns correct types", () => {
       expect(FSUtil.mimeType("file.json")).toBe("application/json")
       expect(FSUtil.mimeType("image.png")).toBe("image/png")

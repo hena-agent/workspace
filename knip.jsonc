@@ -123,6 +123,10 @@
       "drizzle": { "config": [] },
     },
     "packages/console/mail": { "includeEntryExports": true },
+    "packages/web": {
+      // Toolbeam injects these font imports into Starlight's virtual user CSS module.
+      "ignoreDependencies": ["@fontsource/ibm-plex-mono"],
+    },
     "packages/sdk/js": {
       "entry": ["**/*.test.{ts,tsx}", "script/**/*.{js,cjs,mjs,ts,cts,mts}", "example/**/*.{js,jsx,ts,tsx}"],
       "ignoreBinaries": ["dev"],

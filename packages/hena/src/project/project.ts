@@ -237,21 +237,17 @@ const layer = Layer.effect(
 
       if (flags.experimentalIconDiscovery) yield* discover(existing).pipe(Effect.ignore, Effect.forkIn(scope))
 
+      const projectWorktree = projectID === ProjectV2.ID.global ? worktree : existing.worktree
+      const sandboxes = new Set(existing.sandboxes.map((sandbox) => FSUtil.resolve(sandbox)))
+      const sandbox = AbsolutePath.make(FSUtil.resolve(data.directory))
+      if (projectID !== ProjectV2.ID.global && sandbox !== FSUtil.resolve(projectWorktree)) sandboxes.add(sandbox)
       const result: Info = {
         ...existing,
-        worktree: projectID === ProjectV2.ID.global ? worktree : existing.worktree,
+        worktree: projectWorktree,
         vcs: data.vcs?.type ?? fakeVcs,
-        sandboxes: [...new Set(existing.sandboxes.map(FSUtil.resolve))],
+        sandboxes: yield* Effect.filter([...sandboxes], (sandbox) => fs.exists(sandbox).pipe(Effect.orDie)),
         time: { ...existing.time, updated: Date.now() },
       }
-      const sandbox = AbsolutePath.make(FSUtil.resolve(data.directory))
-      if (
-        projectID !== ProjectV2.ID.global &&
-        sandbox !== FSUtil.resolve(result.worktree) &&
-        !result.sandboxes.includes(sandbox)
-      )
-        result.sandboxes.push(sandbox)
-      result.sandboxes = yield* Effect.filter(result.sandboxes, (sandbox) => fs.exists(sandbox).pipe(Effect.orDie))
 
       yield* db
         .insert(ProjectTable)

@@ -395,6 +395,7 @@ describe("Project.fromDirectory with worktrees", () => {
       expect(result.project.worktree).toBe(worktree1)
       expect(result.project.sandboxes).toContain(worktree2)
       expect(result.project.sandboxes).not.toContain(tmp)
+      expect((yield* project.fromDirectory(worktree2)).project.sandboxes).toEqual(result.project.sandboxes)
     }),
   )
 })

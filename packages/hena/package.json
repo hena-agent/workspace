@@ -6,7 +6,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "bun test --timeout 30000 --only-failures",
     "test:httpapi": "bun run test:httpapi:coverage && bun run test:httpapi:auth && bun run test:httpapi:effect",
     "test:httpapi:coverage": "bun run script/httpapi-exercise.ts --mode coverage --fail-on-missing --fail-on-skip",
@@ -36,7 +36,7 @@
     "@types/semver": "catalog:",
     "@types/turndown": "5.0.5",
     "@types/yargs": "17.0.33",
-    "@typescript/native-preview": "catalog:",
+    "@typescript/native": "catalog:",
     "prettier": "3.6.2",
     "typescript": "catalog:",
     "vscode-languageserver-types": "3.17.5"

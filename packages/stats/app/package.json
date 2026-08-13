@@ -6,7 +6,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsc --noEmit",
     "dev": "vite dev --host 0.0.0.0",
     "build": "vite build",
     "start": "vite preview"
@@ -37,7 +37,7 @@
     "@types/geojson": "7946.0.16",
     "@types/topojson-client": "3.1.5",
     "@types/topojson-specification": "1.0.5",
-    "@typescript/native-preview": "catalog:",
+    "@typescript/native": "catalog:",
     "typescript": "catalog:"
   },
   "engines": {

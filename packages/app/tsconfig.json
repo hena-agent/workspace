@@ -12,6 +12,7 @@
     "jsxImportSource": "solid-js",
     "allowJs": true,
     "resolveJsonModule": true,
+    "types": ["vite/client", "bun"],
     "strict": true,
     "noEmit": false,
     "emitDeclarationOnly": true,

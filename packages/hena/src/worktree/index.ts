@@ -319,10 +319,7 @@ const layer: Layer.Layer<
         return []
       }
 
-      const entries = yield* worktreeEntries(
-        ctx.worktree,
-        (result) => new ListFailedError({ message: gitMessage("Failed to read git worktrees", result) }),
-      )
+      const entries = yield* worktreeEntries(ctx.worktree, listFailed)
 
       const primary = pathKey(ctx.project.worktree)
       const primaryName = pathSvc.basename(primary).toLowerCase()
@@ -371,26 +368,30 @@ const layer: Layer.Layer<
     const gitExpect = Effect.fnUntraced(function* (
       args: string[],
       opts: { cwd: string },
-      error: (r: GitResult) => Error,
+      fallback: string,
+      fail: (message: string) => Error,
     ) {
       const result = yield* git(args, opts)
-      if (result.code !== 0) return yield* error(result)
+      if (result.code !== 0) return yield* fail(gitMessage(fallback, result))
       return result
     })
 
-    const removeFailed = (fallback: string, ...results: GitResult[]) =>
-      new RemoveFailedError({ message: gitMessage(fallback, ...results) })
+    const listFailed = (message: string) => new ListFailedError({ message })
+    const removeFailed = (message: string) => new RemoveFailedError({ message })
+    const resetFailed = (message: string) => new ResetFailedError({ message })
 
-    const worktreeEntries = Effect.fnUntraced(function* (root: string, error: (result: GitResult) => Error) {
-      const result = yield* gitExpect(["worktree", "list", "--porcelain"], { cwd: root }, error)
+    const worktreeEntries = Effect.fnUntraced(function* (root: string, fail: (message: string) => Error) {
+      const result = yield* gitExpect(
+        ["worktree", "list", "--porcelain"],
+        { cwd: root },
+        "Failed to read git worktrees",
+        fail,
+      )
       return parseWorktreeList(result.text)
     })
 
     const removeGitWorktree = Effect.fnUntraced(function* (root: string, directory: string) {
-      const entry = locateWorktree(
-        yield* worktreeEntries(root, (result) => removeFailed("Failed to read git worktrees", result)),
-        directory,
-      )
+      const entry = locateWorktree(yield* worktreeEntries(root, removeFailed), directory)
       if (!entry?.path) {
         if (yield* fs.exists(directory).pipe(Effect.orDie)) {
           yield* stopFsmonitor(directory)
@@ -403,20 +404,15 @@ const layer: Layer.Layer<
       const removed = yield* git(["worktree", "remove", "--force", entry.path], { cwd: root })
       if (
         removed.code !== 0 &&
-        locateWorktree(
-          yield* worktreeEntries(root, (result) => removeFailed("Failed to remove git worktree", removed, result)),
-          directory,
-        )
+        locateWorktree(yield* worktreeEntries(root, (message) => removeFailed(gitMessage(message, removed))), directory)
       ) {
-        return yield* removeFailed("Failed to remove git worktree", removed)
+        return yield* removeFailed(gitMessage("Failed to remove git worktree", removed))
       }
 
       yield* cleanDirectory(entry.path)
       const branch = entry.branch?.replace(/^refs\/heads\//, "")
       if (!branch) return
-      yield* gitExpect(["branch", "-D", branch], { cwd: root }, (result) =>
-        removeFailed("Failed to delete worktree branch", result),
-      )
+      yield* gitExpect(["branch", "-D", branch], { cwd: root }, "Failed to delete worktree branch", removeFailed)
     })
 
     const remove = Effect.fn("Worktree.remove")(function* (input: RemoveInput) {
@@ -503,76 +499,68 @@ const layer: Layer.Layer<
       const directory = FSUtil.resolve(input.directory)
       const primary = FSUtil.resolve(ctx.worktree)
       if (fold(directory) === fold(primary)) {
-        return yield* new ResetFailedError({ message: "Cannot reset the primary workspace" })
+        return yield* resetFailed("Cannot reset the primary workspace")
       }
 
-      const entry = locateWorktree(
-        yield* worktreeEntries(
-          ctx.worktree,
-          (result) => new ResetFailedError({ message: gitMessage("Failed to read git worktrees", result) }),
-        ),
-        directory,
-      )
+      const entry = locateWorktree(yield* worktreeEntries(ctx.worktree, resetFailed), directory)
       if (!entry?.path) {
-        return yield* new ResetFailedError({ message: "Worktree not found" })
+        return yield* resetFailed("Worktree not found")
       }
 
       const worktreePath = entry.path
 
       const base = yield* gitSvc.defaultBranch(ctx.worktree)
       if (!base) {
-        return yield* new ResetFailedError({ message: "Default branch not found" })
+        return yield* resetFailed("Default branch not found")
       }
 
       const sep = base.ref.indexOf("/")
       if (base.ref !== base.name && sep > 0) {
         const remote = base.ref.slice(0, sep)
         const branch = base.ref.slice(sep + 1)
-        yield* gitExpect(
-          ["fetch", remote, branch],
-          { cwd: ctx.worktree },
-          (r) => new ResetFailedError({ message: gitMessage(`Failed to fetch ${base.ref}`, r) }),
-        )
+        yield* gitExpect(["fetch", remote, branch], { cwd: ctx.worktree }, `Failed to fetch ${base.ref}`, resetFailed)
       }
 
       yield* gitExpect(
         ["reset", "--hard", base.ref],
         { cwd: worktreePath },
-        (r) => new ResetFailedError({ message: gitMessage("Failed to reset worktree to target", r) }),
+        "Failed to reset worktree to target",
+        resetFailed,
       )
 
       const cleanResult = yield* sweep(worktreePath)
       if (cleanResult.code !== 0) {
-        return yield* new ResetFailedError({
-          message: gitMessage("Failed to clean worktree", cleanResult),
-        })
+        return yield* resetFailed(gitMessage("Failed to clean worktree", cleanResult))
       }
 
       yield* gitExpect(
         ["submodule", "update", "--init", "--recursive", "--force"],
         { cwd: worktreePath },
-        (r) => new ResetFailedError({ message: gitMessage("Failed to update submodules", r) }),
+        "Failed to update submodules",
+        resetFailed,
       )
 
       yield* gitExpect(
         ["submodule", "foreach", "--recursive", "git", "reset", "--hard"],
         { cwd: worktreePath },
-        (r) => new ResetFailedError({ message: gitMessage("Failed to reset submodules", r) }),
+        "Failed to reset submodules",
+        resetFailed,
       )
 
       yield* gitExpect(
         ["submodule", "foreach", "--recursive", "git", "clean", "-fdx"],
         { cwd: worktreePath },
-        (r) => new ResetFailedError({ message: gitMessage("Failed to clean submodules", r) }),
+        "Failed to clean submodules",
+        resetFailed,
       )
 
       const status = yield* git(["-c", "core.fsmonitor=false", "status", "--porcelain=v1"], { cwd: worktreePath })
       if (status.code !== 0) {
-        return yield* new ResetFailedError({ message: gitMessage("Failed to read git status", status) })
+        return yield* resetFailed(gitMessage("Failed to read git status", status))
       }
 
       if (status.text.trim()) {
-        return yield* new ResetFailedError({ message: `Worktree reset left local changes:\n${status.text.trim()}` })
+        return yield* resetFailed(`Worktree reset left local changes:\n${status.text.trim()}`)
       }
 
       yield* runStartScripts(worktreePath, { projectID: ctx.project.id }).pipe(

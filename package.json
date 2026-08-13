@@ -141,6 +141,7 @@
     "electron"
   ],
   "overrides": {
+    "@cloudflare/vite-plugin": "1.51.0",
     "@opentui/core": "catalog:",
     "@opentui/keymap": "catalog:",
     "@opentui/solid": "catalog:",

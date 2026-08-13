@@ -36,7 +36,7 @@
     "hena": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "wrangler": "4.122.0"
+    "wrangler": "4.119.0"
   },
   "engines": {
     "node": ">=24"

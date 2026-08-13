@@ -10,7 +10,7 @@
     "email": "hello@hena.dev"
   },
   "scripts": {
-    "typecheck": "tsc -b",
+    "typecheck": "bunx --package @typescript/native tsc -b",
     "predev": "bun ./scripts/predev.ts",
     "dev": "electron-vite dev",
     "prebuild": "bun ./scripts/prebuild.ts",

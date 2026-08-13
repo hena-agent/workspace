@@ -6,7 +6,7 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bunx --package @typescript/native tsc --noEmit",
     "test": "bun test --timeout 30000 --only-failures",
     "test:httpapi": "bun run test:httpapi:coverage && bun run test:httpapi:auth && bun run test:httpapi:effect",
     "test:httpapi:coverage": "bun run script/httpapi-exercise.ts --mode coverage --fail-on-missing --fail-on-skip",

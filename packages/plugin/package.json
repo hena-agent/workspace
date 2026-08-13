@@ -6,8 +6,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "build": "tsc"
+    "typecheck": "bunx --package @typescript/native tsc --noEmit",
+    "build": "bunx --package @typescript/native tsc"
   },
   "exports": {
     ".": "./src/index.ts",

@@ -11,7 +11,7 @@
   },
   "scripts": {
     "start": "bun src/server.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "bunx --package @typescript/native tsc --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-firehose": "3.933.0",

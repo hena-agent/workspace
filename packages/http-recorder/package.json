@@ -28,7 +28,7 @@
   },
   "scripts": {
     "test": "bun test --timeout 30000 --only-failures",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bunx --package @typescript/native tsc --noEmit",
     "build": "bun ./script/build.ts",
     "verify:package": "bun ./script/verify-package.ts"
   },

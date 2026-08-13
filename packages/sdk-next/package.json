@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "bun test --timeout 5000",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "bunx --package @typescript/native tsc --noEmit"
   },
   "dependencies": {
     "@hena/client": "workspace:*",

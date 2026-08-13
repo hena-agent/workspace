@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "test": "bun test --timeout 30000 --only-failures",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "bunx --package @typescript/native tsc --noEmit"
   },
   "exports": {
     ".": "./src/index.ts",

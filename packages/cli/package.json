@@ -13,7 +13,7 @@
   "scripts": {
     "build": "bun run script/build.ts",
     "dev": "bun run src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "bunx --package @typescript/native tsc --noEmit"
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",

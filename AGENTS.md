@@ -153,6 +153,8 @@ const table = sqliteTable("session", {
 ## Type Checking
 
 - Always run `bun typecheck` from package directories (e.g., `packages/hena`), never `tsc` directly.
+- TypeScript 7 is installed as `@typescript/native`; compiler scripts must invoke `bunx --package @typescript/native tsc` so they never depend on a `node_modules/.bin/tsc` collision with TypeScript 6.
+- Keep the `typescript` package on 6.x while runtime code or tooling imports its compiler API. Bun currently self-resolves `@typescript/typescript6`'s internal alias, leaving its API exports undefined, so do not adopt that compatibility package until Bun resolves it correctly.
 
 ## V2 Session Core
 

@@ -25,7 +25,7 @@
     "./v2/prompt-input/types": "./src/v2/components/prompt-input/types.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bunx --package @typescript/native tsc --noEmit",
     "test": "bun test src --only-failures"
   },
   "devDependencies": {

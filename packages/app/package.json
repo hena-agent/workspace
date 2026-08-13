@@ -12,8 +12,8 @@
     "./index.css": "./src/index.css"
   },
   "scripts": {
-    "typecheck": "tsc -b",
-    "typecheck:e2e": "tsc -p e2e/tsconfig.json",
+    "typecheck": "bunx --package @typescript/native tsc -b",
+    "typecheck:e2e": "bunx --package @typescript/native tsc -p e2e/tsconfig.json",
     "start": "vite",
     "dev": "vite",
     "build": "vite build",

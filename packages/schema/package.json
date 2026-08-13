@@ -9,7 +9,7 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "bunx --package @typescript/native tsc --noEmit"
   },
   "dependencies": {
     "effect": "catalog:"

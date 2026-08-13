@@ -10,7 +10,7 @@ async function published(name: string, version: string) {
   return (await $`npm view ${name}@${version} version`.nothrow()).exitCode === 0
 }
 
-await $`bun tsc`
+await $`bunx --package @typescript/native tsc`
 const originalText = await Bun.file("package.json").text()
 const pkg = JSON.parse(originalText) as {
   name: string

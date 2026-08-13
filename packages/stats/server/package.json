@@ -11,7 +11,7 @@
   },
   "scripts": {
     "start": "bun src/server.ts",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "bun ../../../script/tsc.ts --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-firehose": "3.933.0",
@@ -24,7 +24,6 @@
     "@tsconfig/node22": "catalog:",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
-    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:"
   },
   "engines": {

@@ -49,7 +49,7 @@ HttpRecorder.socket("consumer/socket", options).pipe(
       }),
     )
 
-    await run(["npm", "install", archive, "typescript@5.8.2"], directory)
+    await run(["npm", "install", archive, "typescript@7.0.2"], directory)
     await run(
       [
         "node",

@@ -42,7 +42,8 @@
       // github/, sdks/vscode/, and artifacts/ have independent package manifests and lockfiles.
       "project": ["script/**/*.{ts,mjs}", "infra/**/*.ts", "packages/containers/**/*.ts", ".hena/**/*.{ts,tsx}"],
       // `marked` pins marked-shiki's peer for Bun's hoisted Windows linker.
-      "ignoreDependencies": ["turbo", "marked"],
+      // The TS7 launcher resolves the native compiler package programmatically.
+      "ignoreDependencies": ["turbo", "marked", "@typescript/native"],
       "ignoreBinaries": ["ulimit", "hena"],
       "ignoreUnresolved": [
         "./script/build.ts",

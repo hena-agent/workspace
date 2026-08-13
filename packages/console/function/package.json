@@ -6,15 +6,14 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "bun ../../../script/tsc.ts --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
     "@tsconfig/node22": "22.0.2",
     "@types/node": "catalog:",
     "react": "18.2.0",
-    "typescript": "catalog:",
-    "@typescript/native-preview": "catalog:"
+    "typescript": "catalog:"
   },
   "dependencies": {
     "@hena/console-core": "workspace:*",

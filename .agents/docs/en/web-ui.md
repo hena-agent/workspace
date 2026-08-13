@@ -71,7 +71,7 @@ Pin the exact CLI version rather than `@latest`, and record both it and the reso
 
 Migrate it into `packages/app-v3`. Preserve `components.json`, path aliases, CSS-first Tailwind wiring, and the shadcn file layout so `shadcn add` remains usable. Generated component source is owned by this repository and may be adapted for accessibility, density, and themes; "preserve" does not mean the component files are immutable.
 
-Replace scaffold tooling with the repository's oxlint, Prettier, `tsgo`, Bun, Playwright, and Turborepo setup.
+Replace scaffold tooling with the repository's oxlint, Prettier, TypeScript, Bun, Playwright, and Turborepo setup.
 
 ---
 

@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "bun test --timeout 5000",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "bun ../../script/tsc.ts --noEmit"
   },
   "dependencies": {
     "@hena/client": "workspace:*",
@@ -19,7 +19,6 @@
   },
   "devDependencies": {
     "@tsconfig/bun": "catalog:",
-    "@types/bun": "catalog:",
-    "@typescript/native-preview": "catalog:"
+    "@types/bun": "catalog:"
   }
 }

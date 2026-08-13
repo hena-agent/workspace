@@ -3,9 +3,12 @@
   "globalEnv": ["CI", "HENA_DISABLE_SHARE"],
   "globalPassThroughEnv": ["CI", "HENA_DISABLE_SHARE"],
   "tasks": {
-    "typecheck": {},
+    "typecheck": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/script/tsc.ts"]
+    },
     "build": {
       "dependsOn": [],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/script/tsc.ts"],
       "outputs": ["dist/**"]
     },
     "hena#test": {

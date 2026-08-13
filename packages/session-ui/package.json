@@ -25,13 +25,12 @@
     "./v2/prompt-input/types": "./src/v2/components/prompt-input/types.ts"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "bun ../../script/tsc.ts --noEmit",
     "test": "bun test src --only-failures"
   },
   "devDependencies": {
     "@tsconfig/node22": "catalog:",
     "@types/bun": "catalog:",
-    "@typescript/native-preview": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:"
   },

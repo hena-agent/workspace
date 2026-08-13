@@ -36,7 +36,7 @@
     "update-limits": "script/update-limits.ts",
     "promote-limits-to-dev": "script/promote-limits.ts dev",
     "promote-limits-to-prod": "script/promote-limits.ts production",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "bun ../../../script/tsc.ts --noEmit"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
@@ -46,7 +46,6 @@
     "drizzle-kit": "catalog:",
     "mysql2": "3.14.4",
     "react": "18.2.0",
-    "typescript": "catalog:",
-    "@typescript/native-preview": "catalog:"
+    "typescript": "catalog:"
   }
 }

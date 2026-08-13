@@ -62,7 +62,7 @@ const layer = Layer.effect(
     const projectDirectories = yield* ProjectDirectories.Service
 
     yield* fs.ensureDir(global.projects).pipe(Effect.orDie)
-    const projects = AbsolutePath.make(yield* fs.resolve(global.projects))
+    const projects = AbsolutePath.make(FSUtil.resolve(global.projects))
     if (process.platform !== "win32") yield* fs.chmod(projects, 0o700).pipe(Effect.orDie)
 
     const create = Effect.fn("Project.create")(function* () {
@@ -125,7 +125,7 @@ const layer = Layer.effect(
     })
 
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
-      const directory = AbsolutePath.make(yield* fs.resolve(input))
+      const directory = AbsolutePath.make(FSUtil.resolve(input))
       const managedID = path.relative(projects, directory).split(path.sep)[0]
       if (managedID && ID.isManaged(managedID)) {
         return {

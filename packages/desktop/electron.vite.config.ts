@@ -1,7 +1,7 @@
 import { sentryVitePlugin } from "@sentry/vite-plugin"
 import { defineConfig } from "electron-vite"
 import appPlugin from "@hena/app/vite"
-import * as fs from "node:fs/promises"
+import { readdir, readFile, writeFile } from "node:fs/promises"
 
 const HENA_SERVER_DIST = "../hena/dist/node"
 
@@ -37,7 +37,7 @@ export default defineConfig({
       "import.meta.env.HENA_CHANNEL": JSON.stringify(channel),
     },
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         input: { index: "src/main/index.ts", sidecar: "src/main/sidecar.ts" },
         // Keep this identical to electron-vite's Node 20.11+ shim. Its regex insertion can
         // corrupt bundled TypeScript, while a Rollup banner places the shim safely.
@@ -71,9 +71,9 @@ const require = __cjs_mod__.createRequire(import.meta.url);
       {
         name: "hena:copy-server-assets",
         async writeBundle() {
-          for (const l of await fs.readdir(HENA_SERVER_DIST)) {
+          for (const l of await readdir(HENA_SERVER_DIST)) {
             if (!l.endsWith(".wasm")) continue
-            await fs.writeFile(`./out/main/chunks/${l}`, await fs.readFile(`${HENA_SERVER_DIST}/${l}`))
+            await writeFile(`./out/main/chunks/${l}`, await readFile(`${HENA_SERVER_DIST}/${l}`))
           }
         },
       },
@@ -81,7 +81,7 @@ const require = __cjs_mod__.createRequire(import.meta.url);
   },
   preload: {
     build: {
-      rollupOptions: {
+      rolldownOptions: {
         input: { index: "src/preload/index.ts" },
         output: {
           format: "cjs",
@@ -96,7 +96,7 @@ const require = __cjs_mod__.createRequire(import.meta.url);
     root: "src/renderer",
     build: {
       sourcemap: true,
-      rollupOptions: {
+      rolldownOptions: {
         input: {
           main: "src/renderer/index.html",
         },

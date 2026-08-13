@@ -9,7 +9,7 @@
     "typecheck": "tsgo --noEmit",
     "dev": "vite dev --host 0.0.0.0",
     "build": "vite build",
-    "start": "vite start"
+    "start": "vite preview"
   },
   "dependencies": {
     "@ibm/plex": "6.4.1",
@@ -23,7 +23,7 @@
     "d3-scale": "4.0.2",
     "effect": "catalog:",
     "i18n-iso-countries": "7.14.0",
-    "nitro": "3.0.1-alpha.1",
+    "nitro": "3.0.260610-beta",
     "solid-js": "catalog:",
     "sst": "catalog:",
     "topojson-client": "3.1.0",
@@ -41,6 +41,6 @@
     "typescript": "catalog:"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   }
 }

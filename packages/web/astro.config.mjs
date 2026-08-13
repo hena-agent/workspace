@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from "astro/config"
+import { unified } from "@astrojs/markdown-remark"
 import starlight from "@astrojs/starlight"
 import solidJs from "@astrojs/solid-js"
 import cloudflare from "@astrojs/cloudflare"
@@ -16,7 +17,9 @@ export default defineConfig({
   output: "server",
   adapter: cloudflare({
     imageService: "passthrough",
+    prerenderEnvironment: "node",
   }),
+  compressHTML: true,
   devToolbar: {
     enabled: false,
   },
@@ -24,7 +27,9 @@ export default defineConfig({
     host: "0.0.0.0",
   },
   markdown: {
-    rehypePlugins: [rehypeHeadingIds, [rehypeAutolinkHeadings, { behavior: "wrap" }]],
+    processor: unified({
+      rehypePlugins: [rehypeHeadingIds, [rehypeAutolinkHeadings, { behavior: "wrap" }]],
+    }),
   },
   build: {},
   integrations: [

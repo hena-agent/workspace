@@ -127,6 +127,6 @@
     "zod": "catalog:"
   },
   "overrides": {
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "1.0.0-rc.2"
   }
 }

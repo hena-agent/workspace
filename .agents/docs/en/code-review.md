@@ -251,8 +251,8 @@ The prompt is unchanged. `permissions` and `concurrency` are unchanged.
 **Pre-flight catalog check.** A new step after `Add opencode to PATH` and before `Run opencode`:
 
 - Run `opencode models "$PROVIDER" --verbose`. A non-zero exit means the provider is not configured or not authenticated; fail with an error naming the provider.
-- Exact-match `$MODEL` against the output lines. A miss fails with an error naming the model, the effective CLI version, and both remedies: correct `REVIEWER_MODEL`, or raise `REVIEWER_OPENCODE_VERSION`.
-- Pass the verbose output to the canonical, unit-tested `modelVariants()` parser in `script/translate-app.ts`, then require its result to contain the requested variant. A miss fails before provider execution and lists the variants the pinned CLI exposes for that model. Do not maintain a second parser for the CLI's text format in the action.
+- Pass the verbose output to the canonical, unit-tested `modelVariants()` parser in `script/translate-app.ts`. Its `Model not found` error names the model and effective CLI version plus both remedies: correct `REVIEWER_MODEL`, or raise `REVIEWER_OPENCODE_VERSION`. Do not add a separate line-oriented existence check; the parser owns CRLF normalization and model boundaries.
+- Require the parser's result to contain the requested variant. A miss fails before provider execution and lists the variants the pinned CLI exposes for that model. Do not maintain a second parser for the CLI's text format in the action.
 
 The check runs after the auth restore because `Provider.list()` enumerates configured providers. It validates against the binary that is about to run, which is why no allowlist of vetted model ids is maintained anywhere: bumping the pin needs no corresponding list edit.
 

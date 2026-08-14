@@ -21,6 +21,7 @@ import { testEffect } from "../lib/effect"
 import { Tool } from "@/tool/tool"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { InstanceStore } from "@/project/instance-store"
+import { symlink } from "fs/promises"
 
 const shellLayer = Layer.mergeAll(
   LayerNode.compile(
@@ -776,6 +777,32 @@ describe("tool.shell permissions", () => {
           const extDirReq = requests.find((r) => r.permission === "external_directory")
           expect(extDirReq).toBeDefined()
           expect(extDirReq!.patterns).toContain(glob(path.join(os.tmpdir(), "*")))
+        }),
+      )
+    }),
+  )
+
+  each("asks for external_directory permission when workdir escapes through a symlink", () =>
+    Effect.gen(function* () {
+      const outside = yield* tmpdirScoped()
+      const tmp = yield* tmpdirScoped()
+      const linked = path.join(tmp, "linked")
+      yield* Effect.promise(() => symlink(outside, linked, process.platform === "win32" ? "junction" : "dir"))
+      yield* runIn(
+        tmp,
+        Effect.gen(function* () {
+          const err = new Error("stop after permission")
+          const requests: Array<Omit<PermissionV1.Request, "id" | "sessionID" | "tool">> = []
+          expect(
+            yield* fail(
+              {
+                command: "echo ok",
+                workdir: linked,
+              },
+              capture(requests, err),
+            ),
+          ).toMatchObject({ message: err.message })
+          expect(requests.find((request) => request.permission === "external_directory")).toBeDefined()
         }),
       )
     }),

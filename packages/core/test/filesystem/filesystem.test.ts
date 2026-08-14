@@ -5,6 +5,7 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 import { FSUtil } from "@hena/core/fs-util"
 import { testEffect } from "../lib/effect"
 import path from "path"
+import { symlink } from "fs/promises"
 
 const live = LayerNode.compile(LayerNode.group([FSUtil.node, LayerNodePlatform.filesystem]))
 const { effect: it } = testEffect(live)
@@ -362,6 +363,25 @@ describe("FSUtil", () => {
   })
 
   describe("pure helpers", () => {
+    it(
+      "resolve canonicalizes prospective paths through a symlink ancestor",
+      Effect.gen(function* () {
+        const filesys = yield* FileSystem.FileSystem
+        const tmp = yield* filesys.makeTempDirectoryScoped()
+        const project = path.join(tmp, "project")
+        const outside = path.join(tmp, "outside")
+        yield* filesys.makeDirectory(project)
+        yield* filesys.makeDirectory(outside)
+        yield* Effect.promise(() =>
+          symlink(outside, path.join(project, "link"), process.platform === "win32" ? "junction" : "dir"),
+        )
+
+        expect(FSUtil.resolve(path.join(project, "link", "new", "nested", "file.txt"))).toBe(
+          path.join(FSUtil.resolve(outside), "new", "nested", "file.txt"),
+        )
+      }),
+    )
+
     test("mimeType returns correct types", () => {
       expect(FSUtil.mimeType("file.json")).toBe("application/json")
       expect(FSUtil.mimeType("image.png")).toBe("image/png")

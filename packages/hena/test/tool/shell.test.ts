@@ -1110,11 +1110,11 @@ describe("tool.shell abort", () => {
       const tmp = yield* tmpdirScoped()
       const gate = path.join(tmp, "continue")
       const code = [
-        `console.log(String.fromCharCode(102,105,114,115,116))`,
+        `console.log(Bun.argv[2])`,
         `while (!(await Bun.file(Bun.argv[1]).exists())) await Bun.sleep(10)`,
-        `console.log(String.fromCharCode(115,101,99,111,110,100))`,
+        `console.log(Bun.argv[3])`,
       ].join(";")
-      const command = `${bin} -e ${evalarg(code)} ${quote(gate.replaceAll("\\", "/"))}`
+      const command = `${bin} -e ${evalarg(code)} ${quote(gate.replaceAll("\\", "/"))} ${quote("first")} ${quote("second")}`
 
       yield* runIn(
         tmp,

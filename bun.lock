@@ -17,7 +17,6 @@
         "@opentui/solid": "catalog:",
         "@tsconfig/bun": "catalog:",
         "@types/mime-types": "3.0.1",
-        "@typescript/native": "catalog:",
         "husky": "9.1.7",
         "knip": "6.32.0",
         "marked": "catalog:",

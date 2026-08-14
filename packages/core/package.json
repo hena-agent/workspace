@@ -119,8 +119,5 @@
     "which": "6.0.1",
     "xdg-basedir": "5.1.0",
     "zod": "catalog:"
-  },
-  "overrides": {
-    "drizzle-orm": "catalog:"
   }
 }

@@ -13,6 +13,7 @@ import {
   type BaseRouterProps,
   Navigate,
   Route,
+  type RouteSectionProps,
   Router,
   useLocation,
   useNavigate,
@@ -585,7 +586,7 @@ function Routes(props: { serverScoped?: JSX.Element }) {
   return (
     <>
       <Route
-        component={(routeProps) => (
+        component={(routeProps: RouteSectionProps) => (
           <LegacyServerLayout serverScoped={props.serverScoped}>{routeProps.children}</LegacyServerLayout>
         )}
       >

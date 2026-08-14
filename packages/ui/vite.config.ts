@@ -38,8 +38,8 @@ function providerIconsPlugin() {
     configureServer() {
       void fetchProviderIcons()
     },
-    buildStart() {
-      void fetchProviderIcons()
+    async buildStart() {
+      await fetchProviderIcons()
     },
   }
 }

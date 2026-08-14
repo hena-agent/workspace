@@ -1134,6 +1134,33 @@ export default {
     ),
   )
 
+  it.live("rejects prospective oc-themes below an escaping symlink", () =>
+    withTmp(
+      async (dir) => {
+        const mod = path.join(dir, "mod")
+        const outside = path.join(dir, "outside")
+        await fs.mkdir(mod)
+        await fs.mkdir(outside)
+        await fs.symlink(outside, path.join(mod, "escape"), process.platform === "win32" ? "junction" : "dir")
+        const file = path.join(mod, "package.json")
+        await Bun.write(file, JSON.stringify({ name: "acme", "oc-themes": ["escape/missing.json"] }, null, 2))
+        return { mod, file }
+      },
+      (tmp) =>
+        Effect.gen(function* () {
+          const fsys = yield* FSUtil.Service
+          const json = (yield* fsys.readJson(tmp.extra.file)) as Record<string, unknown>
+          expect(() =>
+            readPackageThemes("acme", {
+              dir: tmp.extra.mod,
+              pkg: tmp.extra.file,
+              json,
+            }),
+          ).toThrow("outside plugin directory")
+        }),
+    ),
+  )
+
   it.live("retries failed file plugins once after wait and keeps order", () =>
     withTmp(
       async (dir) => {

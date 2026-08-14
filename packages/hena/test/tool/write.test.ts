@@ -13,7 +13,7 @@ import { Tool } from "@/tool/tool"
 import { Agent } from "../../src/agent/agent"
 import { SessionID, MessageID } from "../../src/session/schema"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
-import { disposeAllInstances, TestInstance } from "../fixture/fixture"
+import { disposeAllInstances, TestInstance, tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
 const ctx = {
@@ -63,8 +63,7 @@ describe("tool.write", () => {
     it.instance("asks before writing below an escaping symlink", () =>
       Effect.gen(function* () {
         const test = yield* TestInstance
-        const outside = yield* Effect.promise(() => fs.mkdtemp(path.join(test.directory, "..", "hena-write-outside-")))
-        yield* Effect.addFinalizer(() => Effect.promise(() => fs.rm(outside, { recursive: true, force: true })))
+        const outside = yield* tmpdirScoped()
         yield* Effect.promise(() =>
           fs.symlink(outside, path.join(test.directory, "escape"), process.platform === "win32" ? "junction" : "dir"),
         )

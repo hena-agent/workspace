@@ -125,8 +125,5 @@
     "ws": "8.21.0",
     "yargs": "18.0.0",
     "zod": "catalog:"
-  },
-  "overrides": {
-    "drizzle-orm": "1.0.0-rc.2"
   }
 }

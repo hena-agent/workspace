@@ -984,7 +984,7 @@
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
     "@vitejs/plugin-react": "6.0.5",
-    "drizzle-orm": "1.0.0-rc.2",
+    "drizzle-orm": "catalog:",
     "vite": "catalog:",
     "vite-plugin-node-polyfills": "0.28.0",
   },

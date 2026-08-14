@@ -1,6 +1,6 @@
 import { afterEach, describe, expect } from "bun:test"
 import { LayerNode } from "@hena/core/effect/layer-node"
-import { Effect, Layer } from "effect"
+import { Cause, Effect, Exit, Layer } from "effect"
 import path from "path"
 import fs from "fs/promises"
 import { WriteTool } from "../../src/tool/write"
@@ -13,7 +13,7 @@ import { Tool } from "@/tool/tool"
 import { Agent } from "../../src/agent/agent"
 import { SessionID, MessageID } from "../../src/session/schema"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
-import { disposeAllInstances, TestInstance } from "../fixture/fixture"
+import { disposeAllInstances, TestInstance, tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
 const ctx = {
@@ -60,6 +60,31 @@ const run = Effect.fn("WriteToolTest.run")(function* (
 
 describe("tool.write", () => {
   describe("new file creation", () => {
+    it.instance("asks before writing below an escaping symlink", () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const outside = yield* tmpdirScoped()
+        yield* Effect.promise(() =>
+          fs.symlink(outside, path.join(test.directory, "escape"), process.platform === "win32" ? "junction" : "dir"),
+        )
+        const err = new Error("stop after permission")
+
+        const result = yield* run(
+          { filePath: path.join(test.directory, "escape", "new", "file.txt"), content: "blocked" },
+          {
+            ...ctx,
+            ask: (request) =>
+              Effect.sync(() => {
+                if (request.permission === "external_directory") throw err
+              }),
+          },
+        ).pipe(Effect.exit)
+
+        expect(Exit.isFailure(result) && Cause.squash(result.cause)).toMatchObject({ message: err.message })
+        expect(yield* Effect.promise(() => Bun.file(path.join(outside, "new", "file.txt")).exists())).toBe(false)
+      }),
+    )
+
     it.instance("writes content to new file", () =>
       Effect.gen(function* () {
         const test = yield* TestInstance

@@ -601,6 +601,17 @@ describe("filesystem", () => {
       expect(Filesystem.resolve(link)).toBe(Filesystem.resolve(target))
     })
 
+    test("resolves prospective paths through a symlinked directory", async () => {
+      await using tmp = await tmpdir()
+      const target = path.join(tmp.path, "real")
+      await fs.mkdir(target)
+      const link = path.join(tmp.path, "link")
+      await fs.symlink(target, link, process.platform === "win32" ? "junction" : "dir")
+      expect(Filesystem.resolve(path.join(link, "new", "file.txt"))).toBe(
+        path.join(Filesystem.resolve(target), "new", "file.txt"),
+      )
+    })
+
     test("returns unresolved path when target does not exist", async () => {
       await using tmp = await tmpdir()
       const missing = path.join(tmp.path, "does-not-exist-" + Date.now())

@@ -11,6 +11,7 @@ import { TestInstance, tmpdirScoped } from "../fixture/fixture"
 import type { Permission } from "../../src/permission"
 import { SessionID, MessageID } from "../../src/session/schema"
 import { testEffect } from "../lib/effect"
+import { mkdir, symlink } from "fs/promises"
 
 const it = testEffect(LayerNode.compile(CrossSpawnSpawner.node))
 
@@ -56,6 +57,40 @@ describe("tool.assertExternalDirectory", () => {
       const { requests, ctx } = makeCtx()
 
       yield* assertExternalDirectoryEffect(ctx, path.join(test.directory, "file.txt"))
+
+      expect(requests.length).toBe(0)
+    }),
+  )
+
+  it.instance("asks for existing and prospective targets below an escaping symlink", () =>
+    Effect.gen(function* () {
+      const test = yield* TestInstance
+      const outside = yield* tmpdirScoped()
+      const { requests, ctx } = makeCtx()
+      yield* Effect.promise(() => Bun.write(path.join(outside, "existing.txt"), "x"))
+      yield* Effect.promise(() =>
+        symlink(outside, path.join(test.directory, "escape"), process.platform === "win32" ? "junction" : "dir"),
+      )
+
+      yield* assertExternalDirectoryEffect(ctx, path.join(test.directory, "escape", "existing.txt"))
+      yield* assertExternalDirectoryEffect(ctx, path.join(test.directory, "escape", "new", "nested", "file.txt"))
+
+      expect(requests.filter((request) => request.permission === "external_directory").length).toBe(2)
+    }),
+  )
+
+  it.instance("no-ops for targets below an internal symlink", () =>
+    Effect.gen(function* () {
+      const test = yield* TestInstance
+      const { requests, ctx } = makeCtx()
+      const actual = path.join(test.directory, "actual")
+      yield* Effect.promise(() => mkdir(actual))
+      yield* Effect.promise(() => Bun.write(path.join(actual, "existing.txt"), "x"))
+      yield* Effect.promise(() =>
+        symlink(actual, path.join(test.directory, "linked"), process.platform === "win32" ? "junction" : "dir"),
+      )
+
+      yield* assertExternalDirectoryEffect(ctx, path.join(test.directory, "linked", "new", "file.txt"))
 
       expect(requests.length).toBe(0)
     }),

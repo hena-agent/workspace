@@ -1,4 +1,7 @@
 [install]
+linker = "isolated"
+# Work around https://github.com/oven-sh/bun/issues/36795 by keeping bun-types project-local.
+globalStore = true
 exact = true
 # Only install newly resolved package versions published at least 3 days ago.
 minimumReleaseAge = 259200

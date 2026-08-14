@@ -958,6 +958,7 @@
   },
   "trustedDependencies": [
     "esbuild",
+    "bun-types",
     "tree-sitter-powershell",
     "protobufjs",
     "electron",

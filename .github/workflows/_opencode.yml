@@ -28,6 +28,11 @@ on:
         required: false
         default: 30
         type: number
+      opencode-version:
+        description: Optional exact OpenCode CLI version override; empty uses the action pin
+        required: false
+        default: ""
+        type: string
     secrets:
       app-private-key:
         description: Private key of the GitHub App
@@ -72,3 +77,4 @@ jobs:
           github-token: ${{ steps.app-token.outputs.token }}
           prompt: ${{ inputs.prompt }}
           timeout-minutes: ${{ inputs.timeout-minutes }}
+          opencode-version: ${{ inputs.opencode-version }}

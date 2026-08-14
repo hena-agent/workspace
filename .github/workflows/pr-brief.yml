@@ -22,16 +22,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  resolve:
+    uses: ./.github/workflows/_review-model.yml
+
   # Gates the (expensive) model run so it only fires for PRs big enough to be
-  # worth summarizing. Fork PRs are excluded unconditionally because
-  # OPENCODE_AUTH_JSON is not exposed to them and the run would hard-fail.
+  # worth summarizing. Reviewer-global eligibility is handled by the resolver.
   # An explicit `pr-brief` label is a deliberate human request, so it also works
   # on drafts; the automatic triggers do not. GitHub fires `labeled` once per
   # label, so re-running means removing the label and adding it again.
   gate:
+    needs: resolve
     if: >-
-      !contains(github.event.pull_request.title, '[skip ci]') &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
+      needs.resolve.outputs.enabled == 'true' &&
       (
         (github.event.action == 'labeled' && github.event.label.name == 'pr-brief') ||
         (github.event.action != 'labeled' && github.event.pull_request.draft == false)
@@ -65,14 +67,15 @@ jobs:
           fi
 
   brief:
-    needs: gate
-    if: needs.gate.outputs.large == 'true'
+    needs: [resolve, gate]
+    if: needs.resolve.outputs.enabled == 'true' && needs.gate.outputs.large == 'true'
+    name: brief (${{ needs.resolve.outputs.label }})
     uses: ./.github/workflows/_opencode.yml
     with:
-      model: anthropic/claude-sonnet-5
-      variant: max
-      # Posts as hena-claude-reviewer[bot], the same identity as pr-review.yml.
-      app-client-id: ${{ vars.CLAUDE_REVIEWER_CLIENT_ID }}
+      model: ${{ needs.resolve.outputs.model }}
+      variant: ${{ needs.resolve.outputs.variant }}
+      app-client-id: ${{ vars[needs.resolve.outputs.client_id_var] }}
+      opencode-version: ${{ needs.resolve.outputs.opencode_version }}
       # `tmp/` in step 2 is load-bearing: `opencode github run` commits and
       # pushes any dirty worktree onto the PR branch once the agent finishes, and
       # `tmp` is git-ignored (see .gitignore) so the page never lands in the PR.
@@ -117,5 +120,5 @@ jobs:
            to the BrewPage link plus the same 2-3 line summary. Do not paste the page
            contents, do not post the comment yourself, and do not add disclaimers.
     secrets:
-      app-private-key: ${{ secrets.CLAUDE_REVIEWER_PRIVATE_KEY }}
-      opencode-auth-json: ${{ secrets.OPENCODE_AUTH_JSON }}
+      app-private-key: ${{ secrets[needs.resolve.outputs.private_key_secret] }}
+      opencode-auth-json: ${{ secrets[needs.resolve.outputs.auth_secret] }}

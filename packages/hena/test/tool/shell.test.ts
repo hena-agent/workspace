@@ -112,6 +112,7 @@ const cmdShell = shells.find((item) => item.label === "cmd")
 
 const sh = () => Shell.name(Shell.acceptable())
 const evalarg = (text: string) => (sh() === "cmd" ? quote(text) : squote(text))
+const invoke = (text: string) => (PS.has(sh()) ? `& ${text}` : text)
 
 const fill = (mode: "lines" | "bytes", n: number) => {
   const code =
@@ -119,8 +120,7 @@ const fill = (mode: "lines" | "bytes", n: number) => {
       ? "console.log(Array.from({length:Number(Bun.argv[1])},(_,i)=>i+1).join(String.fromCharCode(10)))"
       : "process.stdout.write(String.fromCharCode(97).repeat(Number(Bun.argv[1])))"
   const text = `${bin} -e ${evalarg(code)} ${n}`
-  if (PS.has(sh())) return `& ${text}`
-  return text
+  return invoke(text)
 }
 const glob = (p: string) =>
   process.platform === "win32" ? Filesystem.normalizePathPattern(p) : p.replaceAll("\\", "/")
@@ -1122,7 +1122,7 @@ describe("tool.shell abort", () => {
           const updates: string[] = []
           const result = yield* run(
             {
-              command: PS.has(sh()) ? `& ${command}` : command,
+              command: invoke(command),
             },
             {
               ...ctx,

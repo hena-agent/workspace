@@ -45,6 +45,7 @@
     "@types/npmcli__arborist": "6.3.3",
     "@types/turndown": "5.0.5",
     "@types/which": "3.0.4",
+    "@typescript/native": "catalog:",
     "@parcel/watcher-darwin-arm64": "2.5.1",
     "@parcel/watcher-darwin-x64": "2.5.1",
     "@parcel/watcher-linux-arm64-glibc": "2.5.1",

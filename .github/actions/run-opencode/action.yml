@@ -161,25 +161,19 @@ runs:
           echo "::error::OpenCode $OPENCODE_VERSION could not load provider '$PROVIDER'. Verify its single-provider auth secret."
           exit 1
         fi
-        if ! MODEL_METADATA=$(MODEL="$MODEL" bun -e '
-          const lines = (await Bun.stdin.text()).split("\n")
-          const start = lines.indexOf(process.env.MODEL)
-          if (start < 0) process.exit(1)
-          let json = ""
-          for (const line of lines.slice(start + 1)) {
-            json += line + "\n"
-            try {
-              process.stdout.write(JSON.stringify(JSON.parse(json)))
-              process.exit(0)
-            } catch {}
-          }
-          process.exit(1)
-        ' <<< "$MODELS"); then
+        if ! grep -Fxq "$MODEL" <<< "$MODELS"; then
           echo "::error::Model '$MODEL' is unavailable in OpenCode $OPENCODE_VERSION. Correct REVIEWER_MODEL or set REVIEWER_OPENCODE_VERSION to a release whose catalog contains it."
           exit 1
         fi
-        if ! jq -e --arg variant "$VARIANT" '.variants | type == "object" and has($variant)' <<< "$MODEL_METADATA" >/dev/null; then
-          AVAILABLE=$(jq -r '(.variants // {}) | keys | join(", ")' <<< "$MODEL_METADATA")
+        if ! VARIANTS=$(MODEL="$MODEL" bun -e '
+          import { modelVariants } from "./script/translate-app.ts"
+          process.stdout.write(JSON.stringify(Object.keys(modelVariants(await Bun.stdin.text(), process.env.MODEL!))))
+        ' <<< "$MODELS"); then
+          echo "::error::Could not parse variant metadata for '$MODEL' from OpenCode $OPENCODE_VERSION."
+          exit 1
+        fi
+        if ! jq -e --arg variant "$VARIANT" 'index($variant) != null' <<< "$VARIANTS" >/dev/null; then
+          AVAILABLE=$(jq -r 'join(", ")' <<< "$VARIANTS")
           echo "::error::Variant '$VARIANT' is unavailable for '$MODEL' in OpenCode $OPENCODE_VERSION (available: $AVAILABLE). Correct REVIEWER_MODEL."
           exit 1
         fi

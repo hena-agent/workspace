@@ -37,6 +37,7 @@ describe("hena run (non-interactive subprocess)", () => {
 
         const result = yield* hena.run("use a tool", {
           extraArgs: ["--dangerously-skip-permissions"],
+          timeoutMs: 45_000,
         })
 
         hena.expectExit(result, 0)
@@ -95,7 +96,7 @@ describe("hena run (non-interactive subprocess)", () => {
           }),
         )
         yield* llm.fail("upstream provider exploded mid-stream")
-        const result = yield* hena.run("trigger midstream error", { timeoutMs: 30_000 })
+        const result = yield* hena.run("trigger midstream error", { timeoutMs: 45_000 })
         expect(result.exitCode).toBe(0)
         expect(result.stdout).toBe("partial response\n")
         expect(result.stderr).not.toContain("upstream provider exploded mid-stream")

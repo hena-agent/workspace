@@ -112,7 +112,7 @@ export type ServeOpts = SpawnOpts & {
   readonly hostname?: string
   readonly extraArgs?: string[]
   // How long to wait for the "listening on http://..." line before failing.
-  // Default 15s — startup is dominated by bun's transpile + plugin init, not
+  // Default 30s — startup is dominated by bun's transpile + plugin init, not
   // the actual listen() call.
   readonly readyTimeoutMs?: number
 }
@@ -360,7 +360,7 @@ export function withCliFixture<A, E>(
         ),
       )
 
-      const readyTimeoutMs = opts?.readyTimeoutMs ?? 15_000
+      const readyTimeoutMs = opts?.readyTimeoutMs ?? 30_000
       const match = yield* Deferred.await(readyDeferred).pipe(
         Effect.timeoutOrElse({
           duration: Duration.millis(readyTimeoutMs),

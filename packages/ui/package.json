@@ -56,8 +56,8 @@
     "./v2/styles/*": "./src/v2/styles/*"
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
-    "typecheck": "tsgo --noEmit",
+    "build": "rm -rf dist && bunx --package @typescript/native tsc -p tsconfig.build.json",
+    "typecheck": "bunx --package @typescript/native tsc --noEmit",
     "test": "bun test src --only-failures",
     "dev": "vite",
     "generate:tailwind": "bun run script/tailwind.ts",
@@ -68,7 +68,7 @@
     "@tsconfig/node22": "catalog:",
     "@types/bun": "catalog:",
     "@types/katex": "0.16.7",
-    "@typescript/native-preview": "catalog:",
+    "@typescript/native": "catalog:",
     "solid-js": "catalog:",
     "tailwindcss": "catalog:",
     "storybook": "^10.2.13",

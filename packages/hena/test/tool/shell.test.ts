@@ -112,6 +112,7 @@ const cmdShell = shells.find((item) => item.label === "cmd")
 
 const sh = () => Shell.name(Shell.acceptable())
 const evalarg = (text: string) => (sh() === "cmd" ? quote(text) : squote(text))
+const invoke = (text: string) => (PS.has(sh()) ? `& ${text}` : text)
 
 const fill = (mode: "lines" | "bytes", n: number) => {
   const code =
@@ -119,8 +120,7 @@ const fill = (mode: "lines" | "bytes", n: number) => {
       ? "console.log(Array.from({length:Number(Bun.argv[1])},(_,i)=>i+1).join(String.fromCharCode(10)))"
       : "process.stdout.write(String.fromCharCode(97).repeat(Number(Bun.argv[1])))"
   const text = `${bin} -e ${evalarg(code)} ${n}`
-  if (PS.has(sh())) return `& ${text}`
-  return text
+  return invoke(text)
 }
 const glob = (p: string) =>
   process.platform === "win32" ? Filesystem.normalizePathPattern(p) : p.replaceAll("\\", "/")
@@ -1106,28 +1106,43 @@ describe("tool.shell abort", () => {
   )
 
   it.live("streams metadata updates progressively", () =>
-    runIn(
-      projectRoot,
-      Effect.gen(function* () {
-        const updates: string[] = []
-        const result = yield* run(
-          {
-            command: `echo first && sleep 0.1 && echo second`,
-          },
-          {
-            ...ctx,
-            metadata: (input) =>
-              Effect.sync(() => {
-                const output = (input.metadata as { output?: string })?.output
-                if (output) updates.push(output)
-              }),
-          },
-        )
-        expect(result.output).toContain("first")
-        expect(result.output).toContain("second")
-        expect(updates.length).toBeGreaterThan(1)
-      }),
-    ),
+    Effect.gen(function* () {
+      const tmp = yield* tmpdirScoped()
+      const gate = path.join(tmp, "continue")
+      const code = [
+        `console.log(Bun.argv[2])`,
+        `while (!(await Bun.file(Bun.argv[1]).exists())) await Bun.sleep(10)`,
+        `console.log(Bun.argv[3])`,
+      ].join(";")
+      const command = `${bin} -e ${evalarg(code)} ${quote(gate.replaceAll("\\", "/"))} ${quote("first")} ${quote("second")}`
+
+      yield* runIn(
+        tmp,
+        Effect.gen(function* () {
+          const updates: string[] = []
+          const result = yield* run(
+            {
+              command: invoke(command),
+            },
+            {
+              ...ctx,
+              metadata: (input) =>
+                Effect.gen(function* () {
+                  const output = (input.metadata as { output?: string })?.output
+                  if (!output) return
+                  updates.push(output)
+                  if (output.includes("first")) yield* Effect.promise(() => Bun.write(gate, ""))
+                }),
+            },
+          )
+          expect(result.output).toContain("first")
+          expect(result.output).toContain("second")
+          expect(updates[0]).toContain("first")
+          expect(updates[0]).not.toContain("second")
+          expect(updates.at(-1)).toContain("second")
+        }),
+      )
+    }),
   )
 })
 

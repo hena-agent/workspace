@@ -12,6 +12,7 @@
     "jsxImportSource": "solid-js",
     "allowJs": true,
     "resolveJsonModule": true,
+    "types": ["bun"],
     "strict": true,
     "noEmit": false,
     "emitDeclarationOnly": true,

@@ -115,5 +115,5 @@ await Bun.write(sseTypesPath, sseTypesPatched)
 await $`bun prettier --write src/gen`
 await $`bun prettier --write src/v2`
 await $`rm -rf dist`
-await $`bun tsc`
+await $`bunx --package @typescript/native tsc`
 await $`rm openapi.json`

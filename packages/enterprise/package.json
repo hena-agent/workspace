@@ -5,7 +5,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "bunx --package @typescript/native tsc --noEmit",
     "dev": "vite dev",
     "build": "vite build",
     "build:cloudflare": "HENA_DEPLOYMENT_TARGET=cloudflare vite build",
@@ -32,7 +32,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "catalog:",
     "@tailwindcss/vite": "catalog:",
-    "@typescript/native-preview": "catalog:",
+    "@typescript/native": "catalog:",
     "@types/bun": "catalog:",
     "@types/luxon": "catalog:",
     "typescript": "catalog:",

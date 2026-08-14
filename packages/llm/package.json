@@ -8,7 +8,7 @@
   "scripts": {
     "setup:recording-env": "bun run script/setup-recording-env.ts",
     "test": "bun test --timeout 30000 --only-failures",
-    "typecheck": "tsgo --noEmit"
+    "typecheck": "bunx --package @typescript/native tsc --noEmit"
   },
   "exports": {
     ".": "./src/index.ts",
@@ -40,7 +40,7 @@
     "@hena/http-recorder": "workspace:*",
     "@tsconfig/bun": "catalog:",
     "@types/bun": "catalog:",
-    "@typescript/native-preview": "catalog:"
+    "@typescript/native": "catalog:"
   },
   "dependencies": {
     "@smithy/eventstream-codec": "4.2.14",

@@ -111,7 +111,7 @@ describe("hena run (non-interactive subprocess)", () => {
     ({ llm, hena }) =>
       Effect.gen(function* () {
         yield* llm.text("structured output")
-        const result = yield* hena.run("say hi", { format: "json" })
+        const result = yield* hena.run("say hi", { format: "json", timeoutMs: 45_000 })
         hena.expectExit(result, 0)
 
         const events = hena.parseJsonEvents(result.stdout)

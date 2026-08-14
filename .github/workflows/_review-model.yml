@@ -94,8 +94,11 @@ jobs:
           OPENCODE_VERSION=$(jq -nr --arg value "$RAW_OPENCODE_VERSION" '$value | gsub("^\\s+|\\s+$"; "")')
 
           disable() {
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "reason=$1" >> "$GITHUB_OUTPUT"
+            {
+              echo "enabled=false"
+              echo "reason=$1"
+              echo "label=disabled: $1"
+            } >> "$GITHUB_OUTPUT"
             echo "Reviewer disabled: $1"
             {
               echo "### Reviewer model"

@@ -164,13 +164,13 @@ Outputs:
 | `provider` | Parsed provider id |
 | `model` | Full `provider/model` reference passed to `_opencode.yml` |
 | `variant` | Resolved variant |
-| `label` | `provider/model@variant`, for job names |
+| `label` | `provider/model@variant` when enabled; `disabled: reason` otherwise, for deterministic job names |
 | `auth_secret` | Name of the auth secret for this provider |
 | `client_id_var` | Name of the App client id variable for this provider |
 | `private_key_secret` | Name of the App private key secret for this provider |
 | `opencode_version` | The requested override, or empty string when unset |
 
-When `enabled` is `"false"`, the remaining outputs are unspecified and must not be consumed.
+When `enabled` is `"false"`, only `reason` and `label` are specified. Credential and model outputs must not be consumed.
 
 ### 4.2 Eligibility
 

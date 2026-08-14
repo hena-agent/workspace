@@ -1,0 +1,192 @@
+name: _review-model
+
+on:
+  workflow_call:
+    outputs:
+      enabled:
+        description: Whether the reviewer should run
+        value: ${{ jobs.resolve.outputs.enabled }}
+      reason:
+        description: Why the reviewer is disabled, when applicable
+        value: ${{ jobs.resolve.outputs.reason }}
+      provider:
+        description: Provider parsed from REVIEWER_MODEL
+        value: ${{ jobs.resolve.outputs.provider }}
+      model:
+        description: Resolved provider/model id
+        value: ${{ jobs.resolve.outputs.model }}
+      variant:
+        description: Resolved provider-specific model variant
+        value: ${{ jobs.resolve.outputs.variant }}
+      label:
+        description: Resolved provider/model@variant label
+        value: ${{ jobs.resolve.outputs.label }}
+      auth_secret:
+        description: Repository secret containing this provider's auth.json entry
+        value: ${{ jobs.resolve.outputs.auth_secret }}
+      client_id_var:
+        description: Repository variable containing this provider's GitHub App client ID
+        value: ${{ jobs.resolve.outputs.client_id_var }}
+      private_key_secret:
+        description: Repository secret containing this provider's GitHub App private key
+        value: ${{ jobs.resolve.outputs.private_key_secret }}
+      opencode_version:
+        description: Requested opencode CLI version override, or empty for the action pin
+        value: ${{ jobs.resolve.outputs.opencode_version }}
+
+# This workflow only resolves public configuration names. It does not need
+# repository contents, pull request access, or secrets.
+permissions: {}
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.resolve.outputs.enabled }}
+      reason: ${{ steps.resolve.outputs.reason }}
+      provider: ${{ steps.resolve.outputs.provider }}
+      model: ${{ steps.resolve.outputs.model }}
+      variant: ${{ steps.resolve.outputs.variant }}
+      label: ${{ steps.resolve.outputs.label }}
+      auth_secret: ${{ steps.resolve.outputs.auth_secret }}
+      client_id_var: ${{ steps.resolve.outputs.client_id_var }}
+      private_key_secret: ${{ steps.resolve.outputs.private_key_secret }}
+      opencode_version: ${{ steps.resolve.outputs.opencode_version }}
+    steps:
+      - name: Resolve reviewer model
+        id: resolve
+        shell: bash
+        env:
+          RAW_MODEL: ${{ vars.REVIEWER_MODEL }}
+          RAW_OPENCODE_VERSION: ${{ vars.REVIEWER_OPENCODE_VERSION }}
+          VARS_JSON: ${{ toJSON(vars) }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+
+          MODEL_CONFIG=$(jq -nc '
+            {
+              "anthropic": {
+                "auth_secret": "OPENCODE_AUTH_JSON",
+                "client_id_var": "HENA_REVIEWER_CLIENT_ID",
+                "private_key_secret": "HENA_REVIEWER_PRIVATE_KEY",
+                "default_variant": "max"
+              },
+              "openai": {
+                "auth_secret": "OPENAI_OPENCODE_AUTH_JSON",
+                "client_id_var": "GPT_REVIEWER_CLIENT_ID",
+                "private_key_secret": "GPT_REVIEWER_PRIVATE_KEY",
+                "default_variant": "xhigh"
+              },
+              "opencode-go": {
+                "auth_secret": "OPENCODE_GO_AUTH_JSON",
+                "client_id_var": "HENA_REVIEWER_CLIENT_ID",
+                "private_key_secret": "HENA_REVIEWER_PRIVATE_KEY",
+                "default_variant": "max"
+              }
+            }
+          ')
+          DEFAULT_MODEL="anthropic/claude-sonnet-5@max"
+          REVIEWER_MODEL=$(jq -nr --arg value "$RAW_MODEL" '$value | gsub("^\\s+|\\s+$"; "")')
+          OPENCODE_VERSION=$(jq -nr --arg value "$RAW_OPENCODE_VERSION" '$value | gsub("^\\s+|\\s+$"; "")')
+
+          disable() {
+            {
+              echo "enabled=false"
+              echo "reason=$1"
+              echo "label=disabled: $1"
+            } >> "$GITHUB_OUTPUT"
+            echo "Reviewer disabled: $1"
+            {
+              echo "### Reviewer model"
+              echo "- Enabled: no"
+              echo "- Reason: \`$1\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          if [ "${REVIEWER_MODEL,,}" = "off" ]; then
+            disable "off"
+            exit 0
+          fi
+          if [ -z "$HEAD_REPOSITORY" ] || [ "$HEAD_REPOSITORY" != "$REPOSITORY" ]; then
+            disable "fork"
+            exit 0
+          fi
+          if [ "$ACTOR" = "dependabot[bot]" ]; then
+            disable "dependabot"
+            exit 0
+          fi
+          if [[ "$PR_TITLE" == *"[skip ci]"* ]]; then
+            disable "skip-ci"
+            exit 0
+          fi
+
+          SOURCE="REVIEWER_MODEL"
+          if [ -z "$REVIEWER_MODEL" ]; then
+            REVIEWER_MODEL="$DEFAULT_MODEL"
+            SOURCE="workflow default"
+          fi
+          if ! [[ "$REVIEWER_MODEL" =~ ^[a-z0-9][a-z0-9-]*/[A-Za-z0-9._:/-]+(@[a-z0-9-]+)?$ ]]; then
+            echo "::error::REVIEWER_MODEL must use provider/model[@variant] form or 'off', got '$REVIEWER_MODEL'. Set it with: gh variable set REVIEWER_MODEL --body 'anthropic/claude-sonnet-5@max'"
+            exit 1
+          fi
+
+          PROVIDER="${REVIEWER_MODEL%%/*}"
+          MODEL_ID="${REVIEWER_MODEL#*/}"
+          VARIANT=""
+          if [[ "$MODEL_ID" == *@* ]]; then
+            VARIANT="${MODEL_ID##*@}"
+            MODEL_ID="${MODEL_ID%@*}"
+          fi
+
+          if ! jq -e --arg provider "$PROVIDER" 'has($provider)' <<< "$MODEL_CONFIG" >/dev/null; then
+            REGISTERED=$(jq -r 'keys | join(", ")' <<< "$MODEL_CONFIG")
+            echo "::error::REVIEWER_MODEL names unregistered provider '$PROVIDER' (registered: $REGISTERED). Add its auth_secret, client_id_var, private_key_secret, and default_variant to .github/workflows/_review-model.yml."
+            exit 1
+          fi
+
+          AUTH_SECRET=$(jq -r --arg provider "$PROVIDER" '.[$provider].auth_secret' <<< "$MODEL_CONFIG")
+          CLIENT_ID_VAR=$(jq -r --arg provider "$PROVIDER" '.[$provider].client_id_var' <<< "$MODEL_CONFIG")
+          PRIVATE_KEY_SECRET=$(jq -r --arg provider "$PROVIDER" '.[$provider].private_key_secret' <<< "$MODEL_CONFIG")
+          if [ -z "$VARIANT" ]; then
+            VARIANT=$(jq -r --arg provider "$PROVIDER" '.[$provider].default_variant' <<< "$MODEL_CONFIG")
+          fi
+
+          if ! jq -e --arg name "$CLIENT_ID_VAR" '.[$name] | type == "string" and length > 0' <<< "$VARS_JSON" >/dev/null; then
+            echo "::error::Repository variable $CLIENT_ID_VAR is empty. Register the GitHub App for provider '$PROVIDER' before selecting it."
+            exit 1
+          fi
+          if [ -n "$OPENCODE_VERSION" ] && ! [[ "$OPENCODE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::REVIEWER_OPENCODE_VERSION must be an exact semantic version such as '1.18.18', got '$OPENCODE_VERSION'."
+            exit 1
+          fi
+
+          MODEL="$PROVIDER/$MODEL_ID"
+          LABEL="$MODEL@$VARIANT"
+          {
+            echo "enabled=true"
+            echo "reason="
+            echo "provider=$PROVIDER"
+            echo "model=$MODEL"
+            echo "variant=$VARIANT"
+            echo "label=$LABEL"
+            echo "auth_secret=$AUTH_SECRET"
+            echo "client_id_var=$CLIENT_ID_VAR"
+            echo "private_key_secret=$PRIVATE_KEY_SECRET"
+            echo "opencode_version=$OPENCODE_VERSION"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Reviewer model"
+            echo "- Enabled: yes"
+            echo "- Model: \`$MODEL\`"
+            echo "- Variant: \`$VARIANT\`"
+            echo "- Source: \`$SOURCE\`"
+            if [ -n "$OPENCODE_VERSION" ]; then
+              echo "- OpenCode version override: \`$OPENCODE_VERSION\`"
+            else
+              echo "- OpenCode version override: none (use action pin)"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

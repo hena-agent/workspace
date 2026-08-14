@@ -9,8 +9,12 @@ inputs:
     description: Model variant for reasoning effort / thinking budget (e.g., max, xhigh)
     required: true
   opencode-auth-json:
-    description: Single-provider CI OAuth credential published from ~/.local/share/opencode/auth.json
+    description: Single-provider CI credential published from ~/.local/share/opencode/auth.json
     required: true
+  opencode-version:
+    description: Optional exact OpenCode CLI version override; empty uses the pinned default
+    required: false
+    default: ""
   timeout-minutes:
     description: Calling job timeout; the OAuth lease must outlive it by 10 minutes
     required: true
@@ -52,13 +56,20 @@ runs:
           --arg provider "$PROVIDER" --arg sentinel "ci-refresh-disabled" --argjson min "$MIN_EXPIRES_MS" '
           .[$provider] as $auth
           | keys == [$provider]
-            and $auth.type == "oauth"
-            and (($auth.access | type) == "string" and ($auth.access | length) > 0)
-            and $auth.refresh == $sentinel
-            and (($auth.expires | type) == "number" and ($auth.expires | floor) == $auth.expires)
-            and $auth.expires >= $min
+            and (
+              if $auth.type == "oauth" then
+                (($auth.access | type) == "string" and ($auth.access | test("\\S")))
+                and $auth.refresh == $sentinel
+                and (($auth.expires | type) == "number" and ($auth.expires | floor) == $auth.expires)
+                and $auth.expires >= $min
+              elif $auth.type == "api" then
+                (($auth.key | type) == "string" and ($auth.key | test("\\S")))
+              else
+                false
+              end
+            )
         ' >/dev/null; then
-          echo "::error::OPENCODE_AUTH_JSON must contain exactly one '$PROVIDER' OAuth credential with refresh='ci-refresh-disabled' and at least $((TIMEOUT_MINUTES + HEADROOM_MINUTES))m remaining. Ask the credential owner to refresh and republish it."
+          echo "::error::The OpenCode auth secret must contain exactly one '$PROVIDER' credential: either an API key, or OAuth with refresh='ci-refresh-disabled' and at least $((TIMEOUT_MINUTES + HEADROOM_MINUTES))m remaining. Ask the credential owner to republish it."
           exit 1
         fi
 
@@ -86,7 +97,25 @@ runs:
     # this pin, and nothing enforces that pairing.
     - name: Pin opencode CLI version
       shell: bash
-      run: echo "OPENCODE_VERSION=1.18.13" >> "$GITHUB_ENV"
+      env:
+        REQUESTED_VERSION: ${{ inputs.opencode-version }}
+      run: |
+        set -euo pipefail
+        OPENCODE_VERSION="${REQUESTED_VERSION:-1.18.18}"
+        if ! [[ "$OPENCODE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::opencode-version must be an exact semantic version, got '$OPENCODE_VERSION'."
+          exit 1
+        fi
+        echo "OPENCODE_VERSION=$OPENCODE_VERSION" >> "$GITHUB_ENV"
+        {
+          echo "### OpenCode CLI"
+          echo "- Version: \`$OPENCODE_VERSION\`"
+          if [ -n "$REQUESTED_VERSION" ]; then
+            echo "- Source: \`REVIEWER_OPENCODE_VERSION\`"
+          else
+            echo "- Source: action pin"
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
 
     # The agent shells out to this repo's bun scripts (typecheck, test,
     # lint, etc.), but the ubuntu-latest runner has no bun preinstalled. Install
@@ -117,6 +146,38 @@ runs:
     - name: Add opencode to PATH
       shell: bash
       run: echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+
+    - name: Verify model is available
+      shell: bash
+      env:
+        MODEL: ${{ inputs.model }}
+        VARIANT: ${{ inputs.variant }}
+        OPENCODE_VERSION: ${{ env.OPENCODE_VERSION }}
+      run: |
+        set -euo pipefail
+        PROVIDER="${MODEL%%/*}"
+        if ! MODELS=$(opencode models "$PROVIDER" --verbose 2>&1); then
+          printf '%s\n' "$MODELS"
+          echo "::error::OpenCode $OPENCODE_VERSION could not load provider '$PROVIDER'. Verify its single-provider auth secret."
+          exit 1
+        fi
+        if ! VARIANTS=$(MODEL="$MODEL" bun -e '
+          import { modelVariants } from "./script/translate-app.ts"
+          try {
+            process.stdout.write(JSON.stringify(Object.keys(modelVariants(await Bun.stdin.text(), process.env.MODEL!))))
+          } catch (error) {
+            process.stderr.write(error instanceof Error ? error.message : String(error))
+            process.exit(1)
+          }
+        ' <<< "$MODELS" 2>&1); then
+          echo "::error::OpenCode $OPENCODE_VERSION could not resolve '$MODEL': $VARIANTS. Correct REVIEWER_MODEL or set REVIEWER_OPENCODE_VERSION to a release whose catalog contains it."
+          exit 1
+        fi
+        if ! jq -e --arg variant "$VARIANT" 'index($variant) != null' <<< "$VARIANTS" >/dev/null; then
+          AVAILABLE=$(jq -r 'join(", ")' <<< "$VARIANTS")
+          echo "::error::Variant '$VARIANT' is unavailable for '$MODEL' in OpenCode $OPENCODE_VERSION (available: $AVAILABLE). Correct REVIEWER_MODEL."
+          exit 1
+        fi
 
     # Mirrors the wrapper action's env-driven entrypoint. use_github_token=true
     # makes opencode skip OIDC and use GITHUB_TOKEN for the GitHub API; provider

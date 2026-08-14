@@ -19,45 +19,27 @@ concurrency:
   group: pr-review-${{ github.ref }}
   cancel-in-progress: true
 
-# Same-repo PRs only (OPENCODE_AUTH_JSON is not exposed to fork PRs).
-# Each reviewer runs via the shared _opencode.yml reusable workflow and
-# posts under its own GitHub App identity:
-#   gpt-review    -> disabled, see the job below
-#   claude-review -> hena-claude-reviewer[bot]
+# The resolver owns reviewer-global eligibility (off, fork, and [skip ci]) and
+# maps REVIEWER_MODEL to the provider-specific auth and GitHub App identity.
 jobs:
-  gpt-review:
-    # Disabled: only the Claude reviewer is enabled in this repo. To
-    # re-enable, flip this to `if: true` and register
-    # GPT_REVIEWER_CLIENT_ID (var) + GPT_REVIEWER_PRIVATE_KEY (secret), then
-    # publish and pass a separate sanitized OpenAI OAuth secret below.
-    # OPENCODE_AUTH_JSON intentionally contains only Anthropic.
-    if: ${{ false }}
+  resolve:
+    uses: ./.github/workflows/_review-model.yml
+
+  review:
+    needs: resolve
+    if: needs.resolve.outputs.enabled == 'true'
+    name: review (${{ needs.resolve.outputs.label }})
     uses: ./.github/workflows/_opencode.yml
     with:
-      model: openai/gpt-5.6-sol
-      variant: high
-      app-client-id: ${{ vars.GPT_REVIEWER_CLIENT_ID }}
+      model: ${{ needs.resolve.outputs.model }}
+      variant: ${{ needs.resolve.outputs.variant }}
+      app-client-id: ${{ vars[needs.resolve.outputs.client_id_var] }}
+      opencode-version: ${{ needs.resolve.outputs.opencode_version }}
       prompt: |
         Use the `thermo-nuclear-code-quality-review` skill to review it.
 
         Leave detailed findings as line-level comments on the PR diff.
         The final response is posted automatically as one top-level PR comment.
     secrets:
-      app-private-key: ${{ secrets.GPT_REVIEWER_PRIVATE_KEY }}
-      opencode-auth-json: ${{ secrets.OPENCODE_AUTH_JSON }}
-
-  claude-review:
-    if: ${{ !contains(github.event.pull_request.title, '[skip ci]') }}
-    uses: ./.github/workflows/_opencode.yml
-    with:
-      model: anthropic/claude-sonnet-5
-      variant: max
-      app-client-id: ${{ vars.CLAUDE_REVIEWER_CLIENT_ID }}
-      prompt: |
-        Use the `thermo-nuclear-code-quality-review` skill to review it.
-
-        Leave detailed findings as line-level comments on the PR diff.
-        The final response is posted automatically as one top-level PR comment.
-    secrets:
-      app-private-key: ${{ secrets.CLAUDE_REVIEWER_PRIVATE_KEY }}
-      opencode-auth-json: ${{ secrets.OPENCODE_AUTH_JSON }}
+      app-private-key: ${{ secrets[needs.resolve.outputs.private_key_secret] }}
+      opencode-auth-json: ${{ secrets[needs.resolve.outputs.auth_secret] }}

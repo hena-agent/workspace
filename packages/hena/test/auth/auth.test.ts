@@ -104,6 +104,7 @@ describe("Auth", () => {
 
       expect(replaced).toBe(false)
       expect(yield* auth.get("openai")).toEqual(login)
+      yield* auth.remove("openai")
     }),
   )
 
@@ -129,6 +130,7 @@ describe("Auth", () => {
       const data = yield* auth.all()
       expect(data.openai?.type).toBe("oauth")
       expect(data.anthropic?.type).toBe("api")
+      yield* Effect.all([auth.remove("openai"), auth.remove("anthropic")], { concurrency: "unbounded" })
     }),
   )
 })

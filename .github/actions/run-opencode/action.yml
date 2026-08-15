@@ -236,7 +236,7 @@ runs:
           # The introducing PR has no command in its base commit yet. Permit
           # only the exact reviewed bootstrap file; after merge the base copy
           # is always used and this branch is unreachable.
-          BOOTSTRAP_SHA="65141ebbe887515e64cf92ad6beac8bd376e4aba9a55576887508248b7d73574"
+          BOOTSTRAP_SHA="8280ff0a8aaa5257ab9073bf5f6e73c0316ee78748f75d3fdf0b361aabe6c88a"
           BOOTSTRAP_COMMAND=".opencode/commands/review-pr.md"
           if [ "$COMMAND" != "review-pr" ] || [ ! -f "$BOOTSTRAP_COMMAND" ]; then
             cat "$RUNNER_TEMP/opencode-command-fetch-error" >&2
@@ -283,7 +283,7 @@ runs:
           {
             printf '# Pull request\n\n'
             gh pr view "$COMMAND_ARGUMENTS" --json number,title,body,baseRefName,headRefName,author
-            printf '\n# Diff\n\nLong lines are wrapped at 900 characters. Lines prefixed with a backslash and space continue the preceding diff line.\n\n'
+            printf '\n# Diff\n\nLong lines are wrapped at 900 characters. Lines prefixed with @@OPENCODE-CONTINUATION@@ continue the preceding diff line.\n\n'
             git diff --no-ext-diff --find-renames "$MERGE_BASE_SHA" "$HEAD_SHA" | bun -e '
               const width = 900
               const wrap = (line: string) => {
@@ -293,7 +293,7 @@ runs:
                   let end = Math.min(start + width, line.length)
                   const code = line.charCodeAt(end - 1)
                   if (end < line.length && code >= 0xd800 && code <= 0xdbff) end--
-                  chunks.push((start === 0 ? "" : "\\ ") + line.slice(start, end))
+                  chunks.push((start === 0 ? "" : "@@OPENCODE-CONTINUATION@@ ") + line.slice(start, end))
                   start = end
                 }
                 return chunks

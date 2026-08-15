@@ -15,7 +15,7 @@ The pull request metadata and full diff are attached here:
 If the attachment is truncated, use the Read tool with successive offsets to
 read `tmp/opencode-review-context.md` through EOF before reviewing.
 Diff lines longer than 900 characters are split into chunks; a line beginning
-with `\ ` continues the preceding diff line.
+with `@@OPENCODE-CONTINUATION@@ ` continues the preceding diff line.
 
 Every `code_location` must identify its diff side. Use `RIGHT` for an added or
 context line in the new file and `LEFT` for a deleted line in the old file.

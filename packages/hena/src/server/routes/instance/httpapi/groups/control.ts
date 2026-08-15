@@ -4,9 +4,18 @@ import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { described } from "./metadata"
 import { ProviderV2 } from "@hena/core/provider"
+import { NonNegativeInt } from "@hena/core/schema"
 
 const AuthParams = Schema.Struct({
   providerID: ProviderV2.ID,
+})
+
+export const AuthRefreshOutput = Schema.Struct({
+  type: Schema.Literal("oauth"),
+  access: Schema.String,
+  expires: NonNegativeInt,
+  accountId: Schema.optional(Schema.String),
+  fedramp: Schema.Boolean,
 })
 
 const LogQuery = Schema.Struct({
@@ -30,6 +39,7 @@ export const LogInput = Schema.Struct({
 
 export const ControlPaths = {
   auth: "/auth/:providerID",
+  authRefresh: "/auth/:providerID/refresh",
   log: "/log",
 } as const
 
@@ -46,6 +56,17 @@ export const ControlApi = HttpApi.make("control").add(
           identifier: "auth.set",
           summary: "Set auth credentials",
           description: "Set authentication credentials",
+        }),
+      ),
+      HttpApiEndpoint.post("authRefresh", ControlPaths.authRefresh, {
+        params: AuthParams,
+        success: described(AuthRefreshOutput, "Refreshed authentication credentials"),
+        error: HttpApiError.BadRequest,
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "auth.refresh",
+          summary: "Refresh auth credentials",
+          description: "Refresh provider authentication credentials through the host-owned refresh path",
         }),
       ),
       HttpApiEndpoint.delete("authRemove", ControlPaths.auth, {

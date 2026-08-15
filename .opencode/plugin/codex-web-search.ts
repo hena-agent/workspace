@@ -195,6 +195,17 @@ async function loadOpenCodeOAuth() {
   return { auth, environment: environment !== undefined }
 }
 
+async function loadUsableOpenCodeAuth() {
+  const latest = await loadOpenCodeOAuth()
+  return latest.auth.expires > Date.now() + REQUEST_TIMEOUT_MS ? codexAuth(latest.auth) : undefined
+}
+
+async function fallbackOpenCodeAuth(error: unknown) {
+  const auth = await loadUsableOpenCodeAuth()
+  if (auth) return auth
+  throw error
+}
+
 function parseOpenCodeOAuth(auth: unknown): OpenCodeOAuth | undefined {
   if (
     !isRecord(auth) ||
@@ -465,7 +476,7 @@ async function refreshOpenCodeOAuth(signal: AbortSignal): Promise<CodexAuth> {
     const current = loaded.auth
     if (current.expires > Date.now() + TOKEN_REFRESH_WINDOW_MS) return codexAuth(current)
 
-    const response = await fetch(OAUTH_ENDPOINT, {
+    const attempt = await fetch(OAUTH_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -475,23 +486,31 @@ async function refreshOpenCodeOAuth(signal: AbortSignal): Promise<CodexAuth> {
       }),
       signal,
     })
+      .then((response) => ({ response }))
+      .catch(async (error: unknown) => ({ auth: await fallbackOpenCodeAuth(error) }))
+    if ("auth" in attempt) return attempt.auth
+    const response = attempt.response
     if (!response.ok) {
-      const latest = await loadOpenCodeOAuth()
-      if (
-        latest.auth.expires > Date.now() + REQUEST_TIMEOUT_MS &&
-        (latest.auth.access !== current.access || latest.auth.refresh !== current.refresh)
-      ) {
-        return codexAuth(latest.auth)
-      }
-      throw new Error(
-        `OpenCode ChatGPT authentication refresh failed with HTTP ${response.status}; run \`opencode auth login\` and retry`,
+      return fallbackOpenCodeAuth(
+        new Error(
+          `OpenCode ChatGPT authentication refresh failed with HTTP ${response.status}; run \`opencode auth login\` and retry`,
+        ),
       )
     }
 
-    const payload: unknown = await response.json()
-    if (!isRecord(payload)) throw new Error("OpenCode ChatGPT authentication refresh returned invalid JSON")
+    const parsed = await response
+      .json()
+      .then((payload: unknown) => ({ payload }))
+      .catch(async (error: unknown) => ({ auth: await fallbackOpenCodeAuth(error) }))
+    if ("auth" in parsed) return parsed.auth
+    const payload = parsed.payload
+    if (!isRecord(payload)) {
+      return fallbackOpenCodeAuth(new Error("OpenCode ChatGPT authentication refresh returned invalid JSON"))
+    }
     const access = cleanText(payload.access_token, 20_000)
-    if (!access) throw new Error("OpenCode ChatGPT authentication refresh returned no access token")
+    if (!access) {
+      return fallbackOpenCodeAuth(new Error("OpenCode ChatGPT authentication refresh returned no access token"))
+    }
 
     const claims = tokenAuthClaims(payload.id_token) ?? tokenAuthClaims(access)
     const accountId = cleanText(claims?.chatgpt_account_id, 1_000) ?? cleanText(current.accountId, 1_000)

@@ -2,7 +2,7 @@ name: pr-review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
 
 # A called (reusable) workflow cannot exceed the caller's token scopes, and this
 # repo's default workflow permission is read-only. The reusable workflow needs
@@ -35,11 +35,9 @@ jobs:
       variant: ${{ needs.resolve.outputs.variant }}
       app-client-id: ${{ vars[needs.resolve.outputs.client_id_var] }}
       opencode-version: ${{ needs.resolve.outputs.opencode_version }}
-      prompt: |
-        Use the `thermo-nuclear-code-quality-review` skill to review it.
-
-        Leave detailed findings as line-level comments on the PR diff.
-        The final response is posted automatically as one top-level PR comment.
+      timeout-minutes: 40
+      command: review-pr
+      command-arguments: ${{ github.event.pull_request.number }}
     secrets:
       app-private-key: ${{ secrets[needs.resolve.outputs.private_key_secret] }}
       opencode-auth-json: ${{ secrets[needs.resolve.outputs.auth_secret] }}

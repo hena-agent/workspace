@@ -1,8 +1,8 @@
-import { createHash, randomUUID } from "node:crypto"
+import { randomUUID } from "node:crypto"
 import { existsSync } from "node:fs"
-import { chmod, readFile, realpath, writeFile } from "node:fs/promises"
+import { chmod, readFile, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { join, resolve } from "node:path"
+import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import type { Plugin } from "@opencode-ai/plugin"
 import { tool } from "@opencode-ai/plugin/tool"
@@ -18,18 +18,18 @@ const DEFAULT_MAX_RESULTS = 8
 type CodexAuth = {
   accessToken: string
   accountId?: string
+  fedramp: boolean
 }
 
-type StoredCodexAuth = Record<string, unknown> & {
-  tokens: Record<string, unknown>
+type OpenCodeOAuth = Record<string, unknown> & {
+  type: "oauth"
+  access: string
+  refresh: string
+  expires: number
+  accountId?: string
 }
 
-type AuthSource = {
-  value: StoredCodexAuth
-  save(value: StoredCodexAuth): Promise<void>
-}
-
-type CredentialStoreMode = "file" | "keyring" | "auto"
+let authRefresh: Promise<CodexAuth> | undefined
 
 type SearchResult = {
   title: string
@@ -104,162 +104,65 @@ function formatResults(query: string, results: SearchResult[]): string {
 }
 
 async function loadCodexAuth(signal: AbortSignal): Promise<CodexAuth> {
-  const envAccessToken = process.env.CODEX_ACCESS_TOKEN?.trim()
-  if (envAccessToken) {
-    const envAccountId = process.env.CODEX_ACCOUNT_ID?.trim()
-    return {
-      accessToken: envAccessToken,
-      accountId: envAccountId || undefined,
-    }
-  }
+  const auth = await loadOpenCodeOAuth()
+  if (auth.expires > Date.now() + TOKEN_REFRESH_WINDOW_MS) return codexAuth(auth)
 
-  const source = await loadStoredCodexAuth()
-  const accessToken = cleanText(source.value.tokens.access_token, 20_000)
-  if (!accessToken) {
-    throw new Error("Codex authentication is unavailable; run `codex login` and retry")
+  if (!authRefresh) {
+    authRefresh = refreshOpenCodeOAuth(signal).finally(() => {
+      authRefresh = undefined
+    })
   }
-
-  const auth = tokenExpiresSoon(accessToken) ? await refreshCodexAuth(source, signal) : source.value
-  return {
-    accessToken: cleanText(auth.tokens.access_token, 20_000)!,
-    accountId: cleanText(auth.tokens.account_id, 1_000),
-  }
+  return authRefresh
 }
 
-async function loadStoredCodexAuth(): Promise<AuthSource> {
-  const configuredHome = process.env.CODEX_HOME?.trim()
-  const codexHome = configuredHome
-    ? configuredHome === "~"
-      ? homedir()
-      : configuredHome.startsWith("~/")
-        ? join(homedir(), configuredHome.slice(2))
-        : resolve(configuredHome)
-    : join(homedir(), ".codex")
-  const mode = await loadCredentialStoreMode(codexHome)
-
-  if (mode === "file") {
-    const source = await loadFileAuth(join(codexHome, "auth.json"))
-    if (source) return source
+async function loadOpenCodeOAuth(): Promise<OpenCodeOAuth> {
+  const auth = (await loadOpenCodeAuthFile()).openai
+  if (
+    !isRecord(auth) ||
+    auth.type !== "oauth" ||
+    typeof auth.access !== "string" ||
+    typeof auth.refresh !== "string" ||
+    typeof auth.expires !== "number"
+  ) {
+    throw new Error("OpenCode ChatGPT authentication is unavailable; run `opencode auth login` and retry")
   }
-
-  if (mode === "keyring") {
-    const source = await loadKeyringAuth(codexHome)
-    if (source) return source
-  }
-
-  if (mode === "auto") {
-    const source = await loadKeyringAuth(codexHome).catch(() => undefined)
-    if (source) return source
-
-    const fallback = await loadFileAuth(join(codexHome, "auth.json"))
-    if (fallback) return fallback
-  }
-
-  throw new Error("Codex authentication is unavailable; run `codex login` and retry")
+  return { ...auth, type: "oauth", access: auth.access, refresh: auth.refresh, expires: auth.expires }
 }
 
-async function loadCredentialStoreMode(codexHome: string): Promise<CredentialStoreMode> {
-  const text = await readOptionalFile(join(codexHome, "config.toml"))
-  if (!text) return "file"
-
-  const config: unknown = Bun.TOML.parse(text)
-  if (!isRecord(config)) return "file"
-  const mode = config.cli_auth_credentials_store
-  if (mode === "keyring" || mode === "auto") return mode
-  return "file"
+async function loadOpenCodeAuthFile() {
+  const parsed: unknown = JSON.parse(await readFile(openCodeAuthPath(), "utf8"))
+  if (!isRecord(parsed)) throw new Error("OpenCode authentication data is invalid")
+  return parsed
 }
 
-async function loadFileAuth(authPath: string): Promise<AuthSource | undefined> {
-  const text = await readOptionalFile(authPath)
-  if (!text) return undefined
-
-  return {
-    value: parseStoredCodexAuth(text),
-    async save(value) {
-      await writeFile(authPath, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 })
-      await chmod(authPath, 0o600)
-    },
-  }
+function openCodeAuthPath() {
+  const dataRoot =
+    process.env.XDG_DATA_HOME?.trim() ||
+    (process.platform === "win32" ? process.env.LOCALAPPDATA?.trim() : undefined) ||
+    join(homedir(), ".local", "share")
+  return join(dataRoot, "opencode", "auth.json")
 }
 
-async function loadKeyringAuth(codexHome: string): Promise<AuthSource | undefined> {
-  // Match Codex's direct keyring identity for the canonical CODEX_HOME path.
-  const account = `cli|${createHash("sha256")
-    .update(await realpath(codexHome).catch(() => codexHome))
-    .digest("hex")
-    .slice(0, 16)}`
-  const result =
-    process.platform === "darwin"
-      ? await runCredentialCommand([
-          "/usr/bin/security",
-          "find-generic-password",
-          "-s",
-          "Codex Auth",
-          "-a",
-          account,
-          "-w",
-        ])
-      : process.platform === "linux"
-        ? await runCredentialCommand(["secret-tool", "lookup", "service", "Codex Auth", "username", account])
-        : undefined
-  if (!result?.ok || !result.stdout.trim()) return undefined
-
-  return {
-    value: parseStoredCodexAuth(result.stdout),
-    async save(value) {
-      const serialized = JSON.stringify(value)
-      const saved =
-        process.platform === "darwin"
-          ? await runCredentialCommand([
-              "/usr/bin/security",
-              "add-generic-password",
-              "-U",
-              "-s",
-              "Codex Auth",
-              "-a",
-              account,
-              "-w",
-              serialized,
-            ])
-          : await runCredentialCommand(
-              ["secret-tool", "store", `--label=Codex Auth`, "service", "Codex Auth", "username", account],
-              serialized,
-            )
-      if (!saved.ok) throw new Error("Failed to update Codex credentials in the OS keyring")
-    },
-  }
-}
-
-async function runCredentialCommand(command: string[], input?: string) {
-  const child = Bun.spawn(command, {
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "ignore",
+async function saveOpenCodeOAuth(auth: OpenCodeOAuth) {
+  await writeFile(openCodeAuthPath(), JSON.stringify({ ...(await loadOpenCodeAuthFile()), openai: auth }), {
+    mode: 0o600,
   })
-  if (input !== undefined) child.stdin.write(input)
-  child.stdin.end()
-  const [stdout, exitCode] = await Promise.all([new Response(child.stdout).text(), child.exited])
-  return { ok: exitCode === 0, stdout }
+  await chmod(openCodeAuthPath(), 0o600)
 }
 
-async function readOptionalFile(path: string) {
-  return readFile(path, "utf8").catch((error: unknown) => {
-    if (isRecord(error) && error.code === "ENOENT") return undefined
-    throw error
-  })
-}
-
-function parseStoredCodexAuth(value: string): StoredCodexAuth {
-  const parsed: unknown = JSON.parse(value)
-  if (!isRecord(parsed) || !isRecord(parsed.tokens)) {
-    throw new Error("Codex authentication data is invalid; run `codex login` and retry")
+function codexAuth(auth: OpenCodeOAuth, idToken?: unknown): CodexAuth {
+  const claims = tokenAuthClaims(idToken) ?? tokenAuthClaims(auth.access)
+  return {
+    accessToken: auth.access,
+    accountId: cleanText(auth.accountId, 1_000) ?? cleanText(claims?.chatgpt_account_id, 1_000),
+    fedramp: claims?.chatgpt_account_is_fedramp === true,
   }
-  return { ...parsed, tokens: parsed.tokens }
 }
 
-function tokenExpiresSoon(accessToken: string) {
-  const claims = parseJwtClaims(accessToken)
-  return typeof claims?.exp === "number" && claims.exp * 1000 <= Date.now() + TOKEN_REFRESH_WINDOW_MS
+function tokenAuthClaims(token: unknown) {
+  const claims = typeof token === "string" ? parseJwtClaims(token) : undefined
+  const auth = claims?.["https://api.openai.com/auth"]
+  return isRecord(auth) ? auth : undefined
 }
 
 function parseJwtClaims(token: string): Record<string, unknown> | undefined {
@@ -274,57 +177,42 @@ function parseJwtClaims(token: string): Record<string, unknown> | undefined {
   }
 }
 
-function accountIdFromToken(token: unknown) {
-  const claims = typeof token === "string" ? parseJwtClaims(token) : undefined
-  const auth = claims?.["https://api.openai.com/auth"]
-  return (
-    cleanText(claims?.chatgpt_account_id, 1_000) ??
-    (isRecord(auth) ? cleanText(auth.chatgpt_account_id, 1_000) : undefined)
-  )
-}
-
-async function refreshCodexAuth(source: AuthSource, signal: AbortSignal): Promise<StoredCodexAuth> {
-  const refreshToken = cleanText(source.value.tokens.refresh_token, 20_000)
-  if (!refreshToken) {
-    throw new Error("Codex authentication expired and cannot be refreshed; run `codex login` and retry")
-  }
+async function refreshOpenCodeOAuth(signal: AbortSignal): Promise<CodexAuth> {
+  const current = await loadOpenCodeOAuth()
+  if (current.expires > Date.now() + TOKEN_REFRESH_WINDOW_MS) return codexAuth(current)
 
   const response = await fetch(OAUTH_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "refresh_token",
-      refresh_token: refreshToken,
+      refresh_token: current.refresh,
       client_id: OAUTH_CLIENT_ID,
     }),
     signal,
   })
   if (!response.ok) {
-    throw new Error(`Codex authentication refresh failed with HTTP ${response.status}; run \`codex login\` and retry`)
+    throw new Error(
+      `OpenCode ChatGPT authentication refresh failed with HTTP ${response.status}; run \`opencode auth login\` and retry`,
+    )
   }
 
   const payload: unknown = await response.json()
-  if (!isRecord(payload)) throw new Error("Codex authentication refresh returned invalid JSON")
-  const accessToken = cleanText(payload.access_token, 20_000)
-  if (!accessToken) throw new Error("Codex authentication refresh returned no access token")
+  if (!isRecord(payload)) throw new Error("OpenCode ChatGPT authentication refresh returned invalid JSON")
+  const access = cleanText(payload.access_token, 20_000)
+  if (!access) throw new Error("OpenCode ChatGPT authentication refresh returned no access token")
 
-  const idToken = cleanText(payload.id_token, 20_000) ?? cleanText(source.value.tokens.id_token, 20_000)
-  const next: StoredCodexAuth = {
-    ...source.value,
-    tokens: {
-      ...source.value.tokens,
-      ...(idToken ? { id_token: idToken } : {}),
-      access_token: accessToken,
-      refresh_token: cleanText(payload.refresh_token, 20_000) ?? refreshToken,
-      account_id:
-        cleanText(source.value.tokens.account_id, 1_000) ??
-        accountIdFromToken(idToken) ??
-        accountIdFromToken(accessToken),
-    },
-    last_refresh: new Date().toISOString(),
+  const claims = tokenAuthClaims(payload.id_token) ?? tokenAuthClaims(access)
+  const accountId = cleanText(claims?.chatgpt_account_id, 1_000) ?? cleanText(current.accountId, 1_000)
+  const next: OpenCodeOAuth = {
+    ...current,
+    access,
+    refresh: cleanText(payload.refresh_token, 20_000) ?? current.refresh,
+    expires: Date.now() + (typeof payload.expires_in === "number" ? payload.expires_in : 3_600) * 1_000,
+    ...(accountId ? { accountId } : {}),
   }
-  await source.save(next)
-  return next
+  await saveOpenCodeOAuth(next)
+  return codexAuth(next, payload.id_token)
 }
 
 export const CodexWebSearchPlugin: Plugin = async ({ worktree }) => {
@@ -410,6 +298,7 @@ export const CodexWebSearchPlugin: Plugin = async ({ worktree }) => {
               "User-Agent": "codex-cli/0.147.0-alpha.6.5",
             }
             if (auth.accountId) headers["ChatGPT-Account-ID"] = auth.accountId
+            if (auth.fedramp) headers["X-OpenAI-Fedramp"] = "true"
 
             const response = await fetch(SEARCH_ENDPOINT, {
               method: "POST",

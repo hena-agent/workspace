@@ -24,12 +24,12 @@ on:
         default: ""
         type: string
       command:
-        description: Structured PR review command passed to `opencode run --command`; currently only review-pr
+        description: Built-in slash command passed to `opencode run --command`; currently only review
         required: false
         default: ""
         type: string
       command-arguments:
-        description: Arguments substituted into the custom command template
+        description: Arguments passed to the slash command
         required: false
         default: ""
         type: string

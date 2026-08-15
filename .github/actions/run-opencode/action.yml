@@ -1,5 +1,5 @@
 name: Run OpenCode
-description: Restore OpenCode auth.json, install a pinned CLI, and run a GitHub agent or custom command.
+description: Restore OpenCode auth.json, install a pinned CLI, and run a GitHub agent or slash command.
 
 inputs:
   model:
@@ -26,11 +26,11 @@ inputs:
     required: false
     default: ""
   command:
-    description: Structured PR review command passed to opencode run --command; currently only review-pr.
+    description: Built-in slash command passed to opencode run --command; currently only review.
     required: false
     default: ""
   command-arguments:
-    description: Arguments substituted into the custom command template.
+    description: Arguments passed to the slash command.
     required: false
     default: ""
 
@@ -51,8 +51,8 @@ runs:
           echo "::error::either prompt or command is required."
           exit 1
         fi
-        if [ -n "$COMMAND" ] && [ "$COMMAND" != "review-pr" ]; then
-          echo "::error::unsupported structured review command '$COMMAND'."
+        if [ -n "$COMMAND" ] && [ "$COMMAND" != "review" ]; then
+          echo "::error::unsupported slash command '$COMMAND'."
           exit 1
         fi
 
@@ -207,52 +207,6 @@ runs:
           exit 1
         fi
 
-    # Custom commands are loaded from the PR base commit, not the checked-out
-    # merge commit. Project config is disabled for the command run below so a
-    # PR cannot replace the command or load a plugin while CI credentials are
-    # available.
-    - name: Load trusted OpenCode command
-      if: inputs.command != ''
-      shell: bash
-      env:
-        COMMAND: ${{ inputs.command }}
-        GH_TOKEN: ${{ inputs.github-token }}
-      run: |
-        set -euo pipefail
-        if ! [[ "$COMMAND" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
-          echo "::error::command must contain only lowercase letters, numbers, and hyphens, got '$COMMAND'."
-          exit 1
-        fi
-        BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
-        if [ -z "$BASE_SHA" ]; then
-          echo "::error::Custom command execution requires a pull_request event."
-          exit 1
-        fi
-        TRUSTED_COMMAND="$RUNNER_TEMP/$COMMAND.md"
-        if ! gh api \
-          -H "Accept: application/vnd.github.raw+json" \
-          "repos/$GITHUB_REPOSITORY/contents/.opencode/commands/$COMMAND.md?ref=$BASE_SHA" \
-          > "$TRUSTED_COMMAND" 2> "$RUNNER_TEMP/opencode-command-fetch-error"; then
-          # The introducing PR has no command in its base commit yet. Permit
-          # only the exact reviewed bootstrap file; after merge the base copy
-          # is always used and this branch is unreachable.
-          BOOTSTRAP_SHA="8280ff0a8aaa5257ab9073bf5f6e73c0316ee78748f75d3fdf0b361aabe6c88a"
-          BOOTSTRAP_COMMAND=".opencode/commands/review-pr.md"
-          if [ "$COMMAND" != "review-pr" ] || [ ! -f "$BOOTSTRAP_COMMAND" ]; then
-            cat "$RUNNER_TEMP/opencode-command-fetch-error" >&2
-            exit 1
-          fi
-          ACTUAL_SHA=$(sha256sum "$BOOTSTRAP_COMMAND" | cut -d ' ' -f 1)
-          if [ "$ACTUAL_SHA" != "$BOOTSTRAP_SHA" ]; then
-            echo "::error::Base command is unavailable and bootstrap review-pr hash is $ACTUAL_SHA, expected $BOOTSTRAP_SHA."
-            exit 1
-          fi
-          echo "::notice::Using hash-pinned review-pr command for its introducing pull request."
-          install -m 600 "$BOOTSTRAP_COMMAND" "$TRUSTED_COMMAND"
-        fi
-        install -d -m 700 "$HOME/.config/opencode/commands"
-        install -m 600 "$TRUSTED_COMMAND" "$HOME/.config/opencode/commands/$COMMAND.md"
-
     - name: Run OpenCode command
       if: inputs.command != ''
       shell: bash
@@ -263,44 +217,12 @@ runs:
         COMMAND_ARGUMENTS: ${{ inputs.command-arguments }}
         GH_TOKEN: ${{ inputs.github-token }}
         OPENCODE_DISABLE_PROJECT_CONFIG: "1"
-        OPENCODE_PERMISSION: '{"edit":"deny","bash":"deny","question":"deny","task":"deny","todowrite":"deny","webfetch":"deny","websearch":"deny"}'
+        OPENCODE_PERMISSION: '{"edit":"deny","bash":{"*":"deny","gh pr view *":"allow","gh pr diff *":"allow"},"question":"deny","todowrite":"deny"}'
       run: |
         set -euo pipefail
-        if [ "$COMMAND" = "review-pr" ]; then
-          if ! [[ "$COMMAND_ARGUMENTS" =~ ^[1-9][0-9]*$ ]]; then
-            echo "::error::review-pr requires one pull request number, got '$COMMAND_ARGUMENTS'."
-            exit 1
-          fi
-          BASE_SHA=$(jq -r '.pull_request.base.sha' "$GITHUB_EVENT_PATH")
-          HEAD_SHA=$(jq -r '.pull_request.head.sha' "$GITHUB_EVENT_PATH")
-          MERGE_BASE_SHA=$(gh api \
-            "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" \
-            --jq '.merge_base_commit.sha')
-          git fetch --no-tags --depth=1 origin "$MERGE_BASE_SHA" "$HEAD_SHA"
-          git -c advice.detachedHead=false checkout --detach "$HEAD_SHA"
-          rm -rf -- "tmp"
-          install -d -m 700 "tmp"
-          {
-            printf '# Pull request\n\n'
-            gh pr view "$COMMAND_ARGUMENTS" --json number,title,body,baseRefName,headRefName,author
-            printf '\n# Diff\n\nLong lines are wrapped at 900 characters. Lines prefixed with @@OPENCODE-CONTINUATION@@ continue the preceding diff line.\n\n'
-            git diff --no-ext-diff --find-renames "$MERGE_BASE_SHA" "$HEAD_SHA" | bun -e '
-              const width = 900
-              const wrap = (line: string) => {
-                if (line.length <= width) return [line]
-                const chunks: string[] = []
-                for (let start = 0; start < line.length; ) {
-                  let end = Math.min(start + width, line.length)
-                  const code = line.charCodeAt(end - 1)
-                  if (end < line.length && code >= 0xd800 && code <= 0xdbff) end--
-                  chunks.push((start === 0 ? "" : "@@OPENCODE-CONTINUATION@@ ") + line.slice(start, end))
-                  start = end
-                }
-                return chunks
-              }
-              process.stdout.write((await Bun.stdin.text()).split("\n").flatMap(wrap).join("\n"))
-            '
-          } > "tmp/opencode-review-context.md"
+        if ! [[ "$COMMAND_ARGUMENTS" =~ ^[1-9][0-9]*$ ]]; then
+          echo "::error::review requires one pull request number, got '$COMMAND_ARGUMENTS'."
+          exit 1
         fi
 
         opencode run \
@@ -311,29 +233,12 @@ runs:
           "$COMMAND_ARGUMENTS" \
           | tee "$RUNNER_TEMP/opencode-command.ndjson"
 
-        jq -sr '
+        jq -jrs '
           [.[] | select(.type == "text") | .part.text] | last
-          | if type == "string" then fromjson else error("OpenCode command returned no final text") end
-        ' "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.json"
+          | if type == "string" and test("\\S") then . else error("OpenCode command returned no final text") end
+        ' "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"
 
-        jq -e '
-          (.findings | type == "array") and
-          all(.findings[];
-            (.title | type == "string" and test("^\\[P[0-3]\\] ")) and
-            (.body | type == "string") and
-            (.confidence_score | type == "number" and . >= 0 and . <= 1) and
-            (.code_location.absolute_file_path | type == "string") and
-            (.code_location.side == "LEFT" or .code_location.side == "RIGHT") and
-            (.code_location.line_range.start | type == "number" and . >= 1 and floor == .) and
-            (.code_location.line_range.end | type == "number" and . >= 1 and floor == .) and
-            (.code_location.line_range.end >= .code_location.line_range.start)
-          ) and
-          (.overall_correctness == "patch is correct" or .overall_correctness == "patch is incorrect") and
-          (.overall_explanation | type == "string") and
-          (.overall_confidence_score | type == "number" and . >= 0 and . <= 1)
-        ' "$RUNNER_TEMP/opencode-command-result.json" >/dev/null
-
-    - name: Publish OpenCode command review
+    - name: Publish OpenCode review
       if: inputs.command != ''
       shell: bash
       env:
@@ -351,83 +256,13 @@ runs:
           exit 0
         fi
 
-        FALLBACK="$RUNNER_TEMP/unanchored-findings.md"
-        : > "$FALLBACK"
-
-        append_fallback() {
-          jq -r --arg root "$GITHUB_WORKSPACE/" '
-            .code_location.absolute_file_path as $absolute |
-            "- **" + .title + "** (`" +
-            (if ($absolute | startswith($root)) then $absolute[($root | length):] else $absolute end) +
-            ":" + (.code_location.line_range.start | tostring) +
-            "-" + (.code_location.line_range.end | tostring) +
-            " " + .code_location.side + "`): " + .body
-          ' <<< "$1" >> "$FALLBACK"
-        }
-
-        while IFS= read -r finding; do
-          request=$(jq --arg root "$GITHUB_WORKSPACE/" --arg head "$HEAD_SHA" '
-            .code_location.absolute_file_path as $absolute |
-            if ($absolute | startswith($root))
-            then ({
-              commit_id: $head,
-              path: $absolute[($root | length):],
-              line: .code_location.line_range.end,
-              side: .code_location.side,
-              body: ("**" + .title + "**\n\n" + .body)
-            } + (
-              if .code_location.line_range.start < .code_location.line_range.end
-              then {
-                start_line: .code_location.line_range.start,
-                start_side: .code_location.side
-              }
-              else {}
-              end
-            ))
-            else empty
-            end
-          ' <<< "$finding")
-
-          if [ -z "$request" ]; then
-            append_fallback "$finding"
-            continue
-          fi
-
-          if ! gh api \
-            --method POST \
-            "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" \
-            --input - <<< "$request" \
-            > /dev/null 2> "$RUNNER_TEMP/github-comment-error"; then
-            error=$(<"$RUNNER_TEMP/github-comment-error")
-            sleep 1
-            if [[ "$error" == *"HTTP 422"* || "$error" == *"Unprocessable Entity"* ]]; then
-              echo "::warning::Could not anchor finding; including it in the overall review."
-              append_fallback "$finding"
-              continue
-            fi
-            printf '%s\n' "$error" >&2
-            exit 1
-          fi
-          sleep 1
-        done < <(jq -c '.findings[]' "$RUNNER_TEMP/opencode-command-result.json")
-
-        sleep 1
-
-        jq --arg head "$HEAD_SHA" --rawfile fallback "$FALLBACK" '
+        jq -n --arg head "$HEAD_SHA" --rawfile body "$RUNNER_TEMP/opencode-command-result.md" '
           {
             event: "COMMENT",
             commit_id: $head,
-            body: (
-              "**Overall correctness:** " + .overall_correctness + "\n\n" +
-              .overall_explanation + "\n\n" +
-              "Confidence: " + ((.overall_confidence_score * 100) | round | tostring) + "%" +
-              (if ($fallback | length) > 0
-               then "\n\n**Unanchored findings:**\n" + $fallback
-               else ""
-               end)
-            )
+            body: $body
           }
-        ' "$RUNNER_TEMP/opencode-command-result.json" > "$RUNNER_TEMP/github-review.json"
+        ' > "$RUNNER_TEMP/github-review.json"
 
         gh api \
           --method POST \

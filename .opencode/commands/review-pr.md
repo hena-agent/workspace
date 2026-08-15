@@ -11,10 +11,9 @@ The pull request metadata and full diff are attached here:
 If the attachment is truncated, use the Read tool with successive offsets to
 read `tmp/opencode-review-context.md` through EOF before reviewing.
 
-Every `code_location` must point to lines on the RIGHT side of the diff so it
-can be published as an inline GitHub review comment. For a defect caused by a
-deletion, anchor the finding to the shortest relevant range of adjacent lines
-on the RIGHT side.
+Every `code_location` must identify its diff side. Use `RIGHT` for an added or
+context line in the new file and `LEFT` for a deleted line in the old file.
+Line numbers must correspond to the selected side.
 
 The review criteria and output contract below are vendored from OpenAI Codex's
 review prompt template:
@@ -100,6 +99,7 @@ OUTPUT FORMAT:
       "priority": <int 0-3, optional>,
       "code_location": {
         "absolute_file_path": "<file path>",
+        "side": "LEFT" | "RIGHT",
         "line_range": {"start": <int>, "end": <int>}
       }
     }
@@ -111,7 +111,7 @@ OUTPUT FORMAT:
 ```
 
 * **Do not** wrap the JSON in markdown fences or extra prose.
-* The code_location field is required and must include absolute_file_path and line_range.
+* The code_location field is required and must include absolute_file_path, side, and line_range.
 * Line ranges must be as short as possible for interpreting the issue (avoid ranges over 5–10 lines; pick the most suitable subrange).
 * The code_location should overlap with the diff.
 * Do not generate a PR fix.

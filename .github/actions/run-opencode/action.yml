@@ -236,7 +236,7 @@ runs:
           # The introducing PR has no command in its base commit yet. Permit
           # only the exact reviewed bootstrap file; after merge the base copy
           # is always used and this branch is unreachable.
-          BOOTSTRAP_SHA="545e18228150a0f1b55ac9d6ee8e73d0dcf3d58dfc1d088cbdb6a80f3becf9ce"
+          BOOTSTRAP_SHA="65141ebbe887515e64cf92ad6beac8bd376e4aba9a55576887508248b7d73574"
           BOOTSTRAP_COMMAND=".opencode/commands/review-pr.md"
           if [ "$COMMAND" != "review-pr" ] || [ ! -f "$BOOTSTRAP_COMMAND" ]; then
             cat "$RUNNER_TEMP/opencode-command-fetch-error" >&2
@@ -263,7 +263,7 @@ runs:
         COMMAND_ARGUMENTS: ${{ inputs.command-arguments }}
         GH_TOKEN: ${{ inputs.github-token }}
         OPENCODE_DISABLE_PROJECT_CONFIG: "1"
-        OPENCODE_PERMISSION: '{"edit":"deny","bash":"deny","question":"deny"}'
+        OPENCODE_PERMISSION: '{"edit":"deny","bash":"deny","question":"deny","task":"deny","todowrite":"deny","webfetch":"deny","websearch":"deny"}'
       run: |
         set -euo pipefail
         if [ "$COMMAND" = "review-pr" ]; then

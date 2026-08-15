@@ -2,8 +2,12 @@
 description: Review a pull request with Codex bug-finding criteria
 ---
 
-Review pull request #$1. Read the complete changed files and any related code
-needed to prove each finding. Do not modify the worktree.
+Review pull request #$1. Use the attached full diff as the primary source. Read
+at most 10 additional files, and only when omitted surrounding context is
+needed to prove a specific candidate finding. Do not survey every changed file,
+use a task list, run tests, inspect workflow history, or research general best
+practices. Return the required JSON as soon as all candidate findings are
+verified. Do not modify the worktree.
 
 The pull request metadata and full diff are attached here:
 @tmp/opencode-review-context.md

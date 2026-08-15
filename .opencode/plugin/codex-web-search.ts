@@ -30,6 +30,7 @@ type OpenCodeOAuth = Record<string, unknown> & {
 }
 
 let authRefresh: Promise<CodexAuth> | undefined
+let volatileOAuth: OpenCodeOAuth | undefined
 
 type SearchResult = {
   title: string
@@ -108,14 +109,34 @@ async function loadCodexAuth(signal: AbortSignal): Promise<CodexAuth> {
   if (auth.expires > Date.now() + TOKEN_REFRESH_WINDOW_MS) return codexAuth(auth)
 
   if (!authRefresh) {
-    authRefresh = refreshOpenCodeOAuth(signal).finally(() => {
+    authRefresh = refreshOpenCodeOAuth(AbortSignal.timeout(REQUEST_TIMEOUT_MS)).finally(() => {
       authRefresh = undefined
     })
   }
-  return authRefresh
+  return waitForAuthRefresh(authRefresh, signal)
+}
+
+function waitForAuthRefresh(refresh: Promise<CodexAuth>, signal: AbortSignal) {
+  if (signal.aborted) return Promise.reject(signal.reason)
+
+  return new Promise<CodexAuth>((resolve, reject) => {
+    const cancel = () => reject(signal.reason)
+    signal.addEventListener("abort", cancel, { once: true })
+    refresh.then(
+      (auth) => {
+        signal.removeEventListener("abort", cancel)
+        resolve(auth)
+      },
+      (error) => {
+        signal.removeEventListener("abort", cancel)
+        reject(error)
+      },
+    )
+  })
 }
 
 async function loadOpenCodeOAuth(): Promise<OpenCodeOAuth> {
+  if (volatileOAuth) return volatileOAuth
   const auth = (await loadOpenCodeAuthFile()).openai
   if (
     !isRecord(auth) ||
@@ -130,20 +151,22 @@ async function loadOpenCodeOAuth(): Promise<OpenCodeOAuth> {
 }
 
 async function loadOpenCodeAuthFile() {
-  const parsed: unknown = JSON.parse(await readFile(openCodeAuthPath(), "utf8"))
+  const parsed: unknown = JSON.parse(process.env.OPENCODE_AUTH_CONTENT ?? (await readFile(openCodeAuthPath(), "utf8")))
   if (!isRecord(parsed)) throw new Error("OpenCode authentication data is invalid")
   return parsed
 }
 
 function openCodeAuthPath() {
   const dataRoot =
-    process.env.XDG_DATA_HOME?.trim() ||
-    (process.platform === "win32" ? process.env.LOCALAPPDATA?.trim() : undefined) ||
-    join(homedir(), ".local", "share")
+    process.env.XDG_DATA_HOME?.trim() || join(homedir(), ".local", "share")
   return join(dataRoot, "opencode", "auth.json")
 }
 
 async function saveOpenCodeOAuth(auth: OpenCodeOAuth) {
+  if (process.env.OPENCODE_AUTH_CONTENT) {
+    volatileOAuth = auth
+    return
+  }
   await writeFile(openCodeAuthPath(), JSON.stringify({ ...(await loadOpenCodeAuthFile()), openai: auth }), {
     mode: 0o600,
   })
@@ -317,7 +340,7 @@ export const CodexWebSearchPlugin: Plugin = async ({ worktree }) => {
             })
 
             if (response.status === 401 || response.status === 403) {
-              throw new Error("Codex authentication was rejected; run `codex login` and retry")
+              throw new Error("OpenCode ChatGPT authentication was rejected; run `opencode auth login` and retry")
             }
             if (response.status === 429) {
               throw new Error("Codex web search rate limit exceeded; retry later")

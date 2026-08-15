@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import { existsSync } from "node:fs"
-import { chmod, mkdir, readFile, rename, rm, stat, utimes, writeFile } from "node:fs/promises"
+import { chmod, mkdir, readFile, realpath, rename, rm, stat, utimes, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -12,6 +12,7 @@ const SEARCH_MODEL = "gpt-4o"
 const OAUTH_ENDPOINT = "https://auth.openai.com/oauth/token"
 const OAUTH_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const REQUEST_TIMEOUT_MS = 15_000
+const TOKEN_REFRESH_SAFETY_MS = REQUEST_TIMEOUT_MS * 2
 const TOKEN_REFRESH_WINDOW_MS = 5 * 60_000
 const DEFAULT_MAX_RESULTS = 8
 const MAX_OUTPUT_BYTES = 20_000
@@ -159,12 +160,17 @@ async function loadCodexAuth(signal: AbortSignal): Promise<CodexAuth> {
     if (auth.expires > Date.now() + REQUEST_TIMEOUT_MS) return codexAuth(auth)
     throw new Error("OpenCode ChatGPT authentication from OPENCODE_AUTH_CONTENT has expired; update it and retry")
   }
-
-  if (!authRefresh) {
-    authRefresh = refreshOpenCodeOAuth(AbortSignal.timeout(REQUEST_TIMEOUT_MS)).finally(() => {
-      authRefresh = undefined
-    })
+  if (authRefresh) return waitForAuthRefresh(authRefresh, signal)
+  // OpenCode owns expired-token refresh; only rotate a still-valid token so the two refreshers cannot race.
+  if (auth.expires <= Date.now() + TOKEN_REFRESH_SAFETY_MS) {
+    throw new Error(
+      "OpenCode ChatGPT authentication has expired or expires too soon; run `opencode auth login`, or retry after OpenCode refreshes it",
+    )
   }
+
+  authRefresh = refreshOpenCodeOAuth(AbortSignal.timeout(REQUEST_TIMEOUT_MS)).finally(() => {
+    authRefresh = undefined
+  })
   return waitForAuthRefresh(authRefresh, signal)
 }
 
@@ -242,6 +248,13 @@ function openCodeConfigPaths() {
     resolve(join(homedir(), ".opencode")),
     ...(custom ? [resolve(custom)] : []),
   ]
+}
+
+function canonicalPath(path: string) {
+  return realpath(path).catch((error: unknown) => {
+    if (errorCode(error) === "ENOENT" || errorCode(error) === "ENOTDIR") return resolve(path)
+    throw error
+  })
 }
 
 async function withAuthLock<T>(signal: AbortSignal, operation: () => Promise<T>) {
@@ -495,16 +508,29 @@ async function refreshOpenCodeOAuth(signal: AbortSignal): Promise<CodexAuth> {
 }
 
 export const CodexWebSearchPlugin: Plugin = async ({ worktree }) => {
-  const currentPath = resolve(fileURLToPath(import.meta.url))
-  const projectPaths = ["plugin", "plugins"].map((directory) =>
-    resolve(worktree, ".opencode", directory, "codex-web-search.ts"),
+  const currentPath = await canonicalPath(fileURLToPath(import.meta.url))
+  const projectPaths = await Promise.all(
+    ["plugin", "plugins"].map((directory) =>
+      canonicalPath(resolve(worktree, ".opencode", directory, "codex-web-search.ts")),
+    ),
   )
+  const globalPaths = await Promise.all(
+    openCodeConfigPaths().flatMap((root) =>
+      ["plugin", "plugins"].map((directory) => canonicalPath(join(root, directory, "codex-web-search.ts"))),
+    ),
+  )
+  const projectConfigDisabled = ["1", "true"].includes(process.env.OPENCODE_DISABLE_PROJECT_CONFIG?.toLowerCase() ?? "")
+  const customConfig = process.env.OPENCODE_CONFIG_DIR?.trim() || undefined
+  const customProjectConfig =
+    customConfig !== undefined &&
+    (await canonicalPath(customConfig)) === (await canonicalPath(resolve(worktree, ".opencode")))
+  const projectConfigLoaded =
+    (!projectConfigDisabled || customProjectConfig) && projectPaths.some((path) => existsSync(path))
+  const selectedGlobalPath = globalPaths.findLast((path) => existsSync(path))
   if (
     !projectPaths.includes(currentPath) &&
-    openCodeConfigPaths()
-      .flatMap((root) => ["plugin", "plugins"].map((directory) => join(root, directory, "codex-web-search.ts")))
-      .includes(currentPath) &&
-    projectPaths.some((path) => existsSync(path))
+    globalPaths.includes(currentPath) &&
+    (projectConfigLoaded || selectedGlobalPath !== currentPath)
   ) {
     return {}
   }

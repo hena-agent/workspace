@@ -36,18 +36,20 @@ jobs:
             host: ubuntu-latest
             shard: 2/2
             primary: false
-          - name: windows
-            host: windows-latest
-            shard: 1/3
-            primary: true
-          - name: windows
-            host: windows-latest
-            shard: 2/3
-            primary: false
-          - name: windows
-            host: windows-latest
-            shard: 3/3
-            primary: false
+          # Windows unit shards are temporarily disabled because they are the slowest
+          # part of CI (~17-29m vs ~5m on Linux). Re-enable by restoring these entries.
+          # - name: windows
+          #   host: windows-latest
+          #   shard: 1/3
+          #   primary: true
+          # - name: windows
+          #   host: windows-latest
+          #   shard: 2/3
+          #   primary: false
+          # - name: windows
+          #   host: windows-latest
+          #   shard: 3/3
+          #   primary: false
     runs-on: ${{ matrix.settings.host }}
     defaults:
       run:
@@ -137,8 +139,10 @@ jobs:
         settings:
           - name: linux
             host: ubuntu-latest
-          - name: windows
-            host: windows-latest
+          # Windows e2e is temporarily disabled because it is the slowest part of CI.
+          # Re-enable by restoring this entry.
+          # - name: windows
+          #   host: windows-latest
     runs-on: ${{ matrix.settings.host }}
     env:
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers

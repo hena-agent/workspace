@@ -68,9 +68,6 @@ jobs:
         with:
           client-id: ${{ inputs.app-client-id }}
           private-key: ${{ secrets.app-private-key }}
-          permission-contents: read
-          permission-issues: write
-          permission-pull-requests: write
 
       - name: Mint review app token
         id: review-token
@@ -86,7 +83,9 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
-          token: ${{ steps.review-token.outputs.token }}
+          # Prompt agents retain the App's installation permissions for any
+          # commit/push behavior; command reviews only receive read access.
+          token: ${{ inputs.command != '' && steps.review-token.outputs.token || steps.publish-token.outputs.token }}
 
       - name: Run ${{ inputs.model }} (${{ inputs.variant }})
         uses: ./.github/actions/run-opencode

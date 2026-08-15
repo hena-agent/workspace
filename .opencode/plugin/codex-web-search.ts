@@ -12,7 +12,6 @@ const SEARCH_MODEL = "gpt-4o"
 const OAUTH_ENDPOINT = "https://auth.openai.com/oauth/token"
 const OAUTH_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const REQUEST_TIMEOUT_MS = 15_000
-const TOKEN_REFRESH_SAFETY_MS = REQUEST_TIMEOUT_MS * 2
 const TOKEN_REFRESH_WINDOW_MS = 5 * 60_000
 const DEFAULT_MAX_RESULTS = 8
 const MAX_OUTPUT_BYTES = 20_000
@@ -161,12 +160,6 @@ async function loadCodexAuth(signal: AbortSignal): Promise<CodexAuth> {
     throw new Error("OpenCode ChatGPT authentication from OPENCODE_AUTH_CONTENT has expired; update it and retry")
   }
   if (authRefresh) return waitForAuthRefresh(authRefresh, signal)
-  // OpenCode owns expired-token refresh; only rotate a still-valid token so the two refreshers cannot race.
-  if (auth.expires <= Date.now() + TOKEN_REFRESH_SAFETY_MS) {
-    throw new Error(
-      "OpenCode ChatGPT authentication has expired or expires too soon; run `opencode auth login`, or retry after OpenCode refreshes it",
-    )
-  }
 
   authRefresh = refreshOpenCodeOAuth(AbortSignal.timeout(REQUEST_TIMEOUT_MS)).finally(() => {
     authRefresh = undefined
@@ -483,6 +476,13 @@ async function refreshOpenCodeOAuth(signal: AbortSignal): Promise<CodexAuth> {
       signal,
     })
     if (!response.ok) {
+      const latest = await loadOpenCodeOAuth()
+      if (
+        latest.auth.expires > Date.now() + REQUEST_TIMEOUT_MS &&
+        (latest.auth.access !== current.access || latest.auth.refresh !== current.refresh)
+      ) {
+        return codexAuth(latest.auth)
+      }
       throw new Error(
         `OpenCode ChatGPT authentication refresh failed with HTTP ${response.status}; run \`opencode auth login\` and retry`,
       )

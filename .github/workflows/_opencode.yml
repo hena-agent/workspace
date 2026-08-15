@@ -24,7 +24,7 @@ on:
         default: ""
         type: string
       command:
-        description: Custom command passed to `opencode run --command`; mutually exclusive with prompt
+        description: Structured PR review command passed to `opencode run --command`; currently only review-pr
         required: false
         default: ""
         type: string

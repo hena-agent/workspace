@@ -4,7 +4,7 @@ Specification for selecting the model used by the automated PR reviewer at run t
 
 Status: implemented and locally validated. §12 lists the remaining live-run validation items.
 
-Applies to: `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_opencode.yml`, `.github/actions/run-opencode/action.yml`, and a new `.github/workflows/_review-model.yml`.
+Applies to: `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_opencode.yml`, `.github/actions/run-opencode/action.yml`, `.github/workflows/_review-model.yml`, and `.opencode/commands/review-pr.md`.
 
 ---
 
@@ -28,7 +28,7 @@ This specification introduces a repository Actions variable, `REVIEWER_MODEL`, t
 
 - Running more than one reviewer model per PR
 - Per-PR, per-branch, or per-author model selection
-- Making the review prompt, the review skill, or the ≥150-line brief threshold configurable
+- Making the review command, the brief prompt, or the ≥150-line brief threshold configurable
 - Making `timeout-minutes` configurable
 - Enabling reviews on pull requests from forks
 
@@ -218,7 +218,7 @@ This is mechanically supported and is not a workaround. Per the contexts referen
 
 ### 5.1 `pr-review.yml`
 
-Three changes. The `gpt-review` job is deleted. A `resolve` job calls `_review-model.yml`. The remaining job is renamed from `claude-review` to `review`, because the identity is no longer necessarily Claude, and gains a dynamic name:
+The `gpt-review` job is deleted. A `resolve` job calls `_review-model.yml`. The remaining job is renamed from `claude-review` to `review`, because the identity is no longer necessarily Claude, and gains a dynamic name:
 
 ```yaml
 jobs:
@@ -232,7 +232,7 @@ jobs:
     uses: ./.github/workflows/_opencode.yml
 ```
 
-The prompt is unchanged. `permissions` and `concurrency` are unchanged.
+The review job invokes the project `review-pr` command. `permissions` and `concurrency` are unchanged.
 
 ### 5.2 `pr-brief.yml`
 
@@ -242,9 +242,9 @@ The prompt is unchanged. `permissions` and `concurrency` are unchanged.
 
 ### 5.3 `_opencode.yml` and `run-opencode`
 
-`_opencode.yml` gains one additive optional input, `opencode-version` (string, default `""`), passed straight through. `model` and `variant` remain required. Nothing else changes.
+`_opencode.yml` accepts either a prompt for `opencode github run` or a command plus arguments for `opencode run --command`. `model` and `variant` remain required, and `opencode-version` remains an optional string passed straight through.
 
-`.github/actions/run-opencode/action.yml` changes in three places.
+`.github/actions/run-opencode/action.yml` handles the following concerns.
 
 **Optional `opencode-version` input.** The pin step resolves the effective version: the input when non-empty, otherwise the constant already in the file. The constant stays here, beside the comment that explains why it exists — the models.dev snapshot, the cache key, and the unenforced pairing with `model:`. The step validates the shape again, since the action is reachable independently of the resolver.
 
@@ -261,6 +261,8 @@ Presence in the catalog does not prove the model is undegraded. The action's exi
 **Credential type validation.** The auth restore keeps the exactly-one-provider invariant. OAuth records require a non-empty access token, the inert refresh sentinel, an integer expiry, and 40 minutes of remaining lease at the default timeout. API records require a non-empty key and have no lease check. Other credential types fail closed.
 
 **Run summary.** The step writes the effective CLI version and its source to `$GITHUB_STEP_SUMMARY`.
+
+**Command review path.** `pr-review.yml` selects `review-pr`, loaded from the pull request's base commit so the change under review cannot replace the command. The introducing pull request may use only the checked-out command with the exact bootstrap SHA pinned in the action; after merge the base copy always exists. The action disables project config, recreates the ignored `tmp/` directory, writes PR metadata and the full diff to an attached context file, executes the command through the documented `opencode run --command` interface, validates its JSON result, and submits one GitHub review containing inline findings and the overall verdict. Recreating the directory prevents a PR-controlled symlink from redirecting the write, and the context file prevents untrusted PR text from being reparsed as command-template `@file` attachments. Prompt-based callers continue through `opencode github run`.
 
 ---
 
@@ -377,9 +379,9 @@ When the resolver succeeded and only the review job failed, `--failed` does not 
 
 These stay literals and are explicitly out of scope for the flag.
 
-`timeout-minutes` remains 30. It exists to bound a hang — an unanswered `Permission.ask` blocks forever — not to bound normal work, and observed runs finish in 4–10 minutes. Making it flaggable would also move the OAuth lease bar in `run-opencode/action.yml:48`, which requires the credential to outlive the timeout by 10 minutes; raising the timeout past the published lease would fail every run with an error about credentials rather than about the timeout that was just changed.
+`timeout-minutes` remains 30. It exists to bound a hang — an unanswered `Permission.ask` blocks forever — not to bound normal work, and observed runs finish in 4–10 minutes. Making it flaggable would also move the OAuth lease bar in the action's auth-restore step, which requires the credential to outlive the timeout by 10 minutes; raising the timeout past the published lease would fail every run with an error about credentials rather than about the timeout that was just changed.
 
-The ≥150-line brief threshold, the review prompt, and the `thermo-nuclear-code-quality-review` skill reference are unchanged. Review policy lives in the skill, not in the workflow.
+The ≥150-line brief threshold and brief prompt remain literals. Automated review policy lives in `.opencode/commands/review-pr.md`, not in the workflow.
 
 ---
 

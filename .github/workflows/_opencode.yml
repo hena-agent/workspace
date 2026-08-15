@@ -1,9 +1,8 @@
 name: _opencode
 
-# Reusable workflow: run one opencode invocation against a pull request under a
-# dedicated GitHub App identity. Callers own the entire prompt; this file owns
-# only the mechanics every invocation shares (token mint + checkout + run),
-# which is what makes it worth ~25 lines of dedup per caller job.
+# Reusable workflow: run one opencode prompt or slash command against a pull
+# request under a dedicated GitHub App identity. This file owns only the shared
+# mechanics (token mint + checkout + run).
 on:
   workflow_call:
     inputs:
@@ -21,7 +20,18 @@ on:
         type: string
       prompt:
         description: Full prompt passed to `opencode github run`, verbatim. Nothing is appended, so callers own every task-specific instruction including how findings should be posted.
-        required: true
+        required: false
+        default: ""
+        type: string
+      command:
+        description: Custom command passed to `opencode run --command`; mutually exclusive with prompt
+        required: false
+        default: ""
+        type: string
+      command-arguments:
+        description: Arguments substituted into the custom command template
+        required: false
+        default: ""
         type: string
       timeout-minutes:
         description: Hard cap for the job and basis for the OAuth lease check
@@ -44,11 +54,8 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
-    # An unanswered permission request inside `opencode github run` blocks
-    # forever: Permission.ask awaits a Deferred with no timeout and the github
-    # command never replies. Without a cap that hang would burn the 6-hour
-    # default and hold the caller's concurrency group for all of it. Observed
-    # runs finish in 4-10 minutes.
+    # Keep a hard cap around both the GitHub agent and non-interactive command
+    # paths. Observed runs finish in 4-10 minutes.
     timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       contents: read
@@ -76,5 +83,7 @@ jobs:
           opencode-auth-json: ${{ secrets.opencode-auth-json }}
           github-token: ${{ steps.app-token.outputs.token }}
           prompt: ${{ inputs.prompt }}
+          command: ${{ inputs.command }}
+          command-arguments: ${{ inputs.command-arguments }}
           timeout-minutes: ${{ inputs.timeout-minutes }}
           opencode-version: ${{ inputs.opencode-version }}

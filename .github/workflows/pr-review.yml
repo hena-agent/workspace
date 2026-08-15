@@ -36,7 +36,7 @@ jobs:
       app-client-id: ${{ vars[needs.resolve.outputs.client_id_var] }}
       opencode-version: ${{ needs.resolve.outputs.opencode_version }}
       timeout-minutes: 40
-      command: review-pr
+      command: review
       command-arguments: ${{ github.event.pull_request.number }}
     secrets:
       app-private-key: ${{ secrets[needs.resolve.outputs.private_key_secret] }}

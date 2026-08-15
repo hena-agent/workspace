@@ -4,7 +4,7 @@ Specification for selecting the model used by the automated PR reviewer at run t
 
 Status: implemented and locally validated. §12 lists the remaining live-run validation items.
 
-Applies to: `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_opencode.yml`, `.github/actions/run-opencode/action.yml`, `.github/workflows/_review-model.yml`, and `.opencode/commands/review-pr.md`.
+Applies to: `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_opencode.yml`, `.github/actions/run-opencode/action.yml`, and `.github/workflows/_review-model.yml`.
 
 ---
 
@@ -232,7 +232,7 @@ jobs:
     uses: ./.github/workflows/_opencode.yml
 ```
 
-The review job invokes the project `review-pr` command. `permissions` and `concurrency` are unchanged.
+The review job invokes OpenCode's built-in `review` command. `permissions` and `concurrency` are unchanged.
 
 ### 5.2 `pr-brief.yml`
 
@@ -262,7 +262,7 @@ Presence in the catalog does not prove the model is undegraded. The action's exi
 
 **Run summary.** The step writes the effective CLI version and its source to `$GITHUB_STEP_SUMMARY`.
 
-**Command review path.** `pr-review.yml` selects `review-pr`, loaded from the pull request's base commit so the change under review cannot replace the command. The introducing pull request may use only the checked-out command with the exact bootstrap SHA pinned in the action; after merge the base copy always exists. The action disables project config, recreates the ignored `tmp/` directory, resolves GitHub's merge base, fetches it plus the event head, checks out the head tree, and writes PR metadata plus the uncapped local diff to an attached context file. Long lines are chunked below the CLI's Read-tool limit without dropping content. The command uses that diff as its primary source, caps targeted surrounding-file reads at 10, and denies unrelated task, test, and web-research paths so review work remains bounded. It executes through the documented `opencode run --command` interface, validates its JSON result, posts each valid inline finding independently with GitHub's recommended delay between mutations, and then submits the overall verdict. Findings carry an explicit `LEFT` or `RIGHT` diff side so deletion-only defects remain commentable; any location GitHub rejects with 422 is retained in the overall review instead of discarding other findings. The current base and head are revalidated before publication, and `edited` events rerun reviews after retargeting. Recreating the directory prevents a PR-controlled symlink from redirecting the write, and the context file prevents untrusted PR text from being reparsed as command-template `@file` attachments. Prompt-based callers continue through `opencode github run`.
+**Command review path.** `pr-review.yml` selects OpenCode's built-in `review` command and passes the pull request number. The workflow gives command reviews a separate read-only App token while retaining the App's full installation token for publication and prompt-agent checkout. The action disables project config so a pull request cannot load a plugin while CI credentials are available, denies edits and external-directory access, and permits only the exact `gh pr view <number>` and `gh pr diff <number>` shell commands required by the built-in template. It caches both commands' output before model execution; an HTTP 406 from GitHub's bounded diff renderer falls back to an uncapped local merge-base diff, while other context failures stop the job. A constrained `gh` wrapper serves the verified context to OpenCode after the review token is removed from its environment. The action then executes through the documented `opencode run --command` interface, extracts the final Markdown response from the JSON event stream, revalidates the current base and head, and submits the response as a pull request review. `edited` events rerun reviews after retargeting. Prompt-based callers retain their original credentials and continue through `opencode github run`.
 
 ---
 
@@ -379,9 +379,9 @@ When the resolver succeeded and only the review job failed, `--failed` does not 
 
 These stay literals and are explicitly out of scope for the flag.
 
-`timeout-minutes` remains 30 for prompt-based callers. `pr-review` uses 40 minutes because full-file structured review has completed in 18–21 minutes and one observed provider turn exceeded 30; the auth-restore step therefore requires its credential to retain at least 50 minutes of lease. The timeout remains a literal because it bounds hangs and directly changes that OAuth lease requirement.
+`timeout-minutes` remains 30 for prompt-based callers. `pr-review` uses 40 minutes because review runs have completed in 18–21 minutes and one observed provider turn exceeded 30; the auth-restore step therefore requires its credential to retain at least 50 minutes of lease. The timeout remains a literal because it bounds hangs and directly changes that OAuth lease requirement.
 
-The ≥150-line brief threshold and brief prompt remain literals. Automated review policy lives in `.opencode/commands/review-pr.md`, not in the workflow.
+The ≥150-line brief threshold and brief prompt remain literals. Automated review policy comes from OpenCode's built-in `review` command, not the workflow.
 
 ---
 

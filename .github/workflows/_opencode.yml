@@ -62,18 +62,31 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - name: Mint app token
-        id: app-token
+      - name: Mint publishing app token
+        id: publish-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           client-id: ${{ inputs.app-client-id }}
           private-key: ${{ secrets.app-private-key }}
+          permission-contents: read
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Mint review app token
+        id: review-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.app-private-key }}
+          permission-contents: read
+          permission-issues: read
+          permission-pull-requests: read
 
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.review-token.outputs.token }}
 
       - name: Run ${{ inputs.model }} (${{ inputs.variant }})
         uses: ./.github/actions/run-opencode
@@ -81,7 +94,8 @@ jobs:
           model: ${{ inputs.model }}
           variant: ${{ inputs.variant }}
           opencode-auth-json: ${{ secrets.opencode-auth-json }}
-          github-token: ${{ steps.app-token.outputs.token }}
+          github-token: ${{ steps.publish-token.outputs.token }}
+          review-token: ${{ steps.review-token.outputs.token }}
           prompt: ${{ inputs.prompt }}
           command: ${{ inputs.command }}
           command-arguments: ${{ inputs.command-arguments }}

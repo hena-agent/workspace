@@ -19,7 +19,10 @@ inputs:
     description: Calling job timeout; the OAuth lease must outlive it by 10 minutes
     required: true
   github-token:
-    description: Token used by the OpenCode action to post comments and reach the GitHub API
+    description: Write-scoped token used to publish comments and reviews
+    required: true
+  review-token:
+    description: Read-only token exposed to the built-in review command
     required: true
   prompt:
     description: Final prompt passed to opencode github run.
@@ -215,15 +218,32 @@ runs:
         VARIANT: ${{ inputs.variant }}
         COMMAND: ${{ inputs.command }}
         COMMAND_ARGUMENTS: ${{ inputs.command-arguments }}
-        GH_TOKEN: ${{ inputs.github-token }}
+        GH_TOKEN: ${{ inputs.review-token }}
         OPENCODE_DISABLE_PROJECT_CONFIG: "1"
-        OPENCODE_PERMISSION: '{"edit":"deny","bash":{"*":"deny","gh pr view *":"allow","gh pr diff *":"allow"},"question":"deny","todowrite":"deny"}'
       run: |
         set -euo pipefail
         if ! [[ "$COMMAND_ARGUMENTS" =~ ^[1-9][0-9]*$ ]]; then
           echo "::error::review requires one pull request number, got '$COMMAND_ARGUMENTS'."
           exit 1
         fi
+
+        gh pr view "$COMMAND_ARGUMENTS" >/dev/null
+        gh pr diff "$COMMAND_ARGUMENTS" >/dev/null
+
+        OPENCODE_PERMISSION=$(jq -cn --arg pr "$COMMAND_ARGUMENTS" '
+          {
+            edit: "deny",
+            external_directory: "deny",
+            bash: {
+              "*": "deny",
+              ("gh pr view " + $pr): "allow",
+              ("gh pr diff " + $pr): "allow"
+            },
+            question: "deny",
+            todowrite: "deny"
+          }
+        ')
+        export OPENCODE_PERMISSION
 
         opencode run \
           --command "$COMMAND" \

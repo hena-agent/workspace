@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto"
 import { existsSync } from "node:fs"
-import { chmod, readFile, writeFile } from "node:fs/promises"
+import { chmod, mkdir, readFile, rename, rm, stat, utimes, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import type { Plugin } from "@opencode-ai/plugin"
 import { tool } from "@opencode-ai/plugin/tool"
@@ -15,6 +15,8 @@ const REQUEST_TIMEOUT_MS = 15_000
 const TOKEN_REFRESH_WINDOW_MS = 5 * 60_000
 const DEFAULT_MAX_RESULTS = 8
 const MAX_OUTPUT_BYTES = 20_000
+const AUTH_LOCK_STALE_MS = 30_000
+const AUTH_LOCK_RETRY_MS = 50
 const GRAPHEME_SEGMENTER = new Intl.Segmenter(undefined, { granularity: "grapheme" })
 
 type CodexAuth = {
@@ -43,6 +45,10 @@ type SearchResult = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
+}
+
+function errorCode(error: unknown) {
+  return isRecord(error) && typeof error.code === "string" ? error.code : undefined
 }
 
 function cleanText(value: unknown, maxBytes: number): string | undefined {
@@ -228,6 +234,167 @@ function openCodeAuthPath() {
   return join(dataRoot, "opencode", "auth.json")
 }
 
+function openCodeConfigPaths() {
+  const xdgConfig = process.env.XDG_CONFIG_HOME?.trim() || join(homedir(), ".config")
+  const custom = process.env.OPENCODE_CONFIG_DIR?.trim()
+  return [
+    resolve(join(xdgConfig, "opencode")),
+    resolve(join(homedir(), ".opencode")),
+    ...(custom ? [resolve(custom)] : []),
+  ]
+}
+
+async function withAuthLock<T>(signal: AbortSignal, operation: () => Promise<T>) {
+  const lockPath = `${openCodeAuthPath()}.codex-web-search.lock`
+  while (true) {
+    if (signal.aborted) throw signal.reason
+    const lock = await acquireAuthLock(lockPath, signal)
+    if (!lock) {
+      await waitForLock(signal)
+      continue
+    }
+
+    try {
+      return await operation()
+    } finally {
+      await lock.release()
+    }
+  }
+}
+
+async function acquireAuthLock(lockPath: string, signal: AbortSignal) {
+  const token = randomUUID()
+  const acquired = await mkdir(lockPath, { mode: 0o700 })
+    .then(() => true)
+    .catch(async (error: unknown) => {
+      if (errorCode(error) !== "EEXIST") throw error
+      if (!(await authLockIsStale(lockPath))) return false
+      return breakStaleAuthLock(lockPath, signal)
+    })
+  if (!acquired) return undefined
+
+  const heartbeatPath = join(lockPath, "heartbeat")
+  const metadataPath = join(lockPath, "meta.json")
+  await writeFile(heartbeatPath, "", { flag: "wx", mode: 0o600 }).catch(async (error: unknown) => {
+    await rm(lockPath, { recursive: true, force: true })
+    throw error
+  })
+  await writeFile(metadataPath, JSON.stringify({ token, pid: process.pid }), { flag: "wx", mode: 0o600 }).catch(
+    async (error: unknown) => {
+      await rm(lockPath, { recursive: true, force: true })
+      throw error
+    },
+  )
+
+  const heartbeat = setInterval(
+    () => {
+      const now = new Date()
+      void utimes(heartbeatPath, now, now).catch(() => undefined)
+    },
+    Math.floor(AUTH_LOCK_STALE_MS / 3),
+  )
+  heartbeat.unref?.()
+
+  return {
+    async release() {
+      const breaker = await acquireAuthLockBreaker(lockPath)
+      clearInterval(heartbeat)
+      try {
+        if ((await readAuthLockToken(metadataPath)) !== token) return
+        await rm(lockPath, { recursive: true, force: true })
+      } finally {
+        await breaker.release()
+      }
+    },
+  }
+}
+
+async function breakStaleAuthLock(lockPath: string, signal: AbortSignal) {
+  const breaker = await acquireAuthLockBreaker(lockPath, signal)
+  try {
+    if (!(await authLockIsStale(lockPath))) return false
+    await rm(lockPath, { recursive: true, force: true })
+    return mkdir(lockPath, { mode: 0o700 })
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (errorCode(error) === "EEXIST" || errorCode(error) === "ENOTEMPTY") return false
+        throw error
+      })
+  } finally {
+    await breaker.release()
+  }
+}
+
+async function acquireAuthLockBreaker(lockPath: string, signal?: AbortSignal) {
+  const breakerPath = `${lockPath}.breaker`
+  while (true) {
+    if (signal?.aborted) throw signal.reason
+    const acquired = await mkdir(breakerPath, { mode: 0o700 })
+      .then(() => true)
+      .catch(async (error: unknown) => {
+        if (errorCode(error) !== "EEXIST") throw error
+        const modified = await pathModifiedAt(breakerPath)
+        if (modified !== undefined && Date.now() - modified > AUTH_LOCK_STALE_MS) {
+          await rm(breakerPath, { recursive: true, force: true })
+        }
+        return false
+      })
+    if (acquired) {
+      return {
+        release: () => rm(breakerPath, { recursive: true, force: true }),
+      }
+    }
+    if (signal) await waitForLock(signal)
+    else await Bun.sleep(AUTH_LOCK_RETRY_MS)
+  }
+}
+
+async function authLockIsStale(lockPath: string) {
+  const modified =
+    (await pathModifiedAt(join(lockPath, "heartbeat"))) ??
+    (await pathModifiedAt(join(lockPath, "meta.json"))) ??
+    (await pathModifiedAt(lockPath))
+  return modified !== undefined && Date.now() - modified > AUTH_LOCK_STALE_MS
+}
+
+function pathModifiedAt(path: string) {
+  return stat(path)
+    .then((info) => info.mtimeMs)
+    .catch((error: unknown) => {
+      if (errorCode(error) === "ENOENT" || errorCode(error) === "ENOTDIR") return undefined
+      throw error
+    })
+}
+
+function readAuthLockToken(path: string) {
+  return readFile(path, "utf8")
+    .then((content) => {
+      const metadata = parseOpenCodeAuth(content)
+      return typeof metadata?.token === "string" ? metadata.token : undefined
+    })
+    .catch((error: unknown) => {
+      if (errorCode(error) === "ENOENT" || errorCode(error) === "ENOTDIR") return undefined
+      throw error
+    })
+}
+
+function waitForLock(signal: AbortSignal) {
+  if (signal.aborted) return Promise.reject(signal.reason)
+
+  return new Promise<void>((resolveWait, reject) => {
+    const done = () => {
+      signal.removeEventListener("abort", cancel)
+      resolveWait()
+    }
+    const cancel = () => {
+      clearTimeout(timeout)
+      reject(signal.reason)
+    }
+    const timeout = setTimeout(done, AUTH_LOCK_RETRY_MS)
+    signal.addEventListener("abort", cancel, { once: true })
+  })
+}
+
 async function saveOpenCodeOAuth(previous: OpenCodeOAuth, next: OpenCodeOAuth) {
   const data = await loadOpenCodeAuthFile()
   const current = parseOpenCodeOAuth(data.openai)
@@ -244,10 +411,15 @@ async function saveOpenCodeOAuth(previous: OpenCodeOAuth, next: OpenCodeOAuth) {
   }
 
   const updated = { ...data, openai: next }
-  await writeFile(openCodeAuthPath(), JSON.stringify(updated), {
-    mode: 0o600,
-  })
-  await chmod(openCodeAuthPath(), 0o600)
+  const authPath = openCodeAuthPath()
+  const temporary = `${authPath}.${process.pid}.${randomUUID()}.tmp`
+  try {
+    await writeFile(temporary, JSON.stringify(updated), { mode: 0o600 })
+    await rename(temporary, authPath)
+  } finally {
+    await rm(temporary, { force: true })
+  }
+  await chmod(authPath, 0o600)
   return next
 }
 
@@ -279,53 +451,60 @@ function parseJwtClaims(token: string): Record<string, unknown> | undefined {
 }
 
 async function refreshOpenCodeOAuth(signal: AbortSignal): Promise<CodexAuth> {
-  const loaded = await loadOpenCodeOAuth()
-  if (loaded.environment) {
-    throw new Error("OpenCode ChatGPT authentication from OPENCODE_AUTH_CONTENT cannot be refreshed")
-  }
-  const current = loaded.auth
-  if (current.expires > Date.now() + TOKEN_REFRESH_WINDOW_MS) return codexAuth(current)
+  return withAuthLock(signal, async () => {
+    const loaded = await loadOpenCodeOAuth()
+    if (loaded.environment) {
+      throw new Error("OpenCode ChatGPT authentication from OPENCODE_AUTH_CONTENT cannot be refreshed")
+    }
+    const current = loaded.auth
+    if (current.expires > Date.now() + TOKEN_REFRESH_WINDOW_MS) return codexAuth(current)
 
-  const response = await fetch(OAUTH_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: current.refresh,
-      client_id: OAUTH_CLIENT_ID,
-    }),
-    signal,
+    const response = await fetch(OAUTH_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: current.refresh,
+        client_id: OAUTH_CLIENT_ID,
+      }),
+      signal,
+    })
+    if (!response.ok) {
+      throw new Error(
+        `OpenCode ChatGPT authentication refresh failed with HTTP ${response.status}; run \`opencode auth login\` and retry`,
+      )
+    }
+
+    const payload: unknown = await response.json()
+    if (!isRecord(payload)) throw new Error("OpenCode ChatGPT authentication refresh returned invalid JSON")
+    const access = cleanText(payload.access_token, 20_000)
+    if (!access) throw new Error("OpenCode ChatGPT authentication refresh returned no access token")
+
+    const claims = tokenAuthClaims(payload.id_token) ?? tokenAuthClaims(access)
+    const accountId = cleanText(claims?.chatgpt_account_id, 1_000) ?? cleanText(current.accountId, 1_000)
+    const next: OpenCodeOAuth = {
+      ...current,
+      access,
+      refresh: cleanText(payload.refresh_token, 20_000) ?? current.refresh,
+      expires: Date.now() + (typeof payload.expires_in === "number" ? payload.expires_in : 3_600) * 1_000,
+      ...(accountId ? { accountId } : {}),
+    }
+    const saved = await saveOpenCodeOAuth(current, next)
+    return codexAuth(saved, saved === next ? payload.id_token : undefined)
   })
-  if (!response.ok) {
-    throw new Error(
-      `OpenCode ChatGPT authentication refresh failed with HTTP ${response.status}; run \`opencode auth login\` and retry`,
-    )
-  }
-
-  const payload: unknown = await response.json()
-  if (!isRecord(payload)) throw new Error("OpenCode ChatGPT authentication refresh returned invalid JSON")
-  const access = cleanText(payload.access_token, 20_000)
-  if (!access) throw new Error("OpenCode ChatGPT authentication refresh returned no access token")
-
-  const claims = tokenAuthClaims(payload.id_token) ?? tokenAuthClaims(access)
-  const accountId = cleanText(claims?.chatgpt_account_id, 1_000) ?? cleanText(current.accountId, 1_000)
-  const next: OpenCodeOAuth = {
-    ...current,
-    access,
-    refresh: cleanText(payload.refresh_token, 20_000) ?? current.refresh,
-    expires: Date.now() + (typeof payload.expires_in === "number" ? payload.expires_in : 3_600) * 1_000,
-    ...(accountId ? { accountId } : {}),
-  }
-  const saved = await saveOpenCodeOAuth(current, next)
-  return codexAuth(saved, saved === next ? payload.id_token : undefined)
 }
 
 export const CodexWebSearchPlugin: Plugin = async ({ worktree }) => {
+  const currentPath = resolve(fileURLToPath(import.meta.url))
+  const projectPaths = ["plugin", "plugins"].map((directory) =>
+    resolve(worktree, ".opencode", directory, "codex-web-search.ts"),
+  )
   if (
-    ["plugin", "plugins"]
-      .map((directory) => join(homedir(), ".config", "opencode", directory, "codex-web-search.ts"))
-      .includes(fileURLToPath(import.meta.url)) &&
-    ["plugin", "plugins"].some((directory) => existsSync(join(worktree, ".opencode", directory, "codex-web-search.ts")))
+    !projectPaths.includes(currentPath) &&
+    openCodeConfigPaths()
+      .flatMap((root) => ["plugin", "plugins"].map((directory) => join(root, directory, "codex-web-search.ts")))
+      .includes(currentPath) &&
+    projectPaths.some((path) => existsSync(path))
   ) {
     return {}
   }

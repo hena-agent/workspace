@@ -64,6 +64,7 @@ export function createHenaClient(config?: Config & { directory?: string }): Hena
   client.interceptors.request.use((request) => rewrite(request, config?.directory))
   client.interceptors.error.use(wrapClientError)
   const sdk = new HenaClient({ client })
+  // PluginInput still exposes this legacy client, so host-only endpoints must preserve its configured transport.
   const refresh = <ThrowOnError extends boolean = false>(options: Options<AuthRefreshData, ThrowOnError>) =>
     (options.client ?? client).post<AuthRefreshResponses, unknown, ThrowOnError>({
       url: "/auth/{providerID}/refresh",

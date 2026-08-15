@@ -8,7 +8,6 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { tool } from "@opencode-ai/plugin/tool"
 
 const SEARCH_ENDPOINT = "https://chatgpt.com/backend-api/codex/alpha/search"
-const SEARCH_MODEL = "gpt-4o"
 const REQUEST_TIMEOUT_MS = 15_000
 const TOKEN_REFRESH_WINDOW_MS = 5 * 60_000
 const DEFAULT_MAX_RESULTS = 8
@@ -34,6 +33,7 @@ type RefreshedOpenCodeOAuth = Pick<OpenCodeOAuth, "type" | "access" | "expires" 
   fedramp: boolean
 }
 
+// The host augments its legacy PluginInput client with this API in packages/sdk/js/src/client.ts.
 type AuthRefreshClient = {
   auth: {
     refresh: (options: {
@@ -60,6 +60,34 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function supportsAuthRefresh(client: unknown): client is AuthRefreshClient {
   return isRecord(client) && isRecord(client.auth) && typeof client.auth.refresh === "function"
+}
+
+function refreshHostAuth(client: unknown, signal: AbortSignal) {
+  if (supportsAuthRefresh(client)) {
+    return client.auth.refresh({ path: { providerID: "openai" }, signal, throwOnError: true })
+  }
+  throw new Error("Codex web search requires an OpenCode host that provides auth.refresh")
+}
+
+function selectCodexSearchModel(models: Record<string, unknown>) {
+  return Object.values(models)
+    .flatMap((model) => {
+      if (!isRecord(model)) return []
+      const api = isRecord(model.api) && typeof model.api.id === "string" ? model.api.id : undefined
+      const id = api ?? (typeof model.id === "string" ? model.id : undefined)
+      if (!id || !isCodexModel(id)) return []
+      return [{ id, releaseDate: typeof model.release_date === "string" ? model.release_date : "" }]
+    })
+    .sort((left, right) => right.releaseDate.localeCompare(left.releaseDate))[0]?.id
+}
+
+function isCodexModel(id: string) {
+  if (id === "gpt-5.4" || id === "gpt-5.4-mini" || id === "gpt-5.5" || id === "gpt-5.3-codex-spark") {
+    return true
+  }
+  if (id === "gpt-5.5-pro" || id === "gpt-5.6") return false
+  const version = id.match(/^gpt-(\d+\.\d+)/)?.[1]
+  return version ? Number(version) > 5.4 : false
 }
 
 function errorCode(error: unknown) {
@@ -361,6 +389,7 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, worktree }) => {
   ) {
     return {}
   }
+  if (!supportsAuthRefresh(client)) return {}
 
   return {
     tool: {
@@ -421,18 +450,15 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, worktree }) => {
 
           try {
             const auth = await loadCodexAuth(controller.signal, async (signal) => {
-              if (!supportsAuthRefresh(client)) {
-                throw new Error("OpenCode must be updated before ChatGPT authentication can be refreshed")
-              }
-              const response = await client.auth.refresh({
-                path: { providerID: "openai" },
-                signal,
-                throwOnError: true,
-              })
+              const response = await refreshHostAuth(client, signal)
               const refreshed = parseRefreshedOpenCodeOAuth(response.data)
               if (!refreshed) throw new Error("OpenCode ChatGPT authentication refresh returned invalid credentials")
               return refreshed
             })
+            const providers = await client.provider.list({ signal: controller.signal, throwOnError: true })
+            const openai = providers.data.all.find((provider) => provider.id === "openai")
+            const model = selectCodexSearchModel(openai?.models ?? {})
+            if (!model) throw new Error("OpenCode has no Codex-compatible OpenAI model available for web search")
             const headers: Record<string, string> = {
               Accept: "application/json",
               Authorization: `Bearer ${auth.accessToken}`,
@@ -447,7 +473,7 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, worktree }) => {
               headers,
               body: JSON.stringify({
                 id: `search_session_${randomUUID().replaceAll("-", "").slice(0, 16)}`,
-                model: SEARCH_MODEL,
+                model,
                 commands: {
                   search_query: [searchQuery],
                 },

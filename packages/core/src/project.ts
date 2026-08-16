@@ -6,6 +6,7 @@ import path from "path"
 import { AbsolutePath } from "./schema"
 import { FSUtil } from "./fs-util"
 import { Git } from "./git"
+import { Global } from "./global"
 import { makeGlobalNode } from "./effect/app-node"
 import { Hash } from "./util/hash"
 import { ProjectDirectories } from "./project/directories"
@@ -35,12 +36,13 @@ export interface Resolved {
 }
 
 export interface Interface {
+  readonly create: () => Effect.Effect<Resolved>
   readonly directories: (input: DirectoriesInput) => Effect.Effect<Directories>
   readonly resolve: (input: AbsolutePath) => Effect.Effect<Resolved>
   /**
    * Temporary bridge method for writing the resolved project ID to the repo-local cache.
    *
-    * This exists while the legacy project service and this core project
+   * This exists while the legacy project service and this core project
    * service work together: core resolves the ID, while the old service still owns
    * database migration and persistence. The old service should call this after it
    * finishes migrating from `resolve().previous` to `resolve().id`; once project
@@ -56,7 +58,22 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const git = yield* Git.Service
+    const global = yield* Global.Service
     const projectDirectories = yield* ProjectDirectories.Service
+
+    yield* fs.ensureDir(global.projects).pipe(Effect.orDie)
+    const projects = AbsolutePath.make(FSUtil.resolve(global.projects))
+    if (process.platform !== "win32") yield* fs.chmod(projects, 0o700).pipe(Effect.orDie)
+
+    const create = Effect.fn("Project.create")(function* () {
+      const id = ID.create()
+      const directory = AbsolutePath.make(path.join(projects, id))
+      return yield* Effect.gen(function* () {
+        yield* fs.ensureDir(directory).pipe(Effect.orDie)
+        if (process.platform !== "win32") yield* fs.chmod(directory, 0o700).pipe(Effect.orDie)
+        return { id, directory }
+      }).pipe(Effect.onError(() => fs.remove(directory, { recursive: true, force: true }).pipe(Effect.ignore)))
+    })
 
     const directories = Effect.fn("Project.directories")(function* (input: DirectoriesInput) {
       return yield* projectDirectories.list(input.projectID)
@@ -108,6 +125,15 @@ const layer = Layer.effect(
     })
 
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
+      const directory = AbsolutePath.make(FSUtil.resolve(input))
+      const managedID = path.relative(projects, directory).split(path.sep)[0]
+      if (managedID && ID.isManaged(managedID)) {
+        return {
+          id: ID.make(managedID),
+          directory: AbsolutePath.make(path.join(projects, managedID)),
+        }
+      }
+
       const repo = yield* git.repo.discover(input)
       if (!repo) return { id: ID.global, directory: AbsolutePath.make(path.parse(input).root), vcs: undefined }
 
@@ -125,12 +151,12 @@ const layer = Layer.effect(
       yield* fs.writeFileString(path.join(input.store, "hena"), input.id).pipe(Effect.ignore)
     })
 
-    return Service.of({ directories, resolve, commit })
+    return Service.of({ create, directories, resolve, commit })
   }),
 )
 
 export const node = makeGlobalNode({
   service: Service,
   layer: layer,
-  deps: [FSUtil.node, Git.node, ProjectDirectories.node],
+  deps: [FSUtil.node, Git.node, Global.node, ProjectDirectories.node],
 })

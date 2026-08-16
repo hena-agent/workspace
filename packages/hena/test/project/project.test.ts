@@ -16,6 +16,7 @@ import { Cause, Effect, Exit, Layer, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { ProjectV2 } from "@hena/core/project"
 import { AbsolutePath } from "@hena/core/schema"
+import { FSUtil } from "@hena/core/fs-util"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
 import { testEffect } from "../lib/effect"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -24,7 +25,13 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 
 const encoder = new TextEncoder()
 
-const projectTestNode = LayerNode.group([Project.node, Database.node, CrossSpawnSpawner.node])
+const projectTestNode = LayerNode.group([
+  Project.node,
+  ProjectV2.node,
+  Database.node,
+  FSUtil.node,
+  CrossSpawnSpawner.node,
+])
 const it = testEffect(AppNodeBuilder.build(projectTestNode))
 
 function remoteProjectID(remote: string) {
@@ -74,19 +81,14 @@ function projectLayerWithFailure(failArg: string) {
 }
 
 function projectV2FailureLayer() {
-  return Layer.succeed(
-    ProjectV2.Service,
-    ProjectV2.Service.of({
-      directories: () => Effect.succeed([]),
-      resolve: (input) =>
-        Effect.succeed({
-          id: ProjectV2.ID.global,
-          directory: input,
-          vcs: { type: "git" as const, store: input },
-        }),
-      commit: () => Effect.void,
-    }),
-  )
+  return Layer.mock(ProjectV2.Service, {
+    resolve: (input) =>
+      Effect.succeed({
+        id: ProjectV2.ID.global,
+        directory: input,
+        vcs: { type: "git" as const, store: input },
+      }),
+  })
 }
 
 const failureIt = (failArg: string) =>
@@ -146,6 +148,24 @@ describe("Project.fromDirectory", () => {
       const tmp = yield* tmpdirScoped()
       const result = yield* project.fromDirectory(tmp)
       expect(result.project.id).toBe(ProjectV2.ID.global)
+    }),
+  )
+
+  it.live("opens a managed project directory", () =>
+    Effect.gen(function* () {
+      const fs = yield* FSUtil.Service
+      const project = yield* Project.Service
+      const projectV2 = yield* ProjectV2.Service
+      const managed = yield* projectV2.create()
+      yield* Effect.addFinalizer(() =>
+        fs.remove(managed.directory, { recursive: true, force: true }).pipe(Effect.ignore),
+      )
+
+      const result = yield* project.fromDirectory(managed.directory)
+
+      expect(result.project.id).toBe(managed.id)
+      expect(result.project.worktree).toBe(managed.directory)
+      expect(result.project.vcs).toBeUndefined()
     }),
   )
 
@@ -741,7 +761,7 @@ describe("Project.addSandbox and Project.removeSandbox", () => {
 })
 
 describe("Project folderless rows", () => {
-  it.live("are hidden from reads and refused by writes", () =>
+  it.live("are hidden from reads and refused by writes until reopened", () =>
     Effect.gen(function* () {
       const project = yield* Project.Service
       const { db } = yield* Database.Service
@@ -756,8 +776,6 @@ describe("Project folderless rows", () => {
         .where(eq(ProjectTable.id, result.project.id))
         .run()
         .pipe(Effect.orDie)
-      const before = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()
-
       expect(yield* project.list()).toEqual([])
       expect(yield* project.get(result.project.id)).toBeUndefined()
       expect(yield* project.sandboxes(result.project.id)).toEqual([])
@@ -769,8 +787,13 @@ describe("Project folderless rows", () => {
         "Project.NotFoundError",
       )
       expect((yield* Effect.flip(project.removeSandbox(result.project.id, sandbox)))._tag).toBe("Project.NotFoundError")
-      expect(yield* Effect.exit(project.fromDirectory(tmp))).toEqual(expect.objectContaining({ _tag: "Failure" }))
-      expect(yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()).toEqual(before)
+      expect((yield* project.fromDirectory(tmp)).project).toMatchObject({
+        id: result.project.id,
+        worktree: result.project.worktree,
+      })
+      expect(yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()).toMatchObject({
+        worktree: result.project.worktree,
+      })
     }),
   )
 })

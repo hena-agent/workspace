@@ -222,11 +222,7 @@ const layer = Layer.effect(
       // Phase 2: upsert
       const projectID = ProjectV2.ID.make(data.id)
       yield* migrateProjectId(data.previous ? ProjectV2.ID.make(data.previous) : undefined, projectID)
-      // migrateProjectId copies worktree verbatim, so a folderless row would
-      // survive the migration and die here after its transaction commits. The
-      // identity-migration semantics belong to #14.
       const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get().pipe(Effect.orDie)
-      if (row && row.worktree === null) return yield* Effect.die(`Project ${projectID} has no worktree`)
       const existing = (row && fromRow(row)) ?? {
         id: projectID,
         worktree,

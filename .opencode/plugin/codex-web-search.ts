@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import { existsSync } from "node:fs"
 import { readFile, realpath } from "node:fs/promises"
 import { homedir } from "node:os"
-import { join, resolve } from "node:path"
+import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import type { Plugin } from "@opencode-ai/plugin"
 import { tool } from "@opencode-ai/plugin/tool"
@@ -45,6 +45,7 @@ type AuthRefreshClient = {
 }
 
 let authRefresh: Promise<CodexAuth> | undefined
+const registeredClients = new WeakSet()
 
 type SearchResult = {
   title: string
@@ -328,6 +329,15 @@ function openCodeConfigPaths() {
   ]
 }
 
+function projectConfigPaths(directory: string, worktree: string): string[] {
+  const root = resolve(worktree)
+  const current = resolve(directory)
+  if (current === root) return [resolve(root, ".opencode")]
+  const parent = dirname(current)
+  if (parent === current) return [resolve(current, ".opencode")]
+  return [resolve(current, ".opencode"), ...projectConfigPaths(parent, root)]
+}
+
 function canonicalPath(path: string) {
   return realpath(path).catch((error: unknown) => {
     if (errorCode(error) === "ENOENT" || errorCode(error) === "ENOTDIR") return resolve(path)
@@ -362,11 +372,17 @@ function parseJwtClaims(token: string): Record<string, unknown> | undefined {
   }
 }
 
-export const CodexWebSearchPlugin: Plugin = async ({ client, worktree }) => {
+export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree }) => {
   const currentPath = await canonicalPath(fileURLToPath(import.meta.url))
+  const projectConfigDisabled = ["1", "true"].includes(process.env.OPENCODE_DISABLE_PROJECT_CONFIG?.toLowerCase() ?? "")
+  const projectRoots = projectConfigDisabled
+    ? []
+    : await Promise.all(projectConfigPaths(directory, worktree).map(canonicalPath))
   const projectPaths = await Promise.all(
-    ["plugin", "plugins"].map((directory) =>
-      canonicalPath(resolve(worktree, ".opencode", directory, "codex-web-search.ts")),
+    projectRoots.flatMap((root) =>
+      ["plugin", "plugins"].map((pluginDirectory) =>
+        canonicalPath(resolve(root, pluginDirectory, "codex-web-search.ts")),
+      ),
     ),
   )
   const globalPaths = await Promise.all(
@@ -374,22 +390,13 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, worktree }) => {
       ["plugin", "plugins"].map((directory) => canonicalPath(join(root, directory, "codex-web-search.ts"))),
     ),
   )
-  const projectConfigDisabled = ["1", "true"].includes(process.env.OPENCODE_DISABLE_PROJECT_CONFIG?.toLowerCase() ?? "")
-  const customConfig = process.env.OPENCODE_CONFIG_DIR?.trim() || undefined
-  const customProjectConfig =
-    customConfig !== undefined &&
-    (await canonicalPath(customConfig)) === (await canonicalPath(resolve(worktree, ".opencode")))
-  const projectConfigLoaded =
-    (!projectConfigDisabled || customProjectConfig) && projectPaths.some((path) => existsSync(path))
+  const selectedProjectPath = projectPaths.find((path) => existsSync(path))
   const selectedGlobalPath = globalPaths.findLast((path) => existsSync(path))
-  if (
-    !projectPaths.includes(currentPath) &&
-    globalPaths.includes(currentPath) &&
-    (projectConfigLoaded || selectedGlobalPath !== currentPath)
-  ) {
-    return {}
-  }
+  if (selectedProjectPath && selectedProjectPath !== currentPath) return {}
+  if (!selectedProjectPath && globalPaths.includes(currentPath) && selectedGlobalPath !== currentPath) return {}
   if (!supportsAuthRefresh(client)) return {}
+  if (registeredClients.has(client)) return {}
+  registeredClients.add(client)
 
   return {
     tool: {

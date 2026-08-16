@@ -356,8 +356,18 @@ function codexAuth(auth: Pick<OpenCodeOAuth, "access" | "accountId" | "fedramp">
 
 function tokenAuthClaims(token: unknown) {
   const claims = typeof token === "string" ? parseJwtClaims(token) : undefined
-  const auth = claims?.["https://api.openai.com/auth"]
-  return isRecord(auth) ? auth : undefined
+  if (!claims) return undefined
+  const auth = claims["https://api.openai.com/auth"]
+  const nested = isRecord(auth) ? auth : undefined
+  const organizations = Array.isArray(claims.organizations) ? claims.organizations : []
+  const organization = organizations.find(isRecord)
+  return {
+    chatgpt_account_id:
+      cleanText(claims.chatgpt_account_id, 1_000) ??
+      cleanText(nested?.chatgpt_account_id, 1_000) ??
+      cleanText(organization?.id, 1_000),
+    chatgpt_account_is_fedramp: claims.chatgpt_account_is_fedramp ?? nested?.chatgpt_account_is_fedramp,
+  }
 }
 
 function parseJwtClaims(token: string): Record<string, unknown> | undefined {

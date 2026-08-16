@@ -184,26 +184,26 @@ export type OpenAIOAuth = {
 export type RefreshedOpenAIAuth = OpenAIOAuth & { fedramp: boolean }
 
 export function refreshOpenAIAuth(input: {
-  getAuth: () => Promise<OpenAIOAuth>
-  setAuth: (expected: OpenAIOAuth, auth: OpenAIOAuth) => Promise<boolean>
+  getAuth: (signal: AbortSignal) => Promise<OpenAIOAuth>
+  setAuth: (expected: OpenAIOAuth, auth: OpenAIOAuth, signal: AbortSignal) => Promise<boolean>
   issuer?: string
   minimumValidityMs?: number
   environmentBacked?: boolean
-  signal?: AbortSignal
 }) {
   if (input.environmentBacked ?? isEnvironmentBacked()) {
     return Promise.reject(new Error("Environment-backed OpenAI OAuth authentication cannot be refreshed durably"))
   }
 
+  const exchangeSignal = AbortSignal.timeout(OPENAI_OAUTH_REFRESH_TIMEOUT_MS)
   return Flock.withLock(
     OPENAI_OAUTH_REFRESH_LOCK,
     async () => {
-      const current = await input.getAuth()
+      const current = await input.getAuth(exchangeSignal)
       if (current.access && current.expires > Date.now() + (input.minimumValidityMs ?? 0)) {
         return { ...current, fedramp: current.fedramp ?? tokenFedramp(current.access) ?? false }
       }
 
-      const tokens = await refreshAccessToken(current.refresh, input.issuer, input.signal)
+      const tokens = await refreshAccessToken(current.refresh, input.issuer, exchangeSignal)
       const accountId = extractAccountId(tokens) || current.accountId
       const fedramp = extractFedramp(tokens) ?? current.fedramp ?? false
       const next: OpenAIOAuth = {
@@ -214,15 +214,16 @@ export function refreshOpenAIAuth(input: {
         ...(accountId ? { accountId } : {}),
         fedramp,
       }
-      if (await input.setAuth(current, next)) return { ...next, fedramp }
+      const persistenceSignal = AbortSignal.timeout(OPENAI_OAUTH_REFRESH_TIMEOUT_MS)
+      if (await input.setAuth(current, next, persistenceSignal)) return { ...next, fedramp }
 
-      const latest = await input.getAuth()
+      const latest = await input.getAuth(persistenceSignal)
       if (latest.access && latest.expires > Date.now() + (input.minimumValidityMs ?? 0)) {
         return { ...latest, fedramp: latest.fedramp ?? tokenFedramp(latest.access) ?? false }
       }
       throw new Error("OpenAI OAuth authentication changed while it was being refreshed")
     },
-    { signal: input.signal },
+    { signal: exchangeSignal },
   )
 }
 

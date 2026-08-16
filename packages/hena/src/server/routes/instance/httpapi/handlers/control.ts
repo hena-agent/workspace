@@ -25,17 +25,19 @@ export const controlHandlers = HttpApiBuilder.group(RootHttpApi, "control", (han
       if (ctx.params.providerID !== "openai") return yield* new HttpApiError.BadRequest({})
 
       const refreshed = yield* Effect.tryPromise({
-        try: (signal) =>
+        try: () =>
           refreshOpenAIAuth({
-            getAuth: async () => {
-              const current = await Effect.runPromise(auth.get("openai"))
+            getAuth: async (signal) => {
+              const current = await Effect.runPromise(auth.get("openai"), { signal })
               if (current?.type !== "oauth") throw new Error("OpenAI OAuth authentication is unavailable")
               return current
             },
-            setAuth: (expected, next) =>
-              Effect.runPromise(auth.compareAndSetOauth("openai", new Auth.Oauth(expected), new Auth.Oauth(next))),
+            setAuth: (expected, next, signal) =>
+              Effect.runPromise(
+                auth.compareAndSetOauth("openai", new Auth.Oauth(expected), new Auth.Oauth(next), signal),
+                { signal },
+              ),
             minimumValidityMs: OPENAI_OAUTH_REFRESH_WINDOW_MS,
-            signal,
           }),
         catch: () => new HttpApiError.BadRequest({}),
       })

@@ -47,7 +47,12 @@ export interface Interface {
   readonly get: (providerID: string) => Effect.Effect<Info | undefined, AuthError>
   readonly all: () => Effect.Effect<Record<string, Info>, AuthError>
   readonly set: (key: string, info: Info) => Effect.Effect<void, AuthError>
-  readonly compareAndSetOauth: (key: string, expected: Oauth, info: Oauth) => Effect.Effect<boolean, AuthError>
+  readonly compareAndSetOauth: (
+    key: string,
+    expected: Oauth,
+    info: Oauth,
+    signal?: AbortSignal,
+  ) => Effect.Effect<boolean, AuthError>
   readonly remove: (key: string) => Effect.Effect<void, AuthError>
 }
 
@@ -103,11 +108,12 @@ const layer = Layer.effect(
       key: string,
       expected: Oauth,
       info: Oauth,
+      signal?: AbortSignal,
     ) {
       const norm = key.replace(/\/+$/, "")
       return yield* Effect.scoped(
         Effect.gen(function* () {
-          yield* Flock.effect(AUTH_FILE_LOCK)
+          yield* Flock.effect(AUTH_FILE_LOCK, { signal })
           if (isEnvironmentBacked()) return false
           const data = yield* all()
           const current = data[norm]

@@ -9,6 +9,7 @@ import {
   type IdTokenClaims,
   type OpenAIOAuth,
 } from "../../src/plugin/openai/codex"
+import { Effect, Fiber } from "effect"
 
 function createTestJwt(payload: object): string {
   const header = Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")
@@ -250,6 +251,55 @@ describe("plugin.codex", () => {
     expect(refreshed.map((item) => item.access)).toEqual(["access-new", "access-new"])
     expect(refreshed.map((item) => item.refresh)).toEqual(["refresh-new", "refresh-new"])
     expect(refreshed.map((item) => item.fedramp)).toEqual([true, true])
+  })
+
+  test("continues OpenAI token refresh after caller cancellation", async () => {
+    let auth: OpenAIOAuth = {
+      type: "oauth",
+      refresh: "refresh-old",
+      access: "access-old",
+      expires: 0,
+    }
+    let refreshRequests = 0
+    let updates = 0
+    let resolveRefresh: (() => void) | undefined
+    const refreshReady = new Promise<void>((resolve) => {
+      resolveRefresh = resolve
+    })
+
+    using server = Bun.serve({
+      port: 0,
+      async fetch() {
+        refreshRequests += 1
+        await refreshReady
+        return Response.json({
+          access_token: "access-new",
+          refresh_token: "refresh-new",
+          expires_in: 3600,
+        })
+      },
+    })
+
+    const fiber = Effect.runFork(
+      Effect.tryPromise(() =>
+        refreshOpenAIAuth({
+          getAuth: async () => auth,
+          setAuth: async (_expected, next) => {
+            updates += 1
+            auth = next
+            return true
+          },
+          issuer: server.url.origin,
+        }),
+      ),
+    )
+    await waitFor(() => refreshRequests === 1)
+    await Effect.runPromise(Fiber.interrupt(fiber))
+    resolveRefresh!()
+    await waitFor(() => updates === 1)
+
+    expect(auth.access).toBe("access-new")
+    expect(auth.refresh).toBe("refresh-new")
   })
 
   test("preserves OpenAI auth changed during refresh", async () => {

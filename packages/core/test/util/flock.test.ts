@@ -5,6 +5,7 @@ import path from "path"
 import os from "os"
 import { Flock } from "@hena/core/util/flock"
 import { Hash } from "@hena/core/util/hash"
+import { Effect } from "effect"
 
 type Msg = {
   key: string
@@ -114,6 +115,21 @@ async function readJson<T>(p: string): Promise<T> {
 }
 
 describe("util.flock", () => {
+  test("effect honors an explicit abort signal while waiting", async () => {
+    await using tmp = await tmpdir()
+    const dir = path.join(tmp.path, "locks")
+    const key = "flock:effect-abort"
+    await using held = await Flock.acquire(key, { dir })
+    const controller = new AbortController()
+    const waiting = Effect.runPromise(
+      Effect.scoped(Flock.effect(key, { dir, signal: controller.signal, baseDelayMs: 5, maxDelayMs: 5 })),
+    )
+    await sleep(20)
+    controller.abort(new Error("deadline exceeded"))
+
+    await expect(waiting).rejects.toThrow("deadline exceeded")
+  })
+
   test("enforces mutual exclusion under process contention", async () => {
     await using tmp = await tmpdir()
     const dir = path.join(tmp.path, "locks")

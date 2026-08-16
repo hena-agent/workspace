@@ -4,12 +4,9 @@ import {
   parseJwtClaims,
   extractAccountIdFromClaims,
   extractAccountId,
-  refreshOpenAIAuth,
   renderOAuthError,
   type IdTokenClaims,
-  type OpenAIOAuth,
 } from "../../src/plugin/openai/codex"
-import { Effect, Fiber } from "effect"
 
 function createTestJwt(payload: object): string {
   const header = Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")
@@ -195,225 +192,16 @@ describe("plugin.codex", () => {
     )
   })
 
-  test("serializes independent OpenAI token refreshes", async () => {
-    let auth: OpenAIOAuth = {
-      type: "oauth",
-      refresh: "refresh-old",
-      access: "access-old",
-      expires: 0,
-    }
-    let updates = 0
-    let refreshRequests = 0
-    let resolveRefresh: (() => void) | undefined
-    const refreshReady = new Promise<void>((resolve) => {
-      resolveRefresh = resolve
-    })
-
-    using server = Bun.serve({
-      port: 0,
-      async fetch(request) {
-        expect(await request.text()).toContain("refresh_token=refresh-old")
-        refreshRequests += 1
-        await refreshReady
-        return Response.json({
-          id_token: createTestJwt({
-            chatgpt_account_id: "acc-123",
-            "https://api.openai.com/auth": { chatgpt_account_is_fedramp: true },
-          }),
-          access_token: "access-new",
-          refresh_token: "refresh-new",
-          expires_in: 3600,
-        })
-      },
-    })
-
-    const input = {
-      getAuth: async () => auth,
-      setAuth: async (expected: OpenAIOAuth, next: OpenAIOAuth) => {
-        if (auth.access !== expected.access || auth.refresh !== expected.refresh || auth.expires !== expected.expires) {
-          return false
-        }
-        updates += 1
-        auth = next
-        return true
-      },
-      issuer: server.url.origin,
-      minimumValidityMs: 5 * 60_000,
-    }
-    const first = refreshOpenAIAuth(input)
-    await waitFor(() => refreshRequests === 1)
-    const second = refreshOpenAIAuth(input)
-    resolveRefresh!()
-
-    const refreshed = await Promise.all([first, second])
-    expect(refreshRequests).toBe(1)
-    expect(updates).toBe(1)
-    expect(refreshed.map((item) => item.access)).toEqual(["access-new", "access-new"])
-    expect(refreshed.map((item) => item.refresh)).toEqual(["refresh-new", "refresh-new"])
-    expect(refreshed.map((item) => item.fedramp)).toEqual([true, true])
-  })
-
-  test("continues OpenAI token refresh after caller cancellation", async () => {
-    let auth: OpenAIOAuth = {
-      type: "oauth",
-      refresh: "refresh-old",
-      access: "access-old",
-      expires: 0,
-    }
-    let refreshRequests = 0
-    let updates = 0
-    let resolveRefresh: (() => void) | undefined
-    const refreshReady = new Promise<void>((resolve) => {
-      resolveRefresh = resolve
-    })
-
-    using server = Bun.serve({
-      port: 0,
-      async fetch() {
-        refreshRequests += 1
-        await refreshReady
-        return Response.json({
-          access_token: "access-new",
-          refresh_token: "refresh-new",
-          expires_in: 3600,
-        })
-      },
-    })
-
-    const fiber = Effect.runFork(
-      Effect.tryPromise(() =>
-        refreshOpenAIAuth({
-          getAuth: async () => auth,
-          setAuth: async (_expected, next) => {
-            updates += 1
-            auth = next
-            return true
-          },
-          issuer: server.url.origin,
-        }),
-      ),
-    )
-    await waitFor(() => refreshRequests === 1)
-    await Effect.runPromise(Fiber.interrupt(fiber))
-    resolveRefresh!()
-    await waitFor(() => updates === 1)
-
-    expect(auth.access).toBe("access-new")
-    expect(auth.refresh).toBe("refresh-new")
-  })
-
-  test("preserves OpenAI auth changed during refresh", async () => {
-    let auth: OpenAIOAuth = {
-      type: "oauth",
-      refresh: "refresh-old",
-      access: "access-old",
-      expires: 0,
-    }
-    let updates = 0
-    let refreshRequests = 0
-    let resolveRefresh: (() => void) | undefined
-    const refreshReady = new Promise<void>((resolve) => {
-      resolveRefresh = resolve
-    })
-
-    using server = Bun.serve({
-      port: 0,
-      async fetch() {
-        refreshRequests += 1
-        await refreshReady
-        return Response.json({
-          id_token: createTestJwt({ chatgpt_account_id: "acc-old" }),
-          access_token: "access-refreshed",
-          refresh_token: "refresh-refreshed",
-          expires_in: 3600,
-        })
-      },
-    })
-
-    const refreshing = refreshOpenAIAuth({
-      getAuth: async () => auth,
-      setAuth: async (expected, next) => {
-        if (auth.access !== expected.access || auth.refresh !== expected.refresh || auth.expires !== expected.expires) {
-          return false
-        }
-        updates += 1
-        auth = next
-        return true
-      },
-      issuer: server.url.origin,
-    })
-    await waitFor(() => refreshRequests === 1)
-    auth = {
-      type: "oauth",
-      refresh: "refresh-login",
-      access: "access-login",
-      expires: Date.now() + 3_600_000,
-      accountId: "acc-login",
-    }
-    resolveRefresh!()
-
-    const refreshed = await refreshing
-    expect(refreshed.access).toBe("access-login")
-    expect(refreshed.refresh).toBe("refresh-login")
-    expect(refreshed.accountId).toBe("acc-login")
-    expect(updates).toBe(0)
-  })
-
-  test("rejects refresh for environment-backed OpenAI auth", async () => {
-    await expect(
-      refreshOpenAIAuth({
-        getAuth: async () => {
-          throw new Error("should not read auth")
-        },
-        setAuth: async () => {
-          throw new Error("should not write auth")
-        },
-        environmentBacked: true,
-      }),
-    ).rejects.toThrow("cannot be refreshed durably")
-  })
-
-  test("retains the current refresh token when OpenAI omits a replacement", async () => {
-    let auth: OpenAIOAuth = {
-      type: "oauth",
-      refresh: "refresh-old",
-      access: "access-old",
-      expires: 0,
-      fedramp: true,
-    }
-
-    using server = Bun.serve({
-      port: 0,
-      fetch() {
-        return Response.json({
-          access_token: createTestJwt({
-            chatgpt_account_id: "acc-123",
-          }),
-          expires_in: 3600,
-        })
-      },
-    })
-
-    const refreshed = await refreshOpenAIAuth({
-      getAuth: async () => auth,
-      setAuth: async (_expected, next) => {
-        auth = next
-        return true
-      },
-      issuer: server.url.origin,
-    })
-
-    expect(refreshed.refresh).toBe("refresh-old")
-    expect(refreshed.fedramp).toBe(true)
-  })
-
-  test("deduplicates Codex refreshes without sharing caller cancellation", async () => {
+  test("deduplicates concurrent Codex token refreshes", async () => {
     let auth = {
       type: "oauth" as const,
       refresh: "refresh-old",
       access: "",
       expires: 0,
     }
+    const authUpdates: Array<{
+      body: { refresh: string; access: string; expires: number; accountId?: string }
+    }> = []
     let resolveRefresh: (() => void) | undefined
     const refreshReady = new Promise<void>((resolve) => {
       resolveRefresh = resolve
@@ -425,6 +213,18 @@ describe("plugin.codex", () => {
       port: 0,
       async fetch(request) {
         const url = new URL(request.url)
+        if (url.pathname === "/oauth/token") {
+          expect(await request.text()).toContain("refresh_token=refresh-old")
+          refreshRequests += 1
+          await refreshReady
+          return Response.json({
+            id_token: createTestJwt({ chatgpt_account_id: "acc-123" }),
+            access_token: "access-new",
+            refresh_token: "refresh-new",
+            expires_in: 3600,
+          })
+        }
+
         if (url.pathname === "/backend-api/codex/responses") {
           apiRequests.push({
             authorization: request.headers.get("authorization"),
@@ -441,17 +241,14 @@ describe("plugin.codex", () => {
       {
         client: {
           auth: {
-            async refresh() {
-              refreshRequests += 1
-              await refreshReady
-              return {
-                data: {
-                  type: "oauth",
-                  access: "access-new",
-                  expires: Date.now() + 3_600_000,
-                  accountId: "acc-123",
-                  fedramp: false,
-                },
+            async set(input: { body: { refresh: string; access: string; expires: number; accountId?: string } }) {
+              authUpdates.push(input)
+              auth = {
+                type: "oauth",
+                refresh: input.body.refresh,
+                access: input.body.access,
+                expires: input.body.expires,
+                ...(input.body.accountId && { accountId: input.body.accountId }),
               }
             },
           },
@@ -466,35 +263,30 @@ describe("plugin.codex", () => {
         $: {} as never,
       },
       {
+        issuer: server.url.origin,
         codexApiEndpoint: new URL("/backend-api/codex/responses", server.url).toString(),
       },
     )
     const loaded = await hooks.auth!.loader!(async () => auth as never, {} as never)
 
-    const controller = new AbortController()
-    const first = loaded.fetch!("https://api.openai.com/v1/responses", { signal: controller.signal })
+    const first = loaded.fetch!("https://api.openai.com/v1/responses")
     const second = loaded.fetch!("https://api.openai.com/v1/responses")
 
     await waitFor(() => refreshRequests === 1)
     expect(apiRequests).toHaveLength(0)
 
-    controller.abort(new Error("cancelled"))
-    await expect(first).rejects.toThrow("cancelled")
     resolveRefresh!()
-    await second
+    await Promise.all([first, second])
 
     expect(refreshRequests).toBe(1)
-    expect(auth.access).toBe("access-new")
-    expect(apiRequests).toEqual([{ authorization: "Bearer access-new", accountId: "acc-123" }])
-
-    auth.access = ""
-    auth.expires = 0
-    const aborted = new AbortController()
-    aborted.abort(new Error("pre-cancelled"))
-    await expect(loaded.fetch!("https://api.openai.com/v1/responses", { signal: aborted.signal })).rejects.toThrow(
-      "pre-cancelled",
-    )
-    expect(refreshRequests).toBe(1)
+    expect(authUpdates).toHaveLength(1)
+    expect(authUpdates[0]?.body.refresh).toBe("refresh-new")
+    expect(authUpdates[0]?.body.access).toBe("access-new")
+    expect(authUpdates[0]?.body.accountId).toBe("acc-123")
+    expect(apiRequests).toEqual([
+      { authorization: "Bearer access-new", accountId: "acc-123" },
+      { authorization: "Bearer access-new", accountId: "acc-123" },
+    ])
   })
 })
 

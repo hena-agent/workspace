@@ -11,8 +11,6 @@ import type {
   AppSkillsErrors,
   AppSkillsResponses,
   Auth as Auth3,
-  AuthRefreshErrors,
-  AuthRefreshResponses,
   AuthRemoveErrors,
   AuthRemoveResponses,
   AuthSetErrors,
@@ -505,25 +503,6 @@ export class Auth extends HeyApiClient {
         ...options?.headers,
         ...params.headers,
       },
-    })
-  }
-
-  /**
-   * Refresh auth credentials
-   *
-   * Refresh provider authentication credentials through the host-owned refresh path
-   */
-  public refresh<ThrowOnError extends boolean = false>(
-    parameters: {
-      providerID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "providerID" }] }])
-    return (options?.client ?? this.client).post<AuthRefreshResponses, AuthRefreshErrors, ThrowOnError>({
-      url: "/auth/{providerID}/refresh",
-      ...options,
-      ...params,
     })
   }
 }

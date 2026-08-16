@@ -113,7 +113,6 @@ export type OAuth = {
   expires: number
   accountId?: string
   enterpriseUrl?: string
-  fedramp?: boolean
 }
 
 export type ApiAuth = {
@@ -7144,39 +7143,6 @@ export type AuthSetResponses = {
 }
 
 export type AuthSetResponse = AuthSetResponses[keyof AuthSetResponses]
-
-export type AuthRefreshData = {
-  body?: never
-  path: {
-    providerID: string
-  }
-  query?: never
-  url: "/auth/{providerID}/refresh"
-}
-
-export type AuthRefreshErrors = {
-  /**
-   * BadRequest | InvalidRequestError
-   */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
-}
-
-export type AuthRefreshError = AuthRefreshErrors[keyof AuthRefreshErrors]
-
-export type AuthRefreshResponses = {
-  /**
-   * Refreshed authentication credentials
-   */
-  200: {
-    type: "oauth"
-    access: string
-    expires: number
-    accountId?: string
-    fedramp: boolean
-  }
-}
-
-export type AuthRefreshResponse = AuthRefreshResponses[keyof AuthRefreshResponses]
 
 export type AppLogData = {
   body?: {

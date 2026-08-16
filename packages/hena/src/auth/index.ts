@@ -4,10 +4,8 @@ import { Effect, Layer, Record, Result, Schema, Context } from "effect"
 import { NonNegativeInt } from "@hena/core/schema"
 import { Global } from "@/global"
 import { FSUtil } from "@hena/core/fs-util"
-import { Flock } from "@hena/core/util/flock"
 
 export const OAUTH_DUMMY_KEY = "hena-oauth-dummy-key"
-const AUTH_FILE_LOCK = "auth-file"
 
 const file = path.join(Global.Path.data, "auth.json")
 
@@ -20,7 +18,6 @@ export class Oauth extends Schema.Class<Oauth>("OAuth")({
   expires: NonNegativeInt,
   accountId: Schema.optional(Schema.String),
   enterpriseUrl: Schema.optional(Schema.String),
-  fedramp: Schema.optional(Schema.Boolean),
 }) {}
 
 export class Api extends Schema.Class<Api>("ApiAuth")({
@@ -47,26 +44,10 @@ export interface Interface {
   readonly get: (providerID: string) => Effect.Effect<Info | undefined, AuthError>
   readonly all: () => Effect.Effect<Record<string, Info>, AuthError>
   readonly set: (key: string, info: Info) => Effect.Effect<void, AuthError>
-  readonly compareAndSetOauth: (
-    key: string,
-    expected: Oauth,
-    info: Oauth,
-    signal?: AbortSignal,
-  ) => Effect.Effect<boolean, AuthError>
   readonly remove: (key: string) => Effect.Effect<void, AuthError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@hena/Auth") {}
-
-export function isEnvironmentBacked() {
-  if (!process.env.HENA_AUTH_CONTENT) return false
-  try {
-    JSON.parse(process.env.HENA_AUTH_CONTENT)
-    return true
-  } catch {
-    return false
-  }
-}
 
 const layer = Layer.effect(
   Service,
@@ -78,7 +59,7 @@ const layer = Layer.effect(
       if (process.env.HENA_AUTH_CONTENT) {
         try {
           return JSON.parse(process.env.HENA_AUTH_CONTENT)
-        } catch {}
+        } catch (err) {}
       }
 
       const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>
@@ -91,70 +72,25 @@ const layer = Layer.effect(
 
     const set = Effect.fn("Auth.set")(function* (key: string, info: Info) {
       const norm = key.replace(/\/+$/, "")
-      yield* Effect.scoped(
-        Effect.gen(function* () {
-          yield* Flock.effect(AUTH_FILE_LOCK)
-          const data = yield* all()
-          if (norm !== key) delete data[key]
-          delete data[norm + "/"]
-          yield* fsys
-            .writeJson(file, { ...data, [norm]: info }, 0o600)
-            .pipe(Effect.mapError(fail("Failed to write auth data")))
-        }),
-      )
-    })
-
-    const compareAndSetOauth = Effect.fn("Auth.compareAndSetOauth")(function* (
-      key: string,
-      expected: Oauth,
-      info: Oauth,
-      signal?: AbortSignal,
-    ) {
-      const norm = key.replace(/\/+$/, "")
-      return yield* Effect.scoped(
-        Effect.gen(function* () {
-          yield* Flock.effect(AUTH_FILE_LOCK, { signal })
-          if (isEnvironmentBacked()) return false
-          const data = yield* all()
-          const current = data[norm]
-          if (current?.type !== "oauth" || !sameOauth(current, expected)) return false
-
-          delete data[norm + "/"]
-          yield* fsys
-            .writeJson(file, { ...data, [norm]: info }, 0o600)
-            .pipe(Effect.mapError(fail("Failed to write auth data")))
-          return true
-        }),
-      )
+      const data = yield* all()
+      if (norm !== key) delete data[key]
+      delete data[norm + "/"]
+      yield* fsys
+        .writeJson(file, { ...data, [norm]: info }, 0o600)
+        .pipe(Effect.mapError(fail("Failed to write auth data")))
     })
 
     const remove = Effect.fn("Auth.remove")(function* (key: string) {
       const norm = key.replace(/\/+$/, "")
-      yield* Effect.scoped(
-        Effect.gen(function* () {
-          yield* Flock.effect(AUTH_FILE_LOCK)
-          const data = yield* all()
-          delete data[key]
-          delete data[norm]
-          yield* fsys.writeJson(file, data, 0o600).pipe(Effect.mapError(fail("Failed to write auth data")))
-        }),
-      )
+      const data = yield* all()
+      delete data[key]
+      delete data[norm]
+      yield* fsys.writeJson(file, data, 0o600).pipe(Effect.mapError(fail("Failed to write auth data")))
     })
 
-    return Service.of({ get, all, set, compareAndSetOauth, remove })
+    return Service.of({ get, all, set, remove })
   }),
 )
-
-function sameOauth(left: Oauth, right: Oauth) {
-  return (
-    left.refresh === right.refresh &&
-    left.access === right.access &&
-    left.expires === right.expires &&
-    left.accountId === right.accountId &&
-    left.enterpriseUrl === right.enterpriseUrl &&
-    left.fedramp === right.fedramp
-  )
-}
 
 export const node = LayerNode.make({ service: Service, layer: layer, deps: [FSUtil.node] })
 

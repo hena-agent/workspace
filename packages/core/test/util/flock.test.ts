@@ -5,7 +5,6 @@ import path from "path"
 import os from "os"
 import { Flock } from "@hena/core/util/flock"
 import { Hash } from "@hena/core/util/hash"
-import { Effect, Fiber } from "effect"
 
 type Msg = {
   key: string
@@ -115,59 +114,6 @@ async function readJson<T>(p: string): Promise<T> {
 }
 
 describe("util.flock", () => {
-  test("effect honors an explicit abort signal while waiting", async () => {
-    await using tmp = await tmpdir()
-    const dir = path.join(tmp.path, "locks")
-    const key = "flock:effect-abort"
-    await using _held = await Flock.acquire(key, { dir })
-    const controller = new AbortController()
-    const waiting = Effect.runPromise(
-      Effect.scoped(Flock.effect(key, { dir, signal: controller.signal, baseDelayMs: 5, maxDelayMs: 5 })),
-    )
-    await sleep(20)
-    controller.abort(new Error("deadline exceeded"))
-
-    await expect(waiting).rejects.toThrow("deadline exceeded")
-  })
-
-  test("effect remains interruptible with an explicit abort signal", async () => {
-    await using tmp = await tmpdir()
-    const dir = path.join(tmp.path, "locks")
-    const key = "flock:effect-interrupt"
-    await using _held = await Flock.acquire(key, { dir })
-    const fiber = Effect.runFork(
-      Effect.scoped(Flock.effect(key, { dir, signal: new AbortController().signal, baseDelayMs: 5, maxDelayMs: 5 })),
-    )
-    await sleep(20)
-
-    await Effect.runPromise(Fiber.interrupt(fiber))
-  })
-
-  test("does not leak a lease when interrupted during acquisition", async () => {
-    await using tmp = await tmpdir()
-    const dir = path.join(tmp.path, "locks")
-    const leaked = await Promise.all(
-      Array.from({ length: 50 }, async (_, index) => {
-        const key = `flock:effect-interrupt-race-${index}`
-        const file = lock(dir, key)
-        const fiber = Effect.runFork(
-          Effect.scoped(
-            Effect.gen(function* () {
-              yield* Flock.effect(key, { dir, signal: new AbortController().signal })
-              yield* Effect.never
-            }),
-          ),
-        )
-        while (!(await exists(file))) await Bun.sleep(0)
-        await Effect.runPromise(Fiber.interrupt(fiber))
-        await sleep(20)
-        return exists(file)
-      }),
-    )
-
-    expect(leaked).toEqual(Array.from({ length: 50 }, () => false))
-  })
-
   test("enforces mutual exclusion under process contention", async () => {
     await using tmp = await tmpdir()
     const dir = path.join(tmp.path, "locks")

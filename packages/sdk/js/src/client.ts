@@ -1,20 +1,10 @@
 export * from "./gen/types.gen.js"
 
 import { createClient } from "./gen/client/client.gen.js"
-import { type Config, type RequestResult } from "./gen/client/types.gen.js"
-import { HenaClient, type Options } from "./gen/sdk.gen.js"
+import { type Config } from "./gen/client/types.gen.js"
+import { HenaClient } from "./gen/sdk.gen.js"
 import { wrapClientError } from "./error-interceptor.js"
-import type { AuthRefreshData, AuthRefreshResponses } from "./v2/gen/types.gen.js"
 export { type Config as HenaClientConfig, HenaClient }
-export type { AuthRefreshData, AuthRefreshResponses } from "./v2/gen/types.gen.js"
-
-export type AuthRefresh = <ThrowOnError extends boolean = false>(
-  options: Options<AuthRefreshData, ThrowOnError>,
-) => RequestResult<AuthRefreshResponses, unknown, ThrowOnError>
-
-export type HenaClientWithAuthRefresh = HenaClient & {
-  auth: HenaClient["auth"] & { refresh: AuthRefresh }
-}
 
 function pick(value: string | null, fallback?: string) {
   if (!value) return
@@ -40,7 +30,7 @@ function rewrite(request: Request, directory?: string) {
   return next
 }
 
-export function createHenaClient(config?: Config & { directory?: string }): HenaClientWithAuthRefresh {
+export function createHenaClient(config?: Config & { directory?: string }) {
   if (!config?.fetch) {
     const customFetch: any = (req: any) => {
       // @ts-ignore
@@ -63,12 +53,5 @@ export function createHenaClient(config?: Config & { directory?: string }): Hena
   const client = createClient(config)
   client.interceptors.request.use((request) => rewrite(request, config?.directory))
   client.interceptors.error.use(wrapClientError)
-  const sdk = new HenaClient({ client })
-  // PluginInput still exposes this legacy client, so host-only endpoints must preserve its configured transport.
-  const refresh = <ThrowOnError extends boolean = false>(options: Options<AuthRefreshData, ThrowOnError>) =>
-    (options.client ?? client).post<AuthRefreshResponses, unknown, ThrowOnError>({
-      url: "/auth/{providerID}/refresh",
-      ...options,
-    })
-  return Object.assign(sdk, { auth: Object.assign(sdk.auth, { refresh }) })
+  return new HenaClient({ client })
 }

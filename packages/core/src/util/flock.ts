@@ -328,10 +328,6 @@ export namespace Flock {
       },
       cfg,
     )
-    if (input.signal?.aborted) {
-      await lock.release()
-      input.signal.throwIfAborted()
-    }
     lock.startHeartbeat()
 
     const release = () => lock.release()
@@ -350,32 +346,13 @@ export namespace Flock {
   }
 
   export const effect = Effect.fn("Flock.effect")(function* (key: string, input: Options = {}) {
-    const acquire = Effect.callback<Lease>((resume, runtimeSignal) => {
-      const signal = input.signal ? AbortSignal.any([input.signal, runtimeSignal]) : runtimeSignal
-      const acquiring = Flock.acquire(key, { ...input, signal })
-      let cancelled = false
-      acquiring.then(
-        (lock) => {
-          if (!cancelled) resume(Effect.succeed(lock))
-        },
-        (error) => {
-          if (!cancelled) resume(Effect.die(error))
-        },
-      )
-      return Effect.promise(async () => {
-        cancelled = true
-        const lock = await acquiring.catch(() => undefined)
-        await lock?.release()
-      })
-    })
     return yield* Effect.acquireRelease(
-      acquire.pipe(
+      Effect.promise((signal) => Flock.acquire(key, { ...input, signal })).pipe(
         Effect.withSpan("Flock.acquire", {
           attributes: { key },
         }),
       ),
       (lock) => Effect.promise(() => lock.release()).pipe(Effect.withSpan("Flock.release")),
-      { interruptible: true },
     ).pipe(Effect.asVoid)
   })
 }

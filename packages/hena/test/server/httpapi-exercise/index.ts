@@ -97,7 +97,9 @@ const scenarios: Scenario[] = [
         Effect.gen(function* () {
           object(body)
           check(body.username === "httpapi-global", "global config update should return patched config")
-          const text = yield* Effect.promise(() => Bun.file(path.join(exerciseConfigDirectory, "hena.jsonc")).text())
+          const text = yield* Effect.promise(() =>
+            Bun.file(path.join(exerciseConfigDirectory, "hena.jsonc")).text(),
+          )
           check(text.includes('"username": "httpapi-global"'), "global config update should write isolated config file")
         }),
       "status",
@@ -636,31 +638,6 @@ const scenarios: Scenario[] = [
         check(isRecord(auth.test) && auth.test.key === "test-key", "auth set should write isolated auth file")
       }),
     ),
-  http.protected
-    .post("/auth/{providerID}/refresh", "auth.refresh")
-    .global()
-    .seeded(() =>
-      Effect.promise(() =>
-        Bun.write(
-          path.join(exerciseDataDirectory, "auth.json"),
-          JSON.stringify({
-            openai: {
-              type: "oauth",
-              refresh: "refresh-token",
-              access: "access-token",
-              expires: Date.now() + 10 * 60_000,
-            },
-          }),
-        ),
-      ),
-    )
-    .at(() => ({ path: route("/auth/{providerID}/refresh", { providerID: "openai" }) }))
-    .json(200, (body) => {
-      object(body)
-      check(body.type === "oauth" && body.access === "access-token", "auth refresh should return current credentials")
-      check(body.refresh === undefined, "auth refresh should not expose the refresh token")
-      check(body.fedramp === false, "auth refresh should return deployment metadata")
-    }),
   http.protected
     .delete("/auth/{providerID}", "auth.remove")
     .global()

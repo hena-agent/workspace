@@ -9,7 +9,6 @@ import { tool } from "@opencode-ai/plugin/tool"
 
 const SEARCH_ENDPOINT = "https://chatgpt.com/backend-api/codex/alpha/search"
 const REQUEST_TIMEOUT_MS = 15_000
-const TOKEN_REFRESH_WINDOW_MS = 5 * 60_000
 const DEFAULT_MAX_RESULTS = 8
 const MAX_OUTPUT_BYTES = 20_000
 const GRAPHEME_SEGMENTER = new Intl.Segmenter(undefined, { granularity: "grapheme" })
@@ -20,32 +19,13 @@ type CodexAuth = {
   fedramp: boolean
 }
 
-type OpenCodeOAuth = Record<string, unknown> & {
+type OpenCodeOAuth = {
   type: "oauth"
   access: string
-  refresh: string
   expires: number
   accountId?: string
   fedramp?: boolean
 }
-
-type RefreshedOpenCodeOAuth = Pick<OpenCodeOAuth, "type" | "access" | "expires" | "accountId"> & {
-  fedramp: boolean
-}
-
-// The host augments its legacy PluginInput client with this API in packages/sdk/js/src/client.ts.
-type AuthRefreshClient = {
-  auth: {
-    refresh: (options: {
-      path: { providerID: string }
-      signal: AbortSignal
-      throwOnError: true
-    }) => Promise<{ data: unknown }>
-  }
-}
-
-let authRefresh: Promise<CodexAuth> | undefined
-const registeredClients = new WeakSet()
 
 type SearchResult = {
   title: string
@@ -55,40 +35,10 @@ type SearchResult = {
   refId?: string
 }
 
+const registeredClients = new WeakSet()
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
-}
-
-function supportsAuthRefresh(client: unknown): client is AuthRefreshClient {
-  return isRecord(client) && isRecord(client.auth) && typeof client.auth.refresh === "function"
-}
-
-function refreshHostAuth(client: unknown, signal: AbortSignal) {
-  if (supportsAuthRefresh(client)) {
-    return client.auth.refresh({ path: { providerID: "openai" }, signal, throwOnError: true })
-  }
-  throw new Error("Codex web search requires an OpenCode host that provides auth.refresh")
-}
-
-function selectCodexSearchModel(models: Record<string, unknown>) {
-  return Object.values(models)
-    .flatMap((model) => {
-      if (!isRecord(model)) return []
-      const api = isRecord(model.api) && typeof model.api.id === "string" ? model.api.id : undefined
-      const id = api ?? (typeof model.id === "string" ? model.id : undefined)
-      if (!id || !isCodexModel(id)) return []
-      return [{ id, releaseDate: typeof model.release_date === "string" ? model.release_date : "" }]
-    })
-    .sort((left, right) => right.releaseDate.localeCompare(left.releaseDate))[0]?.id
-}
-
-function isCodexModel(id: string) {
-  if (id === "gpt-5.4" || id === "gpt-5.4-mini" || id === "gpt-5.5" || id === "gpt-5.3-codex-spark") {
-    return true
-  }
-  if (id === "gpt-5.5-pro" || id === "gpt-5.6") return false
-  const version = id.match(/^gpt-(\d+\.\d+)/)?.[1]
-  return version ? Number(version) > 5.4 : false
 }
 
 function errorCode(error: unknown) {
@@ -140,7 +90,6 @@ function normalizeResponse(payload: unknown, limit: number) {
   }
 
   const results: SearchResult[] = []
-
   for (const item of payload.results ?? []) {
     if (!isRecord(item)) continue
 
@@ -154,7 +103,6 @@ function normalizeResponse(payload: unknown, limit: number) {
       snippet: cleanText(item.snippet, 1_000),
       refId: cleanText(item.ref_id, 200),
     })
-
     if (results.length >= limit) break
   }
 
@@ -187,77 +135,49 @@ function formatResponse(query: string, response: { output: string; results: Sear
     })
     return indexes.length ? `[${indexes.join(", ")}]` : ""
   })
-  if (sourceItems.length === 0)
+  if (sourceItems.length === 0) {
     return truncateText(output, MAX_OUTPUT_BYTES) || `No web search results found for: "${query}".`
+  }
 
   const structured = `Structured sources\n\n${sourceItems.join("\n\n")}`
   const primary = truncateText(output, MAX_OUTPUT_BYTES - Buffer.byteLength(structured, "utf8") - 2)
   return primary ? `${primary}\n\n${structured}` : structured
 }
 
-async function loadCodexAuth(
-  signal: AbortSignal,
-  refresh: (signal: AbortSignal) => Promise<RefreshedOpenCodeOAuth>,
-): Promise<CodexAuth> {
-  const loaded = await loadOpenCodeOAuth()
-  const auth = loaded.auth
-  if (auth.expires > Date.now() + TOKEN_REFRESH_WINDOW_MS) return codexAuth(auth)
-  if (loaded.environment) {
-    if (auth.expires > Date.now() + REQUEST_TIMEOUT_MS) return codexAuth(auth)
-    throw new Error("OpenCode ChatGPT authentication from OPENCODE_AUTH_CONTENT has expired; update it and retry")
-  }
-  if (authRefresh) return waitForAuthRefresh(authRefresh, signal)
-
-  signal.throwIfAborted()
-  authRefresh = refresh(AbortSignal.timeout(REQUEST_TIMEOUT_MS))
-    .then((refreshed) => codexAuth(refreshed, refreshed.fedramp))
-    .catch(fallbackOpenCodeAuth)
-    .finally(() => {
-      authRefresh = undefined
+function selectCodexSearchModel(models: Record<string, unknown>) {
+  return Object.values(models)
+    .flatMap((model) => {
+      if (!isRecord(model)) return []
+      const api = isRecord(model.api) && typeof model.api.id === "string" ? model.api.id : undefined
+      const id = api ?? (typeof model.id === "string" ? model.id : undefined)
+      if (!id || !isCodexModel(id)) return []
+      return [{ id, releaseDate: typeof model.release_date === "string" ? model.release_date : "" }]
     })
-  return waitForAuthRefresh(authRefresh, signal)
+    .sort((left, right) => right.releaseDate.localeCompare(left.releaseDate))[0]?.id
 }
 
-function waitForAuthRefresh(refresh: Promise<CodexAuth>, signal: AbortSignal) {
-  if (signal.aborted) {
-    void refresh.catch(() => undefined)
-    return Promise.reject(signal.reason)
+function isCodexModel(id: string) {
+  if (id === "gpt-5.4" || id === "gpt-5.4-mini" || id === "gpt-5.5" || id === "gpt-5.3-codex-spark") {
+    return true
   }
-
-  return new Promise<CodexAuth>((resolve, reject) => {
-    const cancel = () => reject(signal.reason)
-    signal.addEventListener("abort", cancel, { once: true })
-    refresh.then(
-      (auth) => {
-        signal.removeEventListener("abort", cancel)
-        resolve(auth)
-      },
-      (error) => {
-        signal.removeEventListener("abort", cancel)
-        reject(error)
-      },
-    )
-  })
+  if (id === "gpt-5.5-pro" || id === "gpt-5.6") return false
+  const version = id.match(/^gpt-(\d+\.\d+)/)?.[1]
+  return version ? Number(version) > 5.4 : false
 }
 
-async function loadOpenCodeOAuth() {
+async function loadCodexAuth() {
   const environment = openCodeAuthEnvironment()
   const auth = parseOpenCodeOAuth((environment ?? (await loadOpenCodeAuthFile())).openai)
   if (!auth) {
     throw new Error("OpenCode ChatGPT authentication is unavailable; run `opencode auth login` and retry")
   }
-  return { auth, environment: environment !== undefined }
-}
-
-async function loadUsableOpenCodeAuth() {
-  const latest = await loadOpenCodeOAuth()
-  return latest.auth.expires > Date.now() + REQUEST_TIMEOUT_MS ? codexAuth(latest.auth) : undefined
-}
-
-async function fallbackOpenCodeAuth(error: unknown) {
-  const auth = await loadUsableOpenCodeAuth()
-  if (auth) return auth
-  throw error
+  if (auth.expires <= Date.now() + REQUEST_TIMEOUT_MS) {
+    if (environment) {
+      throw new Error("Uploaded OpenCode ChatGPT authentication has expired; recreate the workspace and retry")
+    }
+    throw new Error("OpenCode ChatGPT authentication has expired; run `opencode auth login` and retry")
+  }
+  return codexAuth(auth)
 }
 
 function parseOpenCodeOAuth(auth: unknown): OpenCodeOAuth | undefined {
@@ -265,23 +185,7 @@ function parseOpenCodeOAuth(auth: unknown): OpenCodeOAuth | undefined {
     !isRecord(auth) ||
     auth.type !== "oauth" ||
     typeof auth.access !== "string" ||
-    typeof auth.refresh !== "string" ||
-    typeof auth.expires !== "number" ||
-    (auth.fedramp !== undefined && typeof auth.fedramp !== "boolean")
-  ) {
-    return undefined
-  }
-  return { ...auth, type: "oauth", access: auth.access, refresh: auth.refresh, expires: auth.expires }
-}
-
-function parseRefreshedOpenCodeOAuth(auth: unknown): RefreshedOpenCodeOAuth | undefined {
-  if (
-    !isRecord(auth) ||
-    auth.type !== "oauth" ||
-    typeof auth.access !== "string" ||
-    typeof auth.expires !== "number" ||
-    typeof auth.fedramp !== "boolean" ||
-    (auth.accountId !== undefined && typeof auth.accountId !== "string")
+    typeof auth.expires !== "number"
   ) {
     return undefined
   }
@@ -289,8 +193,8 @@ function parseRefreshedOpenCodeOAuth(auth: unknown): RefreshedOpenCodeOAuth | un
     type: "oauth",
     access: auth.access,
     expires: auth.expires,
-    ...(auth.accountId ? { accountId: auth.accountId } : {}),
-    fedramp: auth.fedramp,
+    ...(typeof auth.accountId === "string" ? { accountId: auth.accountId } : {}),
+    ...(typeof auth.fedramp === "boolean" ? { fedramp: auth.fedramp } : {}),
   }
 }
 
@@ -345,28 +249,30 @@ function canonicalPath(path: string) {
   })
 }
 
-function codexAuth(auth: Pick<OpenCodeOAuth, "access" | "accountId" | "fedramp">, fedramp?: boolean): CodexAuth {
+function codexAuth(auth: OpenCodeOAuth): CodexAuth {
   const claims = tokenAuthClaims(auth.access)
   return {
     accessToken: auth.access,
-    accountId: cleanText(auth.accountId, 1_000) ?? cleanText(claims?.chatgpt_account_id, 1_000),
-    fedramp: fedramp ?? auth.fedramp ?? claims?.chatgpt_account_is_fedramp === true,
+    accountId: cleanText(auth.accountId, 1_000) ?? claims.accountId,
+    fedramp: auth.fedramp ?? claims.fedramp,
   }
 }
 
-function tokenAuthClaims(token: unknown) {
-  const claims = typeof token === "string" ? parseJwtClaims(token) : undefined
-  if (!claims) return undefined
-  const auth = claims["https://api.openai.com/auth"]
-  const nested = isRecord(auth) ? auth : undefined
-  const organizations = Array.isArray(claims.organizations) ? claims.organizations : []
+function tokenAuthClaims(token: string) {
+  const claims = parseJwtClaims(token)
+  const nestedAuth = claims?.["https://api.openai.com/auth"]
+  const nested = isRecord(nestedAuth) ? nestedAuth : undefined
+  const organizations = Array.isArray(claims?.organizations) ? claims.organizations : []
   const organization = organizations.find(isRecord)
   return {
-    chatgpt_account_id:
-      cleanText(claims.chatgpt_account_id, 1_000) ??
+    accountId:
+      cleanText(claims?.chatgpt_account_id, 1_000) ??
       cleanText(nested?.chatgpt_account_id, 1_000) ??
       cleanText(organization?.id, 1_000),
-    chatgpt_account_is_fedramp: claims.chatgpt_account_is_fedramp ?? nested?.chatgpt_account_is_fedramp,
+    fedramp:
+      typeof claims?.chatgpt_account_is_fedramp === "boolean"
+        ? claims.chatgpt_account_is_fedramp
+        : nested?.chatgpt_account_is_fedramp === true,
   }
 }
 
@@ -397,14 +303,15 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree
   )
   const globalPaths = await Promise.all(
     openCodeConfigPaths().flatMap((root) =>
-      ["plugin", "plugins"].map((directory) => canonicalPath(join(root, directory, "codex-web-search.ts"))),
+      ["plugin", "plugins"].map((pluginDirectory) =>
+        canonicalPath(join(root, pluginDirectory, "codex-web-search.ts")),
+      ),
     ),
   )
   const selectedProjectPath = projectPaths.find((path) => existsSync(path))
   const selectedGlobalPath = globalPaths.findLast((path) => existsSync(path))
   if (selectedProjectPath && selectedProjectPath !== currentPath) return {}
   if (!selectedProjectPath && globalPaths.includes(currentPath) && selectedGlobalPath !== currentPath) return {}
-  if (!supportsAuthRefresh(client)) return {}
   if (registeredClients.has(client)) return {}
   registeredClients.add(client)
 
@@ -437,13 +344,9 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree
         },
         async execute({ query, max_results, recency, domains }, context) {
           const maxResults = max_results ?? DEFAULT_MAX_RESULTS
-          const searchQuery: {
-            q: string
-            recency?: number
-            domains?: string[]
-          } = { q: query }
+          const searchQuery: { q: string; recency?: number; domains?: string[] } = { q: query }
           if (recency !== undefined) searchQuery.recency = recency
-          if (domains && domains.length > 0) searchQuery.domains = domains
+          if (domains?.length) searchQuery.domains = domains
 
           context.metadata({ title: `Web search: ${query}` })
           await context.ask({
@@ -455,27 +358,21 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree
 
           const controller = new AbortController()
           let timedOut = false
-
           const cancelRequest = () => controller.abort()
           if (context.abort.aborted) cancelRequest()
           else context.abort.addEventListener("abort", cancelRequest, { once: true })
-
           const timeout = setTimeout(() => {
             timedOut = true
             controller.abort()
           }, REQUEST_TIMEOUT_MS)
 
           try {
-            const auth = await loadCodexAuth(controller.signal, async (signal) => {
-              const response = await refreshHostAuth(client, signal)
-              const refreshed = parseRefreshedOpenCodeOAuth(response.data)
-              if (!refreshed) throw new Error("OpenCode ChatGPT authentication refresh returned invalid credentials")
-              return refreshed
-            })
+            const auth = await loadCodexAuth()
             const providers = await client.provider.list({ signal: controller.signal, throwOnError: true })
             const openai = providers.data.all.find((provider) => provider.id === "openai")
             const model = selectCodexSearchModel(openai?.models ?? {})
             if (!model) throw new Error("OpenCode has no Codex-compatible OpenAI model available for web search")
+
             const headers: Record<string, string> = {
               Accept: "application/json",
               Authorization: `Bearer ${auth.accessToken}`,
@@ -491,9 +388,7 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree
               body: JSON.stringify({
                 id: `search_session_${randomUUID().replaceAll("-", "").slice(0, 16)}`,
                 model,
-                commands: {
-                  search_query: [searchQuery],
-                },
+                commands: { search_query: [searchQuery] },
               }),
               signal: controller.signal,
             }).catch((error: unknown) => {
@@ -502,14 +397,10 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree
             })
 
             if (response.status === 401 || response.status === 403) {
-              throw new Error("OpenCode ChatGPT authentication was rejected; run `opencode auth login` and retry")
+              throw new Error("OpenCode ChatGPT authentication was rejected; refresh local credentials and retry")
             }
-            if (response.status === 429) {
-              throw new Error("Codex web search rate limit exceeded; retry later")
-            }
-            if (!response.ok) {
-              throw new Error(`Codex web search failed with HTTP ${response.status}`)
-            }
+            if (response.status === 429) throw new Error("Codex web search rate limit exceeded; retry later")
+            if (!response.ok) throw new Error(`Codex web search failed with HTTP ${response.status}`)
 
             const payload: unknown = await response.json().catch((error: unknown) => {
               throw new Error("Codex web search returned invalid JSON", { cause: error })
@@ -518,10 +409,7 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree
             return {
               title: `Web search: ${query}`,
               output: formatResponse(query, search),
-              metadata: {
-                provider: "codex-standalone-search",
-                resultCount: search.results.length,
-              },
+              metadata: { query, resultCount: search.results.length },
             }
           } catch (error) {
             if (timedOut) {
@@ -538,3 +426,5 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree
     },
   }
 }
+
+export default CodexWebSearchPlugin

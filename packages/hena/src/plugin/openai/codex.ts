@@ -1,7 +1,6 @@
 import type { Hooks, PluginInput } from "@opencode-ai/plugin"
 import { InstallationVersion } from "@hena/core/installation/version"
-import { Flock } from "@hena/core/util/flock"
-import { isEnvironmentBacked, OAUTH_DUMMY_KEY } from "../../auth"
+import { OAUTH_DUMMY_KEY } from "../../auth"
 import os from "os"
 import { setTimeout as sleep } from "node:timers/promises"
 import { createServer } from "http"
@@ -13,9 +12,6 @@ const ISSUER = "https://auth.openai.com"
 const CODEX_API_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses"
 const OAUTH_PORT = 1455
 const OAUTH_POLLING_SAFETY_MARGIN_MS = 3000
-export const OPENAI_OAUTH_REFRESH_WINDOW_MS = 5 * 60_000
-const OPENAI_OAUTH_REFRESH_TIMEOUT_MS = 30_000
-const OPENAI_OAUTH_REFRESH_LOCK = "openai-oauth-refresh"
 const ALLOWED_MODELS = new Set(["gpt-5.5", "gpt-5.3-codex-spark", "gpt-5.4", "gpt-5.4-mini"])
 const DISALLOWED_MODELS = new Set(["gpt-5.5-pro"])
 
@@ -41,12 +37,10 @@ function base64UrlEncode(buffer: ArrayBuffer): string {
 
 export interface IdTokenClaims {
   chatgpt_account_id?: string
-  chatgpt_account_is_fedramp?: boolean
   organizations?: Array<{ id: string }>
   email?: string
   "https://api.openai.com/auth"?: {
     chatgpt_account_id?: string
-    chatgpt_account_is_fedramp?: boolean
   }
 }
 
@@ -68,9 +62,7 @@ export function extractAccountIdFromClaims(claims: IdTokenClaims): string | unde
   )
 }
 
-export function extractAccountId<
-  T extends Pick<TokenResponse, "access_token"> & Partial<Pick<TokenResponse, "id_token">>,
->(tokens: T): string | undefined {
+export function extractAccountId(tokens: TokenResponse): string | undefined {
   if (tokens.id_token) {
     const claims = parseJwtClaims(tokens.id_token)
     const accountId = claims && extractAccountIdFromClaims(claims)
@@ -81,20 +73,6 @@ export function extractAccountId<
     return claims ? extractAccountIdFromClaims(claims) : undefined
   }
   return undefined
-}
-
-function tokenFedramp(token?: string) {
-  if (!token) return undefined
-  const claims = parseJwtClaims(token)
-  const value =
-    claims?.chatgpt_account_is_fedramp ?? claims?.["https://api.openai.com/auth"]?.chatgpt_account_is_fedramp
-  return typeof value === "boolean" ? value : undefined
-}
-
-function extractFedramp<T extends Pick<TokenResponse, "access_token"> & Partial<Pick<TokenResponse, "id_token">>>(
-  tokens: T,
-) {
-  return tokenFedramp(tokens.id_token) ?? tokenFedramp(tokens.access_token)
 }
 
 function buildAuthorizeUrl(redirectUri: string, pkce: PkceCodes, state: string): string {
@@ -121,11 +99,6 @@ interface TokenResponse {
   expires_in?: number
 }
 
-type RefreshTokenResponse = Omit<TokenResponse, "id_token" | "refresh_token"> & {
-  id_token?: string
-  refresh_token?: string
-}
-
 interface CodexAuthPluginOptions {
   issuer?: string
   codexApiEndpoint?: string
@@ -150,11 +123,7 @@ async function exchangeCodeForTokens(code: string, redirectUri: string, pkce: Pk
   return response.json()
 }
 
-async function refreshAccessToken(
-  refreshToken: string,
-  issuer = ISSUER,
-  signal?: AbortSignal,
-): Promise<RefreshTokenResponse> {
+async function refreshAccessToken(refreshToken: string, issuer = ISSUER): Promise<TokenResponse> {
   const response = await fetch(`${issuer}/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -163,91 +132,11 @@ async function refreshAccessToken(
       refresh_token: refreshToken,
       client_id: CLIENT_ID,
     }).toString(),
-    signal,
   })
   if (!response.ok) {
     throw new Error(`Token refresh failed: ${response.status}`)
   }
   return response.json()
-}
-
-export type OpenAIOAuth = {
-  type: "oauth"
-  refresh: string
-  access: string
-  expires: number
-  accountId?: string
-  enterpriseUrl?: string
-  fedramp?: boolean
-}
-
-export type RefreshedOpenAIAuth = OpenAIOAuth & { fedramp: boolean }
-
-export function refreshOpenAIAuth(input: {
-  getAuth: (signal: AbortSignal) => Promise<OpenAIOAuth>
-  setAuth: (expected: OpenAIOAuth, auth: OpenAIOAuth, signal: AbortSignal) => Promise<boolean>
-  issuer?: string
-  minimumValidityMs?: number
-  environmentBacked?: boolean
-}) {
-  if (input.environmentBacked ?? isEnvironmentBacked()) {
-    return Promise.reject(new Error("Environment-backed OpenAI OAuth authentication cannot be refreshed durably"))
-  }
-
-  const exchangeSignal = AbortSignal.timeout(OPENAI_OAUTH_REFRESH_TIMEOUT_MS)
-  return Flock.withLock(
-    OPENAI_OAUTH_REFRESH_LOCK,
-    async () => {
-      const current = await input.getAuth(exchangeSignal)
-      if (current.access && current.expires > Date.now() + (input.minimumValidityMs ?? 0)) {
-        return { ...current, fedramp: current.fedramp ?? tokenFedramp(current.access) ?? false }
-      }
-
-      const tokens = await refreshAccessToken(current.refresh, input.issuer, exchangeSignal)
-      const accountId = extractAccountId(tokens) || current.accountId
-      const fedramp = extractFedramp(tokens) ?? current.fedramp ?? false
-      const next: OpenAIOAuth = {
-        ...current,
-        access: tokens.access_token,
-        refresh: tokens.refresh_token ?? current.refresh,
-        expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
-        ...(accountId ? { accountId } : {}),
-        fedramp,
-      }
-      const persistenceSignal = AbortSignal.timeout(OPENAI_OAUTH_REFRESH_TIMEOUT_MS)
-      if (await input.setAuth(current, next, persistenceSignal)) return { ...next, fedramp }
-
-      const latest = await input.getAuth(persistenceSignal)
-      if (latest.access && latest.expires > Date.now() + (input.minimumValidityMs ?? 0)) {
-        return { ...latest, fedramp: latest.fedramp ?? tokenFedramp(latest.access) ?? false }
-      }
-      throw new Error("OpenAI OAuth authentication changed while it was being refreshed")
-    },
-    { signal: exchangeSignal },
-  )
-}
-
-function waitForOpenAIAuth(refresh: Promise<OpenAIOAuth>, signal?: AbortSignal) {
-  if (!signal) return refresh
-  if (signal.aborted) {
-    void refresh.catch(() => undefined)
-    return Promise.reject(signal.reason)
-  }
-
-  return new Promise<OpenAIOAuth>((resolve, reject) => {
-    const cancel = () => reject(signal.reason)
-    signal.addEventListener("abort", cancel, { once: true })
-    refresh.then(
-      (auth) => {
-        signal.removeEventListener("abort", cancel)
-        resolve(auth)
-      },
-      (error) => {
-        signal.removeEventListener("abort", cancel)
-        reject(error)
-      },
-    )
-  })
 }
 
 // Kept as a named export for plugin.codex tests; delegates to the shared branded page.
@@ -442,7 +331,12 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
         }
         if (auth.type !== "oauth") return websocketFetch ? { fetch: websocketFetch } : {}
 
-        let refreshPromise: Promise<OpenAIOAuth> | undefined
+        let refreshPromise:
+          | Promise<{
+              access: string
+              accountId: string | undefined
+            }>
+          | undefined
 
         return {
           apiKey: OAUTH_DUMMY_KEY,
@@ -466,28 +360,31 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
             const authWithAccount = currentAuth as typeof currentAuth & { accountId?: string }
 
             if (!currentAuth.access || currentAuth.expires < Date.now()) {
-              init?.signal?.throwIfAborted()
-              const refreshing =
-                refreshPromise ??
-                input.client.auth
-                  .refresh({
-                    path: { providerID: "openai" },
-                    signal: AbortSignal.timeout(OPENAI_OAUTH_REFRESH_TIMEOUT_MS),
-                    throwOnError: true,
+              if (!refreshPromise) {
+                refreshPromise = refreshAccessToken(currentAuth.refresh, issuer)
+                  .then(async (tokens) => {
+                    const accountId = extractAccountId(tokens) || authWithAccount.accountId
+                    await input.client.auth.set({
+                      path: { id: "openai" },
+                      body: {
+                        type: "oauth",
+                        refresh: tokens.refresh_token,
+                        access: tokens.access_token,
+                        expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+                        ...(accountId && { accountId }),
+                      },
+                    })
+                    return {
+                      access: tokens.access_token,
+                      accountId,
+                    }
                   })
-                  .then((response) => ({
-                    type: "oauth" as const,
-                    refresh: currentAuth.refresh,
-                    access: response.data.access,
-                    expires: response.data.expires,
-                    ...(response.data.accountId ? { accountId: response.data.accountId } : {}),
-                    fedramp: response.data.fedramp,
-                  }))
                   .finally(() => {
                     refreshPromise = undefined
                   })
-              refreshPromise = refreshing
-              const refreshed = await waitForOpenAIAuth(refreshing, init?.signal ?? undefined)
+              }
+
+              const refreshed = await refreshPromise
               currentAuth.access = refreshed.access
               authWithAccount.accountId = refreshed.accountId
             }
@@ -550,14 +447,12 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
                 const tokens = await callbackPromise
                 stopOAuthServer()
                 const accountId = extractAccountId(tokens)
-                const fedramp = extractFedramp(tokens)
                 return {
                   type: "success" as const,
                   refresh: tokens.refresh_token,
                   access: tokens.access_token,
                   expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
                   accountId,
-                  ...(fedramp !== undefined ? { fedramp } : {}),
                 }
               },
             }
@@ -626,7 +521,6 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
                     }
 
                     const tokens: TokenResponse = await tokenResponse.json()
-                    const fedramp = extractFedramp(tokens)
 
                     return {
                       type: "success" as const,
@@ -634,7 +528,6 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
                       access: tokens.access_token,
                       expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
                       accountId: extractAccountId(tokens),
-                      ...(fedramp !== undefined ? { fedramp } : {}),
                     }
                   }
 

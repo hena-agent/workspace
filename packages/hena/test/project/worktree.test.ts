@@ -1,22 +1,29 @@
 import { afterEach, describe, expect } from "bun:test"
+import { rm, symlink } from "fs/promises"
 import path from "path"
 import { LayerNode } from "@hena/core/effect/layer-node"
+import { Database } from "@hena/core/database/database"
 import { FSUtil } from "@hena/core/fs-util"
+import { ProjectTable } from "@hena/core/project/sql"
+import { eq } from "drizzle-orm"
 import { Cause, Deferred, Effect, Exit, Fiber } from "effect"
 import { GlobalBus, type GlobalEvent } from "../../src/bus/global"
+import { InstanceState } from "../../src/effect/instance-state"
 import { Git } from "../../src/git"
 import { InstanceBootstrap } from "../../src/project/bootstrap"
 import { InstanceStore } from "../../src/project/instance-store"
+import { Project } from "../../src/project/project"
 import { Worktree } from "../../src/worktree"
 import { disposeAllInstances, provideInstance, TestInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
+import { waitGlobalBusEvent } from "../server/global-bus"
 
 const it = testEffect(
-  LayerNode.compile(LayerNode.group([Worktree.node, FSUtil.node, Git.node]), [
+  LayerNode.compile(LayerNode.group([Worktree.node, Project.node, Database.node, FSUtil.node, Git.node]), [
     [InstanceStore.bootstrapNode, InstanceBootstrap.node],
   ]),
 )
-const wintest = process.platform !== "win32" ? it.instance : it.instance.skip
+const nonWindowsIt = process.platform !== "win32" ? it.instance : it.instance.skip
 
 function normalize(input: string) {
   return input.replace(/\\/g, "/").toLowerCase()
@@ -43,8 +50,7 @@ const waitReady = Effect.fn("WorktreeTest.waitReady")(function* () {
 const removeCreatedWorktree = (directory: string) =>
   Effect.gen(function* () {
     const svc = yield* Worktree.Service
-    const ok = yield* svc.remove({ directory })
-    if (!ok) return yield* Effect.fail(new Error(`failed to remove worktree ${directory}`))
+    yield* svc.remove({ directory })
   })
 
 const withCreatedWorktree = <A, E, R>(
@@ -149,7 +155,7 @@ describe("Worktree", () => {
       }),
     )
 
-    wintest(
+    nonWindowsIt(
       "creates detached git worktree when info has no branch",
       () =>
         Effect.gen(function* () {
@@ -181,13 +187,59 @@ describe("Worktree", () => {
     it.instance(
       "create returns worktree info and remove cleans up",
       () =>
-        withCreatedWorktree(undefined, ({ info }) =>
-          Effect.gen(function* () {
-            expect(info.name).toBeDefined()
-            expect(info.branch ?? "").toStartWith("hena/")
-            expect(info.directory).toBeDefined()
-          }),
-        ),
+        Effect.gen(function* () {
+          const ctx = yield* InstanceState.context
+          const fs = yield* FSUtil.Service
+          const project = yield* Project.Service
+          const svc = yield* Worktree.Service
+          const ready = yield* waitReady().pipe(Effect.forkScoped)
+          const info = yield* svc.create()
+          yield* Effect.addFinalizer(() =>
+            fs.exists(info.directory).pipe(
+              Effect.orDie,
+              Effect.flatMap((exists) =>
+                exists ? svc.remove({ directory: info.directory }).pipe(Effect.ignore) : Effect.void,
+              ),
+            ),
+          )
+
+          expect(info.name).toBeDefined()
+          expect(info.branch ?? "").toStartWith("hena/")
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
+          yield* Fiber.join(ready)
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
+          yield* svc.remove({ directory: info.directory })
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([])
+        }),
+      { git: true },
+    )
+
+    it.instance(
+      "emits a readable failure when a folderless project prevents bootstrap",
+      () =>
+        Effect.gen(function* () {
+          const ctx = yield* InstanceState.context
+          const database = yield* Database.Service
+          const svc = yield* Worktree.Service
+          const failed = yield* waitGlobalBusEvent({
+            message: "timed out waiting for worktree.failed",
+            predicate: (event) => event.payload.type === Worktree.Event.Failed.type,
+          }).pipe(Effect.forkScoped)
+
+          yield* database.db
+            .update(ProjectTable)
+            .set({ worktree: null })
+            .where(eq(ProjectTable.id, ctx.project.id))
+            .run()
+            .pipe(Effect.orDie)
+          const info = yield* svc.create({ name: "bootstrap-failure" })
+          yield* Effect.addFinalizer(() => svc.remove({ directory: info.directory }).pipe(Effect.ignore))
+
+          expect((yield* Fiber.join(failed)).payload).toMatchObject({
+            type: Worktree.Event.Failed.type,
+            properties: { message: `Project ${ctx.project.id} has no worktree` },
+          })
+        }),
       { git: true },
     )
 
@@ -233,7 +285,7 @@ describe("Worktree", () => {
         withCreatedWorktree({ name: "test-workspace" }, ({ info }) =>
           Effect.gen(function* () {
             expect(info.name).toBe("test-workspace")
-          expect(info.branch).toBe("hena/test-workspace")
+            expect(info.branch).toBe("hena/test-workspace")
           }),
         ),
       { git: true },
@@ -241,7 +293,47 @@ describe("Worktree", () => {
   })
 
   describe("createFromInfo", () => {
-    wintest(
+    nonWindowsIt(
+      "records one resolved sandbox for an aliased directory",
+      () =>
+        Effect.gen(function* () {
+          const ctx = yield* InstanceState.context
+          const fs = yield* FSUtil.Service
+          const project = yield* Project.Service
+          const svc = yield* Worktree.Service
+          const test = yield* TestInstance
+          const root = path.join(path.dirname(test.directory), `worktree-real-${Date.now().toString(36)}`)
+          const alias = `${root}-alias`
+          yield* fs.ensureDir(root)
+          yield* Effect.promise(() => symlink(root, alias, "dir"))
+          yield* Effect.addFinalizer(() =>
+            Effect.promise(async () => {
+              await rm(alias, { force: true })
+              await rm(root, { recursive: true, force: true })
+            }),
+          )
+          const name = `aliased-${Date.now().toString(36)}`
+          const info = { name, branch: `hena/${name}`, directory: path.join(alias, name) }
+          const ready = yield* waitReady().pipe(Effect.forkScoped)
+          yield* svc.createFromInfo(info)
+          yield* Effect.addFinalizer(() =>
+            fs.exists(info.directory).pipe(
+              Effect.orDie,
+              Effect.flatMap((exists) =>
+                exists ? svc.remove({ directory: info.directory }).pipe(Effect.ignore) : Effect.void,
+              ),
+            ),
+          )
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
+          yield* Fiber.join(ready)
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
+          yield* svc.remove({ directory: info.directory })
+          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([])
+        }),
+      { git: true },
+    )
+
+    nonWindowsIt(
       "creates git worktree and boots asynchronously",
       () =>
         Effect.gen(function* () {
@@ -300,8 +392,7 @@ describe("Worktree", () => {
         Effect.gen(function* () {
           const test = yield* TestInstance
           const svc = yield* Worktree.Service
-          const ok = yield* svc.remove({ directory: path.join(test.directory, "does-not-exist") })
-          expect(ok).toBe(true)
+          yield* svc.remove({ directory: path.join(test.directory, "does-not-exist") })
         }),
       { git: true },
     )

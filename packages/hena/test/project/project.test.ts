@@ -774,7 +774,7 @@ describe("Project folderless rows", () => {
       yield* project.addSandbox(result.project.id, sandbox)
       yield* db
         .update(ProjectTable)
-        .set({ worktree: null })
+        .set({ worktree: null, sandboxes: [sandbox, AbsolutePath.make(result.project.worktree)] })
         .where(eq(ProjectTable.id, result.project.id))
         .run()
         .pipe(Effect.orDie)
@@ -797,6 +797,7 @@ describe("Project folderless rows", () => {
         time: { created },
       })
       expect(reopened.sandboxes).toContain(sandbox)
+      expect(reopened.sandboxes).not.toContain(result.project.worktree)
       const stored = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()
       expect(stored).toMatchObject({
         worktree: result.project.worktree,

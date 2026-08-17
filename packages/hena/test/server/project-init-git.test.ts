@@ -140,6 +140,10 @@ describe("project.initGit endpoint", () => {
       expect(yield* fs.exists(path.join(created.directory, ".git"))).toBe(true)
       expect(yield* fs.exists(path.join(nested, ".git"))).toBe(false)
       expect(yield* fs.exists(path.join(created.directory, ".git", "hena"))).toBe(false)
+      expect(yield* InstanceStore.Service.use((store) => store.load({ directory: nested }))).toMatchObject({
+        directory: nested,
+        worktree: created.directory,
+      })
     }),
   )
 })

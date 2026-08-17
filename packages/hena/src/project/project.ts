@@ -241,10 +241,9 @@ const layer = Layer.effect(
                     time: { created: Date.now(), updated: Date.now() },
                   }
 
-              if (flags.experimentalIconDiscovery) yield* discover(existing).pipe(Effect.ignore, Effect.forkIn(scope))
-
               const projectWorktree = projectID === ProjectV2.ID.global ? worktree : existing.worktree
               const sandboxes = new Set(existing.sandboxes.map((sandbox) => FSUtil.resolve(sandbox)))
+              sandboxes.delete(FSUtil.resolve(projectWorktree))
               const sandbox = AbsolutePath.make(FSUtil.resolve(data.directory))
               if (projectID !== ProjectV2.ID.global && sandbox !== FSUtil.resolve(projectWorktree))
                 sandboxes.add(sandbox)
@@ -303,6 +302,8 @@ const layer = Layer.effect(
           { behavior: "immediate" },
         )
         .pipe(Effect.orDie)
+
+      if (flags.experimentalIconDiscovery) yield* discover(result).pipe(Effect.ignore, Effect.forkIn(scope))
 
       yield* saveProjectDirectory({
         projectID,

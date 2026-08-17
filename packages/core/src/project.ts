@@ -124,16 +124,25 @@ const layer = Layer.effect(
       return root ? ID.make(root) : undefined
     })
 
+    const managedProject = (directory: string) => {
+      const id = path.relative(projects, directory).split(path.sep)[0]
+      if (!id || !ID.isManaged(id)) return undefined
+      return { id: ID.make(id), directory: AbsolutePath.make(path.join(projects, id)) }
+    }
+
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
       const directory = AbsolutePath.make(FSUtil.resolve(input))
-      const managedID = path.relative(projects, directory).split(path.sep)[0]
       const repo = yield* git.repo.discover(input)
-      if (managedID && ID.isManaged(managedID)) {
-        const managed = AbsolutePath.make(path.join(projects, managedID))
+      const common = repo ? path.dirname(repo.commonDirectory) : undefined
+      const shared = common ? managedProject(common) : undefined
+      const managed = managedProject(directory) ?? (shared?.directory === common ? shared : undefined)
+      if (managed) {
         return {
-          id: ID.make(managedID),
-          directory: managed,
-          vcs: repo?.worktree === managed ? { type: "git" as const, store: repo.commonDirectory } : undefined,
+          ...managed,
+          vcs:
+            repo && (repo.worktree === managed.directory || shared?.directory === common)
+              ? { type: "git" as const, store: repo.commonDirectory }
+              : undefined,
         }
       }
 

@@ -61,6 +61,20 @@ describe("managed projects", () => {
         directory: created.directory,
         vcs: { type: "git" },
       })
+
+      yield* Effect.promise(() =>
+        $`git -c user.name=Test -c user.email=test@hena.test commit --allow-empty -m root`
+          .cwd(created.directory)
+          .quiet(),
+      )
+      const linked = path.join(data, `linked-${created.id}`)
+      yield* Effect.addFinalizer(() => Effect.promise(() => fs.rm(linked, { recursive: true, force: true })))
+      yield* Effect.promise(() => $`git worktree add ${linked} -b linked-${created.id}`.cwd(created.directory).quiet())
+      expect(yield* projects.resolve(AbsolutePath.make(linked))).toMatchObject({
+        id: created.id,
+        directory: created.directory,
+        vcs: { type: "git" },
+      })
     }),
   )
 })

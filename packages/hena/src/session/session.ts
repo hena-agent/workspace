@@ -550,7 +550,7 @@ const layer: Layer.Layer<
           .where(
             and(
               ne(ProjectDirectoryTable.project_id, ProjectV2.ID.global),
-              sql`(${ProjectDirectoryTable.directory} = ${storage} OR ${ProjectDirectoryTable.directory} = ${path.parse(opened).root.replaceAll("\\", "/")} OR (substr(${storage}, 1, length(${ProjectDirectoryTable.directory})) = ${ProjectDirectoryTable.directory} AND substr(${storage}, length(${ProjectDirectoryTable.directory}) + 1, 1) = '/'))`,
+              sql`(${ProjectDirectoryTable.directory} = ${storage} OR (substr(${storage}, 1, length(${ProjectDirectoryTable.directory})) = ${ProjectDirectoryTable.directory} AND (substr(${ProjectDirectoryTable.directory}, -1) = '/' OR substr(${storage}, length(${ProjectDirectoryTable.directory}) + 1, 1) = '/')))`,
             ),
           )
           .orderBy(
@@ -565,7 +565,14 @@ const layer: Layer.Layer<
         project: { projectID: ProjectV2.ID; directory: AbsolutePath },
         validate: boolean,
       ) {
-        const info = { ...result, projectID: project.projectID }
+        const info = {
+          ...result,
+          projectID: project.projectID,
+          path:
+            validate && project.projectID !== ProjectV2.ID.global
+              ? sessionPath(project.directory, opened)
+              : result.path,
+        }
         yield* Effect.logInfo("created", info)
         yield* events.publish(
           SessionV1.Event.Created,
@@ -596,24 +603,22 @@ const layer: Layer.Layer<
           false,
         )
       const tentative = yield* nearest()
-      return yield* publish(
-        tentative ?? {
-          projectID: ProjectV2.ID.global,
-          directory: AbsolutePath.make(FSUtil.resolve(ctx.project.worktree)),
-        },
-        true,
-      ).pipe(
-        Effect.catchDefect((defect) => {
-          if (!(defect instanceof ProjectDirectoryChanged)) return Effect.die(defect)
-          return publish(
-            defect.project ?? {
-              projectID: ProjectV2.ID.global,
-              directory: AbsolutePath.make(FSUtil.resolve(ctx.project.worktree)),
-            },
-            true,
-          )
-        }),
-      )
+      const globalProject = {
+        projectID: ProjectV2.ID.global,
+        directory: AbsolutePath.make(FSUtil.resolve(ctx.project.worktree)),
+      }
+      const publishStable = (
+        project: { projectID: ProjectV2.ID; directory: AbsolutePath },
+        retries: number,
+      ): Effect.Effect<Info> =>
+        publish(project, true).pipe(
+          Effect.catchDefect((defect) => {
+            if (!(defect instanceof ProjectDirectoryChanged)) return Effect.die(defect)
+            if (retries === 0) return Effect.die(defect)
+            return publishStable(defect.project ?? globalProject, retries - 1)
+          }),
+        )
+      return yield* publishStable(tentative ?? globalProject, 3)
     })
 
     const get = Effect.fn("Session.get")(function* (id: SessionID) {

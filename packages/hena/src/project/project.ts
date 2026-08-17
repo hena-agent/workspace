@@ -22,7 +22,6 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { EventV2 } from "@hena/core/event"
 import { Project } from "@hena/schema/project"
-import path from "path"
 
 export const Info = Project.Info
 export type Info = Types.DeepMutable<Schema.Schema.Type<typeof Info>>
@@ -295,16 +294,6 @@ const layer = Layer.effect(
 
               if (projectID !== ProjectV2.ID.global) {
                 yield* d
-                  .update(SessionTable)
-                  .set({ project_id: projectID })
-                  .where(
-                    and(
-                      eq(SessionTable.project_id, ProjectV2.ID.global),
-                      sql`(${SessionTable.directory} = ${storage} OR ${storage} = ${path.parse(opened).root.replaceAll("\\", "/")} OR (substr(${SessionTable.directory}, 1, length(${storage})) = ${storage} AND substr(${SessionTable.directory}, length(${storage}) + 1, 1) = '/'))`,
-                    ),
-                  )
-                  .run()
-                yield* d
                   .delete(ProjectDirectoryTable)
                   .where(
                     and(eq(ProjectDirectoryTable.directory, opened), ne(ProjectDirectoryTable.project_id, projectID)),
@@ -314,9 +303,41 @@ const layer = Layer.effect(
                   {
                     directory: opened,
                     projectID,
+                    behavior: "replace",
                   },
                   d,
                 )
+                yield* d.run(sql`
+                  UPDATE session AS target
+                  SET (project_id, path) = (
+                    SELECT mapping.project_id,
+                           ltrim(substr(target.directory, length(mapping.directory) + 1), '/')
+                    FROM project_directory AS mapping
+                    WHERE mapping.project_id <> ${ProjectV2.ID.global}
+                      AND (
+                        mapping.directory = target.directory
+                        OR (
+                          substr(target.directory, 1, length(mapping.directory)) = mapping.directory AND (
+                            substr(mapping.directory, -1) = '/'
+                            OR substr(target.directory, length(mapping.directory) + 1, 1) = '/'
+                          )
+                        )
+                      )
+                    ORDER BY length(mapping.directory) DESC, mapping.directory, mapping.project_id
+                    LIMIT 1
+                  )
+                  WHERE target.project_id = ${ProjectV2.ID.global}
+                    AND target.directory <> ''
+                    AND (
+                      target.directory = ${storage}
+                      OR (
+                        substr(target.directory, 1, length(${storage})) = ${storage} AND (
+                          substr(${storage}, -1) = '/'
+                          OR substr(target.directory, length(${storage}) + 1, 1) = '/'
+                        )
+                      )
+                    )
+                `)
               }
               return result
             }),

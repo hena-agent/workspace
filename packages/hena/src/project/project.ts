@@ -211,12 +211,13 @@ const layer = Layer.effect(
       const projectID = ProjectV2.ID.make(data.id)
       yield* migrateProjectId(data.previous ? ProjectV2.ID.make(data.previous) : undefined, projectID)
       const observed = yield* db
-        .select({ sandboxes: ProjectTable.sandboxes })
+        .select({ sandboxes: ProjectTable.sandboxes, worktree: ProjectTable.worktree })
         .from(ProjectTable)
         .where(eq(ProjectTable.id, projectID))
         .get()
         .pipe(Effect.orDie)
       const observedSandboxes = new Set((observed?.sandboxes ?? []).map((sandbox) => FSUtil.resolve(sandbox)))
+      if (observed?.worktree) observedSandboxes.delete(FSUtil.resolve(observed.worktree))
       const missingSandboxes = new Set(
         yield* Effect.filter([...observedSandboxes], (sandbox) =>
           fs.exists(sandbox).pipe(
@@ -242,12 +243,18 @@ const layer = Layer.effect(
 
               const projectWorktree = projectID === ProjectV2.ID.global ? worktree : existing.worktree
               const sandboxes = new Set(existing.sandboxes.map((sandbox) => FSUtil.resolve(sandbox)))
-              if (
+              sandboxes.delete(FSUtil.resolve(projectWorktree))
+              const sandboxSetUnchanged =
                 sandboxes.size === observedSandboxes.size &&
                 [...sandboxes].every((sandbox) => observedSandboxes.has(sandbox))
+              const prunedSandboxes = sandboxSetUnchanged
+                ? [...missingSandboxes].filter((sandbox) => sandboxes.delete(sandbox))
+                : []
+              yield* Effect.forEach(
+                prunedSandboxes,
+                (sandbox) => projectDirectories.remove({ projectID, directory: AbsolutePath.make(sandbox) }, d),
+                { discard: true },
               )
-                missingSandboxes.forEach((sandbox) => sandboxes.delete(sandbox))
-              sandboxes.delete(FSUtil.resolve(projectWorktree))
               const sandbox = AbsolutePath.make(FSUtil.resolve(data.directory))
               if (projectID !== ProjectV2.ID.global && sandbox !== FSUtil.resolve(projectWorktree))
                 sandboxes.add(sandbox)
@@ -303,7 +310,6 @@ const layer = Layer.effect(
                   {
                     directory: opened,
                     projectID,
-                    behavior: "replace",
                   },
                   d,
                 )
@@ -459,6 +465,7 @@ const layer = Layer.effect(
     const writeSandboxes = Effect.fn("Project.writeSandboxes")(function* (
       id: ProjectV2.ID,
       next: (sandboxes: AbsolutePath[]) => AbsolutePath[],
+      removed?: AbsolutePath,
     ) {
       const result = yield* db
         .transaction(
@@ -471,12 +478,19 @@ const layer = Layer.effect(
                 .where(and(eq(ProjectTable.id, id), rooted))
                 .get()
               if (!row) return undefined
-              return yield* d
+              const result = yield* d
                 .update(ProjectTable)
                 .set({ sandboxes: next(row.sandboxes), time_updated: Date.now() })
                 .where(and(eq(ProjectTable.id, id), rooted))
                 .returning()
                 .get()
+              if (
+                removed &&
+                FSUtil.resolve(removed) !== FSUtil.resolve(row.worktree!) &&
+                row.sandboxes.some((sandbox) => FSUtil.resolve(sandbox) === FSUtil.resolve(removed))
+              )
+                yield* projectDirectories.remove({ projectID: id, directory: removed }, d)
+              return result
             }),
           // Serialize the read-modify-write so concurrent callers cannot lose a sandbox.
           { behavior: "immediate" },
@@ -493,7 +507,7 @@ const layer = Layer.effect(
     })
 
     const removeSandbox = Effect.fn("Project.removeSandbox")(function* (id: ProjectV2.ID, sandbox: AbsolutePath) {
-      yield* writeSandboxes(id, (sboxes) => sboxes.filter((item) => item !== sandbox))
+      yield* writeSandboxes(id, (sboxes) => sboxes.filter((item) => item !== sandbox), sandbox)
     })
 
     return Service.of({

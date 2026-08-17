@@ -120,6 +120,51 @@ describe("Project directory persistence", () => {
     }),
   )
 
+  it.live("removes a linked worktree directory mapping with its sandbox", () =>
+    Effect.gen(function* () {
+      const tmp = yield* tmpdirScoped({ git: true })
+      const project = yield* Project.Service
+      const main = yield* project.fromDirectory(tmp)
+      const worktree = path.join(tmp, "..", path.basename(tmp) + "-project-directory-remove")
+      yield* Effect.addFinalizer(() =>
+        Effect.promise(() => $`git worktree remove ${worktree}`.cwd(tmp).quiet().nothrow()).pipe(Effect.ignore),
+      )
+      yield* Effect.promise(() => $`git worktree add --detach ${worktree} HEAD`.cwd(tmp).quiet())
+      yield* project.fromDirectory(worktree)
+
+      yield* project.removeSandbox(main.project.id, AbsolutePath.make(tmp))
+      expect(yield* directories(main.project.id)).toContainEqual({
+        directory: AbsolutePath.make(tmp),
+        strategy: undefined,
+      })
+      yield* project.removeSandbox(main.project.id, AbsolutePath.make(worktree))
+
+      expect(yield* directories(main.project.id)).toEqual([{ directory: AbsolutePath.make(tmp), strategy: undefined }])
+    }),
+  )
+
+  it.live("removes directory mappings for pruned missing sandboxes", () =>
+    Effect.gen(function* () {
+      const tmp = yield* tmpdirScoped({ git: true })
+      const project = yield* Project.Service
+      const main = yield* project.fromDirectory(tmp)
+      const worktree = path.join(tmp, "..", path.basename(tmp) + "-project-directory-pruned")
+      yield* Effect.addFinalizer(() =>
+        Effect.promise(() => $`rm -rf ${worktree}`.quiet().nothrow()).pipe(Effect.ignore),
+      )
+      yield* Effect.promise(() => $`git worktree add --detach ${worktree} HEAD`.cwd(tmp).quiet())
+      yield* project.fromDirectory(worktree)
+      yield* Effect.promise(() => $`git worktree remove --force ${worktree}`.cwd(tmp).quiet())
+
+      yield* project.fromDirectory(tmp)
+      yield* Effect.promise(() => $`mkdir -p ${worktree}`.quiet())
+      const reused = yield* project.fromDirectory(worktree)
+
+      expect(reused.project.id).toBe(ProjectV2.ID.global)
+      expect(yield* directories(main.project.id)).toEqual([{ directory: AbsolutePath.make(tmp), strategy: undefined }])
+    }),
+  )
+
   it.live("stores only the linked copy when first opened from an external linked worktree", () =>
     Effect.gen(function* () {
       const tmp = yield* tmpdirScoped({ git: true })

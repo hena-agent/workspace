@@ -150,6 +150,40 @@ function seedProject(id: ProjectV2.ID, directory: AbsolutePath) {
 }
 
 describe("migrateFromGlobal", () => {
+  sessionIt.live("does not route a reused stale-pruned sandbox path to its former project", () =>
+    Effect.gen(function* () {
+      const tmp = yield* tmpdirScoped({ git: true })
+      const projects = yield* Project.Service
+      const main = yield* projects.fromDirectory(tmp)
+      const worktree = path.join(tmp, "..", path.basename(tmp) + "-stale-pruned-routing")
+      yield* Effect.addFinalizer(() =>
+        Effect.promise(() => $`rm -rf ${worktree}`.quiet().nothrow()).pipe(Effect.ignore),
+      )
+      yield* Effect.promise(() => $`git worktree add --detach ${worktree} HEAD`.cwd(tmp).quiet())
+      yield* projects.fromDirectory(worktree)
+      yield* Effect.promise(() => $`git worktree remove --force ${worktree}`.cwd(tmp).quiet())
+
+      yield* projects.fromDirectory(tmp)
+      yield* Effect.promise(() => $`mkdir -p ${worktree}`.quiet())
+      const reused = yield* projects.fromDirectory(worktree)
+      const creating = yield* (yield* Session.Service).create().pipe(
+        Effect.provideService(InstanceRef, {
+          directory: worktree,
+          worktree: reused.sandbox,
+          project: reused.project,
+        }),
+        Effect.forkChild,
+      )
+      const barrier = yield* PublishBarrier
+      yield* Deferred.await(barrier.started[0]!)
+      yield* Deferred.succeed(barrier.release[0]!, undefined)
+      const created = yield* Fiber.join(creating)
+
+      expect(main.project.id).not.toBe(ProjectV2.ID.global)
+      expect(created.projectID).toBe(ProjectV2.ID.global)
+    }),
+  )
+
   sessionIt.live("revalidates stale global context before durable session creation", () =>
     Effect.gen(function* () {
       const tmp = yield* tmpdirScoped()

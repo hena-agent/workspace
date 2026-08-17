@@ -143,6 +143,7 @@ const layer = Layer.effect(
       }
 
       const repo = yield* git.repo.discover(input)
+      const repositories = repo ? [repo] : []
       let enclosing = repo
       while (enclosing) {
         const common = path.dirname(enclosing.commonDirectory)
@@ -159,9 +160,33 @@ const layer = Layer.effect(
         const outer = yield* git.repo.discover(AbsolutePath.make(parent))
         if (outer?.worktree === enclosing.worktree) break
         enclosing = outer
+        if (outer) repositories.push(outer)
       }
 
       if (!repo) return { id: ID.global, directory: AbsolutePath.make(path.parse(input).root), vcs: undefined }
+
+      const separate = yield* fs.glob("*/.git", { cwd: projects, absolute: true, include: "file" }).pipe(
+        Effect.flatMap((files) =>
+          Effect.forEach(files, (file) => git.repo.discover(AbsolutePath.make(path.dirname(file))), {
+            concurrency: 8,
+          }),
+        ),
+        Effect.catch(() => Effect.succeed([])),
+      )
+      const repository = repositories.find((repository) =>
+        separate.some((candidate) => candidate?.commonDirectory === repository.commonDirectory),
+      )
+      const managedRoot = repository
+        ? separate.find((candidate) => candidate?.commonDirectory === repository.commonDirectory)
+        : undefined
+      const shared = managedRoot ? managedProject(managedRoot.worktree) : undefined
+      if (repository && managedRoot && shared?.directory === managedRoot.worktree) {
+        return {
+          ...shared,
+          directory: repository.worktree,
+          vcs: { type: "git" as const, store: repository.commonDirectory },
+        }
+      }
 
       const previous = yield* cached(repo.commonDirectory)
       const id = (yield* remote(repo)) ?? previous ?? (yield* root(repo))

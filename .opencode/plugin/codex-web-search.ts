@@ -8,6 +8,7 @@ import type { Plugin } from "@opencode-ai/plugin"
 import { tool } from "@opencode-ai/plugin/tool"
 
 const SEARCH_ENDPOINT = "https://chatgpt.com/backend-api/codex/alpha/search"
+const MODELS_ENDPOINT = "https://chatgpt.com/backend-api/codex/models?client_version=0.147.0"
 const REQUEST_TIMEOUT_MS = 15_000
 const DEFAULT_MAX_RESULTS = 8
 const MAX_OUTPUT_BYTES = 20_000
@@ -17,6 +18,7 @@ type CodexAuth = {
   accessToken: string
   accountId?: string
   fedramp: boolean
+  uploaded: boolean
 }
 
 type OpenCodeOAuth = {
@@ -144,27 +146,6 @@ function formatResponse(query: string, response: { output: string; results: Sear
   return primary ? `${primary}\n\n${structured}` : structured
 }
 
-function selectCodexSearchModel(models: Record<string, unknown>) {
-  return Object.values(models)
-    .flatMap((model) => {
-      if (!isRecord(model)) return []
-      const api = isRecord(model.api) && typeof model.api.id === "string" ? model.api.id : undefined
-      const id = api ?? (typeof model.id === "string" ? model.id : undefined)
-      if (!id || !isCodexModel(id)) return []
-      return [{ id, releaseDate: typeof model.release_date === "string" ? model.release_date : "" }]
-    })
-    .sort((left, right) => right.releaseDate.localeCompare(left.releaseDate))[0]?.id
-}
-
-function isCodexModel(id: string) {
-  if (id === "gpt-5.4" || id === "gpt-5.4-mini" || id === "gpt-5.5" || id === "gpt-5.3-codex-spark") {
-    return true
-  }
-  if (id === "gpt-5.5-pro" || id === "gpt-5.6") return false
-  const version = id.match(/^gpt-(\d+\.\d+)/)?.[1]
-  return version ? Number(version) > 5.4 : false
-}
-
 async function loadCodexAuth() {
   const environment = openCodeAuthEnvironment()
   const auth = parseOpenCodeOAuth((environment ?? (await loadOpenCodeAuthFile())).openai)
@@ -177,16 +158,11 @@ async function loadCodexAuth() {
     }
     throw new Error("OpenCode ChatGPT authentication has expired; run `opencode auth login` and retry")
   }
-  return codexAuth(auth)
+  return codexAuth(auth, environment !== undefined)
 }
 
 function parseOpenCodeOAuth(auth: unknown): OpenCodeOAuth | undefined {
-  if (
-    !isRecord(auth) ||
-    auth.type !== "oauth" ||
-    typeof auth.access !== "string" ||
-    typeof auth.expires !== "number"
-  ) {
+  if (!isRecord(auth) || auth.type !== "oauth" || typeof auth.access !== "string" || typeof auth.expires !== "number") {
     return undefined
   }
   return {
@@ -249,13 +225,81 @@ function canonicalPath(path: string) {
   })
 }
 
-function codexAuth(auth: OpenCodeOAuth): CodexAuth {
+function codexAuth(auth: OpenCodeOAuth, uploaded: boolean): CodexAuth {
   const claims = tokenAuthClaims(auth.access)
   return {
     accessToken: auth.access,
     accountId: cleanText(auth.accountId, 1_000) ?? claims.accountId,
     fedramp: auth.fedramp ?? claims.fedramp,
+    uploaded,
   }
+}
+
+function authHeaders(auth: CodexAuth) {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    Authorization: `Bearer ${auth.accessToken}`,
+    "User-Agent": "codex-cli/0.147.0-alpha.6.5",
+  }
+  if (auth.accountId) headers["ChatGPT-Account-ID"] = auth.accountId
+  if (auth.fedramp) headers["X-OpenAI-Fedramp"] = "true"
+  return headers
+}
+
+function requireSuccessfulResponse(response: Response, auth: CodexAuth, operation: string) {
+  if (response.status === 401) {
+    if (auth.uploaded) {
+      throw new Error(
+        "Uploaded OpenCode ChatGPT authentication was rejected or expired; recreate the workspace with current credentials",
+      )
+    }
+    throw new Error("OpenCode ChatGPT authentication was rejected or expired; run `opencode auth login` and retry")
+  }
+  if (response.status === 403 && response.headers.get("cf-mitigated")?.toLowerCase() === "challenge") {
+    throw new Error(
+      `${operation} was blocked by a Cloudflare browser challenge; retry later or from a different network`,
+    )
+  }
+  if (response.status === 403) {
+    throw new Error(
+      `${operation} is forbidden for the current ChatGPT account, model, or workspace; verify that this account has Codex access`,
+    )
+  }
+  if (response.status === 429) throw new Error(`${operation} rate limit exceeded; retry later`)
+  if (!response.ok) throw new Error(`${operation} failed with HTTP ${response.status}`)
+}
+
+async function loadCodexModel(auth: CodexAuth, signal: AbortSignal) {
+  const response = await fetch(MODELS_ENDPOINT, { headers: authHeaders(auth), signal }).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : "unknown network error"
+    throw new Error(`Codex model discovery request failed: ${message}`, { cause: error })
+  })
+  requireSuccessfulResponse(response, auth, "Codex model discovery")
+
+  const payload: unknown = await response.json().catch((error: unknown) => {
+    throw new Error("Codex model discovery returned invalid JSON", { cause: error })
+  })
+  if (!isRecord(payload) || !Array.isArray(payload.models)) {
+    throw new Error("Codex model discovery returned an invalid response")
+  }
+  const candidates = payload.models
+    .flatMap((model) => {
+      if (
+        !isRecord(model) ||
+        typeof model.slug !== "string" ||
+        !model.slug ||
+        typeof model.priority !== "number" ||
+        !Number.isFinite(model.priority) ||
+        !["list", "hide", "none"].includes(String(model.visibility))
+      ) {
+        return []
+      }
+      return [{ slug: model.slug, priority: model.priority, visibility: String(model.visibility) }]
+    })
+    .sort((left, right) => left.priority - right.priority)
+  const model = candidates.find((candidate) => candidate.visibility === "list") ?? candidates[0]
+  if (!model) throw new Error("Could not determine an account-eligible Codex model for web search; retry later")
+  return model.slug
 }
 
 function tokenAuthClaims(token: string) {
@@ -303,9 +347,7 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree
   )
   const globalPaths = await Promise.all(
     openCodeConfigPaths().flatMap((root) =>
-      ["plugin", "plugins"].map((pluginDirectory) =>
-        canonicalPath(join(root, pluginDirectory, "codex-web-search.ts")),
-      ),
+      ["plugin", "plugins"].map((pluginDirectory) => canonicalPath(join(root, pluginDirectory, "codex-web-search.ts"))),
     ),
   )
   const selectedProjectPath = projectPaths.find((path) => existsSync(path))
@@ -368,19 +410,8 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree
 
           try {
             const auth = await loadCodexAuth()
-            const providers = await client.provider.list({ signal: controller.signal, throwOnError: true })
-            const openai = providers.data.all.find((provider) => provider.id === "openai")
-            const model = selectCodexSearchModel(openai?.models ?? {})
-            if (!model) throw new Error("OpenCode has no Codex-compatible OpenAI model available for web search")
-
-            const headers: Record<string, string> = {
-              Accept: "application/json",
-              Authorization: `Bearer ${auth.accessToken}`,
-              "Content-Type": "application/json",
-              "User-Agent": "codex-cli/0.147.0-alpha.6.5",
-            }
-            if (auth.accountId) headers["ChatGPT-Account-ID"] = auth.accountId
-            if (auth.fedramp) headers["X-OpenAI-Fedramp"] = "true"
+            const model = await loadCodexModel(auth, controller.signal)
+            const headers = { ...authHeaders(auth), "Content-Type": "application/json" }
 
             const response = await fetch(SEARCH_ENDPOINT, {
               method: "POST",
@@ -396,11 +427,7 @@ export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree
               throw new Error(`Codex web search request failed: ${message}`, { cause: error })
             })
 
-            if (response.status === 401 || response.status === 403) {
-              throw new Error("OpenCode ChatGPT authentication was rejected; refresh local credentials and retry")
-            }
-            if (response.status === 429) throw new Error("Codex web search rate limit exceeded; retry later")
-            if (!response.ok) throw new Error(`Codex web search failed with HTTP ${response.status}`)
+            requireSuccessfulResponse(response, auth, "Codex web search")
 
             const payload: unknown = await response.json().catch((error: unknown) => {
               throw new Error("Codex web search returned invalid JSON", { cause: error })

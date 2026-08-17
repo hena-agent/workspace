@@ -137,12 +137,12 @@ const layer = Layer.effect(
       const shared = common ? managedProject(common) : undefined
       const managed = managedProject(directory) ?? (shared?.directory === common ? shared : undefined)
       if (managed) {
+        const found = common === managed.directory ? repo : yield* git.repo.discover(managed.directory)
+        const repository = found && path.dirname(found.commonDirectory) === managed.directory ? found : undefined
         return {
           ...managed,
-          vcs:
-            repo && (repo.worktree === managed.directory || shared?.directory === common)
-              ? { type: "git" as const, store: repo.commonDirectory }
-              : undefined,
+          directory: repository?.worktree ?? managed.directory,
+          vcs: repository ? { type: "git" as const, store: repository.commonDirectory } : undefined,
         }
       }
 

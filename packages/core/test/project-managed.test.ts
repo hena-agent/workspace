@@ -70,10 +70,20 @@ describe("managed projects", () => {
       const linked = path.join(data, `linked-${created.id}`)
       yield* Effect.addFinalizer(() => Effect.promise(() => fs.rm(linked, { recursive: true, force: true })))
       yield* Effect.promise(() => $`git worktree add ${linked} -b linked-${created.id}`.cwd(created.directory).quiet())
+      const linkedDirectory = AbsolutePath.make(yield* Effect.promise(() => fs.realpath(linked)))
       expect(yield* projects.resolve(AbsolutePath.make(linked))).toMatchObject({
         id: created.id,
-        directory: created.directory,
+        directory: linkedDirectory,
         vcs: { type: "git" },
+      })
+
+      const nested = path.join(created.directory, "nested")
+      yield* Effect.promise(() => fs.mkdir(nested))
+      yield* Effect.promise(() => $`git init`.cwd(nested).quiet())
+      expect(yield* projects.resolve(AbsolutePath.make(nested))).toMatchObject({
+        id: created.id,
+        directory: created.directory,
+        vcs: { type: "git", store: AbsolutePath.make(path.join(created.directory, ".git")) },
       })
     }),
   )

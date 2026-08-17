@@ -27,7 +27,7 @@ import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
 import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "@hena/core/session/sql"
-import { ProjectTable } from "@hena/core/project/sql"
+import { ProjectTable, rooted } from "@hena/core/project/sql"
 import { MessageV2 } from "./message-v2"
 import type { InstanceContext } from "../project/instance-context"
 import { InstanceState } from "@/effect/instance-state"
@@ -581,10 +581,12 @@ const layer: Layer.Layer<
         const items = yield* db
           .select({ id: ProjectTable.id, name: ProjectTable.name, worktree: ProjectTable.worktree })
           .from(ProjectTable)
-          .where(inArray(ProjectTable.id, ids))
+          .where(and(inArray(ProjectTable.id, ids), rooted))
           .all()
           .pipe(Effect.orDie)
         for (const item of items) {
+          // The query enforces policy; this check narrows the nullable column.
+          if (!item.worktree) continue
           projects.set(item.id, {
             id: item.id,
             name: item.name ?? undefined,
@@ -592,6 +594,7 @@ const layer: Layer.Layer<
           })
         }
       }
+      // Sessions in a folderless project keep the legacy project: null rendering.
       return rows.map((row) => ({ ...fromRow(row), project: projects.get(row.project_id) ?? null }))
     })
 

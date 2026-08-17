@@ -1,7 +1,7 @@
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { and, eq, sql } from "drizzle-orm"
 import { Database } from "@hena/core/database/database"
-import { ProjectDirectoryTable, ProjectTable } from "@hena/core/project/sql"
+import { ProjectDirectoryTable, ProjectTable, rooted } from "@hena/core/project/sql"
 import { ProjectDirectories } from "@hena/core/project/directories"
 import { SessionTable } from "@hena/core/session/sql"
 import { WorkspaceTable } from "@hena/core/control-plane/workspace.sql"
@@ -32,7 +32,8 @@ export const Event = {
 
 type Row = typeof ProjectTable.$inferSelect
 
-export function fromRow(row: Row): Info {
+function fromRow(row: Row): Info | undefined {
+  if (row.worktree === null) return undefined
   const icon =
     row.icon_url || row.icon_url_override || row.icon_color
       ? {
@@ -95,8 +96,10 @@ export interface Interface {
   readonly initGit: (input: { directory: string; project: Info }) => Effect.Effect<Info>
   readonly setInitialized: (id: ProjectV2.ID) => Effect.Effect<void>
   readonly sandboxes: (id: ProjectV2.ID) => Effect.Effect<string[]>
-  readonly addSandbox: (id: ProjectV2.ID, directory: string) => Effect.Effect<void>
-  readonly removeSandbox: (id: ProjectV2.ID, directory: string) => Effect.Effect<void>
+  /** Adds a sandbox using `FSUtil.resolve`'s native canonical spelling. */
+  readonly addSandbox: (id: ProjectV2.ID, directory: string) => Effect.Effect<void, NotFoundError>
+  /** Removes an exact canonical sandbox spelling. */
+  readonly removeSandbox: (id: ProjectV2.ID, sandbox: AbsolutePath) => Effect.Effect<void, NotFoundError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@hena/Project") {}
@@ -219,40 +222,32 @@ const layer = Layer.effect(
       // Phase 2: upsert
       const projectID = ProjectV2.ID.make(data.id)
       yield* migrateProjectId(data.previous ? ProjectV2.ID.make(data.previous) : undefined, projectID)
+      // migrateProjectId copies worktree verbatim, so a folderless row would
+      // survive the migration and die here after its transaction commits. The
+      // identity-migration semantics belong to #14.
       const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get().pipe(Effect.orDie)
-      const existing = row
-        ? fromRow(row)
-        : {
-            id: projectID,
-            worktree,
-            vcs: data.vcs?.type ?? fakeVcs,
-            sandboxes: [] as string[],
-            time: { created: Date.now(), updated: Date.now() },
-          }
+      if (row && row.worktree === null) return yield* Effect.die(`Project ${projectID} has no worktree`)
+      const existing = (row && fromRow(row)) ?? {
+        id: projectID,
+        worktree,
+        vcs: data.vcs?.type ?? fakeVcs,
+        sandboxes: [] as string[],
+        time: { created: Date.now(), updated: Date.now() },
+      }
 
       if (flags.experimentalIconDiscovery) yield* discover(existing).pipe(Effect.ignore, Effect.forkIn(scope))
 
+      const projectWorktree = projectID === ProjectV2.ID.global ? worktree : existing.worktree
+      const sandboxes = new Set(existing.sandboxes.map((sandbox) => FSUtil.resolve(sandbox)))
+      const sandbox = AbsolutePath.make(FSUtil.resolve(data.directory))
+      if (projectID !== ProjectV2.ID.global && sandbox !== FSUtil.resolve(projectWorktree)) sandboxes.add(sandbox)
       const result: Info = {
         ...existing,
-        worktree: projectID === ProjectV2.ID.global ? worktree : existing.worktree,
+        worktree: projectWorktree,
         vcs: data.vcs?.type ?? fakeVcs,
+        sandboxes: yield* Effect.filter([...sandboxes], (sandbox) => fs.exists(sandbox).pipe(Effect.orDie)),
         time: { ...existing.time, updated: Date.now() },
       }
-      if (
-        projectID !== ProjectV2.ID.global &&
-        data.directory !== result.worktree &&
-        !result.sandboxes.includes(data.directory)
-      )
-        result.sandboxes.push(data.directory)
-      result.sandboxes = yield* Effect.forEach(
-        result.sandboxes,
-        (s) =>
-          fs.exists(s).pipe(
-            Effect.orDie,
-            Effect.map((exists) => (exists ? s : undefined)),
-          ),
-        { concurrency: "unbounded" },
-      ).pipe(Effect.map((arr) => arr.filter((x): x is string => x !== undefined)))
 
       yield* db
         .insert(ProjectTable)
@@ -334,7 +329,7 @@ const layer = Layer.effect(
     })
 
     const list = Effect.fn("Project.list")(function* () {
-      return (yield* db.select().from(ProjectTable).all().pipe(Effect.orDie)).map(fromRow)
+      return (yield* db.select().from(ProjectTable).all().pipe(Effect.orDie)).flatMap((row) => fromRow(row) ?? [])
     })
 
     const get = Effect.fn("Project.get")(function* (id: ProjectV2.ID) {
@@ -353,12 +348,12 @@ const layer = Layer.effect(
           commands: input.commands,
           time_updated: Date.now(),
         })
-        .where(eq(ProjectTable.id, input.projectID))
+        .where(and(eq(ProjectTable.id, input.projectID), rooted))
         .returning()
         .get()
         .pipe(Effect.orDie)
-      if (!result) return yield* new NotFoundError({ projectID: input.projectID })
-      const data = fromRow(result)
+      const data = result && fromRow(result)
+      if (!data) return yield* new NotFoundError({ projectID: input.projectID })
       yield* emitUpdated(data)
       return data
     })
@@ -378,7 +373,7 @@ const layer = Layer.effect(
       yield* db
         .update(ProjectTable)
         .set({ time_initialized: Date.now() })
-        .where(eq(ProjectTable.id, id))
+        .where(and(eq(ProjectTable.id, id), rooted))
         .run()
         .pipe(Effect.orDie)
     })
@@ -400,51 +395,54 @@ const layer = Layer.effect(
     })
 
     const sandboxes = Effect.fn("Project.sandboxes")(function* (id: ProjectV2.ID) {
-      const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get().pipe(Effect.orDie)
+      const row = yield* db
+        .select()
+        .from(ProjectTable)
+        .where(and(eq(ProjectTable.id, id), rooted))
+        .get()
+        .pipe(Effect.orDie)
       if (!row) return []
-      const data = fromRow(row)
-      return yield* Effect.forEach(
-        data.sandboxes,
-        (dir) =>
-          fs.isDir(dir).pipe(
-            Effect.orDie,
-            Effect.map((ok) => (ok ? dir : undefined)),
-          ),
-        { concurrency: "unbounded" },
-      ).pipe(Effect.map((arr) => arr.filter((x): x is string => x !== undefined)))
+      return yield* Effect.filter(row.sandboxes, (directory) => fs.isDir(directory).pipe(Effect.orDie))
+    })
+
+    const writeSandboxes = Effect.fn("Project.writeSandboxes")(function* (
+      id: ProjectV2.ID,
+      next: (sandboxes: AbsolutePath[]) => AbsolutePath[],
+    ) {
+      const result = yield* db
+        .transaction(
+          (d) =>
+            Effect.gen(function* () {
+              // Keep both predicates so each statement independently refuses folderless rows.
+              const row = yield* d
+                .select()
+                .from(ProjectTable)
+                .where(and(eq(ProjectTable.id, id), rooted))
+                .get()
+              if (!row) return undefined
+              return yield* d
+                .update(ProjectTable)
+                .set({ sandboxes: next(row.sandboxes), time_updated: Date.now() })
+                .where(and(eq(ProjectTable.id, id), rooted))
+                .returning()
+                .get()
+            }),
+          // Serialize the read-modify-write so concurrent callers cannot lose a sandbox.
+          { behavior: "immediate" },
+        )
+        .pipe(Effect.orDie)
+      const data = result && fromRow(result)
+      if (!data) return yield* new NotFoundError({ projectID: id })
+      return yield* emitUpdated(data)
     })
 
     const addSandbox = Effect.fn("Project.addSandbox")(function* (id: ProjectV2.ID, directory: string) {
-      const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get().pipe(Effect.orDie)
-      if (!row) throw new Error(`Project not found: ${id}`)
-      const sandbox = AbsolutePath.make(directory)
-      const sboxes = [...row.sandboxes]
-      if (!sboxes.includes(sandbox)) sboxes.push(sandbox)
-      const result = yield* db
-        .update(ProjectTable)
-        .set({ sandboxes: sboxes, time_updated: Date.now() })
-        .where(eq(ProjectTable.id, id))
-        .returning()
-        .get()
-        .pipe(Effect.orDie)
-      if (!result) throw new Error(`Project not found: ${id}`)
-      yield* emitUpdated(fromRow(result))
+      const sandbox = AbsolutePath.make(FSUtil.resolve(directory))
+      yield* writeSandboxes(id, (sboxes) => (sboxes.includes(sandbox) ? sboxes : [...sboxes, sandbox]))
     })
 
-    const removeSandbox = Effect.fn("Project.removeSandbox")(function* (id: ProjectV2.ID, directory: string) {
-      const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get().pipe(Effect.orDie)
-      if (!row) throw new Error(`Project not found: ${id}`)
-      const sandbox = AbsolutePath.make(directory)
-      const sboxes = row.sandboxes.filter((s) => s !== sandbox)
-      const result = yield* db
-        .update(ProjectTable)
-        .set({ sandboxes: sboxes, time_updated: Date.now() })
-        .where(eq(ProjectTable.id, id))
-        .returning()
-        .get()
-        .pipe(Effect.orDie)
-      if (!result) throw new Error(`Project not found: ${id}`)
-      yield* emitUpdated(fromRow(result))
+    const removeSandbox = Effect.fn("Project.removeSandbox")(function* (id: ProjectV2.ID, sandbox: AbsolutePath) {
+      yield* writeSandboxes(id, (sboxes) => sboxes.filter((item) => item !== sandbox))
     })
 
     return Service.of({

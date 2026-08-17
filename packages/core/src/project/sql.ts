@@ -1,11 +1,13 @@
 import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core"
+import { isNotNull } from "drizzle-orm"
 import * as DatabasePath from "../database/path"
 import { Timestamps } from "../database/schema.sql"
 import { ProjectSchema } from "./schema"
 
 export const ProjectTable = sqliteTable("project", {
   id: text().$type<ProjectSchema.ID>().primaryKey(),
-  worktree: DatabasePath.absoluteColumn().notNull(),
+  // Nullable for folderless rows, which legacy Hena APIs exclude.
+  worktree: DatabasePath.absoluteColumn(),
   vcs: text(),
   name: text(),
   icon_url: text(),
@@ -16,6 +18,9 @@ export const ProjectTable = sqliteTable("project", {
   sandboxes: DatabasePath.absoluteArrayColumn().notNull(),
   commands: text({ mode: "json" }).$type<{ start?: string }>(),
 })
+
+// Folderless projects are excluded from legacy reads and ordinary writes.
+export const rooted = isNotNull(ProjectTable.worktree)
 
 export const ProjectDirectoryTable = sqliteTable(
   "project_directory",

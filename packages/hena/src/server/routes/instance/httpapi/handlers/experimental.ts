@@ -122,9 +122,7 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
     const worktreeRemove = Effect.fn("ExperimentalHttpApi.worktreeRemove")(function* (input: {
       payload: Worktree.RemoveInput
     }) {
-      const ctx = yield* InstanceState.context
       yield* mapWorktreeError(worktreeSvc.remove(input.payload))
-      yield* project.removeSandbox(ctx.project.id, input.payload.directory)
       return true
     })
 

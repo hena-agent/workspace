@@ -2,6 +2,7 @@ import { afterEach, describe, expect } from "bun:test"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { FSUtil } from "@hena/core/fs-util"
+import { ProjectV2 } from "@hena/core/project"
 import { Effect, Layer } from "effect"
 import { HttpClientResponse } from "effect/unstable/http"
 import path from "path"
@@ -24,7 +25,11 @@ const noopBootstrap = Layer.succeed(InstanceBootstrap.Service, InstanceBootstrap
 const testInstanceStore = AppNodeBuilder.build(InstanceStore.node, [[InstanceStore.bootstrapNode, noopBootstrap]])
 
 const it = testEffect(
-  Layer.mergeAll(AppNodeBuilder.build(LayerNode.group([FSUtil.node, Snapshot.node])), testInstanceStore, httpApiLayer),
+  Layer.mergeAll(
+    AppNodeBuilder.build(LayerNode.group([FSUtil.node, ProjectV2.node, Snapshot.node])),
+    testInstanceStore,
+    httpApiLayer,
+  ),
 )
 
 function request(directory: string, url: string, init: RequestInit = {}) {
@@ -114,5 +119,27 @@ describe("project.initGit endpoint", () => {
         })
       }),
     { git: true },
+  )
+
+  it.live("initializes managed projects from their root", () =>
+    Effect.gen(function* () {
+      const fs = yield* FSUtil.Service
+      const projects = yield* ProjectV2.Service
+      const created = yield* projects.create()
+      const nested = path.join(created.directory, "nested")
+      yield* fs.makeDirectory(nested)
+
+      const response = yield* request(nested, "/project/git/init", { method: "POST" })
+
+      expect(response.status).toBe(200)
+      expect(yield* json(response)).toMatchObject({
+        id: created.id,
+        vcs: "git",
+        worktree: created.directory,
+      })
+      expect(yield* fs.exists(path.join(created.directory, ".git"))).toBe(true)
+      expect(yield* fs.exists(path.join(nested, ".git"))).toBe(false)
+      expect(yield* fs.exists(path.join(created.directory, ".git", "hena"))).toBe(false)
+    }),
   )
 })

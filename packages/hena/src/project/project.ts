@@ -226,73 +226,83 @@ const layer = Layer.effect(
       // Phase 2: upsert
       const projectID = ProjectV2.ID.make(data.id)
       yield* migrateProjectId(data.previous ? ProjectV2.ID.make(data.previous) : undefined, projectID)
-      const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get().pipe(Effect.orDie)
-      const existing = row
-        ? decodeRow(row, row.worktree ?? worktree)
-        : {
-            id: projectID,
-            worktree,
-            vcs: data.vcs?.type ?? fakeVcs,
-            sandboxes: [] as string[],
-            time: { created: Date.now(), updated: Date.now() },
-          }
+      const result = yield* db
+        .transaction(
+          (d) =>
+            Effect.gen(function* () {
+              const row = yield* d.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get()
+              const existing = row
+                ? decodeRow(row, row.worktree ?? worktree)
+                : {
+                    id: projectID,
+                    worktree,
+                    vcs: data.vcs?.type ?? fakeVcs,
+                    sandboxes: [] as string[],
+                    time: { created: Date.now(), updated: Date.now() },
+                  }
 
-      if (flags.experimentalIconDiscovery) yield* discover(existing).pipe(Effect.ignore, Effect.forkIn(scope))
+              if (flags.experimentalIconDiscovery) yield* discover(existing).pipe(Effect.ignore, Effect.forkIn(scope))
 
-      const projectWorktree = projectID === ProjectV2.ID.global ? worktree : existing.worktree
-      const sandboxes = new Set(existing.sandboxes.map((sandbox) => FSUtil.resolve(sandbox)))
-      const sandbox = AbsolutePath.make(FSUtil.resolve(data.directory))
-      if (projectID !== ProjectV2.ID.global && sandbox !== FSUtil.resolve(projectWorktree)) sandboxes.add(sandbox)
-      const result: Info = {
-        ...existing,
-        worktree: projectWorktree,
-        vcs: data.vcs?.type ?? fakeVcs,
-        sandboxes: yield* Effect.filter([...sandboxes], (sandbox) => fs.exists(sandbox).pipe(Effect.orDie)),
-        time: { ...existing.time, updated: Date.now() },
-      }
+              const projectWorktree = projectID === ProjectV2.ID.global ? worktree : existing.worktree
+              const sandboxes = new Set(existing.sandboxes.map((sandbox) => FSUtil.resolve(sandbox)))
+              const sandbox = AbsolutePath.make(FSUtil.resolve(data.directory))
+              if (projectID !== ProjectV2.ID.global && sandbox !== FSUtil.resolve(projectWorktree))
+                sandboxes.add(sandbox)
+              const result: Info = {
+                ...existing,
+                worktree: projectWorktree,
+                vcs: data.vcs?.type ?? fakeVcs,
+                sandboxes: yield* Effect.filter([...sandboxes], (sandbox) => fs.exists(sandbox).pipe(Effect.orDie)),
+                time: { ...existing.time, updated: Date.now() },
+              }
 
-      yield* db
-        .insert(ProjectTable)
-        .values({
-          id: result.id,
-          worktree: AbsolutePath.make(result.worktree),
-          vcs: result.vcs ?? null,
-          name: result.name,
-          icon_url: result.icon?.url,
-          icon_url_override: result.icon?.override,
-          icon_color: result.icon?.color,
-          time_created: result.time.created,
-          time_updated: result.time.updated,
-          time_initialized: result.time.initialized,
-          sandboxes: result.sandboxes.map((sandbox) => AbsolutePath.make(sandbox)),
-          commands: result.commands,
-        })
-        .onConflictDoUpdate({
-          target: ProjectTable.id,
-          set: {
-            worktree: AbsolutePath.make(result.worktree),
-            vcs: result.vcs ?? null,
-            name: result.name,
-            icon_url: result.icon?.url,
-            icon_url_override: result.icon?.override,
-            icon_color: result.icon?.color,
-            time_updated: result.time.updated,
-            time_initialized: result.time.initialized,
-            sandboxes: result.sandboxes.map((sandbox) => AbsolutePath.make(sandbox)),
-            commands: result.commands,
-          },
-        })
-        .run()
+              yield* d
+                .insert(ProjectTable)
+                .values({
+                  id: result.id,
+                  worktree: AbsolutePath.make(result.worktree),
+                  vcs: result.vcs ?? null,
+                  name: result.name,
+                  icon_url: result.icon?.url,
+                  icon_url_override: result.icon?.override,
+                  icon_color: result.icon?.color,
+                  time_created: result.time.created,
+                  time_updated: result.time.updated,
+                  time_initialized: result.time.initialized,
+                  sandboxes: result.sandboxes.map((sandbox) => AbsolutePath.make(sandbox)),
+                  commands: result.commands,
+                })
+                .onConflictDoUpdate({
+                  target: ProjectTable.id,
+                  set: {
+                    worktree: AbsolutePath.make(result.worktree),
+                    vcs: result.vcs ?? null,
+                    name: result.name,
+                    icon_url: result.icon?.url,
+                    icon_url_override: result.icon?.override,
+                    icon_color: result.icon?.color,
+                    time_updated: result.time.updated,
+                    time_initialized: result.time.initialized,
+                    sandboxes: result.sandboxes.map((sandbox) => AbsolutePath.make(sandbox)),
+                    commands: result.commands,
+                  },
+                })
+                .run()
+
+              if (projectID !== ProjectV2.ID.global) {
+                yield* d
+                  .update(SessionTable)
+                  .set({ project_id: projectID })
+                  .where(
+                    and(eq(SessionTable.project_id, ProjectV2.ID.global), eq(SessionTable.directory, data.directory)),
+                  )
+                  .run()
+              }
+              return result
+            }),
+          { behavior: "immediate" },
+        )
         .pipe(Effect.orDie)
-
-      if (projectID !== ProjectV2.ID.global) {
-        yield* db
-          .update(SessionTable)
-          .set({ project_id: projectID })
-          .where(and(eq(SessionTable.project_id, ProjectV2.ID.global), eq(SessionTable.directory, data.directory)))
-          .run()
-          .pipe(Effect.orDie)
-      }
 
       yield* saveProjectDirectory({
         projectID,
@@ -363,11 +373,12 @@ const layer = Layer.effect(
     const initGit = Effect.fn("Project.initGit")(function* (input: { directory: string; project: Info }) {
       if (input.project.vcs === "git") return input.project
       if (!(yield* Effect.sync(() => which("git")))) throw new Error("Git is not installed")
-      const result = yield* git(["init", "--quiet"], { cwd: input.directory })
+      const directory = ProjectV2.ID.isManaged(input.project.id) ? input.project.worktree : input.directory
+      const result = yield* git(["init", "--quiet"], { cwd: directory })
       if (result.code !== 0) {
         throw new Error(result.stderr.trim() || result.text.trim() || "Failed to initialize git repository")
       }
-      const { project } = yield* fromDirectory(input.directory)
+      const { project } = yield* fromDirectory(directory)
       return project
     })
 

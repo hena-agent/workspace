@@ -806,6 +806,33 @@ describe("Project folderless rows", () => {
       expect(stored?.sandboxes).toContain(sandbox)
     }),
   )
+
+  it.live("serializes concurrent reopening across worktrees", () =>
+    Effect.gen(function* () {
+      const project = yield* Project.Service
+      const { db } = yield* Database.Service
+      const tmp = yield* tmpdirScoped({ git: true })
+      const result = yield* project.fromDirectory(tmp)
+      const first = `${tmp}-folderless-1`
+      const second = `${tmp}-folderless-2`
+      yield* Effect.addFinalizer(() => Effect.promise(() => $`rm -rf ${first} ${second}`.quiet()).pipe(Effect.ignore))
+      yield* Effect.promise(() => $`git worktree add ${first} -b folderless-1-${Date.now()}`.cwd(tmp).quiet())
+      yield* Effect.promise(() => $`git worktree add ${second} -b folderless-2-${Date.now()}`.cwd(tmp).quiet())
+      yield* db
+        .update(ProjectTable)
+        .set({ worktree: null })
+        .where(eq(ProjectTable.id, result.project.id))
+        .run()
+        .pipe(Effect.orDie)
+
+      yield* Effect.all([project.fromDirectory(first), project.fromDirectory(second)], { concurrency: "unbounded" })
+
+      const reopened = yield* project.get(result.project.id)
+      expect(new Set([reopened?.worktree, ...(reopened?.sandboxes ?? [])])).toEqual(
+        new Set([FSUtil.resolve(first), FSUtil.resolve(second)]),
+      )
+    }),
+  )
 })
 
 describe("Project.fromDirectory with bare repos", () => {

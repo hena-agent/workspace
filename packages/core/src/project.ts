@@ -150,6 +150,7 @@ const layer = Layer.effect(
     })
 
     const commit = Effect.fn("Project.commit")(function* (input: { store: AbsolutePath; id: ID }) {
+      if (ID.isManaged(input.id)) return
       yield* fs.writeFileString(path.join(input.store, "hena"), input.id).pipe(Effect.ignore)
     })
 

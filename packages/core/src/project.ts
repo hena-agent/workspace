@@ -61,7 +61,7 @@ const layer = Layer.effect(
     const global = yield* Global.Service
     const projectDirectories = yield* ProjectDirectories.Service
 
-    yield* fs.ensureDir(global.projects).pipe(Effect.orDie)
+    yield* fs.ensureDir(global.projects, 0o700).pipe(Effect.orDie)
     const projects = AbsolutePath.make(FSUtil.resolve(global.projects))
     if (process.platform !== "win32") yield* fs.chmod(projects, 0o700).pipe(Effect.orDie)
 
@@ -69,7 +69,7 @@ const layer = Layer.effect(
       const id = ID.create()
       const directory = AbsolutePath.make(path.join(projects, id))
       return yield* Effect.gen(function* () {
-        yield* fs.ensureDir(directory).pipe(Effect.orDie)
+        yield* fs.ensureDir(directory, 0o700).pipe(Effect.orDie)
         if (process.platform !== "win32") yield* fs.chmod(directory, 0o700).pipe(Effect.orDie)
         return { id, directory }
       }).pipe(Effect.onError(() => fs.remove(directory, { recursive: true, force: true }).pipe(Effect.ignore)))

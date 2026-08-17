@@ -1,5 +1,5 @@
 import { LayerNode } from "@hena/core/effect/layer-node"
-import { and, eq, sql } from "drizzle-orm"
+import { and, eq, ne, sql } from "drizzle-orm"
 import { Database } from "@hena/core/database/database"
 import { ProjectDirectoryTable, ProjectTable, rooted } from "@hena/core/project/sql"
 import { ProjectDirectories } from "@hena/core/project/directories"
@@ -22,6 +22,7 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { EventV2 } from "@hena/core/event"
 import { Project } from "@hena/schema/project"
+import path from "path"
 
 export const Info = Project.Info
 export type Info = Types.DeepMutable<Schema.Schema.Type<typeof Info>>
@@ -199,33 +200,32 @@ const layer = Layer.effect(
         .pipe(Effect.orDie)
     })
 
-    const saveProjectDirectory = Effect.fn("Project.saveProjectDirectory")(function* (input: {
-      projectID: ProjectV2.ID
-      directory: string
-    }) {
-      if (input.projectID === ProjectV2.ID.global) return
-      const opened = AbsolutePath.make(FSUtil.resolve(input.directory))
-      yield* projectDirectories
-        .create({
-          directory: opened,
-          projectID: input.projectID,
-        })
-        .pipe(
-          Effect.catchCause((cause) =>
-            Effect.logWarning("project directory persistence failed", { projectID: input.projectID, cause }),
-          ),
-        )
-    })
-
     const fromDirectory = Effect.fn("Project.fromDirectory")(function* (directory: string) {
       yield* Effect.logInfo("fromDirectory", { directory })
 
       const data = yield* projectV2.resolve(AbsolutePath.make(directory))
       const worktree = data.id === ProjectV2.ID.make("global") && !data.vcs ? "/" : data.directory
+      const opened = AbsolutePath.make(FSUtil.resolve(data.directory))
+      const storage = opened.replaceAll("\\", "/")
 
       // Phase 2: upsert
       const projectID = ProjectV2.ID.make(data.id)
       yield* migrateProjectId(data.previous ? ProjectV2.ID.make(data.previous) : undefined, projectID)
+      const observed = yield* db
+        .select({ sandboxes: ProjectTable.sandboxes })
+        .from(ProjectTable)
+        .where(eq(ProjectTable.id, projectID))
+        .get()
+        .pipe(Effect.orDie)
+      const observedSandboxes = new Set((observed?.sandboxes ?? []).map((sandbox) => FSUtil.resolve(sandbox)))
+      const missingSandboxes = new Set(
+        yield* Effect.filter([...observedSandboxes], (sandbox) =>
+          fs.exists(sandbox).pipe(
+            Effect.orDie,
+            Effect.map((exists) => !exists),
+          ),
+        ),
+      )
       const result = yield* db
         .transaction(
           (d) =>
@@ -243,6 +243,11 @@ const layer = Layer.effect(
 
               const projectWorktree = projectID === ProjectV2.ID.global ? worktree : existing.worktree
               const sandboxes = new Set(existing.sandboxes.map((sandbox) => FSUtil.resolve(sandbox)))
+              if (
+                sandboxes.size === observedSandboxes.size &&
+                [...sandboxes].every((sandbox) => observedSandboxes.has(sandbox))
+              )
+                missingSandboxes.forEach((sandbox) => sandboxes.delete(sandbox))
               sandboxes.delete(FSUtil.resolve(projectWorktree))
               const sandbox = AbsolutePath.make(FSUtil.resolve(data.directory))
               if (projectID !== ProjectV2.ID.global && sandbox !== FSUtil.resolve(projectWorktree))
@@ -251,7 +256,7 @@ const layer = Layer.effect(
                 ...existing,
                 worktree: projectWorktree,
                 vcs: data.vcs?.type ?? fakeVcs,
-                sandboxes: yield* Effect.filter([...sandboxes], (sandbox) => fs.exists(sandbox).pipe(Effect.orDie)),
+                sandboxes: [...sandboxes],
                 time: { ...existing.time, updated: Date.now() },
               }
 
@@ -293,9 +298,25 @@ const layer = Layer.effect(
                   .update(SessionTable)
                   .set({ project_id: projectID })
                   .where(
-                    and(eq(SessionTable.project_id, ProjectV2.ID.global), eq(SessionTable.directory, data.directory)),
+                    and(
+                      eq(SessionTable.project_id, ProjectV2.ID.global),
+                      sql`(${SessionTable.directory} = ${storage} OR ${storage} = ${path.parse(opened).root.replaceAll("\\", "/")} OR (substr(${SessionTable.directory}, 1, length(${storage})) = ${storage} AND substr(${SessionTable.directory}, length(${storage}) + 1, 1) = '/'))`,
+                    ),
                   )
                   .run()
+                yield* d
+                  .delete(ProjectDirectoryTable)
+                  .where(
+                    and(eq(ProjectDirectoryTable.directory, opened), ne(ProjectDirectoryTable.project_id, projectID)),
+                  )
+                  .run()
+                yield* projectDirectories.create(
+                  {
+                    directory: opened,
+                    projectID,
+                  },
+                  d,
+                )
               }
               return result
             }),
@@ -304,11 +325,6 @@ const layer = Layer.effect(
         .pipe(Effect.orDie)
 
       if (flags.experimentalIconDiscovery) yield* discover(result).pipe(Effect.ignore, Effect.forkIn(scope))
-
-      yield* saveProjectDirectory({
-        projectID,
-        directory: data.directory,
-      })
 
       yield* emitUpdated(result)
       if (projectID !== ProjectV2.ID.global && data.vcs?.type === "git") {

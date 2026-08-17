@@ -22,6 +22,30 @@ const it = testEffect(
 )
 
 describe("managed projects", () => {
+  it.live("creates the projects root lazily", () =>
+    Effect.gen(function* () {
+      const projects = yield* Project.Service
+      expect(
+        yield* Effect.promise(() =>
+          fs
+            .stat(projectsRoot)
+            .then(() => true)
+            .catch(() => false),
+        ),
+      ).toBe(false)
+
+      yield* projects.create()
+      expect(
+        yield* Effect.promise(() =>
+          fs
+            .stat(projectsRoot)
+            .then(() => true)
+            .catch(() => false),
+        ),
+      ).toBe(true)
+    }),
+  )
+
   it.live("creates a private directory and resolves nested paths", () =>
     Effect.gen(function* () {
       const projects = yield* Project.Service
@@ -44,6 +68,46 @@ describe("managed projects", () => {
         expect((yield* Effect.promise(() => fs.stat(root))).mode & 0o777).toBe(0o700)
         expect((yield* Effect.promise(() => fs.stat(created.directory))).mode & 0o777).toBe(0o700)
       }
+    }),
+  )
+
+  it.live("ignores a nested repository when the managed root is not a repository", () =>
+    Effect.gen(function* () {
+      const projects = yield* Project.Service
+      const created = yield* projects.create()
+      const nested = AbsolutePath.make(path.join(created.directory, "nested"))
+      yield* Effect.promise(() => fs.mkdir(nested))
+      yield* Effect.promise(() => $`git init`.cwd(nested).quiet())
+
+      expect(yield* projects.resolve(nested)).toEqual(created)
+    }),
+  )
+
+  it.live("recognizes external Git metadata and linked worktrees mounted at the managed root", () =>
+    Effect.gen(function* () {
+      const projects = yield* Project.Service
+      const separate = yield* projects.create()
+      const storage = path.join(data, `git-${separate.id}`)
+      yield* Effect.promise(() => $`git init --separate-git-dir ${storage} ${separate.directory}`.quiet())
+
+      expect(yield* projects.resolve(separate.directory)).toEqual({
+        ...separate,
+        vcs: { type: "git", store: AbsolutePath.make(yield* Effect.promise(() => fs.realpath(storage))) },
+      })
+
+      const source = path.join(data, `source-${separate.id}`)
+      yield* Effect.promise(() => fs.mkdir(source))
+      yield* Effect.promise(() => $`git init`.cwd(source).quiet())
+      yield* Effect.promise(() =>
+        $`git -c user.name=Test -c user.email=test@hena.test commit --allow-empty -m root`.cwd(source).quiet(),
+      )
+      const linked = yield* projects.create()
+      yield* Effect.promise(() => $`git worktree add ${linked.directory} -b linked-${linked.id}`.cwd(source).quiet())
+
+      expect(yield* projects.resolve(linked.directory)).toMatchObject({
+        ...linked,
+        vcs: { type: "git" },
+      })
     }),
   )
 
@@ -75,6 +139,15 @@ describe("managed projects", () => {
         id: created.id,
         directory: linkedDirectory,
         vcs: { type: "git" },
+      })
+
+      const linkedNested = path.join(linked, "nested")
+      yield* Effect.promise(() => fs.mkdir(linkedNested))
+      yield* Effect.promise(() => $`git init`.cwd(linkedNested).quiet())
+      expect(yield* projects.resolve(AbsolutePath.make(linkedNested))).toEqual({
+        id: created.id,
+        directory: linkedDirectory,
+        vcs: { type: "git", store: AbsolutePath.make(path.join(created.directory, ".git")) },
       })
 
       const nested = path.join(created.directory, "nested")

@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm"
 import { Hash } from "@hena/core/util/hash"
 import { SessionID } from "@/session/schema"
 import { WorkspaceV2 } from "@hena/core/workspace"
-import { Cause, Effect, Exit, Layer, Stream } from "effect"
+import { Cause, Deferred, Effect, Exit, Fiber, Layer, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { ProjectV2 } from "@hena/core/project"
 import { AbsolutePath } from "@hena/core/schema"
@@ -96,6 +96,53 @@ const failureIt = (failArg: string) =>
 
 const iconDiscoveryIt = testEffect(
   AppNodeBuilder.build(projectTestNode, [[RuntimeFlags.node, RuntimeFlags.layer({ experimentalIconDiscovery: true })]]),
+)
+
+const sandboxRaceID = ProjectV2.ID.make("sandbox-probe-race")
+const sandboxRace = {
+  worktree: AbsolutePath.make(FSUtil.resolve("/tmp/hena-sandbox-probe-worktree")),
+  current: AbsolutePath.make(FSUtil.resolve("/tmp/hena-sandbox-probe-current")),
+  missing: AbsolutePath.make(FSUtil.resolve("/tmp/hena-sandbox-probe-missing")),
+  removed: AbsolutePath.make(FSUtil.resolve("/tmp/hena-sandbox-probe-removed")),
+  added: AbsolutePath.make(FSUtil.resolve("/tmp/hena-sandbox-probe-added")),
+  started: Effect.runSync(Deferred.make<void>()),
+  release: Effect.runSync(Deferred.make<void>()),
+}
+const sandboxRaceFs = Layer.effect(
+  FSUtil.Service,
+  Effect.gen(function* () {
+    const fs = yield* FSUtil.Service
+    return FSUtil.Service.of({
+      ...fs,
+      exists: (input) =>
+        input === sandboxRace.missing
+          ? Deferred.succeed(sandboxRace.started, undefined).pipe(
+              Effect.andThen(Deferred.await(sandboxRace.release)),
+              Effect.as(false),
+            )
+          : Effect.succeed(true),
+    })
+  }),
+).pipe(Layer.provide(LayerNode.compile(FSUtil.node)))
+const sandboxRaceIt = testEffect(
+  AppNodeBuilder.build(projectTestNode, [
+    [
+      Project.node,
+      AppNodeBuilder.build(Project.node, [
+        [FSUtil.node, sandboxRaceFs],
+        [
+          ProjectV2.node,
+          Layer.mock(ProjectV2.Service, {
+            resolve: () =>
+              Effect.succeed({
+                id: sandboxRaceID,
+                directory: sandboxRace.current,
+              }),
+          }),
+        ],
+      ]),
+    ],
+  ]),
 )
 
 function waitForProjectIcon(id: ProjectV2.ID, attempts = 50): Effect.Effect<Project.Info, never, Project.Service> {
@@ -699,6 +746,38 @@ describe("Project.setInitialized", () => {
 })
 
 describe("Project.addSandbox and Project.removeSandbox", () => {
+  sandboxRaceIt.live("ignores stale probes when the sandbox set changes concurrently", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      yield* db
+        .insert(ProjectTable)
+        .values({
+          id: sandboxRaceID,
+          worktree: sandboxRace.worktree,
+          vcs: null,
+          time_created: Date.now(),
+          time_updated: Date.now(),
+          sandboxes: [sandboxRace.missing, sandboxRace.removed],
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      const project = yield* Project.Service
+      const opening = yield* project.fromDirectory(sandboxRace.current).pipe(Effect.forkChild)
+      yield* Deferred.await(sandboxRace.started)
+      yield* db
+        .update(ProjectTable)
+        .set({ sandboxes: [sandboxRace.missing, sandboxRace.added] })
+        .where(eq(ProjectTable.id, sandboxRaceID))
+        .run()
+        .pipe(Effect.orDie)
+      yield* Deferred.succeed(sandboxRace.release, undefined)
+      const result = yield* Fiber.join(opening)
+
+      expect(result.project.sandboxes).toEqual([sandboxRace.missing, sandboxRace.added, sandboxRace.current])
+    }),
+  )
+
   it.live("adds, removes, and prunes sandboxes without reordering", () =>
     Effect.gen(function* () {
       const project = yield* Project.Service

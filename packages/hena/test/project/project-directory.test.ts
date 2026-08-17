@@ -63,6 +63,41 @@ describe("Project directory persistence", () => {
     }),
   )
 
+  it.live("replaces an exact directory mapping owned by another project", () =>
+    Effect.gen(function* () {
+      const tmp = yield* tmpdirScoped({ git: true })
+      const staleID = ProjectV2.ID.make("stale-directory-owner")
+      const { db } = yield* Database.Service
+      yield* db
+        .insert(ProjectTable)
+        .values({
+          id: staleID,
+          worktree: AbsolutePath.make(tmp + "-stale"),
+          vcs: "git",
+          time_created: Date.now(),
+          time_updated: Date.now(),
+          sandboxes: [],
+        })
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(ProjectDirectoryTable)
+        .values({ project_id: staleID, directory: AbsolutePath.make(tmp) })
+        .run()
+        .pipe(Effect.orDie)
+
+      const result = yield* (yield* Project.Service).fromDirectory(tmp)
+      const rows = yield* db
+        .select()
+        .from(ProjectDirectoryTable)
+        .where(eq(ProjectDirectoryTable.directory, AbsolutePath.make(tmp)))
+        .all()
+        .pipe(Effect.orDie)
+
+      expect(rows.map((row) => row.project_id)).toEqual([result.project.id])
+    }),
+  )
+
   it.live("stores an opened linked worktree directory", () =>
     Effect.gen(function* () {
       const tmp = yield* tmpdirScoped({ git: true })

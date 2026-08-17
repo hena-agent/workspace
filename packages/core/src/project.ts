@@ -61,11 +61,11 @@ const layer = Layer.effect(
     const global = yield* Global.Service
     const projectDirectories = yield* ProjectDirectories.Service
 
-    yield* fs.ensureDir(global.projects, 0o700).pipe(Effect.orDie)
     const projects = AbsolutePath.make(FSUtil.resolve(global.projects))
-    if (process.platform !== "win32") yield* fs.chmod(projects, 0o700).pipe(Effect.orDie)
 
     const create = Effect.fn("Project.create")(function* () {
+      yield* fs.ensureDir(projects, 0o700).pipe(Effect.orDie)
+      if (process.platform !== "win32") yield* fs.chmod(projects, 0o700).pipe(Effect.orDie)
       const id = ID.create()
       const directory = AbsolutePath.make(path.join(projects, id))
       return yield* Effect.gen(function* () {
@@ -132,18 +132,33 @@ const layer = Layer.effect(
 
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
       const directory = AbsolutePath.make(FSUtil.resolve(input))
-      const repo = yield* git.repo.discover(input)
-      const common = repo ? path.dirname(repo.commonDirectory) : undefined
-      const shared = common ? managedProject(common) : undefined
-      const managed = managedProject(directory) ?? (shared?.directory === common ? shared : undefined)
+      const managed = managedProject(directory)
       if (managed) {
-        const found = common === managed.directory ? repo : yield* git.repo.discover(managed.directory)
-        const repository = found && path.dirname(found.commonDirectory) === managed.directory ? found : undefined
+        const found = yield* git.repo.discover(managed.directory)
+        const repository = found?.worktree === managed.directory ? found : undefined
         return {
           ...managed,
-          directory: repository?.worktree ?? managed.directory,
           vcs: repository ? { type: "git" as const, store: repository.commonDirectory } : undefined,
         }
+      }
+
+      const repo = yield* git.repo.discover(input)
+      let enclosing = repo
+      while (enclosing) {
+        const common = path.dirname(enclosing.commonDirectory)
+        const shared = managedProject(common)
+        if (shared?.directory === common) {
+          return {
+            ...shared,
+            directory: enclosing.worktree,
+            vcs: { type: "git" as const, store: enclosing.commonDirectory },
+          }
+        }
+        const parent = path.dirname(enclosing.worktree)
+        if (parent === enclosing.worktree) break
+        const outer = yield* git.repo.discover(AbsolutePath.make(parent))
+        if (outer?.worktree === enclosing.worktree) break
+        enclosing = outer
       }
 
       if (!repo) return { id: ID.global, directory: AbsolutePath.make(path.parse(input).root), vcs: undefined }

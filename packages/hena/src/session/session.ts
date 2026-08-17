@@ -9,7 +9,9 @@ import { Decimal } from "decimal.js"
 import type { ProviderMetadata, Usage } from "@hena/llm"
 import { InstallationVersion } from "@hena/core/installation/version"
 import { Database } from "@hena/core/database/database"
+import { FSUtil } from "@hena/core/fs-util"
 import { EventV2Bridge } from "@/event-v2-bridge"
+import { Location } from "@hena/core/location"
 import { SessionV2 } from "@hena/core/session"
 import * as SessionExecutionLocal from "@hena/core/session/execution/local"
 import { locationServiceMapLayer } from "@hena/core/location-services"
@@ -25,9 +27,10 @@ import { sql } from "drizzle-orm"
 import { inArray } from "drizzle-orm"
 import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
+import { ne } from "drizzle-orm"
 import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "@hena/core/session/sql"
-import { ProjectTable, rooted } from "@hena/core/project/sql"
+import { ProjectDirectoryTable, ProjectTable, rooted } from "@hena/core/project/sql"
 import { MessageV2 } from "./message-v2"
 import type { InstanceContext } from "../project/instance-context"
 import { InstanceState } from "@/effect/instance-state"
@@ -39,7 +42,7 @@ import { SessionID, MessageID, PartID } from "./schema"
 import type { Provider } from "@/provider/provider"
 import { Global } from "@/global"
 import { Effect, Layer, Option, Context, Schema, Types } from "effect"
-import { NonNegativeInt, optional } from "@hena/core/schema"
+import { AbsolutePath, NonNegativeInt, optional } from "@hena/core/schema"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderV2 } from "@hena/core/provider"
 import { ModelV2 } from "@hena/core/model"
@@ -190,6 +193,12 @@ const Tokens = Schema.Struct({
 })
 
 const EmptyTokens = { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } }
+
+class ProjectDirectoryChanged extends Error {
+  constructor(readonly project: { projectID: ProjectV2.ID; directory: AbsolutePath } | undefined) {
+    super("Project directory mapping changed during session creation")
+  }
+}
 
 const Share = Schema.Struct({
   url: Schema.String,
@@ -511,6 +520,8 @@ const layer: Layer.Layer<
       permission?: PermissionV1.Ruleset
     }) {
       const ctx = yield* InstanceState.context
+      const opened = AbsolutePath.make(FSUtil.resolve(input.directory))
+      const storage = opened.replaceAll("\\", "/")
       const result: Info = {
         id: SessionID.descending(input.id),
         slug: Slug.create(),
@@ -532,11 +543,77 @@ const layer: Layer.Layer<
           updated: Date.now(),
         },
       }
-      yield* Effect.logInfo("created", result)
+      const nearest = Effect.fnUntraced(function* () {
+        return yield* db
+          .select({ projectID: ProjectDirectoryTable.project_id, directory: ProjectDirectoryTable.directory })
+          .from(ProjectDirectoryTable)
+          .where(
+            and(
+              ne(ProjectDirectoryTable.project_id, ProjectV2.ID.global),
+              sql`(${ProjectDirectoryTable.directory} = ${storage} OR ${ProjectDirectoryTable.directory} = ${path.parse(opened).root.replaceAll("\\", "/")} OR (substr(${storage}, 1, length(${ProjectDirectoryTable.directory})) = ${ProjectDirectoryTable.directory} AND substr(${storage}, length(${ProjectDirectoryTable.directory}) + 1, 1) = '/'))`,
+            ),
+          )
+          .orderBy(
+            sql`length(${ProjectDirectoryTable.directory}) desc`,
+            ProjectDirectoryTable.directory,
+            ProjectDirectoryTable.project_id,
+          )
+          .get()
+          .pipe(Effect.orDie)
+      })
+      const publish = Effect.fnUntraced(function* (
+        project: { projectID: ProjectV2.ID; directory: AbsolutePath },
+        validate: boolean,
+      ) {
+        const info = { ...result, projectID: project.projectID }
+        yield* Effect.logInfo("created", info)
+        yield* events.publish(
+          SessionV1.Event.Created,
+          { sessionID: info.id, info },
+          {
+            location: new Location.Info({
+              directory: opened,
+              ...(input.workspaceID ? { workspaceID: input.workspaceID } : {}),
+              project: { id: ProjectV2.ID.make(project.projectID), directory: project.directory },
+            }),
+            commit: validate
+              ? () =>
+                  Effect.gen(function* () {
+                    const current = yield* nearest()
+                    if (current?.projectID === project.projectID && current.directory === project.directory) return
+                    if (!current && project.projectID === ProjectV2.ID.global) return
+                    return yield* Effect.die(new ProjectDirectoryChanged(current))
+                  })
+              : undefined,
+          },
+        )
+        return info
+      })
 
-      yield* events.publish(SessionV1.Event.Created, { sessionID: result.id, info: result })
-
-      return result
+      if (ctx.project.id !== ProjectV2.ID.global)
+        return yield* publish(
+          { projectID: ctx.project.id, directory: AbsolutePath.make(FSUtil.resolve(ctx.project.worktree)) },
+          false,
+        )
+      const tentative = yield* nearest()
+      return yield* publish(
+        tentative ?? {
+          projectID: ProjectV2.ID.global,
+          directory: AbsolutePath.make(FSUtil.resolve(ctx.project.worktree)),
+        },
+        true,
+      ).pipe(
+        Effect.catchDefect((defect) => {
+          if (!(defect instanceof ProjectDirectoryChanged)) return Effect.die(defect)
+          return publish(
+            defect.project ?? {
+              projectID: ProjectV2.ID.global,
+              directory: AbsolutePath.make(FSUtil.resolve(ctx.project.worktree)),
+            },
+            true,
+          )
+        }),
+      )
     })
 
     const get = Effect.fn("Session.get")(function* (id: SessionID) {

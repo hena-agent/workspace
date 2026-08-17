@@ -275,10 +275,11 @@ export namespace FSUtil {
     try {
       return normalizePath(realpathSync(resolved))
     } catch (error) {
-      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error
-      const parent = dirname(resolved)
-      if (parent === resolved) return normalizePath(resolved)
-      return pathResolve(resolve(parent), relative(parent, resolved))
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+        const parent = dirname(resolved)
+        if (parent !== resolved) return pathResolve(resolve(parent), relative(parent, resolved))
+      }
+      return normalizePath(resolved)
     }
   }
 

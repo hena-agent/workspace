@@ -767,8 +767,10 @@ describe("Project folderless rows", () => {
       const { db } = yield* Database.Service
       const tmp = yield* tmpdirScoped({ git: true })
       const result = yield* project.fromDirectory(tmp)
+      const created = result.project.time.created
       const sandbox = AbsolutePath.make(path.join(tmp, "sandbox"))
       yield* Effect.promise(() => $`mkdir -p ${sandbox}`.quiet())
+      yield* project.update({ projectID: result.project.id, name: "preserved" })
       yield* project.addSandbox(result.project.id, sandbox)
       yield* db
         .update(ProjectTable)
@@ -787,13 +789,21 @@ describe("Project folderless rows", () => {
         "Project.NotFoundError",
       )
       expect((yield* Effect.flip(project.removeSandbox(result.project.id, sandbox)))._tag).toBe("Project.NotFoundError")
-      expect((yield* project.fromDirectory(tmp)).project).toMatchObject({
+      const reopened = (yield* project.fromDirectory(tmp)).project
+      expect(reopened).toMatchObject({
         id: result.project.id,
         worktree: result.project.worktree,
+        name: "preserved",
+        time: { created },
       })
-      expect(yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()).toMatchObject({
+      expect(reopened.sandboxes).toContain(sandbox)
+      const stored = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()
+      expect(stored).toMatchObject({
         worktree: result.project.worktree,
+        name: "preserved",
+        time_created: created,
       })
+      expect(stored?.sandboxes).toContain(sandbox)
     }),
   )
 })

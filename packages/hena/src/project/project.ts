@@ -32,8 +32,7 @@ export const Event = {
 
 type Row = typeof ProjectTable.$inferSelect
 
-function fromRow(row: Row): Info | undefined {
-  if (row.worktree === null) return undefined
+function decodeRow(row: Row, worktree: string): Info {
   const icon =
     row.icon_url || row.icon_url_override || row.icon_color
       ? {
@@ -44,7 +43,7 @@ function fromRow(row: Row): Info | undefined {
       : undefined
   return {
     id: row.id,
-    worktree: row.worktree,
+    worktree,
     vcs: row.vcs ? Schema.decodeUnknownSync(Project.Vcs)(row.vcs) : undefined,
     name: row.name ?? undefined,
     icon,
@@ -56,6 +55,11 @@ function fromRow(row: Row): Info | undefined {
     sandboxes: row.sandboxes,
     commands: row.commands ?? undefined,
   }
+}
+
+function fromRow(row: Row): Info | undefined {
+  if (row.worktree === null) return undefined
+  return decodeRow(row, row.worktree)
 }
 
 export const UpdateInput = Schema.Struct({
@@ -223,13 +227,15 @@ const layer = Layer.effect(
       const projectID = ProjectV2.ID.make(data.id)
       yield* migrateProjectId(data.previous ? ProjectV2.ID.make(data.previous) : undefined, projectID)
       const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get().pipe(Effect.orDie)
-      const existing = (row && fromRow(row)) ?? {
-        id: projectID,
-        worktree,
-        vcs: data.vcs?.type ?? fakeVcs,
-        sandboxes: [] as string[],
-        time: { created: Date.now(), updated: Date.now() },
-      }
+      const existing = row
+        ? decodeRow(row, row.worktree ?? worktree)
+        : {
+            id: projectID,
+            worktree,
+            vcs: data.vcs?.type ?? fakeVcs,
+            sandboxes: [] as string[],
+            time: { created: Date.now(), updated: Date.now() },
+          }
 
       if (flags.experimentalIconDiscovery) yield* discover(existing).pipe(Effect.ignore, Effect.forkIn(scope))
 

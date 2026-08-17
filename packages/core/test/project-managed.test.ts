@@ -1,4 +1,5 @@
 import { afterAll, describe, expect } from "bun:test"
+import { $ } from "bun"
 import fs from "fs/promises"
 import os from "os"
 import path from "path"
@@ -43,6 +44,23 @@ describe("managed projects", () => {
         expect((yield* Effect.promise(() => fs.stat(root))).mode & 0o777).toBe(0o700)
         expect((yield* Effect.promise(() => fs.stat(created.directory))).mode & 0o777).toBe(0o700)
       }
+    }),
+  )
+
+  it.live("keeps managed identity when a directory becomes a git repository", () =>
+    Effect.gen(function* () {
+      const projects = yield* Project.Service
+      yield* Effect.promise(() => $`git init`.cwd(data).quiet())
+      const created = yield* projects.create()
+
+      expect((yield* projects.resolve(created.directory)).vcs).toBeUndefined()
+
+      yield* Effect.promise(() => $`git init`.cwd(created.directory).quiet())
+      expect(yield* projects.resolve(created.directory)).toMatchObject({
+        id: created.id,
+        directory: created.directory,
+        vcs: { type: "git" },
+      })
     }),
   )
 })

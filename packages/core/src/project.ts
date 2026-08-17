@@ -127,14 +127,16 @@ const layer = Layer.effect(
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
       const directory = AbsolutePath.make(FSUtil.resolve(input))
       const managedID = path.relative(projects, directory).split(path.sep)[0]
+      const repo = yield* git.repo.discover(input)
       if (managedID && ID.isManaged(managedID)) {
+        const managed = AbsolutePath.make(path.join(projects, managedID))
         return {
           id: ID.make(managedID),
-          directory: AbsolutePath.make(path.join(projects, managedID)),
+          directory: managed,
+          vcs: repo?.worktree === managed ? { type: "git" as const, store: repo.commonDirectory } : undefined,
         }
       }
 
-      const repo = yield* git.repo.discover(input)
       if (!repo) return { id: ID.global, directory: AbsolutePath.make(path.parse(input).root), vcs: undefined }
 
       const previous = yield* cached(repo.commonDirectory)

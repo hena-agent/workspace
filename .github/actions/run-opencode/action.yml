@@ -290,6 +290,8 @@ runs:
           --model "$MODEL" \
           --variant "$VARIANT" \
           --format json \
+          --print-logs \
+          --log-level ERROR \
           "$COMMAND_ARGUMENTS" \
           | tee "$RUNNER_TEMP/opencode-command.ndjson"
 

@@ -260,5 +260,27 @@ describe("Truncate", () => {
         expect(yield* fs.exists(recent)).toBe(true)
       }),
     )
+
+    it.live("treats an unparseable tool_ filename as eligible for deletion instead of wedging cleanup", () =>
+      Effect.gen(function* () {
+        const svc = yield* Truncate.Service
+        const fs = yield* FileSystem.FileSystem
+
+        yield* fs.makeDirectory(Truncate.DIR, { recursive: true })
+
+        // Simulates a filename from before the id.ts encoding was widened (or
+        // any other malformed "tool_" entry): the characters read as the
+        // timestamp are not valid hex, so Identifier.timestamp throws.
+        const malformed = path.join(Truncate.DIR, "tool_deadbeefdeadZZrandomsuffix")
+        const recent = path.join(Truncate.DIR, Identifier.create("tool", "ascending", Date.now() - 3 * DAY_MS))
+
+        yield* writeFileStringScoped(malformed, "malformed content")
+        yield* writeFileStringScoped(recent, "recent content")
+        yield* svc.cleanup()
+
+        expect(yield* fs.exists(malformed)).toBe(false)
+        expect(yield* fs.exists(recent)).toBe(true)
+      }),
+    )
   })
 })

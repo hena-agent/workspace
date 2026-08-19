@@ -60,7 +60,15 @@ const layer = Layer.effect(
         Effect.catch(() => Effect.succeed([])),
       )
       for (const entry of entries) {
-        if (Identifier.timestamp(entry) >= cutoff) continue
+        // A filename from a pre-upgrade build (or any other malformed
+        // "tool_" entry) can fail to parse as a current-format ascending ID.
+        // Treat that as eligible for deletion rather than letting one bad
+        // name throw and wedge every entry after it in this pass.
+        const entryTimestamp = yield* Effect.try({
+          try: () => Identifier.timestamp(entry),
+          catch: () => undefined,
+        }).pipe(Effect.catch(() => Effect.succeed(0)))
+        if (entryTimestamp >= cutoff) continue
         yield* fs.remove(path.join(TRUNCATION_DIR, entry)).pipe(Effect.catch(() => Effect.void))
       }
     })

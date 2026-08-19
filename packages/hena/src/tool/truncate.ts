@@ -6,7 +6,6 @@ import type { Agent } from "../agent/agent"
 import { FSUtil } from "@hena/core/fs-util"
 import { evaluate } from "@/permission/evaluate"
 import { Config } from "@/config/config"
-import { Identifier } from "../id/id"
 import { ToolID } from "./schema"
 import { TRUNCATION_DIR } from "./truncation-dir"
 
@@ -52,24 +51,27 @@ const layer = Layer.effect(
     const fs = yield* FSUtil.Service
 
     const cleanup = Effect.fn("Truncate.cleanup")(function* () {
-      const cutoff = Identifier.timestamp(
-        Identifier.create("tool", "ascending", Date.now() - Duration.toMillis(RETENTION)),
-      )
+      // Filesystem mtime, not a timestamp decoded from the filename: this
+      // directory is also written by ToolOutputStore's own tool_* files
+      // (packages/core/src/tool-output-store.ts, same MANAGED_DIRECTORY),
+      // via @hena/schema/identifier's independent, never-widened encoding.
+      // Decoding filenames here would need to agree with whichever encoding
+      // actually wrote a given entry, not just this package's own; mtime
+      // sidesteps that entirely and matches ToolOutputStore.cleanup()'s own
+      // approach for the same directory.
+      const cutoff = Date.now() - Duration.toMillis(RETENTION)
       const entries = yield* fs.readDirectory(TRUNCATION_DIR).pipe(
         Effect.map((all) => all.filter((name) => name.startsWith("tool_"))),
         Effect.catch(() => Effect.succeed([])),
       )
       for (const entry of entries) {
-        // A filename from a pre-upgrade build (or any other malformed
-        // "tool_" entry) can fail to parse as a current-format ascending ID.
-        // Treat that as eligible for deletion rather than letting one bad
-        // name throw and wedge every entry after it in this pass.
-        const entryTimestamp = yield* Effect.try({
-          try: () => Identifier.timestamp(entry),
-          catch: () => undefined,
-        }).pipe(Effect.catch(() => Effect.succeed(0)))
-        if (entryTimestamp >= cutoff) continue
-        yield* fs.remove(path.join(TRUNCATION_DIR, entry)).pipe(Effect.catch(() => Effect.void))
+        const file = path.join(TRUNCATION_DIR, entry)
+        const info = yield* fs.stat(file).pipe(Effect.catch(() => Effect.void))
+        const modified = info?.mtime.pipe(
+          Option.map((date) => date.getTime()),
+          Option.getOrElse(() => 0),
+        )
+        if (modified !== undefined && modified < cutoff) yield* fs.remove(file).pipe(Effect.catch(() => Effect.void))
       }
     })
 

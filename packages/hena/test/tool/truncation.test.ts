@@ -249,11 +249,15 @@ describe("Truncate", () => {
 
         yield* fs.makeDirectory(Truncate.DIR, { recursive: true })
 
-        const old = path.join(Truncate.DIR, Identifier.create("tool", "ascending", Date.now() - 10 * DAY_MS))
-        const recent = path.join(Truncate.DIR, Identifier.create("tool", "ascending", Date.now() - 3 * DAY_MS))
+        const old = path.join(Truncate.DIR, Identifier.create("tool", "ascending"))
+        const recent = path.join(Truncate.DIR, Identifier.create("tool", "ascending"))
 
         yield* writeFileStringScoped(old, "old content")
         yield* writeFileStringScoped(recent, "recent content")
+        // Retention is decided by mtime, not a timestamp decoded from the
+        // filename (see cleanup()'s comment for why), so set it directly.
+        yield* fs.utimes(old, new Date(Date.now() - 10 * DAY_MS), new Date(Date.now() - 10 * DAY_MS))
+        yield* fs.utimes(recent, new Date(Date.now() - 3 * DAY_MS), new Date(Date.now() - 3 * DAY_MS))
         yield* svc.cleanup()
 
         expect(yield* fs.exists(old)).toBe(false)
@@ -261,25 +265,25 @@ describe("Truncate", () => {
       }),
     )
 
-    it.live("treats an unparseable tool_ filename as eligible for deletion instead of wedging cleanup", () =>
+    it.live("deletes an old file regardless of its filename format", () =>
       Effect.gen(function* () {
         const svc = yield* Truncate.Service
         const fs = yield* FileSystem.FileSystem
 
         yield* fs.makeDirectory(Truncate.DIR, { recursive: true })
 
-        // Simulates a filename from before the id.ts encoding was widened (or
-        // any other malformed "tool_" entry): the characters read as the
-        // timestamp are not valid hex, so Identifier.timestamp throws.
-        const malformed = path.join(Truncate.DIR, "tool_deadbeefdeadZZrandomsuffix")
-        const recent = path.join(Truncate.DIR, Identifier.create("tool", "ascending", Date.now() - 3 * DAY_MS))
+        // This directory is also written by ToolOutputStore's own tool_*
+        // files (packages/core/src/tool-output-store.ts), via
+        // @hena/schema/identifier's independent, differently-shaped
+        // encoding — cleanup must not depend on being able to decode a
+        // timestamp from any particular filename shape.
+        const legacyFormat = path.join(Truncate.DIR, "tool_deadbeefdeadZZrandomsuffix")
 
-        yield* writeFileStringScoped(malformed, "malformed content")
-        yield* writeFileStringScoped(recent, "recent content")
+        yield* writeFileStringScoped(legacyFormat, "content")
+        yield* fs.utimes(legacyFormat, new Date(Date.now() - 10 * DAY_MS), new Date(Date.now() - 10 * DAY_MS))
         yield* svc.cleanup()
 
-        expect(yield* fs.exists(malformed)).toBe(false)
-        expect(yield* fs.exists(recent)).toBe(true)
+        expect(yield* fs.exists(legacyFormat)).toBe(false)
       }),
     )
   })

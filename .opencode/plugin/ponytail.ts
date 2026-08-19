@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import type { Plugin } from "@opencode-ai/plugin"
 
 const PONYTAIL_INSTRUCTIONS = `PONYTAIL MODE ACTIVE — level: full
@@ -88,7 +89,15 @@ test, YAGNI applies to tests too.
 
 The shortest path to done is the right path.`
 
-let active = true
+// `experimental.chat.system.transform` and `command.execute.before` share one
+// plugin instance across every session in the process, so module-level state
+// must be keyed by session, not stored as a single boolean.
+const activeBySession = new Map<string, boolean>()
+
+function isActive(sessionID: string | undefined): boolean {
+  if (!sessionID) return false
+  return activeBySession.get(sessionID) ?? false
+}
 
 export const PonytailPlugin: Plugin = async () => {
   return {
@@ -101,14 +110,25 @@ export const PonytailPlugin: Plugin = async () => {
     },
     "command.execute.before": async (input, output) => {
       if (input.command !== "ponytail") return
-      active = input.arguments.trim().toLowerCase() !== "off"
+      const turnOn = input.arguments.trim().toLowerCase() !== "off"
+      activeBySession.set(input.sessionID, turnOn)
+      const message = `Ponytail mode turned ${turnOn ? "on" : "off"}. Reply with a one-line confirmation only.`
       const first = output.parts[0]
-      if (first?.type === "text") {
-        first.text = `Ponytail mode turned ${active ? "on" : "off"}. Reply with a one-line confirmation only.`
+      if (first?.type === "text") first.text = message
+      else {
+        // The framework stamps these IDs when it builds the message; we only
+        // need a well-formed text part here so the confirmation reaches the model.
+        output.parts.push({
+          id: randomUUID(),
+          sessionID: input.sessionID,
+          messageID: randomUUID(),
+          type: "text",
+          text: message,
+        })
       }
     },
-    "experimental.chat.system.transform": async (_input, output) => {
-      if (!active) return
+    "experimental.chat.system.transform": async (input, output) => {
+      if (!isActive(input.sessionID)) return
       // Some request paths join every `system` entry with a single "\n" (no
       // blank line). Append to the last entry instead of pushing a bare one
       // so those paths still get a paragraph break before the ruleset.

@@ -274,35 +274,64 @@ runs:
               ("gh pr diff " + $pr): "allow"
             },
             question: "deny",
-            todowrite: "deny",
-            # Any permission category not listed here defaults to allow, not
-            # deny — confirmed empirically. websearch is unused by the review
-            # command itself, but a project plugin (.opencode/plugin/*) could
-            # register a tool that requests it; deny explicitly rather than
-            # relying on that plugin failing to load for an unrelated reason.
-            websearch: "deny"
+            todowrite: "deny"
           }
         ')
         export OPENCODE_PERMISSION
 
         # OPENCODE_DISABLE_PROJECT_CONFIG above intentionally excludes this
-        # checkout's own opencode.jsonc (and .opencode/), so a PR cannot load
-        # arbitrary plugins with this job's credentials. That project config
-        # also declares @ex-machina/opencode-anthropic-auth, which is required
-        # for OpenCode's built-in Anthropic OAuth provider to resolve current
-        # model IDs at all (anomalyco/opencode#21019 — the built-in provider
-        # rejects valid models until a new CLI release updates its allowlist;
-        # 1.18.18 predates claude-sonnet-5). OPENCODE_CONFIG_CONTENT injects
-        # config independent of on-disk project config, so we can re-enable
-        # just this one version-pinned, already-repo-approved plugin from the
-        # workflow itself (never from the untrusted checkout) without trusting
-        # anything else a PR could put in opencode.jsonc or .opencode/plugin/.
-        # Scoped to the Anthropic provider specifically: it's dead weight for
-        # any other provider, and skipping it there keeps that provider's
-        # plugin surface at zero rather than loading unrelated in-process code.
+        # checkout's own opencode.jsonc and .opencode/plugin/ from automatic
+        # discovery, so a PR cannot get its own modified plugin code loaded
+        # with this job's credentials by editing either. OPENCODE_CONFIG_CONTENT
+        # injects config independent of on-disk project config; use it to
+        # re-enable specific, individually-trusted plugins from the workflow
+        # itself, never by trusting the checkout wholesale.
+        PLUGINS='[]'
+
+        # @ex-machina/opencode-anthropic-auth is required for OpenCode's
+        # built-in Anthropic OAuth provider to resolve current model IDs at
+        # all (anomalyco/opencode#21019 — the built-in provider rejects valid
+        # models until a new CLI release updates its allowlist; 1.18.18
+        # predates claude-sonnet-5). Trusted because it's a version-pinned
+        # package published to npm outside this repo, not something a PR to
+        # this repo can modify. Scoped to the Anthropic provider: dead weight,
+        # and unnecessary in-process plugin surface, for any other provider.
         if [ "${MODEL%%/*}" = "anthropic" ]; then
-          export OPENCODE_CONFIG_CONTENT='{"plugin":["@ex-machina/opencode-anthropic-auth@1.8.1"]}'
+          PLUGINS=$(jq -c '. + ["@ex-machina/opencode-anthropic-auth@1.8.1"]' <<< "$PLUGINS")
         fi
+
+        # .opencode/plugin/codex-web-search.ts is part of this repository, so
+        # unlike the plugin above it IS something a PR can modify — loading
+        # the checkout's own HEAD copy would let a PR get its own code
+        # executed with this job's credentials while reviewing itself. Fetch
+        # it from the PR's base commit instead, the same trust boundary this
+        # action previously used to load a custom review command from the
+        # base commit rather than the PR's copy. Overwrite the checkout's
+        # copy with that trusted content so its @opencode-ai/plugin import
+        # resolves through the node_modules installed below (module
+        # resolution walks up from the file's own directory), then reference
+        # it explicitly by path: automatic .opencode/plugin/ discovery is
+        # exactly what OPENCODE_DISABLE_PROJECT_CONFIG disables above, so it
+        # will not be found without this.
+        BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
+        if [ -n "$BASE_SHA" ] && gh api \
+          -H "Accept: application/vnd.github.raw+json" \
+          "repos/$GITHUB_REPOSITORY/contents/.opencode/plugin/codex-web-search.ts?ref=$BASE_SHA" \
+          > "$REVIEW_CONTEXT/codex-web-search.ts" 2>/dev/null; then
+          install -d -m 700 .opencode/plugin
+          install -m 600 "$REVIEW_CONTEXT/codex-web-search.ts" .opencode/plugin/codex-web-search.ts
+          jq -cn --arg version "$OPENCODE_VERSION" '{dependencies: {"@opencode-ai/plugin": $version}}' \
+            > .opencode/package.json
+          (cd .opencode && bun install --silent)
+          PLUGINS=$(jq -c --arg path "file://$(pwd)/.opencode/plugin/codex-web-search.ts" '. + [$path]' <<< "$PLUGINS")
+        else
+          echo "::notice::Could not fetch .opencode/plugin/codex-web-search.ts from the base commit; codex_web_search will be unavailable this run."
+        fi
+
+        if [ "$PLUGINS" != "[]" ]; then
+          export OPENCODE_CONFIG_CONTENT=$(jq -cn --argjson plugins "$PLUGINS" '{plugin: $plugins}')
+        fi
+
         export OPENCODE_REVIEW_PR="$COMMAND_ARGUMENTS"
         export OPENCODE_REVIEW_VIEW="$REVIEW_CONTEXT/view"
         export OPENCODE_REVIEW_DIFF="$REVIEW_CONTEXT/diff"

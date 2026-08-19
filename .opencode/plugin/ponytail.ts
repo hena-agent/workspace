@@ -116,8 +116,8 @@ export const PonytailPlugin: Plugin = async () => {
       const first = output.parts[0]
       if (first?.type === "text") first.text = message
       else {
-        // The framework stamps these IDs when it builds the message; we only
-        // need a well-formed text part here so the confirmation reaches the model.
+        // The command hook provides no messageID, so generate IDs for the
+        // transient confirmation part; it is consumed inline and not persisted.
         output.parts.push({
           id: randomUUID(),
           sessionID: input.sessionID,
@@ -128,6 +128,9 @@ export const PonytailPlugin: Plugin = async () => {
       }
     },
     "experimental.chat.system.transform": async (input, output) => {
+      // `sessionID` is omitted when OpenCode builds an agent definition
+      // (packages/hena/src/agent/agent.ts), so ponytail intentionally does not
+      // apply there — it only augments interactive chat turns that carry one.
       if (!isActive(input.sessionID)) return
       // Some request paths join every `system` entry with a single "\n" (no
       // blank line). Append to the last entry instead of pushing a bare one

@@ -278,6 +278,20 @@ runs:
           }
         ')
         export OPENCODE_PERMISSION
+
+        # OPENCODE_DISABLE_PROJECT_CONFIG above intentionally excludes this
+        # checkout's own opencode.jsonc (and .opencode/), so a PR cannot load
+        # arbitrary plugins with this job's credentials. That project config
+        # also declares @ex-machina/opencode-anthropic-auth, which is required
+        # for OpenCode's built-in Anthropic OAuth provider to resolve current
+        # model IDs at all (anomalyco/opencode#21019 — the built-in provider
+        # rejects valid models until a new CLI release updates its allowlist;
+        # 1.18.18 predates claude-sonnet-5). OPENCODE_CONFIG_CONTENT injects
+        # config independent of on-disk project config, so we can re-enable
+        # just this one version-pinned, already-repo-approved plugin from the
+        # workflow itself (never from the untrusted checkout) without trusting
+        # anything else a PR could put in opencode.jsonc or .opencode/plugin/.
+        export OPENCODE_CONFIG_CONTENT='{"plugin":["@ex-machina/opencode-anthropic-auth@1.8.1"]}'
         export OPENCODE_REVIEW_PR="$COMMAND_ARGUMENTS"
         export OPENCODE_REVIEW_VIEW="$REVIEW_CONTEXT/view"
         export OPENCODE_REVIEW_DIFF="$REVIEW_CONTEXT/diff"

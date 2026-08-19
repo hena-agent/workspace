@@ -101,6 +101,9 @@ function isActive(sessionID: string | undefined): boolean {
 
 export const PonytailPlugin: Plugin = async () => {
   return {
+    dispose: async () => {
+      activeBySession.clear()
+    },
     config: async (cfg) => {
       cfg.command = cfg.command ?? {}
       cfg.command["ponytail"] = {
@@ -110,7 +113,20 @@ export const PonytailPlugin: Plugin = async () => {
     },
     "command.execute.before": async (input, output) => {
       if (input.command !== "ponytail") return
-      const turnOn = input.arguments.trim().toLowerCase() !== "off"
+      const arg = input.arguments.trim().toLowerCase()
+      let turnOn: boolean
+      if (arg === "off") turnOn = false
+      else if (arg === "on" || arg === "") turnOn = true
+      else {
+        output.parts.push({
+          id: randomUUID(),
+          sessionID: input.sessionID,
+          messageID: randomUUID(),
+          type: "text",
+          text: "Usage: /ponytail [on|off]",
+        })
+        return
+      }
       activeBySession.set(input.sessionID, turnOn)
       const message = `Ponytail mode turned ${turnOn ? "on" : "off"}. Reply with a one-line confirmation only.`
       const first = output.parts[0]

@@ -61,18 +61,23 @@ export function create(prefix: string, direction: "descending" | "ascending", ti
 
   now = direction === "descending" ? ~now : now
 
-  const timeBytes = Buffer.alloc(6)
-  for (let i = 0; i < 6; i++) {
-    timeBytes[i] = Number((now >> BigInt(40 - 8 * i)) & BigInt(0xff))
+  // 7 bytes (56 bits): a millisecond timestamp needs ~41 bits on its own, and
+  // shifting it left by 12 bits for the counter pushes that to ~53 bits, which
+  // does not fit in 6 bytes (48 bits) for any real-world date past ~1972 — it
+  // silently overflowed and corrupted the encoded value. 56 bits holds a
+  // 44-bit timestamp (safe past year 2500) plus the 12-bit counter.
+  const timeBytes = Buffer.alloc(7)
+  for (let i = 0; i < 7; i++) {
+    timeBytes[i] = Number((now >> BigInt(48 - 8 * i)) & BigInt(0xff))
   }
 
-  return prefix + "_" + timeBytes.toString("hex") + randomBase62(LENGTH - 12)
+  return prefix + "_" + timeBytes.toString("hex") + randomBase62(LENGTH - 14)
 }
 
 /** Extract timestamp from an ascending ID. Does not work with descending IDs. */
 export function timestamp(id: string): number {
   const prefix = id.split("_")[0]
-  const hex = id.slice(prefix.length + 1, prefix.length + 13)
+  const hex = id.slice(prefix.length + 1, prefix.length + 15)
   const encoded = BigInt("0x" + hex)
   return Number(encoded / BigInt(0x1000))
 }

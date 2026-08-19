@@ -50,6 +50,9 @@ on:
       opencode-auth-json:
         description: Single-provider CI OAuth credential derived from ~/.local/share/opencode/auth.json
         required: true
+      codex-web-search-auth-json:
+        description: OpenAI credential for the codex_web_search plugin tool, independent of which provider REVIEWER_MODEL selects
+        required: false
 
 jobs:
   run:
@@ -93,6 +96,7 @@ jobs:
           model: ${{ inputs.model }}
           variant: ${{ inputs.variant }}
           opencode-auth-json: ${{ secrets.opencode-auth-json }}
+          codex-web-search-auth-json: ${{ secrets.codex-web-search-auth-json }}
           github-token: ${{ steps.publish-token.outputs.token }}
           review-token: ${{ steps.review-token.outputs.token }}
           prompt: ${{ inputs.prompt }}

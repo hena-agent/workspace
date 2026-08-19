@@ -274,7 +274,13 @@ runs:
               ("gh pr diff " + $pr): "allow"
             },
             question: "deny",
-            todowrite: "deny"
+            todowrite: "deny",
+            # Any permission category not listed here defaults to allow, not
+            # deny — confirmed empirically. websearch is unused by the review
+            # command itself, but a project plugin (.opencode/plugin/*) could
+            # register a tool that requests it; deny explicitly rather than
+            # relying on that plugin failing to load for an unrelated reason.
+            websearch: "deny"
           }
         ')
         export OPENCODE_PERMISSION

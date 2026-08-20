@@ -47,7 +47,7 @@ export function listSessions(options: {
         (!options.connectionId || session.connectionId === options.connectionId) &&
         (options.includeArchived || !session.archived),
     )
-    .toSorted((a, b) => b.updatedAt - a.updatedAt)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
 }
 
 export function getSession(options: { id: string; connectionId: string; projectId: string }): Session | undefined {
@@ -65,7 +65,7 @@ export function listMessages(options: {
   projectId: string
 }): SessionMessage[] {
   const messages = messagesBySession[sessionDataKey(options)] ?? []
-  return messages.toSorted((a, b) => a.createdAt - b.createdAt)
+  return Array.from(messages).sort((a, b) => a.createdAt - b.createdAt)
 }
 
 export function listTodos(options: { sessionId: string; connectionId: string; projectId: string }) {

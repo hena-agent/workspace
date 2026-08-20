@@ -9,7 +9,7 @@ export const Route = createFileRoute("/")({
 
 function HomeRoute() {
   const navigate = useNavigate()
-  const projects = listProjects().toSorted((a, b) => b.updatedAt - a.updatedAt)
+  const projects = Array.from(listProjects()).sort((a, b) => b.updatedAt - a.updatedAt)
 
   return (
     <LegacyHomeView

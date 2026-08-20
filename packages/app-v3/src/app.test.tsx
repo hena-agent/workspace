@@ -293,6 +293,14 @@ describe("app routing (real routeTree, memory history)", () => {
     expect(router.state.location.pathname).toBe("/")
   })
 
+  test("the settings index redirects to general settings", async () => {
+    mockMatchMedia(true)
+    const router = renderApp("/settings")
+
+    expect(await screen.findByLabelText("Theme")).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe("/settings/general")
+  })
+
   test("settings sections close back to the route that opened them", async () => {
     mockMatchMedia(true)
     const user = userEvent.setup()

@@ -47,6 +47,7 @@ export function FileTreeNode({
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
         className="flex hit-area w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs hover:bg-accent/60"
       >
@@ -55,15 +56,18 @@ export function FileTreeNode({
         <span className="truncate">{baseName(node.path)}</span>
       </button>
       {open
-        ? node.children?.map((child) => (
-            <FileTreeNode
-              key={child.path}
-              node={child}
-              depth={depth + 1}
-              activePath={activePath}
-              onSelectFile={onSelectFile}
-            />
-          ))
+        ? <ul role="list">
+            {node.children?.map((child) => (
+              <li key={child.path}>
+                <FileTreeNode
+                  node={child}
+                  depth={depth + 1}
+                  activePath={activePath}
+                  onSelectFile={onSelectFile}
+                />
+              </li>
+            ))}
+          </ul>
         : null}
     </div>
   )

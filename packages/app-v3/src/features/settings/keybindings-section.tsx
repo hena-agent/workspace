@@ -1,6 +1,5 @@
 const KEYBINDINGS = [
   { command: "Command palette", keys: "Mod+K" },
-  { command: "New session", keys: "Mod+N" },
   { command: "Toggle sidebar", keys: "Mod+B" },
   { command: "Send message", keys: "Enter" },
   { command: "Queue message", keys: "Mod+Shift+Enter" },

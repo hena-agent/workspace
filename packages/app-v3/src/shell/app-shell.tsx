@@ -1,4 +1,12 @@
-import { type ComponentProps, type PointerEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
+import {
+  type ComponentProps,
+  type PointerEvent,
+  type ReactNode,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import type { Project } from "@/lib/types"
@@ -9,6 +17,10 @@ import { Titlebar } from "./titlebar"
 
 const DESKTOP_QUERY = "(min-width: 1280px)"
 const PANEL_MIN = 180
+
+function panelMaxWidth() {
+  return Math.max(PANEL_MIN, Math.round(window.innerWidth * 0.3))
+}
 
 export function AppShell({
   rail,
@@ -33,6 +45,7 @@ export function AppShell({
   }))
   const [mobileNavOpen, setMobileNavOpen] = useState(() => Boolean(window.history.state?.henaMobileNavigation))
   const [panelWidth, setPanelWidth] = useState(280)
+  const [panelMax, setPanelMax] = useState(panelMaxWidth)
   const mobileNavOpenRef = useRef(mobileNavOpen)
   const mobileNavButtonRef = useRef<HTMLButtonElement>(null)
   const mobileNavRef = useRef<HTMLElement>(null)
@@ -106,7 +119,9 @@ export function AppShell({
 
   useEffect(() => {
     function clampPanelWidth() {
-      setPanelWidth((current) => Math.max(PANEL_MIN, Math.min(window.innerWidth * 0.3, current)))
+      const max = panelMaxWidth()
+      setPanelMax(max)
+      setPanelWidth((current) => Math.max(PANEL_MIN, Math.min(max, current)))
     }
     window.addEventListener("resize", clampPanelWidth)
     return () => window.removeEventListener("resize", clampPanelWidth)
@@ -181,7 +196,7 @@ export function AppShell({
     const startWidth = panelWidth
 
     function onPointerMove(nextEvent: globalThis.PointerEvent) {
-      setPanelWidth(Math.min(window.innerWidth * 0.3, Math.max(PANEL_MIN, startWidth + nextEvent.clientX - startX)))
+      setPanelWidth(Math.min(panelMaxWidth(), Math.max(PANEL_MIN, startWidth + nextEvent.clientX - startX)))
     }
 
     function onPointerUp() {
@@ -191,6 +206,17 @@ export function AppShell({
 
     window.addEventListener("pointermove", onPointerMove)
     window.addEventListener("pointerup", onPointerUp)
+  }
+
+  function resizeWithKeyboard(event: { key: string; preventDefault: () => void }) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
+    event.preventDefault()
+    const max = panelMaxWidth()
+    setPanelWidth((current) => {
+      if (event.key === "Home") return PANEL_MIN
+      if (event.key === "End") return max
+      return Math.min(max, Math.max(PANEL_MIN, current + (event.key === "ArrowLeft" ? -10 : 10)))
+    })
   }
 
   const routedRail = {
@@ -213,6 +239,8 @@ export function AppShell({
         style={{
           paddingTop: "env(safe-area-inset-top, 0px)",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
+          paddingLeft: "env(safe-area-inset-left, 0px)",
+          paddingRight: "env(safe-area-inset-right, 0px)",
         }}
       >
         <Titlebar
@@ -247,10 +275,15 @@ export function AppShell({
                 {sidebarOpen ? (
                   <div
                     role="separator"
+                    tabIndex={0}
                     aria-label="Resize sidebar"
                     aria-orientation="vertical"
+                    aria-valuemin={PANEL_MIN}
+                    aria-valuemax={panelMax}
+                    aria-valuenow={Math.min(panelMax, panelWidth)}
                     onPointerDown={startResize}
-                    className="group/resize absolute inset-y-0 right-0 z-30 w-2 translate-x-1/2 cursor-col-resize touch-none"
+                    onKeyDown={resizeWithKeyboard}
+                    className="group/resize absolute inset-y-0 right-0 z-30 w-2 translate-x-1/2 cursor-col-resize touch-none rounded-sm focus-visible:outline-2 focus-visible:outline-[var(--legacy-text-interactive)]"
                   >
                     <span className="absolute inset-y-0 left-1/2 w-px bg-transparent transition-colors group-hover/resize:bg-[var(--legacy-border-weak)]" />
                   </div>

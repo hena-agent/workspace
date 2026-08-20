@@ -63,16 +63,24 @@ describe("CommandPalette", () => {
     const selectedSessions: string[] = []
     const duplicateProjects = ["alpha", "beta", "alpha"].map((connectionId, index) => ({
       ...henaProjects[0],
-      id: `project-${index}`,
+      id: index < 2 ? "shared-project" : `project-${index}`,
       connectionId,
       path: `/workspace-${index}`,
     }))
-    const duplicateSessions = duplicateProjects.map((project, index) => ({
-      ...henaSessions[0],
-      id: `session-${index}`,
-      connectionId: project.connectionId,
-      projectId: project.id,
-    }))
+    const duplicateSessions = [
+      ...duplicateProjects.map((project, index) => ({
+        ...henaSessions[0],
+        id: index < 2 ? "shared-session" : `session-${index}`,
+        connectionId: project.connectionId,
+        projectId: project.id,
+      })),
+      {
+        ...henaSessions[0],
+        id: "session-3",
+        connectionId: duplicateProjects[2].connectionId,
+        projectId: duplicateProjects[2].id,
+      },
+    ]
 
     renderPalette({
       projects: duplicateProjects,
@@ -93,10 +101,10 @@ describe("CommandPalette", () => {
     })
     await user.click(
       screen.getByText(
-        `${duplicateSessions[2].title} (${duplicateProjects[2].path}, ${duplicateSessions[2].connectionId})`,
+        `${duplicateSessions[3].title} (${duplicateProjects[2].path}, ${duplicateSessions[3].connectionId}, ${duplicateSessions[3].id})`,
       ),
     )
-    expect(selectedSessions).toEqual(["session-2"])
+    expect(selectedSessions).toEqual(["session-3"])
   })
 
   test("selecting a server command calls onRunServerCommand and closes the palette", async () => {

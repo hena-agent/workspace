@@ -76,7 +76,7 @@ export function CommandPalette({
                   }}
                 >
                   {sessions.some((other) => other !== session && other.title === session.title)
-                    ? `${session.title} (${project?.path ?? session.projectId}, ${session.connectionId})`
+                    ? `${session.title} (${project?.path ?? session.projectId}, ${session.connectionId}, ${session.id})`
                     : session.title}
                 </CommandItem>
               )

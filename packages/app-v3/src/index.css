@@ -106,7 +106,6 @@
   --row-height: 44px;
   --app-font-size: 13px;
   --app-line-height: 19.5px;
-  --app-root-font-size: 16px;
 }
 
 @media (any-pointer: fine) {
@@ -122,13 +121,19 @@
 :root[data-font-size="small"] {
   --app-font-size: 12px;
   --app-line-height: 18px;
-  --app-root-font-size: 14px;
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.0625rem;
 }
 
 :root[data-font-size="large"] {
   --app-font-size: 15px;
   --app-line-height: 22.5px;
-  --app-root-font-size: 18px;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.1875rem;
 }
 
 :root[data-reduced-motion="true"] *,
@@ -139,6 +144,18 @@
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
   transition-property: opacity !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-property: opacity !important;
+  }
 }
 
 @media (any-pointer: fine) and (not (any-pointer: coarse)) {
@@ -209,7 +226,6 @@
 
   html {
     @apply overscroll-none font-sans;
-    font-size: var(--app-root-font-size);
   }
 
   body {

@@ -17,8 +17,9 @@ describe("ReviewView", () => {
   })
 
   test("defaults to the first file's diff when nothing is selected", () => {
-    render(<ReviewView files={files} onSelectFile={() => {}} />)
+    const view = render(<ReviewView files={files} onSelectFile={() => {}} />)
     expect(screen.getAllByText(files[0].path).length).toBeGreaterThan(0)
+    expect(view.container.firstElementChild?.firstElementChild).toHaveClass("h-[40dvh]", "md:h-auto")
   })
 
   test("selecting a file calls onSelectFile with its path", async () => {

@@ -74,7 +74,7 @@ export function AppShell({
         if (!mobileNavOpenRef.current) {
           mobileNavOpenRef.current = true
           setMobileNavOpen(true)
-          requestAnimationFrame(() => mobileNavRef.current?.focus())
+          queueMicrotask(() => mobileNavRef.current?.focus())
         }
         return
       }
@@ -96,7 +96,7 @@ export function AppShell({
 
   useEffect(() => {
     if (!mobileNavOpen || isDesktop || document.activeElement === mobileNavRef.current) return
-    requestAnimationFrame(() => mobileNavRef.current?.focus())
+    queueMicrotask(() => mobileNavRef.current?.focus())
   }, [isDesktop, mobileNavOpen])
 
   function openMobileNav() {
@@ -104,7 +104,7 @@ export function AppShell({
     window.history.pushState({ ...(typeof state === "object" && state ? state : {}), henaMobileNavigation: true }, "")
     mobileNavOpenRef.current = true
     setMobileNavOpen(true)
-    requestAnimationFrame(() => mobileNavRef.current?.focus())
+    queueMicrotask(() => mobileNavRef.current?.focus())
   }
 
   function closeMobileNav(action?: () => void) {
@@ -126,7 +126,7 @@ export function AppShell({
       return
     }
     action()
-    requestAnimationFrame(() => mainRef.current?.focus())
+    queueMicrotask(() => mainRef.current?.focus())
   }
 
   function runAfterMobileNavClose(action: () => void) {

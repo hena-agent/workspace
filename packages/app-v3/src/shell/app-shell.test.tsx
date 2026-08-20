@@ -95,7 +95,6 @@ describe("AppShell", () => {
 
   test("Mod+B focuses mobile navigation and Escape restores trigger focus", async () => {
     mockMatchMedia(false)
-    const user = userEvent.setup()
     renderWithProviders(
       <AppShell rail={rail} sidebarPanel={sidebarPanel}>
         <div>Page content</div>
@@ -105,11 +104,11 @@ describe("AppShell", () => {
     fireEvent.keyDown(window, { key: "b", metaKey: true })
     const drawer = screen.getByRole("navigation", { name: "Projects and sessions" })
     await waitFor(() => expect(drawer).toHaveFocus())
-    expect(screen.getByRole("main")).toHaveAttribute("inert")
-    await user.keyboard("{Shift>}{Tab}{/Shift}")
-    await user.tab()
+    expect(screen.getByRole("main").hasAttribute("inert")).toBe(true)
+    fireEvent.keyDown(drawer, { key: "Tab", shiftKey: true })
+    fireEvent.keyDown(document.activeElement!, { key: "Tab" })
     expect(screen.getByRole("button", { name: "Close menu" })).toHaveFocus()
-    await user.keyboard("{Escape}")
+    fireEvent.keyDown(window, { key: "Escape" })
 
     expect(screen.queryByRole("navigation", { name: "Projects and sessions" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Open menu" })).toHaveFocus()
@@ -176,7 +175,7 @@ describe("AppShell", () => {
     )
 
     await waitFor(() => expect(screen.getByRole("navigation", { name: "Projects and sessions" })).toHaveFocus())
-    expect(screen.getByRole("main")).toHaveAttribute("inert")
+    expect(screen.getByRole("main").hasAttribute("inert")).toBe(true)
   })
 
   test("entering the desktop breakpoint clears mobile navigation state", async () => {

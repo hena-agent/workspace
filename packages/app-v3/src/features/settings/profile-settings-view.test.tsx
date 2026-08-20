@@ -42,6 +42,7 @@ describe("ProfileSettingsView", () => {
 
     await user.click(screen.getByRole("button", { name: "Keybindings" }))
     expect(screen.getByText("Command palette")).toBeInTheDocument()
+    expect(screen.queryByText("Mod+N")).not.toBeInTheDocument()
 
     await user.click(screen.getByRole("button", { name: "Storage" }))
     expect(screen.getByText("Clear cached transcripts")).toBeInTheDocument()

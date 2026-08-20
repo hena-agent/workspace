@@ -67,6 +67,10 @@ describe("AppShell", () => {
     expect(screen.getByRole("navigation", { name: "Projects and sessions" })).toBeInTheDocument()
     expect(screen.getByRole("navigation", { name: "Sessions" })).toBeInTheDocument()
     expect(view.container.querySelector('[style*="max-width: 30vw"]')).toBeInTheDocument()
+    expect(view.container.firstElementChild).toHaveStyle({
+      paddingLeft: "env(safe-area-inset-left, 0px)",
+      paddingRight: "env(safe-area-inset-right, 0px)",
+    })
     expect(screen.getAllByText("Page content")).toHaveLength(1)
   })
 
@@ -93,6 +97,16 @@ describe("AppShell", () => {
     fireEvent.pointerMove(window, { clientX: -10 })
     fireEvent.pointerUp(window)
     expect(view.container.querySelector('[style*="width: 374px"]')).toBeInTheDocument()
+
+    separator.focus()
+    fireEvent.keyDown(separator, { key: "ArrowLeft" })
+    expect(separator).toHaveAttribute("aria-valuenow", "364")
+    expect(view.container.querySelector('[style*="width: 364px"]')).toBeInTheDocument()
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1600 })
+    fireEvent.resize(window)
+    expect(separator).toHaveAttribute("aria-valuemax", "480")
+    expect(separator).toHaveAttribute("aria-valuenow", "364")
   })
 
   test("clicking the selected project collapses the sessions panel", async () => {

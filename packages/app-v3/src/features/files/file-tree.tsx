@@ -11,10 +11,12 @@ export function FileTree({
   onSelectFile: (path: string) => void
 }) {
   return (
-    <div role="tree" aria-label="Files" className="flex flex-col gap-0.5">
+    <ul role="list" aria-label="Files" className="flex flex-col gap-0.5">
       {nodes.map((node) => (
-        <FileTreeNode key={node.path} node={node} depth={0} activePath={activePath} onSelectFile={onSelectFile} />
+        <li key={node.path}>
+          <FileTreeNode node={node} depth={0} activePath={activePath} onSelectFile={onSelectFile} />
+        </li>
       ))}
-    </div>
+    </ul>
   )
 }

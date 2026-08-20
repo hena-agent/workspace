@@ -1,21 +1,21 @@
-import { SquarePen } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Project, Session } from "@/lib/types"
 import { SessionList } from "./session-list"
 import { SidebarPanelHeader } from "./sidebar-panel-header"
+import { LegacyIcon } from "./legacy-icon"
 
 export function SidebarPanel({
   project,
   sessions,
   activeSessionId,
-  now,
   onSelectSession,
   onArchiveSession,
   onNewSession,
   onRenameProject,
   onClearNotifications,
   onCloseProject,
+  width,
+  mobile = false,
 }: {
   project?: Project
   sessions: Session[]
@@ -27,37 +27,47 @@ export function SidebarPanel({
   onRenameProject: (name: string) => void
   onClearNotifications: () => void
   onCloseProject: () => void
+  width?: number
+  mobile?: boolean
 }) {
-  if (!project) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-1 px-6 text-center text-sm text-muted-foreground">
-        <p>Select a project to see its sessions.</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex h-full flex-col">
-      <SidebarPanelHeader
-        project={project}
-        onRename={onRenameProject}
-        onClearNotifications={onClearNotifications}
-        onClose={onCloseProject}
-      />
-      <div className="px-3 pb-3">
-        <Button className="hit-area w-full justify-start" onClick={onNewSession}>
-          <SquarePen /> New session
-        </Button>
-      </div>
-      <ScrollArea className="flex-1">
-        <SessionList
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          now={now}
-          onSelectSession={onSelectSession}
-          onArchiveSession={onArchiveSession}
-        />
-      </ScrollArea>
+    <div
+      className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-tl-[12px] border-t border-l border-[var(--legacy-border-weaker)] bg-[var(--legacy-background-base)] px-3"
+      style={{ width: mobile ? undefined : width, flex: mobile ? "1 1 0%" : undefined }}
+    >
+      {project ? (
+        <>
+          <SidebarPanelHeader
+            project={project}
+            onRename={onRenameProject}
+            onClearNotifications={onClearNotifications}
+            onClose={onCloseProject}
+          />
+          <div className="shrink-0 py-4">
+            <Button className="legacy-primary-button h-8 w-full text-[13px]" onClick={onNewSession}>
+              <LegacyIcon name="edit" className="size-4" /> New session
+            </Button>
+          </div>
+          <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto py-2 [overflow-anchor:none]">
+            <SessionList
+              sessions={sessions}
+              activeSessionId={activeSessionId}
+              mobile={mobile}
+              onSelectSession={onSelectSession}
+              onArchiveSession={onArchiveSession}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="-mt-4 flex min-h-0 flex-1 items-center justify-center px-6 pb-64 text-center">
+          <div className="mt-8 flex max-w-60 flex-col items-center gap-3">
+            <div className="text-[14px] font-medium text-[var(--legacy-text-strong)]">Open a project</div>
+            <div className="text-[14px] leading-5 text-[var(--legacy-text-base)]">
+              Choose a project to see its sessions.
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

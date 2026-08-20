@@ -22,35 +22,40 @@ function renderApp(initialPath: string) {
 }
 
 describe("app routing (real routeTree, memory history)", () => {
-  test("/ renders the Inbox", async () => {
+  test("/ renders the legacy Home inside the collapsed rail shell", async () => {
     mockMatchMedia(false)
     renderApp("/")
-    expect(await screen.findByRole("heading", { name: "Inbox" })).toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Toggle menu" })).toBeInTheDocument()
   })
 
   test("an unknown route inside a project falls back rather than crashing the shell", async () => {
     mockMatchMedia(true)
     renderApp("/conn-local/proj-hena")
-    expect(await screen.findByRole("heading", { name: "hena" })).toBeInTheDocument()
+    expect(
+      within(await screen.findByRole("navigation", { name: "Projects" })).getByRole("button", { name: "hena" }),
+    ).toHaveAttribute("aria-pressed", "true")
   })
 
-  test("navigating rail -> session list -> transcript updates the URL and each pane", async () => {
+  test("navigating rail -> session list -> transcript updates the URL and content", async () => {
     mockMatchMedia(true)
     const user = userEvent.setup()
     const router = renderApp("/")
 
-    const rail = await screen.findByRole("navigation", { name: "Projects" })
-    await user.click(within(rail).getByRole("button", { name: "hena" }))
+    const projectRail = await screen.findByRole("navigation", { name: "Projects" })
+    await user.click(within(projectRail).getByRole("button", { name: "hena" }))
     expect(router.state.location.pathname).toBe("/conn-local/proj-hena")
-    expect(await screen.findByRole("heading", { name: "hena" })).toBeInTheDocument()
+    expect(
+      within(await screen.findByRole("navigation", { name: "Projects" })).getByRole("button", { name: "hena" }),
+    ).toHaveAttribute("aria-pressed", "true")
 
     const sessionList = await screen.findByRole("navigation", { name: "Sessions" })
-    const firstSessionButton = within(sessionList).getAllByRole("button")[0]
-    await user.click(firstSessionButton)
+    await user.click(within(sessionList).getByRole("button", { name: /Wire the collection stream protocol/ }))
 
     expect(router.state.location.pathname).toMatch(/^\/conn-local\/proj-hena\/session\//)
     expect(await screen.findByRole("log", { name: "Messages" })).toBeInTheDocument()
     expect(screen.getByLabelText("Message")).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Wire the collection stream protocol" })).toBeInTheDocument()
   })
 
   test("Mod+K opens the command palette and selecting a project navigates to it", async () => {
@@ -58,7 +63,7 @@ describe("app routing (real routeTree, memory history)", () => {
     const user = userEvent.setup()
     const router = renderApp("/")
 
-    await screen.findByRole("heading", { name: "Inbox" })
+    await screen.findByRole("heading", { name: "Recent projects" })
     await user.keyboard("{Meta>}k{/Meta}")
 
     const dialog = await screen.findByRole("dialog")

@@ -91,6 +91,9 @@
       ],
       "ignoreUnresolved": ["@/context/global-sync"],
     },
+    "packages/app-v3": {
+      "entry": ["public/theme-preload.js"],
+    },
     "packages/protocol": {
       "entry": ["**/*.test.{ts,tsx}"],
       "includeEntryExports": true,

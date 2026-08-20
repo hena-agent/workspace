@@ -15,12 +15,12 @@ export function SessionTranscriptHeader({
   onArchive: () => void
 }) {
   return (
-    <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b bg-background/95 px-4 py-2.5 backdrop-blur-sm md:px-5">
-      <h1 className="min-w-0 truncate text-sm font-semibold">{session.title}</h1>
+    <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-[var(--legacy-border-weaker)] bg-[var(--legacy-background-base)] px-4 py-2.5 md:px-5">
+      <h1 className="min-w-0 truncate text-[14px] font-medium text-[var(--legacy-text-strong)]">{session.title}</h1>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Session actions">
-            <MoreHorizontal />
+          <Button variant="ghost" size="icon" aria-label="Session actions" className="legacy-small-icon-button">
+            <MoreHorizontal className="size-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -30,7 +30,7 @@ export function SessionTranscriptHeader({
           <DropdownMenuItem onSelect={onFork}>
             <GitFork /> Fork
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onArchive} variant="destructive">
+          <DropdownMenuItem onSelect={onArchive}>
             <Archive /> Archive
           </DropdownMenuItem>
         </DropdownMenuContent>

@@ -23,9 +23,6 @@ function NewSessionRoute() {
       agents={listAgents()}
       models={listModels()}
       onStart={() => {
-        // The UI shell has no server to admit a prompt against, so "starting"
-        // a draft jumps to an existing session for the project (the flagship
-        // transcript as a fallback) to keep the flow browsable end to end.
         const existing = listSessions({ projectId }).at(0)?.id ?? "sess-transcript"
         void navigate({
           to: "/$connectionId/$projectId/session/$sessionId",

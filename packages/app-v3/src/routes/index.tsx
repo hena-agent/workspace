@@ -1,30 +1,20 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { InboxView } from "@/features/inbox/inbox-view"
+import { LegacyHomeView } from "@/features/home/legacy-home-view"
 import { MOCK_NOW } from "@/mock/fixtures"
-import { getProject, listInboxItems, listProjects } from "@/mock/queries"
+import { getProject, listProjects } from "@/mock/queries"
 
 export const Route = createFileRoute("/")({
-  component: InboxRoute,
+  component: HomeRoute,
 })
 
-function InboxRoute() {
+function HomeRoute() {
   const navigate = useNavigate()
-  const items = listInboxItems()
-  const recentProjects = listProjects()
-    .toSorted((a, b) => b.updatedAt - a.updatedAt)
-    .slice(0, 5)
+  const projects = listProjects().toSorted((a, b) => b.updatedAt - a.updatedAt)
 
   return (
-    <InboxView
-      items={items}
-      recentProjects={recentProjects}
+    <LegacyHomeView
+      projects={projects}
       now={MOCK_NOW}
-      onOpenItem={(item) => {
-        void navigate({
-          to: "/$connectionId/$projectId/session/$sessionId",
-          params: { connectionId: item.connection.id, projectId: item.project.id, sessionId: item.session.id },
-        })
-      }}
       onOpenProject={(projectId) => {
         const project = getProject(projectId)
         if (!project) return

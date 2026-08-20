@@ -104,6 +104,9 @@
   --legacy-button-neutral: #ffffff;
   --hit-area: 44px;
   --row-height: 44px;
+  --app-font-size: 13px;
+  --app-line-height: 19.5px;
+  --app-root-font-size: 16px;
 }
 
 @media (any-pointer: fine) {
@@ -114,6 +117,28 @@
 
 :root[data-density="compact"] {
   --row-height: 28px;
+}
+
+:root[data-font-size="small"] {
+  --app-font-size: 12px;
+  --app-line-height: 18px;
+  --app-root-font-size: 14px;
+}
+
+:root[data-font-size="large"] {
+  --app-font-size: 15px;
+  --app-line-height: 22.5px;
+  --app-root-font-size: 18px;
+}
+
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-property: opacity !important;
 }
 
 @media (any-pointer: fine) and (not (any-pointer: coarse)) {
@@ -184,6 +209,7 @@
 
   html {
     @apply overscroll-none font-sans;
+    font-size: var(--app-root-font-size);
   }
 
   body {
@@ -191,9 +217,9 @@
     margin: 0;
     background: var(--legacy-deep);
     color: var(--legacy-text-strong);
-    font-size: 13px;
+    font-size: var(--app-font-size);
     font-weight: 400;
-    line-height: 19.5px;
+    line-height: var(--app-line-height);
   }
 
   html,

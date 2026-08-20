@@ -33,7 +33,7 @@ export function SidebarPanel({
   return (
     <div
       className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-tl-[12px] border-t border-l border-[var(--legacy-border-weaker)] bg-[var(--legacy-background-base)] px-3"
-      style={{ width: mobile ? undefined : width, flex: mobile ? "1 1 0%" : undefined }}
+      style={{ width: mobile ? undefined : width, maxWidth: mobile ? undefined : "30vw", flex: mobile ? "1 1 0%" : undefined }}
     >
       {project ? (
         <>

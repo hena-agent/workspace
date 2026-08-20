@@ -2,14 +2,24 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
 import userEvent from "@testing-library/user-event"
 import { ThemeProvider } from "@/components/theme-provider"
-import { act, render, screen, within } from "@/test/test-utils"
+import { act, render, screen, waitFor, within } from "@/test/test-utils"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { routeTree } from "./routeTree.gen"
 
 const originalMatchMedia = window.matchMedia
+const originalHistoryBack = window.history.back.bind(window.history)
 afterEach(() => {
   window.matchMedia = originalMatchMedia
+  window.history.back = originalHistoryBack
   window.history.replaceState(null, "", "/")
+  localStorage.removeItem("theme")
+  localStorage.removeItem("density")
+  localStorage.removeItem("font-size")
+  localStorage.removeItem("reduced-motion")
+  delete document.documentElement.dataset.density
+  delete document.documentElement.dataset.fontSize
+  delete document.documentElement.dataset.reducedMotion
+  document.documentElement.classList.remove("light", "dark")
 })
 
 function renderApp(initialPath: string) {
@@ -122,6 +132,58 @@ describe("app routing (real routeTree, memory history)", () => {
     await user.click(within(dialog).getByText("hena"))
 
     expect(router.state.location.pathname).toBe("/conn-local/proj-hena")
+  })
+
+  test("command-palette navigation closes an open mobile drawer before navigating", async () => {
+    mockMatchMedia(false)
+    window.history.back = () => {
+      window.history.replaceState({}, "")
+      window.dispatchEvent(new PopStateEvent("popstate", { state: {} }))
+    }
+    const user = userEvent.setup()
+    const router = renderApp("/conn-local/proj-hena")
+
+    await user.click(await screen.findByRole("button", { name: "Open menu" }))
+    await user.keyboard("{Meta>}k{/Meta}")
+    await user.click(within(await screen.findByRole("dialog")).getByText("docs"))
+
+    expect(router.state.location.pathname).toBe("/conn-staging/proj-docs")
+    expect(window.history.state?.henaMobileNavigation).not.toBe(true)
+    expect(screen.queryByRole("navigation", { name: "Projects and sessions" })).not.toBeInTheDocument()
+  })
+
+  test("appearance settings apply density, font size, motion, and browser chrome color", async () => {
+    const media = mockMatchMedia(false)
+    const themeColor = document.createElement("meta")
+    themeColor.name = "theme-color"
+    document.head.appendChild(themeColor)
+    const user = userEvent.setup()
+    renderApp("/settings/general")
+
+    await waitFor(() => expect(themeColor).toHaveAttribute("content", "#fafafa"))
+    act(() => media.change(true))
+    await waitFor(() => expect(themeColor).toHaveAttribute("content", "#080808"))
+    expect(document.documentElement).toHaveClass("dark")
+
+    await user.click(await screen.findByLabelText("Theme"))
+    await user.click(screen.getByRole("option", { name: "Light" }))
+    await waitFor(() => expect(themeColor).toHaveAttribute("content", "#fafafa"))
+    expect(document.documentElement).toHaveClass("light")
+
+    await user.click(screen.getByLabelText("Density"))
+    await user.click(screen.getByRole("option", { name: "Comfortable" }))
+    expect(document.documentElement).toHaveAttribute("data-density", "comfortable")
+
+    await user.click(screen.getByRole("button", { name: "Appearance" }))
+    await user.click(screen.getByLabelText("Font size"))
+    await user.click(screen.getByRole("option", { name: "Large" }))
+    await user.click(screen.getByRole("switch", { name: "Reduce motion" }))
+
+    expect(document.documentElement).toHaveAttribute("data-font-size", "large")
+    expect(document.documentElement).toHaveAttribute("data-reduced-motion", "true")
+    expect(localStorage.getItem("font-size")).toBe("large")
+    expect(localStorage.getItem("reduced-motion")).toBe("true")
+    themeColor.remove()
   })
 
   test("the project rail keeps projects from every connection visible", async () => {

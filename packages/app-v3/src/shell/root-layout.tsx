@@ -38,6 +38,15 @@ export function RootLayout() {
     })
   }
 
+  function runAfterMobileNavClose(action: () => void) {
+    if (!window.history.state?.henaMobileNavigation) {
+      action()
+      return
+    }
+    window.addEventListener("popstate", action, { once: true })
+    window.history.back()
+  }
+
   return (
     <AppShell
       rail={{
@@ -82,15 +91,19 @@ export function RootLayout() {
         projects={projects}
         sessions={sessions.filter((session) => !session.archived)}
         serverCommands={listServerCommands()}
-        onSelectProject={goToProject}
+        onSelectProject={(target) => runAfterMobileNavClose(() => goToProject(target))}
         onSelectSession={(session) =>
-          void navigate({
-            to: "/$connectionId/$projectId/session/$sessionId",
-            params: { connectionId: session.connectionId, projectId: session.projectId, sessionId: session.id },
-          })
+          runAfterMobileNavClose(() =>
+            void navigate({
+              to: "/$connectionId/$projectId/session/$sessionId",
+              params: { connectionId: session.connectionId, projectId: session.projectId, sessionId: session.id },
+            }),
+          )
         }
-        onRunServerCommand={() => {}}
-        onOpenSettings={() => void navigate({ to: "/settings/$section", params: { section: "general" } })}
+        onRunServerCommand={() => runAfterMobileNavClose(() => {})}
+        onOpenSettings={() =>
+          runAfterMobileNavClose(() => void navigate({ to: "/settings/$section", params: { section: "general" } }))
+        }
       />
     </AppShell>
   )

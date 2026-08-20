@@ -1,4 +1,4 @@
-import type { Connection, Project, Session, SessionMessage } from "@/lib/types"
+import type { Connection, Project, ProjectNotification, Session, SessionMessage } from "@/lib/types"
 import {
   agents,
   connections,
@@ -31,41 +31,57 @@ export function listProjects(connectionId?: string): Project[] {
   return projects.filter((p) => p.connectionId === connectionId)
 }
 
-export function getProject(id: string): Project | undefined {
-  return projects.find((p) => p.id === id)
+export function getProject(options: { id: string; connectionId: string }): Project | undefined {
+  return projects.find((project) => project.id === options.id && project.connectionId === options.connectionId)
 }
 
-export function listSessions(options: { projectId?: string; includeArchived?: boolean }): Session[] {
+export function listSessions(options: {
+  projectId?: string
+  connectionId?: string
+  includeArchived?: boolean
+}): Session[] {
   return sessions
     .filter(
-      (s) => (!options.projectId || s.projectId === options.projectId) && (options.includeArchived || !s.archived),
+      (session) =>
+        (!options.projectId || session.projectId === options.projectId) &&
+        (!options.connectionId || session.connectionId === options.connectionId) &&
+        (options.includeArchived || !session.archived),
     )
     .toSorted((a, b) => b.updatedAt - a.updatedAt)
 }
 
-export function getSession(id: string): Session | undefined {
-  return sessions.find((s) => s.id === id)
+export function getSession(options: { id: string; connectionId: string; projectId: string }): Session | undefined {
+  return sessions.find(
+    (session) =>
+      session.id === options.id &&
+      session.connectionId === options.connectionId &&
+      session.projectId === options.projectId,
+  )
 }
 
-export function listMessages(sessionId: string): SessionMessage[] {
-  const messages = messagesBySession[sessionId] ?? []
+export function listMessages(options: {
+  sessionId: string
+  connectionId: string
+  projectId: string
+}): SessionMessage[] {
+  const messages = messagesBySession[sessionDataKey(options)] ?? []
   return messages.toSorted((a, b) => a.createdAt - b.createdAt)
 }
 
-export function listTodos(sessionId: string) {
-  return todosBySession[sessionId] ?? []
+export function listTodos(options: { sessionId: string; connectionId: string; projectId: string }) {
+  return todosBySession[sessionDataKey(options)] ?? []
 }
 
-export function getPermissionRequest(sessionId: string) {
-  return permissionsBySession[sessionId]?.[0]
+export function getPermissionRequest(options: { sessionId: string; connectionId: string; projectId: string }) {
+  return permissionsBySession[sessionDataKey(options)]?.[0]
 }
 
-export function getQuestionRequest(sessionId: string) {
-  return questionsBySession[sessionId]?.[0]
+export function getQuestionRequest(options: { sessionId: string; connectionId: string; projectId: string }) {
+  return questionsBySession[sessionDataKey(options)]?.[0]
 }
 
-export function listDiffFiles(sessionId: string) {
-  return diffFilesBySession[sessionId] ?? []
+export function listDiffFiles(options: { sessionId: string; connectionId: string; projectId: string }) {
+  return diffFilesBySession[sessionDataKey(options)] ?? []
 }
 
 export function getFileTree() {
@@ -92,13 +108,8 @@ export function listServerCommands() {
   return serverCommands
 }
 
-export type ProjectNotification = {
-  kind: "none" | "unread" | "permission" | "error"
-  working: boolean
-}
-
-export function getProjectNotificationState(projectId: string): ProjectNotification {
-  const projectSessions = listSessions({ projectId })
+export function getProjectNotificationState(options: { projectId: string; connectionId: string }): ProjectNotification {
+  const projectSessions = listSessions(options)
   const working = projectSessions.some((s) => s.status === "working")
 
   if (projectSessions.some((s) => s.status === "permission" || s.status === "question")) {
@@ -122,4 +133,8 @@ export function groupSessionsByRecency(list: Session[], now: number) {
     yesterday: list.filter((s) => s.updatedAt >= startOfYesterday && s.updatedAt < startOfToday),
     older: list.filter((s) => s.updatedAt < startOfYesterday),
   }
+}
+
+function sessionDataKey(options: { sessionId: string; connectionId: string; projectId: string }) {
+  return `${options.connectionId}:${options.projectId}:${options.sessionId}`
 }

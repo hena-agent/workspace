@@ -199,7 +199,7 @@ export const sessions: Session[] = [
 ]
 
 export const messagesBySession: Record<string, SessionMessage[]> = {
-  "sess-transcript": [
+  "conn-local:proj-hena:sess-transcript": [
     {
       id: "msg-1",
       sessionId: "sess-transcript",
@@ -400,7 +400,7 @@ export const messagesBySession: Record<string, SessionMessage[]> = {
       ],
     },
   ],
-  "sess-permission": [
+  "conn-local:proj-hena:sess-permission": [
     {
       id: "perm-msg-1",
       sessionId: "sess-permission",
@@ -424,7 +424,7 @@ export const messagesBySession: Record<string, SessionMessage[]> = {
       ],
     },
   ],
-  "sess-question": [
+  "conn-local:proj-hena:sess-question": [
     {
       id: "q-msg-1",
       sessionId: "sess-question",
@@ -448,7 +448,7 @@ export const messagesBySession: Record<string, SessionMessage[]> = {
       ],
     },
   ],
-  "sess-error": [
+  "conn-local:proj-hena:sess-error": [
     {
       id: "err-msg-1",
       sessionId: "sess-error",
@@ -484,7 +484,7 @@ export const messagesBySession: Record<string, SessionMessage[]> = {
 }
 
 export const todosBySession: Record<string, Todo[]> = {
-  "sess-transcript": [
+  "conn-local:proj-hena:sess-transcript": [
     {
       id: "todo-1",
       sessionId: "sess-transcript",
@@ -503,7 +503,7 @@ export const todosBySession: Record<string, Todo[]> = {
 }
 
 export const permissionsBySession: Record<string, PermissionRequest[]> = {
-  "sess-permission": [
+  "conn-local:proj-hena:sess-permission": [
     {
       id: "perm-req-1",
       sessionId: "sess-permission",
@@ -515,7 +515,7 @@ export const permissionsBySession: Record<string, PermissionRequest[]> = {
 }
 
 export const questionsBySession: Record<string, QuestionRequest[]> = {
-  "sess-question": [
+  "conn-local:proj-hena:sess-question": [
     {
       id: "question-req-1",
       sessionId: "sess-question",
@@ -537,7 +537,7 @@ function diffLines(path: string, entries: Array<Omit<DiffLine, "id">>): DiffLine
 }
 
 export const diffFilesBySession: Record<string, DiffFile[]> = {
-  "sess-transcript": [
+  "conn-local:proj-hena:sess-transcript": [
     {
       path: "packages/hena/src/server/collection/changelog.ts",
       kind: "add",

@@ -1,11 +1,10 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { isTheme, type Theme } from "@/lib/theme"
 import { isOneOf } from "@/lib/utils"
 import { SettingsRow } from "./settings-row"
 
-export type ThemePreference = "system" | "light" | "dark"
 export type DensityPreference = "comfortable" | "compact"
 
-const THEME_VALUES: ThemePreference[] = ["system", "light", "dark"]
 const DENSITY_VALUES: DensityPreference[] = ["comfortable", "compact"]
 
 export function GeneralSection({
@@ -14,8 +13,8 @@ export function GeneralSection({
   density,
   onChangeDensity,
 }: {
-  theme: ThemePreference
-  onChangeTheme: (theme: ThemePreference) => void
+  theme: Theme
+  onChangeTheme: (theme: Theme) => void
   density: DensityPreference
   onChangeDensity: (density: DensityPreference) => void
 }) {
@@ -25,7 +24,7 @@ export function GeneralSection({
         <Select
           value={theme}
           onValueChange={(value) => {
-            if (isOneOf(THEME_VALUES, value)) onChangeTheme(value)
+            if (isTheme(value)) onChangeTheme(value)
           }}
         >
           <SelectTrigger size="sm" aria-label="Theme" className="w-32">

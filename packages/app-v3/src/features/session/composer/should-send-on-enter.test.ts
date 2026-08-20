@@ -1,17 +1,32 @@
 import { describe, expect, test } from "bun:test"
 import { shouldSendOnEnter } from "./should-send-on-enter"
 
-const key = (overrides: Partial<{ key: string; shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }>) => ({
+const key = (
+  overrides: Partial<{
+    key: string
+    shiftKey: boolean
+    metaKey: boolean
+    ctrlKey: boolean
+    nativeEvent: { isComposing: boolean; keyCode?: number }
+  }>,
+) => ({
   key: "Enter",
   shiftKey: false,
   metaKey: false,
   ctrlKey: false,
+  nativeEvent: { isComposing: false },
   ...overrides,
 })
 
 describe("shouldSendOnEnter", () => {
   test("ignores any key other than Enter", () => {
     expect(shouldSendOnEnter(key({ key: "a" }), true)).toBe(false)
+  })
+
+  test("does not send while an IME composition owns Enter", () => {
+    expect(shouldSendOnEnter(key({ nativeEvent: { isComposing: true } }), true)).toBe(false)
+    expect(shouldSendOnEnter(key({ metaKey: true, nativeEvent: { isComposing: true } }), true)).toBe(false)
+    expect(shouldSendOnEnter(key({ nativeEvent: { isComposing: false, keyCode: 229 } }), true)).toBe(false)
   })
 
   describe("with a fine pointer (keyboard-first)", () => {

@@ -1,10 +1,11 @@
-import type { ReactNode } from "react"
+import type { ReactNode, RefObject } from "react"
 import { Button } from "@/components/ui/button"
 import { LegacyIcon } from "./legacy-icon"
 
 export function Titlebar({
   onToggleMobileNav,
   onToggleSidebar,
+  mobileNavButtonRef,
   mobileNavOpen,
   sidebarOpen,
   title,
@@ -12,6 +13,7 @@ export function Titlebar({
 }: {
   onToggleMobileNav: () => void
   onToggleSidebar: () => void
+  mobileNavButtonRef: RefObject<HTMLButtonElement | null>
   mobileNavOpen: boolean
   sidebarOpen: boolean
   title?: ReactNode
@@ -20,14 +22,17 @@ export function Titlebar({
   return (
     <header className="relative flex h-10 shrink-0 items-center overflow-hidden bg-[var(--legacy-background-base)]">
       <Button
+        ref={mobileNavButtonRef}
+        id="mobile-navigation-trigger"
         variant="ghost"
         size="icon"
-        aria-label="Toggle menu"
+        aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
+        aria-controls="mobile-navigation"
         aria-expanded={mobileNavOpen}
         onClick={onToggleMobileNav}
         className="legacy-titlebar-button absolute top-2 left-4 xl:hidden"
       >
-        <LegacyIcon name="menu" className="size-4" />
+        <LegacyIcon name={mobileNavOpen ? "close" : "menu"} className="size-4" />
       </Button>
       <Button
         variant="ghost"

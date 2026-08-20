@@ -25,7 +25,7 @@ function ProfileSettingsRoute() {
   return (
     <ProfileSettingsView
       section={section}
-      onSelectSection={(next) => void navigate({ to: "/settings/$section", params: { section: next } })}
+      onSelectSection={(next) => void navigate({ to: "/settings/$section", params: { section: next }, replace: true })}
       theme={theme}
       onChangeTheme={setTheme}
       density={density}

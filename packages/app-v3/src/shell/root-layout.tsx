@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
 import { Outlet, useNavigate, useParams } from "@tanstack/react-router"
 import { CommandPalette } from "@/features/command-palette/command-palette"
-import { MOCK_NOW, sessions as allSessions } from "@/mock/fixtures"
-import { getProject, listProjects, listServerCommands, listSessions } from "@/mock/queries"
+import type { Project } from "@/lib/types"
+import { MOCK_NOW, sessions } from "@/mock/fixtures"
+import { getProject, getProjectNotificationState, listProjects, listServerCommands, listSessions } from "@/mock/queries"
 import { AppShell } from "./app-shell"
 
 export function RootLayout() {
@@ -26,28 +27,32 @@ export function RootLayout() {
   }, [])
 
   const { connectionId, projectId, sessionId } = params
-  const projects = listProjects(connectionId)
-  const project = projectId ? getProject(projectId) : undefined
-  const sessions = project ? listSessions({ projectId: project.id }) : []
+  const projects = listProjects()
+  const project = connectionId && projectId ? getProject({ id: projectId, connectionId }) : undefined
+  const projectSessions = project ? listSessions({ projectId: project.id, connectionId: project.connectionId }) : []
 
-  function goToProject(id: string) {
-    const target = getProject(id)
-    if (!target) return
-    void navigate({ to: "/$connectionId/$projectId", params: { connectionId: target.connectionId, projectId: id } })
+  function goToProject(target: Project) {
+    void navigate({
+      to: "/$connectionId/$projectId",
+      params: { connectionId: target.connectionId, projectId: target.id },
+    })
   }
 
   return (
     <AppShell
       rail={{
-        projects,
-        selectedProjectId: projectId,
+        projects: projects.map((item) => ({
+          project: item,
+          notification: getProjectNotificationState({ projectId: item.id, connectionId: item.connectionId }),
+        })),
+        selectedProject: project,
         onSelectProject: goToProject,
         onAddProject: () => {},
         onOpenSettings: () => void navigate({ to: "/settings/$section", params: { section: "general" } }),
       }}
       sidebarPanel={{
         project,
-        sessions,
+        sessions: projectSessions,
         activeSessionId: sessionId,
         now: MOCK_NOW,
         onSelectSession: (id) => {
@@ -75,7 +80,7 @@ export function RootLayout() {
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         projects={projects}
-        sessions={allSessions.filter((session) => !session.archived)}
+        sessions={sessions.filter((session) => !session.archived)}
         serverCommands={listServerCommands()}
         onSelectProject={goToProject}
         onSelectSession={(session) =>

@@ -1,20 +1,21 @@
-import { Archive, CircleAlert, Loader2, Share2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import type { Session } from "@/lib/types"
+import { LegacyIcon } from "./legacy-icon"
 
 function SessionStatusIndicator({ session }: { session: Session }) {
   if (session.status === "working") {
-    return <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-label="Working" />
+    return <Loader2 className="size-[15px] animate-spin" aria-label="Working" />
   }
   if (session.status === "permission" || session.status === "question") {
-    return <span aria-label="Needs your input" className="size-1.5 rounded-full bg-amber-500" />
+    return <span aria-label="Needs your input" className="size-1.5 rounded-full bg-[var(--legacy-warning)]" />
   }
   if (session.status === "error") {
-    return <CircleAlert aria-label="Error" className="size-3.5 text-destructive" />
+    return <span aria-label="Error" className="size-1.5 rounded-full bg-[var(--legacy-critical)]" />
   }
   if (session.unseenCount > 0) {
-    return <span aria-label="Unread" className="size-1.5 rounded-full bg-blue-500" />
+    return <span aria-label="Unread" className="size-1.5 rounded-full bg-[var(--legacy-text-interactive)]" />
   }
   return null
 }
@@ -22,41 +23,63 @@ function SessionStatusIndicator({ session }: { session: Session }) {
 export function SessionListItem({
   session,
   active,
+  mobile,
   onSelect,
   onArchive,
 }: {
   session: Session
   active: boolean
+  mobile: boolean
   onSelect: () => void
   onArchive: () => void
 }) {
+  const hasStatus = session.status !== "idle" || session.unseenCount > 0
+
   return (
     <div
-      data-active={active ? "" : undefined}
+      data-active={active ? "true" : "false"}
       className={cn(
-        "group/session relative flex hit-area w-full items-center gap-2 rounded-md pr-2 pl-2",
-        active ? "bg-accent" : "hover:bg-accent/60",
+        "group/session relative w-full min-w-0 cursor-default rounded-[6px] pr-3 pl-2 transition-colors focus-within:bg-[var(--legacy-surface-raised-hover)] hover:bg-[var(--legacy-surface-raised-hover)]",
+        active && "bg-[var(--legacy-surface-active)]",
       )}
     >
-      <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left">
-        <span className="flex size-5 shrink-0 items-center justify-center">
-          <SessionStatusIndicator session={session} />
-        </span>
-        <span className="min-w-0 flex-1 truncate text-sm">{session.title}</span>
-        {session.shared ? <Share2 aria-label="Shared" className="size-3 shrink-0 text-muted-foreground" /> : null}
-      </button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Archive session"
-        onClick={(event) => {
-          event.stopPropagation()
-          onArchive()
-        }}
-        className="shrink-0 opacity-0 group-focus-within/session:opacity-100 group-hover/session:opacity-100 data-[state=open]:opacity-100"
-      >
-        <Archive />
-      </Button>
+      <div className="flex min-w-0 items-center gap-1">
+        <button
+          type="button"
+          onClick={onSelect}
+          className="flex min-w-0 flex-1 items-center gap-2 py-1 text-left outline-none"
+        >
+          {hasStatus ? (
+            <span className="flex size-6 shrink-0 items-center justify-center text-[var(--legacy-text-interactive)]">
+              <SessionStatusIndicator session={session} />
+            </span>
+          ) : null}
+          <span className="min-w-0 flex-1 truncate text-[14px] leading-[25px] text-[var(--legacy-text-strong)]">
+            {session.title}
+          </span>
+        </button>
+        <div
+          className={cn(
+            "shrink-0 overflow-hidden transition-[width,opacity]",
+            mobile
+              ? "w-6 opacity-100"
+              : "pointer-events-none w-0 opacity-0 group-focus-within/session:pointer-events-auto group-focus-within/session:w-6 group-focus-within/session:opacity-100 group-hover/session:pointer-events-auto group-hover/session:w-6 group-hover/session:opacity-100",
+          )}
+        >
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Archive session"
+            onClick={(event) => {
+              event.stopPropagation()
+              onArchive()
+            }}
+            className="legacy-small-icon-button"
+          >
+            <LegacyIcon name="archive" className="size-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

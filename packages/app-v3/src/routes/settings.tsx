@@ -10,8 +10,8 @@ function SettingsLayout() {
   const navigate = useNavigate()
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b px-4 py-2.5">
+    <div className="flex h-full w-full flex-col">
+      <div className="flex items-center justify-between border-b border-[var(--legacy-border-weaker)] px-4 py-2.5">
         <h1 className="text-sm font-semibold">Settings</h1>
         <Button
           variant="ghost"

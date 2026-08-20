@@ -35,9 +35,11 @@ export function getProject(id: string): Project | undefined {
   return projects.find((p) => p.id === id)
 }
 
-export function listSessions(options: { projectId: string; includeArchived?: boolean }): Session[] {
+export function listSessions(options: { projectId?: string; includeArchived?: boolean }): Session[] {
   return sessions
-    .filter((s) => s.projectId === options.projectId && (options.includeArchived || !s.archived))
+    .filter(
+      (s) => (!options.projectId || s.projectId === options.projectId) && (options.includeArchived || !s.archived),
+    )
     .toSorted((a, b) => b.updatedAt - a.updatedAt)
 }
 
@@ -120,72 +122,4 @@ export function groupSessionsByRecency(list: Session[], now: number) {
     yesterday: list.filter((s) => s.updatedAt >= startOfYesterday && s.updatedAt < startOfToday),
     older: list.filter((s) => s.updatedAt < startOfYesterday),
   }
-}
-
-export type InboxItem =
-  | {
-      kind: "permission"
-      id: string
-      title: string
-      description: string
-      createdAt: number
-      session: Session
-      project: Project
-      connection: Connection
-    }
-  | {
-      kind: "question"
-      id: string
-      title: string
-      description: string
-      createdAt: number
-      session: Session
-      project: Project
-      connection: Connection
-    }
-
-export function listInboxItems(): InboxItem[] {
-  const items: InboxItem[] = []
-
-  for (const [sessionId, requests] of Object.entries(permissionsBySession)) {
-    const session = getSession(sessionId)
-    const project = session && getProject(session.projectId)
-    const connection = project && getConnection(project.connectionId)
-    if (!session || !project || !connection) continue
-
-    for (const request of requests) {
-      items.push({
-        kind: "permission",
-        id: request.id,
-        title: request.title,
-        description: request.description,
-        createdAt: request.createdAt,
-        session,
-        project,
-        connection,
-      })
-    }
-  }
-
-  for (const [sessionId, requests] of Object.entries(questionsBySession)) {
-    const session = getSession(sessionId)
-    const project = session && getProject(session.projectId)
-    const connection = project && getConnection(project.connectionId)
-    if (!session || !project || !connection) continue
-
-    for (const request of requests) {
-      items.push({
-        kind: "question",
-        id: request.id,
-        title: request.prompt,
-        description: `${request.choices.length} options`,
-        createdAt: request.createdAt,
-        session,
-        project,
-        connection,
-      })
-    }
-  }
-
-  return items.sort((a, b) => b.createdAt - a.createdAt)
 }

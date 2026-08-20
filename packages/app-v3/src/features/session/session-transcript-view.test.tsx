@@ -35,8 +35,9 @@ function renderView(sessionId: string) {
 }
 
 describe("SessionTranscriptView", () => {
-  test("renders the header, messages, and composer for a plain session", () => {
-    renderView("sess-transcript")
+  test("renders the title, messages, and composer", () => {
+    const view = renderView("sess-transcript")
+    expect(view.container.firstElementChild).toHaveClass("w-full", "min-w-0")
     expect(screen.getByRole("heading")).toHaveTextContent("collection stream protocol")
     expect(screen.getByRole("log", { name: "Messages" })).toBeInTheDocument()
     expect(screen.getByLabelText("Message")).toBeInTheDocument()

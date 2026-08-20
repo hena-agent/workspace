@@ -20,7 +20,7 @@ export function ReviewView({
 
   return (
     <div className="flex h-full flex-col md:flex-row">
-      <ScrollArea className="shrink-0 border-b md:w-64 md:border-r md:border-b-0">
+      <ScrollArea className="h-[40dvh] shrink-0 border-b md:h-auto md:w-64 md:border-r md:border-b-0">
         <ul aria-label="Changed files" className="flex flex-col gap-0.5 p-2">
           {files.map((file) => (
             <li key={file.path}>

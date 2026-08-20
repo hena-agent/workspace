@@ -14,7 +14,7 @@ export function FilesView({
 }) {
   return (
     <div className="flex h-full flex-col md:flex-row">
-      <ScrollArea className="shrink-0 border-b md:w-64 md:border-r md:border-b-0">
+      <ScrollArea className="h-[40dvh] shrink-0 border-b md:h-auto md:w-64 md:border-r md:border-b-0">
         <div className="p-2">
           <FileTree nodes={tree} activePath={activePath} onSelectFile={onSelectFile} />
         </div>

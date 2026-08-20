@@ -104,6 +104,14 @@ export function AppShell({
     window.history.back()
   }, [isDesktop, mobileNavOpen])
 
+  useEffect(() => {
+    function clampPanelWidth() {
+      setPanelWidth((current) => Math.max(PANEL_MIN, Math.min(window.innerWidth * 0.3, current)))
+    }
+    window.addEventListener("resize", clampPanelWidth)
+    return () => window.removeEventListener("resize", clampPanelWidth)
+  }, [])
+
   useLayoutEffect(() => {
     if (!mobileNavOpen || isDesktop || document.activeElement === mobileNavRef.current) return
     mobileNavRef.current?.focus()
@@ -232,7 +240,7 @@ export function AppShell({
               <nav
                 aria-label="Projects and sessions"
                 className="absolute inset-y-0 left-0 z-10 flex"
-                style={{ width: sidebarOpen ? 64 + panelWidth : 64 }}
+                style={{ width: sidebarOpen ? `calc(64px + min(${panelWidth}px, 30vw))` : 64 }}
               >
                 <Rail {...routedRail} />
                 {sidebarOpen ? <SidebarPanel {...routedSidebar} width={panelWidth} /> : null}
@@ -256,7 +264,7 @@ export function AppShell({
             tabIndex={-1}
             inert={mobileNavOpen && !isDesktop}
             className="flex size-full min-w-0 flex-col items-start overflow-x-hidden border-t border-[var(--legacy-border-weak)] bg-[var(--legacy-background-base)] [contain:strict] xl:rounded-tl-[12px] xl:border-l"
-            style={{ marginLeft: isDesktop ? (sidebarOpen ? 64 + panelWidth : 64) : 0 }}
+            style={{ marginLeft: isDesktop ? (sidebarOpen ? `calc(64px + min(${panelWidth}px, 30vw))` : 64) : 0 }}
           >
             {children}
           </main>

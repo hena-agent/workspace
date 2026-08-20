@@ -8,6 +8,7 @@ import { AppShell } from "./app-shell"
 
 const originalMatchMedia = window.matchMedia
 const originalHistoryBack = window.history.back.bind(window.history)
+const originalInnerWidth = window.innerWidth
 beforeEach(() => {
   window.history.replaceState({}, "")
   window.history.back = () => {
@@ -18,6 +19,7 @@ beforeEach(() => {
 afterEach(() => {
   window.matchMedia = originalMatchMedia
   window.history.back = originalHistoryBack
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: originalInnerWidth })
 })
 
 function noop() {}
@@ -56,7 +58,7 @@ describe("AppShell", () => {
 
   test("desktop renders the rail, expanded sessions panel, and one route viewport", () => {
     mockMatchMedia(true)
-    renderWithProviders(
+    const view = renderWithProviders(
       <AppShell rail={rail} sidebarPanel={sidebarPanel}>
         <div>Page content</div>
       </AppShell>,
@@ -64,7 +66,33 @@ describe("AppShell", () => {
 
     expect(screen.getByRole("navigation", { name: "Projects and sessions" })).toBeInTheDocument()
     expect(screen.getByRole("navigation", { name: "Sessions" })).toBeInTheDocument()
+    expect(view.container.querySelector('[style*="max-width: 30vw"]')).toBeInTheDocument()
     expect(screen.getAllByText("Page content")).toHaveLength(1)
+  })
+
+  test("clamps stored sidebar width when the viewport shrinks before the next drag", async () => {
+    mockMatchMedia(true)
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 2400 })
+    const view = renderWithProviders(
+      <AppShell rail={rail} sidebarPanel={sidebarPanel}>
+        <div>Page content</div>
+      </AppShell>,
+    )
+    const separator = screen.getByRole("separator", { name: "Resize sidebar" })
+
+    fireEvent.pointerDown(separator, { clientX: 0 })
+    fireEvent.pointerMove(window, { clientX: 400 })
+    fireEvent.pointerUp(window)
+    expect(view.container.querySelector('[style*="width: 680px"]')).toBeInTheDocument()
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1280 })
+    fireEvent.resize(window)
+    await waitFor(() => expect(view.container.querySelector('[style*="width: 384px"]')).toBeInTheDocument())
+
+    fireEvent.pointerDown(separator, { clientX: 0 })
+    fireEvent.pointerMove(window, { clientX: -10 })
+    fireEvent.pointerUp(window)
+    expect(view.container.querySelector('[style*="width: 374px"]')).toBeInTheDocument()
   })
 
   test("clicking the selected project collapses the sessions panel", async () => {

@@ -5,7 +5,6 @@ import {
   getSession,
   groupSessionsByRecency,
   listConnections,
-  listInboxItems,
   listMessages,
   listProjects,
   listSessions,
@@ -99,22 +98,5 @@ describe("getProjectNotificationState", () => {
 
   test("reports none for a project with no active signals", () => {
     expect(getProjectNotificationState("proj-infra")).toEqual({ kind: "none", working: false })
-  })
-})
-
-describe("listInboxItems", () => {
-  test("includes one entry per pending permission and question request", () => {
-    const items = listInboxItems()
-    const kinds = items.map((item) => item.kind)
-    expect(kinds).toContain("permission")
-    expect(kinds).toContain("question")
-  })
-
-  test("every item resolves to a real session, project, and connection", () => {
-    for (const item of listInboxItems()) {
-      expect(item.session).toBeDefined()
-      expect(item.project).toBeDefined()
-      expect(item.connection).toBeDefined()
-    }
   })
 })

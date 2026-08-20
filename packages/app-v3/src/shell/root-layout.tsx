@@ -1,15 +1,10 @@
 import { useEffect, useState } from "react"
 import { Outlet, useNavigate, useParams } from "@tanstack/react-router"
-import { SearchIcon } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { CommandPalette } from "@/features/command-palette/command-palette"
 import { MOCK_NOW, sessions as allSessions } from "@/mock/fixtures"
 import { getProject, listProjects, listServerCommands, listSessions } from "@/mock/queries"
 import { AppShell } from "./app-shell"
 
-/** Connects the route tree to `AppShell`: derives the current selection from
- * URL params and wires navigation callbacks. Kept deliberately thin — the
- * presentational shell components it composes are unit-tested directly. */
 export function RootLayout() {
   const navigate = useNavigate()
   const params = useParams({ strict: false }) as {
@@ -43,25 +38,12 @@ export function RootLayout() {
 
   return (
     <AppShell
-      title={project?.name ?? "Inbox"}
-      titlebarActions={
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Search"
-          onClick={() => setPaletteOpen(true)}
-          className="hit-area"
-        >
-          <SearchIcon />
-        </Button>
-      }
       rail={{
         projects,
         selectedProjectId: projectId,
         onSelectProject: goToProject,
         onAddProject: () => {},
         onOpenSettings: () => void navigate({ to: "/settings/$section", params: { section: "general" } }),
-        onOpenHelp: () => {},
       }}
       sidebarPanel={{
         project,
@@ -85,10 +67,7 @@ export function RootLayout() {
         },
         onRenameProject: () => {},
         onClearNotifications: () => {},
-        onCloseProject: () => {
-          if (!connectionId) return
-          void navigate({ to: "/" })
-        },
+        onCloseProject: () => void navigate({ to: "/" }),
       }}
     >
       <Outlet />

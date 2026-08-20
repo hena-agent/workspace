@@ -49,7 +49,7 @@ export function SessionTranscriptView({
   onAnswerQuestion: (choiceId: string) => void
 }) {
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full w-full min-w-0 flex-col">
       <SessionTranscriptHeader session={session} onShare={onShare} onFork={onFork} onArchive={onArchive} />
       <ScrollArea className="min-h-0 flex-1">
         <MessageList messages={messages} />

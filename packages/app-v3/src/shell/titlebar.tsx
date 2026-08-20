@@ -1,43 +1,48 @@
 import type { ReactNode } from "react"
-import { Menu, PanelLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { LegacyIcon } from "./legacy-icon"
 
 export function Titlebar({
   onToggleMobileNav,
   onToggleSidebar,
+  mobileNavOpen,
   sidebarOpen,
   title,
   children,
 }: {
   onToggleMobileNav: () => void
   onToggleSidebar: () => void
+  mobileNavOpen: boolean
   sidebarOpen: boolean
   title?: ReactNode
   children?: ReactNode
 }) {
   return (
-    <header className="flex h-11 shrink-0 items-center gap-1 border-b px-2">
+    <header className="relative flex h-10 shrink-0 items-center overflow-hidden bg-[var(--legacy-background-base)]">
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Open menu"
+        aria-label="Toggle menu"
+        aria-expanded={mobileNavOpen}
         onClick={onToggleMobileNav}
-        className="hit-area md:hidden"
+        className="legacy-titlebar-button absolute top-2 left-4 xl:hidden"
       >
-        <Menu />
+        <LegacyIcon name="menu" className="size-4" />
       </Button>
       <Button
         variant="ghost"
         size="icon"
         aria-label="Toggle sidebar"
-        aria-pressed={sidebarOpen}
+        aria-expanded={sidebarOpen}
         onClick={onToggleSidebar}
-        className="hidden hit-area md:inline-flex"
+        className="legacy-titlebar-button absolute top-2 left-16 hidden xl:inline-flex"
       >
-        <PanelLeft />
+        <LegacyIcon name={sidebarOpen ? "sidebar-active" : "sidebar"} className="size-4" />
       </Button>
-      <div className="min-w-0 flex-1 truncate text-sm font-medium">{title}</div>
-      <div className="flex shrink-0 items-center gap-1">{children}</div>
+      <div className="pointer-events-none mx-auto max-w-[40vw] min-w-0 truncate text-[13px] font-medium text-[var(--legacy-text-strong)]">
+        {title}
+      </div>
+      <div className="absolute right-2 flex shrink-0 items-center gap-1">{children}</div>
     </header>
   )
 }

@@ -1,13 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: "Geist Variable", sans-serif;
+  --font-sans: "Inter Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,114 +49,200 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  color-scheme: light;
+  --background: #f8f8f8;
+  --foreground: #171717;
+  --card: #f8f8f8;
+  --card-foreground: #171717;
+  --popover: #fcfcfc;
+  --popover-foreground: #171717;
+  --primary: #191919;
+  --primary-foreground: #ededed;
+  --secondary: #f3f3f3;
+  --secondary-foreground: #171717;
+  --muted: #f3f3f3;
+  --muted-foreground: #6f6f6f;
+  --accent: #ededed;
+  --accent-foreground: #171717;
+  --destructive: #fa3012;
+  --border: #dbdbdb;
+  --input: #e8e8e8;
+  --ring: #7698fd;
+  --chart-1: #dbdbdb;
+  --chart-2: #8f8f8f;
+  --chart-3: #6f6f6f;
+  --chart-4: #3a3a3a;
+  --chart-5: #171717;
+  --radius: 0.375rem;
+  --sidebar: #f8f8f8;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #191919;
+  --sidebar-primary-foreground: #ededed;
+  --sidebar-accent: #ededed;
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #dbdbdb;
+  --sidebar-ring: #7698fd;
+  --legacy-deep: #fafafa;
+  --legacy-background-base: #f8f8f8;
+  --legacy-background-stronger: #fcfcfc;
+  --legacy-surface-base: #f8f8f8;
+  --legacy-surface-hover: #0000000a;
+  --legacy-surface-active: #e2e2e2;
+  --legacy-surface-raised: #f3f3f3;
+  --legacy-surface-raised-hover: #ededed;
+  --legacy-text-strong: #171717;
+  --legacy-text-base: #6f6f6f;
+  --legacy-text-weak: #8f8f8f;
+  --legacy-text-interactive: #0445e6;
+  --legacy-border-weak: #dbdbdb;
+  --legacy-border-weaker: #e8e8e8;
+  --legacy-icon-base: #8f8f8f;
+  --legacy-icon-weak: #c7c7c7;
+  --legacy-icon-strong: #1d1917;
+  --legacy-warning: #6f6015;
+  --legacy-critical: #fa3012;
+  --legacy-button-neutral: #ffffff;
+  --hit-area: 28px;
+  --row-height: 28px;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  color-scheme: dark;
+  --background: #121212;
+  --foreground: #ededed;
+  --card: #121212;
+  --card-foreground: #ededed;
+  --popover: #151515;
+  --popover-foreground: #ededed;
+  --primary: #191919;
+  --primary-foreground: #ededed;
+  --secondary: #232323;
+  --secondary-foreground: #ededed;
+  --muted: #232323;
+  --muted-foreground: #a0a0a0;
+  --accent: #282828;
+  --accent-foreground: #ededed;
+  --destructive: #cb321c;
+  --border: #282828;
+  --input: #232323;
+  --ring: #7698fd;
+  --chart-1: #282828;
+  --chart-2: #707070;
+  --chart-3: #a0a0a0;
+  --chart-4: #c7c7c7;
+  --chart-5: #ededed;
+  --sidebar: #121212;
+  --sidebar-foreground: #ededed;
+  --sidebar-primary: #191919;
+  --sidebar-primary-foreground: #ededed;
+  --sidebar-accent: #282828;
+  --sidebar-accent-foreground: #ededed;
+  --sidebar-border: #282828;
+  --sidebar-ring: #7698fd;
+  --legacy-deep: #080808;
+  --legacy-background-base: #121212;
+  --legacy-background-stronger: #151515;
+  --legacy-surface-base: #1c1c1c;
+  --legacy-surface-hover: #ffffff0d;
+  --legacy-surface-active: #282727;
+  --legacy-surface-raised: #232323;
+  --legacy-surface-raised-hover: #282828;
+  --legacy-text-strong: #ededed;
+  --legacy-text-base: #a0a0a0;
+  --legacy-text-weak: #707070;
+  --legacy-text-interactive: #c0d4fb;
+  --legacy-border-weak: #282828;
+  --legacy-border-weaker: #232323;
+  --legacy-icon-base: #7e7e7e;
+  --legacy-icon-weak: #343434;
+  --legacy-icon-strong: #ede8e4;
+  --legacy-warning: #ffe179;
+  --legacy-critical: #cb321c;
+  --legacy-button-neutral: #191919;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
+
   html {
-    @apply font-sans;
+    @apply overscroll-none font-sans;
   }
 
-  /*
-   * Mobile-first density (spec §7.4). Two independent variables: --hit-area
-   * (minimum interactive target) and --row-height (content row density).
-   * Touch-safe 44px is the default. The guards below are mutually exclusive
-   * so a touchscreen laptop keeps a 44px target floor while still honoring
-   * an explicit compact preference.
-   */
-  :root {
-    --hit-area: 44px;
-    --row-height: 44px;
+  body {
+    @apply overflow-hidden antialiased;
+    margin: 0;
+    background: var(--legacy-deep);
+    color: var(--legacy-text-strong);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 19.5px;
   }
 
-  /* Compact density: any fine pointer, unless the user asked for comfortable. */
-  @media (any-pointer: fine) {
-    :root:not([data-density="comfortable"]) {
-      --row-height: 28px;
-    }
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
   }
 
-  /* An explicit compact preference applies on every device and never touches --hit-area. */
-  :root[data-density="compact"] {
-    --row-height: 28px;
+  #root {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding: 1px;
+    background: var(--legacy-deep);
+  }
+}
+
+@layer components {
+  .legacy-titlebar-button {
+    width: 32px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    border-radius: 6px;
+    color: var(--legacy-icon-base);
   }
 
-  /* Only a device with no coarse pointer at all may go below the 44px target floor. */
-  @media (any-pointer: fine) and (not (any-pointer: coarse)) {
-    :root {
-      --hit-area: 28px;
-    }
+  .legacy-titlebar-button:hover,
+  .legacy-titlebar-button:focus-visible,
+  .legacy-titlebar-button[aria-expanded="true"] {
+    background: var(--legacy-surface-hover);
+    color: var(--legacy-icon-strong);
+  }
+
+  .legacy-rail-action {
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    border-radius: 6px;
+    color: var(--legacy-icon-base);
+  }
+
+  .legacy-rail-action:hover,
+  .legacy-rail-action:focus-visible {
+    background: var(--legacy-surface-hover);
+    color: var(--legacy-icon-strong);
+  }
+
+  .legacy-small-icon-button {
+    width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    border-radius: 6px;
+    color: var(--legacy-icon-base);
+  }
+
+  .legacy-primary-button {
+    border-color: var(--legacy-border-weaker) !important;
+    background: var(--legacy-button-neutral) !important;
+    color: var(--legacy-text-strong) !important;
+    box-shadow: 0 1px 2px #00000014;
+  }
+
+  .legacy-primary-button:hover {
+    background: var(--legacy-surface-raised-hover) !important;
   }
 }
 

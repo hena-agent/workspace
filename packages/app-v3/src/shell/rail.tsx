@@ -1,10 +1,11 @@
-import { CircleHelp, Plus, Settings } from "lucide-react"
+import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { getProjectNotificationState } from "@/mock/queries"
 import type { Project } from "@/lib/types"
+import { getProjectNotificationState } from "@/mock/queries"
 import { RailProjectTile } from "./rail-project-tile"
+import { LegacyIcon } from "./legacy-icon"
 
 export function Rail({
   projects,
@@ -12,7 +13,6 @@ export function Rail({
   onSelectProject,
   onAddProject,
   onOpenSettings,
-  onOpenHelp,
   className,
 }: {
   projects: Project[]
@@ -20,15 +20,17 @@ export function Rail({
   onSelectProject: (projectId: string) => void
   onAddProject: () => void
   onOpenSettings: () => void
-  onOpenHelp: () => void
   className?: string
 }) {
   return (
     <nav
       aria-label="Projects"
-      className={cn("flex h-full w-16 shrink-0 flex-col items-center justify-between py-3", className)}
+      className={cn(
+        "flex h-full w-16 shrink-0 flex-col items-center overflow-hidden bg-[var(--legacy-background-base)]",
+        className,
+      )}
     >
-      <div className="no-scrollbar flex w-full flex-col items-center gap-2 overflow-y-auto px-3">
+      <div className="no-scrollbar flex h-full w-full flex-col items-center gap-3 overflow-y-auto px-3 py-3">
         {projects.map((project) => (
           <RailProjectTile
             key={project.id}
@@ -38,39 +40,28 @@ export function Rail({
             onSelect={() => onSelectProject(project.id)}
           />
         ))}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-lg"
-              aria-label="Open project"
-              onClick={onAddProject}
-              className="hit-area"
-            >
-              <Plus />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Open project</TooltipContent>
-        </Tooltip>
+        <RailAction label="Open project" onClick={onAddProject}>
+          <LegacyIcon name="plus" />
+        </RailAction>
       </div>
-      <div className="flex flex-col items-center gap-2">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-lg" aria-label="Settings" onClick={onOpenSettings} className="hit-area">
-              <Settings />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Settings</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-lg" aria-label="Help" onClick={onOpenHelp} className="hit-area">
-              <CircleHelp />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Help</TooltipContent>
-        </Tooltip>
+      <div className="flex w-full shrink-0 flex-col items-center gap-2 pt-3 pb-6">
+        <RailAction label="Settings" onClick={onOpenSettings}>
+          <LegacyIcon name="settings-gear" />
+        </RailAction>
       </div>
     </nav>
+  )
+}
+
+function RailAction({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label={label} onClick={onClick} className="legacy-rail-action">
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
   )
 }

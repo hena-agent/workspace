@@ -1,66 +1,23 @@
 import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
+import { sessions } from "@/mock/fixtures"
 import { render, screen } from "@/test/test-utils"
 import { SessionList } from "./session-list"
-import type { Session } from "@/lib/types"
-
-const DAY = 24 * 60 * 60 * 1000
-const now = 10 * DAY
-
-function makeSession(overrides: Partial<Session>): Session {
-  return {
-    id: "sess-1",
-    projectId: "proj-hena",
-    connectionId: "conn-local",
-    title: "Untitled",
-    status: "idle",
-    unseenCount: 0,
-    createdAt: now,
-    updatedAt: now,
-    archived: false,
-    shared: false,
-    ...overrides,
-  }
-}
 
 describe("SessionList", () => {
-  test("renders an empty state when there are no sessions", () => {
-    render(<SessionList sessions={[]} now={now} onSelectSession={() => {}} onArchiveSession={() => {}} />)
-    expect(screen.getByText("No sessions yet.")).toBeInTheDocument()
+  test("renders a flat list without date group headings", () => {
+    render(<SessionList sessions={sessions.slice(0, 3)} onSelectSession={() => {}} onArchiveSession={() => {}} />)
+    expect(screen.getByRole("navigation", { name: "Sessions" })).toBeInTheDocument()
+    expect(screen.queryByText("Today")).not.toBeInTheDocument()
   })
 
-  test("groups sessions into Today, Yesterday, and Older headers", () => {
-    const sessions = [
-      makeSession({ id: "today", title: "Today session", updatedAt: now }),
-      makeSession({ id: "yesterday", title: "Yesterday session", updatedAt: now - 6 * 60 * 60 * 1000 }),
-      makeSession({ id: "older", title: "Older session", updatedAt: now - 5 * DAY }),
-    ]
-
-    render(<SessionList sessions={sessions} now={now} onSelectSession={() => {}} onArchiveSession={() => {}} />)
-
-    expect(screen.getByText("Today")).toBeInTheDocument()
-    expect(screen.getByText("Yesterday")).toBeInTheDocument()
-    expect(screen.getByText("Older")).toBeInTheDocument()
-    expect(screen.getByText("Today session")).toBeInTheDocument()
-    expect(screen.getByText("Yesterday session")).toBeInTheDocument()
-    expect(screen.getByText("Older session")).toBeInTheDocument()
-  })
-
-  test("selecting a session calls onSelectSession with its id", async () => {
+  test("selects a session", async () => {
     const user = userEvent.setup()
     const selected: string[] = []
-    const sessions = [makeSession({ id: "sess-a", title: "Session A", updatedAt: now })]
-
     render(
-      <SessionList
-        sessions={sessions}
-        now={now}
-        onSelectSession={(id) => selected.push(id)}
-        onArchiveSession={() => {}}
-      />,
+      <SessionList sessions={[sessions[0]]} onSelectSession={(id) => selected.push(id)} onArchiveSession={() => {}} />,
     )
-
-    await user.click(screen.getByText("Session A"))
-    expect(selected).toEqual(["sess-a"])
+    await user.click(screen.getByText(sessions[0].title))
+    expect(selected).toEqual([sessions[0].id])
   })
 })

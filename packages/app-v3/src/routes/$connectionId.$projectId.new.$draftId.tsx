@@ -24,10 +24,14 @@ function NewSessionRoute() {
       agents={listAgents()}
       models={listModels()}
       onStart={() => {
-        const existing = listSessions({ projectId, connectionId }).at(0)?.id ?? "sess-transcript"
+        const existing = listSessions({ projectId, connectionId }).at(0)
+        if (!existing) {
+          void navigate({ to: "/$connectionId/$projectId", params: { connectionId, projectId } })
+          return
+        }
         void navigate({
           to: "/$connectionId/$projectId/session/$sessionId",
-          params: { connectionId, projectId, sessionId: existing },
+          params: { connectionId, projectId, sessionId: existing.id },
         })
       }}
     />

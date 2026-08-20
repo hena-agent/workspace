@@ -332,7 +332,7 @@ function parseJwtClaims(token: string): Record<string, unknown> | undefined {
   }
 }
 
-export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree }) => {
+const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree }) => {
   const currentPath = await canonicalPath(fileURLToPath(import.meta.url))
   const projectConfigDisabled = ["1", "true"].includes(process.env.OPENCODE_DISABLE_PROJECT_CONFIG?.toLowerCase() ?? "")
   const projectRoots = projectConfigDisabled

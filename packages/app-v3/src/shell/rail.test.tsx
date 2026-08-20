@@ -36,7 +36,7 @@ describe("Rail", () => {
     const selected: string[] = []
     const duplicateProjects = ["alpha", "beta", "alpha"].map((connectionId, index) => ({
       project: {
-        id: `project-${index}`,
+        id: index < 2 ? "shared-project" : `project-${index}`,
         connectionId,
         name: "Shared",
         path: `/workspace-${index}`,

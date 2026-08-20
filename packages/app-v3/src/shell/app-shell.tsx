@@ -24,7 +24,13 @@ export function AppShell({
   children: ReactNode
 }) {
   const isDesktop = useMediaQuery(DESKTOP_QUERY)
-  const [sidebarOpen, setSidebarOpen] = useState(() => Boolean(sidebarPanel.project))
+  const projectKey = sidebarPanel.project
+    ? `${sidebarPanel.project.connectionId}:${sidebarPanel.project.id}`
+    : undefined
+  const [sidebarState, setSidebarState] = useState(() => ({
+    projectKey,
+    open: Boolean(sidebarPanel.project),
+  }))
   const [mobileNavOpen, setMobileNavOpen] = useState(() => Boolean(window.history.state?.henaMobileNavigation))
   const [panelWidth, setPanelWidth] = useState(280)
   const mobileNavOpenRef = useRef(mobileNavOpen)
@@ -32,6 +38,10 @@ export function AppShell({
   const mobileNavRef = useRef<HTMLElement>(null)
   const mainRef = useRef<HTMLElement>(null)
   const pendingMobileNavActionRef = useRef<(() => void) | null>(null)
+  if (sidebarState.projectKey !== projectKey) {
+    setSidebarState({ projectKey, open: Boolean(sidebarPanel.project) })
+  }
+  const sidebarOpen = sidebarState.projectKey === projectKey ? sidebarState.open : Boolean(sidebarPanel.project)
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -60,7 +70,7 @@ export function AppShell({
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b") return
       event.preventDefault()
       if (isDesktop) {
-        setSidebarOpen((open) => !open)
+        setSidebarState({ projectKey, open: !sidebarOpen })
         return
       }
       if (mobileNavOpen) {
@@ -86,12 +96,13 @@ export function AppShell({
       window.removeEventListener("keydown", onKeyDown)
       window.removeEventListener("popstate", onPopState)
     }
-  }, [isDesktop, mobileNavOpen])
+  }, [isDesktop, mobileNavOpen, projectKey, sidebarOpen])
 
   useEffect(() => {
     if (!isDesktop || !mobileNavOpen) return
     if (pendingMobileNavActionRef.current) return
-    closeMobileNav(() => mainRef.current?.focus())
+    pendingMobileNavActionRef.current = () => mainRef.current?.focus()
+    window.history.back()
   }, [isDesktop, mobileNavOpen])
 
   useEffect(() => {
@@ -137,17 +148,21 @@ export function AppShell({
     action()
   }
 
+  function toggleSidebar() {
+    setSidebarState({ projectKey, open: !sidebarOpen })
+  }
+
   function selectProject(project: Project) {
     if (
       isDesktop &&
       project.id === rail.selectedProject?.id &&
       project.connectionId === rail.selectedProject.connectionId
     ) {
-      setSidebarOpen((open) => !open)
+      toggleSidebar()
       return
     }
     if (isDesktop) {
-      setSidebarOpen(true)
+      setSidebarState({ projectKey, open: true })
       rail.onSelectProject(project)
       return
     }
@@ -196,7 +211,7 @@ export function AppShell({
       >
         <Titlebar
           onToggleMobileNav={() => (mobileNavOpen ? closeMobileNav() : openMobileNav())}
-          onToggleSidebar={() => setSidebarOpen((open) => !open)}
+          onToggleSidebar={toggleSidebar}
           mobileNavButtonRef={mobileNavButtonRef}
           mobileNavOpen={mobileNavOpen}
           sidebarOpen={sidebarOpen}

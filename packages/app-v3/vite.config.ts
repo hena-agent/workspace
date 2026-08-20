@@ -21,9 +21,9 @@ export default defineConfig({
     },
   },
   server: {
-    // Only takes effect when the dev server is bound to a non-loopback
-    // address (e.g. `vite --host 0.0.0.0`). Lets it accept requests for
-    // hostnames like Tailscale MagicDNS names, not just localhost/IPs.
-    allowedHosts: true,
+    // Set this for non-loopback development hosts such as Tailscale MagicDNS names.
+    allowedHosts: process.env.HENA_VITE_ALLOWED_HOSTS?.split(",")
+      .map((host) => host.trim())
+      .filter(Boolean),
   },
 })

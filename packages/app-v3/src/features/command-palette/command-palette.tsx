@@ -54,27 +54,33 @@ export function CommandPalette({
                 }}
               >
                 {projects.some((other) => other !== project && other.name === project.name)
-                  ? `${project.name} (${project.connectionId})`
+                  ? `${project.name} (${project.path}, ${project.connectionId})`
                   : project.name}
               </CommandItem>
             ))}
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading="Sessions">
-            {sessions.map((session) => (
-              <CommandItem
-                key={`${session.connectionId}:${session.projectId}:${session.id}`}
-                value={`session ${session.connectionId} ${session.projectId} ${session.id} ${session.title}`}
-                onSelect={() => {
-                  onSelectSession(session)
-                  onOpenChange(false)
-                }}
-              >
-                {sessions.some((other) => other !== session && other.title === session.title)
-                  ? `${session.title} (${session.connectionId})`
-                  : session.title}
-              </CommandItem>
-            ))}
+            {sessions.map((session) => {
+              const project = projects.find(
+                (candidate) =>
+                  candidate.id === session.projectId && candidate.connectionId === session.connectionId,
+              )
+              return (
+                <CommandItem
+                  key={`${session.connectionId}:${session.projectId}:${session.id}`}
+                  value={`session ${session.connectionId} ${session.projectId} ${session.id} ${session.title} ${project?.path ?? ""}`}
+                  onSelect={() => {
+                    onSelectSession(session)
+                    onOpenChange(false)
+                  }}
+                >
+                  {sessions.some((other) => other !== session && other.title === session.title)
+                    ? `${session.title} (${project?.path ?? session.projectId}, ${session.connectionId})`
+                    : session.title}
+                </CommandItem>
+              )
+            })}
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading="Commands">

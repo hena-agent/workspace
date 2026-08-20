@@ -31,15 +31,15 @@ describe("Rail", () => {
     expect(project.querySelector(".animate-spin")).toBeInTheDocument()
   })
 
-  test("keeps duplicate project identities distinct across connections", async () => {
+  test("keeps duplicate project labels distinct within and across connections", async () => {
     const user = userEvent.setup()
     const selected: string[] = []
-    const duplicateProjects = ["alpha", "beta"].map((connectionId) => ({
+    const duplicateProjects = ["alpha", "beta", "alpha"].map((connectionId, index) => ({
       project: {
-        id: "shared-id",
+        id: `project-${index}`,
         connectionId,
         name: "Shared",
-        path: `/${connectionId}`,
+        path: `/workspace-${index}`,
         updatedAt: 0,
       },
       notification: { kind: "none" as const, working: false },
@@ -49,15 +49,25 @@ describe("Rail", () => {
       <Rail
         projects={duplicateProjects}
         selectedProject={duplicateProjects[1].project}
-        onSelectProject={(project) => selected.push(project.connectionId)}
+        onSelectProject={(project) => selected.push(project.id)}
         onAddProject={() => {}}
         onOpenSettings={() => {}}
       />,
     )
 
-    expect(screen.getByRole("button", { name: "Shared (alpha)" })).toHaveAttribute("aria-pressed", "false")
-    expect(screen.getByRole("button", { name: "Shared (beta)" })).toHaveAttribute("aria-pressed", "true")
-    await user.click(screen.getByRole("button", { name: "Shared (alpha)" }))
-    expect(selected).toEqual(["alpha"])
+    expect(screen.getByRole("button", { name: "Shared (/workspace-0, alpha)" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    )
+    expect(screen.getByRole("button", { name: "Shared (/workspace-1, beta)" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    )
+    expect(screen.getByRole("button", { name: "Shared (/workspace-2, alpha)" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    )
+    await user.click(screen.getByRole("button", { name: "Shared (/workspace-2, alpha)" }))
+    expect(selected).toEqual(["project-2"])
   })
 })

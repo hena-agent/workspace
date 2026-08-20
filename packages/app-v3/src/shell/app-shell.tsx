@@ -1,4 +1,4 @@
-import { type ComponentProps, type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react"
+import { type ComponentProps, type PointerEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import type { Project } from "@/lib/types"
@@ -84,7 +84,6 @@ export function AppShell({
         if (!mobileNavOpenRef.current) {
           mobileNavOpenRef.current = true
           setMobileNavOpen(true)
-          queueMicrotask(() => mobileNavRef.current?.focus())
         }
         return
       }
@@ -105,9 +104,9 @@ export function AppShell({
     window.history.back()
   }, [isDesktop, mobileNavOpen])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!mobileNavOpen || isDesktop || document.activeElement === mobileNavRef.current) return
-    queueMicrotask(() => mobileNavRef.current?.focus())
+    mobileNavRef.current?.focus()
   }, [isDesktop, mobileNavOpen])
 
   function openMobileNav() {
@@ -115,7 +114,6 @@ export function AppShell({
     window.history.pushState({ ...(typeof state === "object" && state ? state : {}), henaMobileNavigation: true }, "")
     mobileNavOpenRef.current = true
     setMobileNavOpen(true)
-    queueMicrotask(() => mobileNavRef.current?.focus())
   }
 
   function closeMobileNav(action?: () => void) {

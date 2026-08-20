@@ -9,6 +9,7 @@ import { routeTree } from "./routeTree.gen"
 const originalMatchMedia = window.matchMedia
 afterEach(() => {
   window.matchMedia = originalMatchMedia
+  window.history.replaceState(null, "", "/")
 })
 
 function renderApp(initialPath: string) {
@@ -33,7 +34,7 @@ describe("app routing (real routeTree, memory history)", () => {
     mockMatchMedia(true)
     renderApp("/conn-local/proj-hena")
     expect(
-      within(await screen.findByRole("navigation", { name: "Projects" })).getByRole("button", { name: "hena" }),
+      within(await screen.findByRole("navigation", { name: "Projects" })).getByRole("button", { name: /^hena(?:,|$)/ }),
     ).toHaveAttribute("aria-pressed", "true")
   })
 
@@ -43,10 +44,10 @@ describe("app routing (real routeTree, memory history)", () => {
     const router = renderApp("/")
 
     const projectRail = await screen.findByRole("navigation", { name: "Projects" })
-    await user.click(within(projectRail).getByRole("button", { name: "hena" }))
+    await user.click(within(projectRail).getByRole("button", { name: /^hena(?:,|$)/ }))
     expect(router.state.location.pathname).toBe("/conn-local/proj-hena")
     expect(
-      within(await screen.findByRole("navigation", { name: "Projects" })).getByRole("button", { name: "hena" }),
+      within(await screen.findByRole("navigation", { name: "Projects" })).getByRole("button", { name: /^hena(?:,|$)/ }),
     ).toHaveAttribute("aria-pressed", "true")
 
     const sessionList = await screen.findByRole("navigation", { name: "Sessions" })
@@ -56,6 +57,57 @@ describe("app routing (real routeTree, memory history)", () => {
     expect(await screen.findByRole("log", { name: "Messages" })).toBeInTheDocument()
     expect(screen.getByLabelText("Message")).toBeInTheDocument()
     expect(screen.getByRole("heading", { name: "Wire the collection stream protocol" })).toBeInTheDocument()
+  })
+
+  test("the mobile project root is the session list and selecting a session pushes detail", async () => {
+    mockMatchMedia(false)
+    const user = userEvent.setup()
+    const router = renderApp("/conn-local/proj-hena")
+
+    const sessionList = await screen.findByRole("navigation", { name: "Sessions" })
+    await user.click(within(sessionList).getByRole("button", { name: /Wire the collection stream protocol/ }))
+
+    expect(router.state.location.pathname).toBe("/conn-local/proj-hena/session/sess-transcript")
+    expect(await screen.findByRole("log", { name: "Messages" })).toBeInTheDocument()
+    expect(screen.getByRole("heading", { name: "Wire the collection stream protocol" })).toHaveFocus()
+    await act(async () => {
+      router.history.back()
+      await router.load()
+    })
+    expect(router.state.location.pathname).toBe("/conn-local/proj-hena")
+    expect(
+      within(await screen.findByRole("navigation", { name: "Sessions" })).getByRole("button", {
+        name: /Wire the collection stream protocol/,
+      }),
+    ).toHaveFocus()
+  })
+
+  test("file selection is restored from URL search and recorded in history", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const firstPath = "packages/hena/src/server/collection/changelog.ts"
+    const nextPath = "packages/hena/src/server/collection/snapshot.ts"
+    const router = renderApp(`/conn-local/proj-hena/session/sess-transcript/files?file=${encodeURIComponent(firstPath)}`)
+
+    expect(await screen.findByText(firstPath)).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "snapshot.ts" }))
+    expect(router.state.location.search.file).toBe(nextPath)
+    expect(await screen.findByText(nextPath)).toBeInTheDocument()
+    await act(async () => {
+      router.history.back()
+      await router.load()
+    })
+    expect(router.state.location.search.file).toBe(firstPath)
+    expect(await screen.findByText(firstPath)).toBeInTheDocument()
+  })
+
+  test("review selection is restored from URL search", async () => {
+    mockMatchMedia(true)
+    const selectedPath = "packages/hena/src/server/collection/snapshot.ts"
+    const router = renderApp(`/conn-local/proj-hena/session/sess-transcript/review?file=${encodeURIComponent(selectedPath)}`)
+
+    expect((await screen.findAllByText(selectedPath)).length).toBeGreaterThan(0)
+    expect(router.state.location.search.file).toBe(selectedPath)
   })
 
   test("Mod+K opens the command palette and selecting a project navigates to it", async () => {
@@ -78,12 +130,12 @@ describe("app routing (real routeTree, memory history)", () => {
     const router = renderApp("/conn-local/proj-hena")
 
     const projectRail = await screen.findByRole("navigation", { name: "Projects" })
-    expect(within(projectRail).getByRole("button", { name: "docs" })).toBeInTheDocument()
-    await user.click(within(projectRail).getByRole("button", { name: "docs" }))
+    expect(within(projectRail).getByRole("button", { name: /^docs(?:,|$)/ })).toBeInTheDocument()
+    await user.click(within(projectRail).getByRole("button", { name: /^docs(?:,|$)/ }))
 
     expect(router.state.location.pathname).toBe("/conn-staging/proj-docs")
     expect(
-      within(screen.getByRole("navigation", { name: "Projects" })).getByRole("button", { name: "docs" }),
+      within(screen.getByRole("navigation", { name: "Projects" })).getByRole("button", { name: /^docs(?:,|$)/ }),
     ).toHaveAttribute("aria-pressed", "true")
   })
 

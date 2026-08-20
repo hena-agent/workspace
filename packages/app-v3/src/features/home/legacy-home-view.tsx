@@ -15,35 +15,40 @@ export function LegacyHomeView({
   onAddProject: () => void
 }) {
   return (
-    <div className="mx-auto mt-[220px] w-full px-4 md:w-auto">
-      <LegacyLogo />
-      <Button variant="ghost" className="mx-auto mt-4 h-8 text-[14px] font-normal text-[var(--legacy-text-weak)]">
-        <span className="size-2 rounded-full bg-[var(--legacy-border-weak)]" />
-        Local
-      </Button>
-      <div className="mt-20 flex w-full flex-col gap-4">
-        <div className="flex items-center justify-between gap-2 pl-3">
-          <h1 className="text-[14px] font-medium text-[var(--legacy-text-strong)]">Recent projects</h1>
-          <Button className="legacy-primary-button h-7 pr-3 pl-2 text-[13px]" onClick={onAddProject}>
-            <LegacyIcon name="folder-add-left" className="size-4" /> Open project
-          </Button>
+    <div className="h-full w-full overflow-y-auto">
+      <div className="mx-auto mt-[220px] w-full px-4 pb-8 md:w-auto">
+        <LegacyLogo />
+        <Button
+          variant="ghost"
+          className="mx-auto mt-4 h-8 hit-area text-[14px] font-normal text-[var(--legacy-text-weak)]"
+        >
+          <span className="size-2 rounded-full bg-[var(--legacy-border-weak)]" />
+          Local
+        </Button>
+        <div className="mt-20 flex w-full flex-col gap-4">
+          <div className="flex items-center justify-between gap-2 pl-3">
+            <h1 className="text-[14px] font-medium text-[var(--legacy-text-strong)]">Recent projects</h1>
+            <Button className="legacy-primary-button h-7 pr-3 pl-2 text-[13px]" onClick={onAddProject}>
+              <LegacyIcon name="folder-add-left" className="size-4" /> Open project
+            </Button>
+          </div>
+          <ul className="flex flex-col gap-2">
+            {projects.slice(0, 5).map((project) => (
+              <li key={`${project.connectionId}:${project.id}`}>
+                <Button
+                  variant="ghost"
+                  className="h-8 hit-area w-full justify-between px-3 font-mono text-[14px] font-normal text-[var(--legacy-text-strong)]"
+                  onClick={() => onOpenProject(project)}
+                >
+                  {project.path}
+                  <span className="font-sans text-[14px] text-[var(--legacy-text-weak)]">
+                    {formatRelativeTime(project.updatedAt, now)}
+                  </span>
+                </Button>
+              </li>
+            ))}
+          </ul>
         </div>
-        <ul className="flex flex-col gap-2">
-          {projects.slice(0, 5).map((project) => (
-            <li key={`${project.connectionId}:${project.id}`}>
-              <Button
-                variant="ghost"
-                className="h-8 w-full justify-between px-3 font-mono text-[14px] font-normal text-[var(--legacy-text-strong)]"
-                onClick={() => onOpenProject(project)}
-              >
-                {project.path}
-                <span className="font-sans text-[14px] text-[var(--legacy-text-weak)]">
-                  {formatRelativeTime(project.updatedAt, now)}
-                </span>
-              </Button>
-            </li>
-          ))}
-        </ul>
       </div>
     </div>
   )

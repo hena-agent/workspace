@@ -24,6 +24,7 @@ function renderView(sessionId: string) {
       onChangeAgent={noop}
       onChangeModel={noop}
       onSend={noop}
+      onQueue={noop}
       onShare={noop}
       onFork={noop}
       onArchive={noop}
@@ -79,6 +80,7 @@ describe("SessionTranscriptView", () => {
         onChangeAgent={noop}
         onChangeModel={noop}
         onSend={(text) => sent.push(text)}
+        onQueue={noop}
         onShare={noop}
         onFork={noop}
         onArchive={noop}

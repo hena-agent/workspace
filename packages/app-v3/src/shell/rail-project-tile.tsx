@@ -33,16 +33,26 @@ export function RailProjectTile({
   notification: ProjectNotification
   onSelect: () => void
 }) {
+  const accessibleLabel = [
+    label,
+    notification.kind === "unread" ? "unread" : undefined,
+    notification.kind === "permission" ? "needs your input" : undefined,
+    notification.kind === "error" ? "error" : undefined,
+    notification.working ? "working" : undefined,
+  ]
+    .filter(Boolean)
+    .join(", ")
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
           aria-pressed={selected}
-          aria-label={label}
+          aria-label={accessibleLabel}
           onClick={onSelect}
           className={cn(
-            "relative flex size-10 shrink-0 cursor-default items-center justify-center overflow-hidden rounded-[8px] p-1 transition-colors",
+            "relative flex size-10 min-h-[var(--hit-area)] min-w-[var(--hit-area)] shrink-0 cursor-default items-center justify-center overflow-hidden rounded-[8px] p-1 transition-colors",
             selected
               ? "border-2 border-[var(--legacy-icon-strong)]"
               : "border border-transparent hover:border-[var(--legacy-border-weak)] hover:bg-[var(--legacy-surface-hover)]",

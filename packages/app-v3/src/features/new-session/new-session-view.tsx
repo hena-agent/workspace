@@ -11,7 +11,7 @@ export function NewSessionView({
   project: Project
   agents: Agent[]
   models: Model[]
-  onStart: (params: { text: string; agentId: string; modelId: string }) => void
+  onStart: (params: { text: string; agentId: string; modelId: string; delivery: "send" | "queue" }) => void
 }) {
   const [agentId, setAgentId] = useState(agents[0]?.id ?? "")
   const [modelId, setModelId] = useState(models[0]?.id ?? "")
@@ -32,7 +32,8 @@ export function NewSessionView({
           modelId={modelId}
           onChangeAgent={setAgentId}
           onChangeModel={setModelId}
-          onSend={(text) => onStart({ text, agentId, modelId })}
+          onSend={(text) => onStart({ text, agentId, modelId, delivery: "send" })}
+          onQueue={(text) => onStart({ text, agentId, modelId, delivery: "queue" })}
           placeholder="What are we doing today?"
         />
       </div>

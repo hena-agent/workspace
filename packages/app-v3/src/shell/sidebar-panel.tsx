@@ -38,6 +38,7 @@ export function SidebarPanel({
       {project ? (
         <>
           <SidebarPanelHeader
+            key={`${project.connectionId}:${project.id}`}
             project={project}
             onRename={onRenameProject}
             onClearNotifications={onClearNotifications}

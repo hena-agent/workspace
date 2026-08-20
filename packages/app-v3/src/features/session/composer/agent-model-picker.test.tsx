@@ -16,6 +16,7 @@ describe("AgentModelPicker", () => {
         onChangeModel={() => {}}
       />,
     )
+    expect(screen.getByLabelText("Agent")).toHaveClass("min-h-[var(--hit-area)]")
     expect(screen.getByLabelText("Agent")).toHaveTextContent(agents[0].name)
     expect(screen.getByLabelText("Model")).toHaveTextContent(models[0].name)
   })
@@ -36,7 +37,9 @@ describe("AgentModelPicker", () => {
     )
 
     await user.click(screen.getByLabelText("Agent"))
-    await user.click(await screen.findByText(agents[1].name))
+    const option = await screen.findByText(agents[1].name)
+    expect(option.closest('[data-slot="select-item"]')).toHaveClass("min-h-[var(--hit-area)]")
+    await user.click(option)
 
     expect(changed).toEqual([agents[1].id])
   })

@@ -7,9 +7,17 @@ import { act, fireEvent, renderWithProviders, screen, waitFor, within } from "@/
 import { AppShell } from "./app-shell"
 
 const originalMatchMedia = window.matchMedia
-beforeEach(() => window.history.replaceState({}, ""))
+const originalHistoryBack = window.history.back.bind(window.history)
+beforeEach(() => {
+  window.history.replaceState({}, "")
+  window.history.back = () => {
+    window.history.replaceState({}, "")
+    window.dispatchEvent(new PopStateEvent("popstate", { state: {} }))
+  }
+})
 afterEach(() => {
   window.matchMedia = originalMatchMedia
+  window.history.back = originalHistoryBack
 })
 
 function noop() {}
@@ -62,7 +70,7 @@ describe("AppShell", () => {
   test("clicking the selected project collapses the sessions panel", async () => {
     mockMatchMedia(true)
     const user = userEvent.setup()
-    renderWithProviders(
+    const view = renderWithProviders(
       <AppShell rail={rail} sidebarPanel={sidebarPanel}>
         <div>Page content</div>
       </AppShell>,
@@ -72,6 +80,45 @@ describe("AppShell", () => {
     await user.click(within(projectsNav).getByRole("button", { name: projects[0].name }))
     expect(screen.queryByRole("navigation", { name: "Sessions" })).not.toBeInTheDocument()
     expect(screen.getAllByText("Page content")).toHaveLength(1)
+
+    const nextProject = projects[1]
+    view.rerender(
+      <AppShell
+        rail={{ ...rail, selectedProject: nextProject }}
+        sidebarPanel={{
+          ...sidebarPanel,
+          project: nextProject,
+          sessions: sessions.filter((session) => session.projectId === nextProject.id && !session.archived),
+        }}
+      >
+        <div>Page content</div>
+      </AppShell>,
+    )
+    expect(screen.getByRole("navigation", { name: "Sessions" })).toBeInTheDocument()
+
+    view.rerender(
+      <AppShell rail={rail} sidebarPanel={sidebarPanel}>
+        <div>Page content</div>
+      </AppShell>,
+    )
+    expect(screen.getByRole("navigation", { name: "Sessions" })).toBeInTheDocument()
+  })
+
+  test("the desktop sidebar toggle opens the empty project state", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    renderWithProviders(
+      <AppShell
+        rail={{ ...rail, selectedProject: undefined }}
+        sidebarPanel={{ ...sidebarPanel, project: undefined, sessions: [] }}
+      >
+        <div>Page content</div>
+      </AppShell>,
+    )
+
+    expect(screen.getAllByText("Open a project")).toHaveLength(1)
+    await user.click(screen.getByRole("button", { name: "Toggle sidebar" }))
+    expect(screen.getAllByText("Open a project")).toHaveLength(2)
   })
 
   test("mobile menu opens a narrow navigation drawer and closes from the titlebar", async () => {

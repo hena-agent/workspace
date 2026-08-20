@@ -10,7 +10,7 @@ afterEach(() => {
   window.matchMedia = originalMatchMedia
 })
 
-function setup(sent: string[], hasFinePointer = true) {
+function setup(sent: string[], hasFinePointer = true, queued: string[] = []) {
   mockMatchMedia(hasFinePointer)
   render(
     <Composer
@@ -21,6 +21,7 @@ function setup(sent: string[], hasFinePointer = true) {
       onChangeAgent={() => {}}
       onChangeModel={() => {}}
       onSend={(text) => sent.push(text)}
+      onQueue={(text) => queued.push(text)}
     />,
   )
 }
@@ -73,6 +74,20 @@ describe("Composer", () => {
 
     expect(sent).toEqual([])
     expect(textarea).toHaveValue("still typing\n")
+  })
+
+  test("Mod+Shift+Enter queues and clears the draft", async () => {
+    const user = userEvent.setup()
+    const sent: string[] = []
+    const queued: string[] = []
+    setup(sent, false, queued)
+
+    const textarea = screen.getByLabelText("Message")
+    await user.type(textarea, "run after this{Control>}{Shift>}{Enter}{/Shift}{/Control}")
+
+    expect(sent).toEqual([])
+    expect(queued).toEqual(["run after this"])
+    expect(textarea).toHaveValue("")
   })
 
   test("keeps the draft while an IME composition owns Enter", async () => {

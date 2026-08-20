@@ -20,6 +20,7 @@ export function SessionTranscriptView({
   onChangeAgent,
   onChangeModel,
   onSend,
+  onQueue,
   onShare,
   onFork,
   onArchive,
@@ -40,6 +41,7 @@ export function SessionTranscriptView({
   onChangeAgent: (id: string) => void
   onChangeModel: (id: string) => void
   onSend: (text: string) => void
+  onQueue: (text: string) => void
   onShare: () => void
   onFork: () => void
   onArchive: () => void
@@ -73,6 +75,7 @@ export function SessionTranscriptView({
           onChangeAgent={onChangeAgent}
           onChangeModel={onChangeModel}
           onSend={onSend}
+          onQueue={onQueue}
         />
       </div>
     </div>

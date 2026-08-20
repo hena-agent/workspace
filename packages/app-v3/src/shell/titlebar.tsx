@@ -20,7 +20,7 @@ export function Titlebar({
   children?: ReactNode
 }) {
   return (
-    <header className="relative flex h-10 shrink-0 items-center overflow-hidden bg-[var(--legacy-background-base)]">
+    <header className="relative flex h-[max(40px,var(--hit-area))] shrink-0 items-center overflow-hidden bg-[var(--legacy-background-base)]">
       <Button
         ref={mobileNavButtonRef}
         id="mobile-navigation-trigger"
@@ -30,7 +30,7 @@ export function Titlebar({
         aria-controls="mobile-navigation"
         aria-expanded={mobileNavOpen}
         onClick={onToggleMobileNav}
-        className="legacy-titlebar-button absolute top-2 left-4 xl:hidden"
+        className="legacy-titlebar-button absolute top-1/2 left-4 -translate-y-1/2 xl:hidden"
       >
         <LegacyIcon name={mobileNavOpen ? "close" : "menu"} className="size-4" />
       </Button>
@@ -40,7 +40,7 @@ export function Titlebar({
         aria-label="Toggle sidebar"
         aria-expanded={sidebarOpen}
         onClick={onToggleSidebar}
-        className="legacy-titlebar-button absolute top-2 left-16 hidden xl:inline-flex"
+        className="legacy-titlebar-button absolute top-1/2 left-16 hidden -translate-y-1/2 xl:inline-flex"
       >
         <LegacyIcon name={sidebarOpen ? "sidebar-active" : "sidebar"} className="size-4" />
       </Button>

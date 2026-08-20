@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { shouldSendOnEnter } from "./should-send-on-enter"
+import { getComposerEnterAction } from "./should-send-on-enter"
 
 const key = (
   overrides: Partial<{
@@ -18,43 +18,51 @@ const key = (
   ...overrides,
 })
 
-describe("shouldSendOnEnter", () => {
+describe("getComposerEnterAction", () => {
   test("ignores any key other than Enter", () => {
-    expect(shouldSendOnEnter(key({ key: "a" }), true)).toBe(false)
+    expect(getComposerEnterAction(key({ key: "a" }), true)).toBeUndefined()
   })
 
   test("does not send while an IME composition owns Enter", () => {
-    expect(shouldSendOnEnter(key({ nativeEvent: { isComposing: true } }), true)).toBe(false)
-    expect(shouldSendOnEnter(key({ metaKey: true, nativeEvent: { isComposing: true } }), true)).toBe(false)
-    expect(shouldSendOnEnter(key({ nativeEvent: { isComposing: false, keyCode: 229 } }), true)).toBe(false)
+    expect(getComposerEnterAction(key({ nativeEvent: { isComposing: true } }), true)).toBeUndefined()
+    expect(getComposerEnterAction(key({ metaKey: true, nativeEvent: { isComposing: true } }), true)).toBeUndefined()
+    expect(getComposerEnterAction(key({ nativeEvent: { isComposing: false, keyCode: 229 } }), true)).toBeUndefined()
   })
 
   describe("with a fine pointer (keyboard-first)", () => {
     test("plain Enter sends", () => {
-      expect(shouldSendOnEnter(key({}), true)).toBe(true)
+      expect(getComposerEnterAction(key({}), true)).toBe("send")
     })
 
     test("Shift+Enter inserts a newline", () => {
-      expect(shouldSendOnEnter(key({ shiftKey: true }), true)).toBe(false)
+      expect(getComposerEnterAction(key({ shiftKey: true }), true)).toBeUndefined()
     })
 
     test("Mod+Enter sends", () => {
-      expect(shouldSendOnEnter(key({ metaKey: true }), true)).toBe(true)
+      expect(getComposerEnterAction(key({ metaKey: true }), true)).toBe("send")
+    })
+
+    test("Mod+Shift+Enter queues", () => {
+      expect(getComposerEnterAction(key({ metaKey: true, shiftKey: true }), true)).toBe("queue")
     })
   })
 
   describe("coarse-only (phone/tablet, no keyboard)", () => {
     test("plain Enter inserts a newline", () => {
-      expect(shouldSendOnEnter(key({}), false)).toBe(false)
+      expect(getComposerEnterAction(key({}), false)).toBeUndefined()
     })
 
     test("Shift+Enter inserts a newline", () => {
-      expect(shouldSendOnEnter(key({ shiftKey: true }), false)).toBe(false)
+      expect(getComposerEnterAction(key({ shiftKey: true }), false)).toBeUndefined()
     })
 
     test("Mod+Enter always sends, regardless of pointer class", () => {
-      expect(shouldSendOnEnter(key({ metaKey: true }), false)).toBe(true)
-      expect(shouldSendOnEnter(key({ ctrlKey: true }), false)).toBe(true)
+      expect(getComposerEnterAction(key({ metaKey: true }), false)).toBe("send")
+      expect(getComposerEnterAction(key({ ctrlKey: true }), false)).toBe("send")
+    })
+
+    test("Mod+Shift+Enter always queues, regardless of pointer class", () => {
+      expect(getComposerEnterAction(key({ ctrlKey: true, shiftKey: true }), false)).toBe("queue")
     })
   })
 })

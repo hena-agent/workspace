@@ -25,7 +25,8 @@ describe("Rail", () => {
       />,
     )
 
-    const project = screen.getByRole("button", { name: "External" })
+    const project = screen.getByRole("button", { name: "External, needs your input, working" })
+    expect(project).toHaveAccessibleName("External, needs your input, working")
     expect(project.querySelector(".bg-\\[var\\(--legacy-warning\\)\\]")).toBeInTheDocument()
     expect(project.querySelector(".animate-spin")).toBeInTheDocument()
   })

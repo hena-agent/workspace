@@ -45,6 +45,7 @@ function SessionTranscriptRoute() {
       onChangeAgent={setAgentId}
       onChangeModel={setModelId}
       onSend={() => {}}
+      onQueue={() => {}}
       onShare={() => {}}
       onFork={() => {}}
       onArchive={() => {}}

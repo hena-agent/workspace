@@ -150,7 +150,7 @@ describe("AppShell", () => {
 
     fireEvent.keyDown(window, { key: "b", metaKey: true })
     const drawer = screen.getByRole("navigation", { name: "Projects and sessions" })
-    await waitFor(() => expect(drawer).toHaveFocus())
+    expect(drawer).toHaveFocus()
     expect(screen.getByRole("main").hasAttribute("inert")).toBe(true)
     fireEvent.keyDown(drawer, { key: "Tab", shiftKey: true })
     fireEvent.keyDown(document.activeElement!, { key: "Tab" })
@@ -221,7 +221,7 @@ describe("AppShell", () => {
       </AppShell>,
     )
 
-    await waitFor(() => expect(screen.getByRole("navigation", { name: "Projects and sessions" })).toHaveFocus())
+    expect(screen.getByRole("navigation", { name: "Projects and sessions" })).toHaveFocus()
     expect(screen.getByRole("main").hasAttribute("inert")).toBe(true)
   })
 

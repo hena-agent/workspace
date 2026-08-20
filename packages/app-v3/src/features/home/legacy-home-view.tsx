@@ -11,7 +11,7 @@ export function LegacyHomeView({
 }: {
   projects: Project[]
   now: number
-  onOpenProject: (projectId: string) => void
+  onOpenProject: (project: Project) => void
   onAddProject: () => void
 }) {
   return (
@@ -30,11 +30,11 @@ export function LegacyHomeView({
         </div>
         <ul className="flex flex-col gap-2">
           {projects.slice(0, 5).map((project) => (
-            <li key={project.id}>
+            <li key={`${project.connectionId}:${project.id}`}>
               <Button
                 variant="ghost"
                 className="h-8 w-full justify-between px-3 font-mono text-[14px] font-normal text-[var(--legacy-text-strong)]"
-                onClick={() => onOpenProject(project.id)}
+                onClick={() => onOpenProject(project)}
               >
                 {project.path}
                 <span className="font-sans text-[14px] text-[var(--legacy-text-weak)]">

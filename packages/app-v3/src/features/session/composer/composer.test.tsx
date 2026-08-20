@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
-import { render, screen } from "@/test/test-utils"
+import { fireEvent, render, screen } from "@/test/test-utils"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { Composer } from "./composer"
 import { agents, models } from "@/mock/fixtures"
@@ -73,5 +73,18 @@ describe("Composer", () => {
 
     expect(sent).toEqual([])
     expect(textarea).toHaveValue("still typing\n")
+  })
+
+  test("keeps the draft while an IME composition owns Enter", async () => {
+    const user = userEvent.setup()
+    const sent: string[] = []
+    setup(sent, true)
+
+    const textarea = screen.getByLabelText("Message")
+    await user.type(textarea, "未確定")
+    expect(fireEvent.keyDown(textarea, { key: "Enter", isComposing: true })).toBe(true)
+
+    expect(sent).toEqual([])
+    expect(textarea).toHaveValue("未確定")
   })
 })

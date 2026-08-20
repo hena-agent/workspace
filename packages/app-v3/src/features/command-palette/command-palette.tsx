@@ -27,7 +27,7 @@ export function CommandPalette({
   projects: Project[]
   sessions: Session[]
   serverCommands: ServerCommand[]
-  onSelectProject: (projectId: string) => void
+  onSelectProject: (project: Project) => void
   onSelectSession: (session: Session) => void
   onRunServerCommand: (command: ServerCommand) => void
   onOpenSettings: () => void
@@ -46,14 +46,16 @@ export function CommandPalette({
           <CommandGroup heading="Projects">
             {projects.map((project) => (
               <CommandItem
-                key={project.id}
-                value={`project ${project.name} ${project.path}`}
+                key={`${project.connectionId}:${project.id}`}
+                value={`project ${project.connectionId} ${project.id} ${project.name} ${project.path}`}
                 onSelect={() => {
-                  onSelectProject(project.id)
+                  onSelectProject(project)
                   onOpenChange(false)
                 }}
               >
-                {project.name}
+                {projects.some((other) => other !== project && other.name === project.name)
+                  ? `${project.name} (${project.connectionId})`
+                  : project.name}
               </CommandItem>
             ))}
           </CommandGroup>
@@ -61,14 +63,16 @@ export function CommandPalette({
           <CommandGroup heading="Sessions">
             {sessions.map((session) => (
               <CommandItem
-                key={session.id}
-                value={`session ${session.title}`}
+                key={`${session.connectionId}:${session.projectId}:${session.id}`}
+                value={`session ${session.connectionId} ${session.projectId} ${session.id} ${session.title}`}
                 onSelect={() => {
                   onSelectSession(session)
                   onOpenChange(false)
                 }}
               >
-                {session.title}
+                {sessions.some((other) => other !== session && other.title === session.title)
+                  ? `${session.title} (${session.connectionId})`
+                  : session.title}
               </CommandItem>
             ))}
           </CommandGroup>

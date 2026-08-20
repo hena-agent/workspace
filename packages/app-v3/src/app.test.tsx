@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
 import userEvent from "@testing-library/user-event"
 import { ThemeProvider } from "@/components/theme-provider"
-import { render, screen, within } from "@/test/test-utils"
+import { act, render, screen, within } from "@/test/test-utils"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { routeTree } from "./routeTree.gen"
 
@@ -26,7 +26,7 @@ describe("app routing (real routeTree, memory history)", () => {
     mockMatchMedia(false)
     renderApp("/")
     expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Toggle menu" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Open menu" })).toBeInTheDocument()
   })
 
   test("an unknown route inside a project falls back rather than crashing the shell", async () => {
@@ -72,7 +72,99 @@ describe("app routing (real routeTree, memory history)", () => {
     expect(router.state.location.pathname).toBe("/conn-local/proj-hena")
   })
 
-  test("the settings route renders profile sections and closes back to the previous route", async () => {
+  test("the project rail keeps projects from every connection visible", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const router = renderApp("/conn-local/proj-hena")
+
+    const projectRail = await screen.findByRole("navigation", { name: "Projects" })
+    expect(within(projectRail).getByRole("button", { name: "docs" })).toBeInTheDocument()
+    await user.click(within(projectRail).getByRole("button", { name: "docs" }))
+
+    expect(router.state.location.pathname).toBe("/conn-staging/proj-docs")
+    expect(
+      within(screen.getByRole("navigation", { name: "Projects" })).getByRole("button", { name: "docs" }),
+    ).toHaveAttribute("aria-pressed", "true")
+  })
+
+  test("session routes reject mismatched project and connection ownership", async () => {
+    mockMatchMedia(true)
+    renderApp("/conn-staging/proj-hena/session/sess-transcript")
+
+    expect(await screen.findByText("Session not found.")).toBeInTheDocument()
+    expect(screen.queryByRole("log", { name: "Messages" })).not.toBeInTheDocument()
+  })
+
+  test("review routes reject mismatched session ownership", async () => {
+    mockMatchMedia(true)
+    renderApp("/conn-local/proj-marketing/session/sess-transcript/review")
+
+    expect(await screen.findByText("Session not found.")).toBeInTheDocument()
+    expect(screen.queryByText("src/collection/sync.ts")).not.toBeInTheDocument()
+  })
+
+  test("file routes reject mismatched session ownership", async () => {
+    mockMatchMedia(true)
+    renderApp("/conn-local/proj-marketing/session/sess-transcript/files")
+
+    expect(await screen.findByText("Session not found.")).toBeInTheDocument()
+    expect(screen.queryByText("src")).not.toBeInTheDocument()
+  })
+
+  test("switching sessions clears route-owned composer state", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const router = renderApp("/conn-local/proj-hena/session/sess-transcript")
+
+    const composer = await screen.findByLabelText("Message")
+    await user.type(composer, "unsent draft")
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Sessions" })).getByRole("button", {
+        name: /Rotate the OAuth client secret/,
+      }),
+    )
+
+    expect(router.state.location.pathname).toBe("/conn-local/proj-hena/session/sess-permission")
+    expect(await screen.findByRole("heading", { name: "Rotate the OAuth client secret" })).toBeInTheDocument()
+    expect(screen.getByLabelText("Message")).toHaveValue("")
+  })
+
+  test("changing a session owner tuple remounts route-owned state", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const router = renderApp("/conn-local/proj-hena/session/sess-transcript")
+
+    await user.type(await screen.findByLabelText("Message"), "owner-scoped draft")
+    await act(() =>
+      router.navigate({
+        to: "/$connectionId/$projectId/session/$sessionId",
+        params: { connectionId: "conn-staging", projectId: "proj-hena", sessionId: "sess-transcript" },
+      }),
+    )
+    expect(await screen.findByText("Session not found.")).toBeInTheDocument()
+    await act(() =>
+      router.navigate({
+        to: "/$connectionId/$projectId/session/$sessionId",
+        params: { connectionId: "conn-local", projectId: "proj-hena", sessionId: "sess-transcript" },
+      }),
+    )
+
+    expect(await screen.findByLabelText("Message")).toHaveValue("")
+  })
+
+  test("changing the draft id clears route-owned draft state", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const router = renderApp("/conn-local/proj-hena/new/draft-existing")
+
+    await user.type(await screen.findByLabelText("Message"), "old draft")
+    await user.click(screen.getByRole("button", { name: "New session" }))
+
+    expect(router.state.location.pathname).not.toBe("/conn-local/proj-hena/new/draft-existing")
+    expect(await screen.findByLabelText("Message")).toHaveValue("")
+  })
+
+  test("a direct settings entry closes to the home fallback", async () => {
     mockMatchMedia(true)
     const user = userEvent.setup()
     const router = renderApp("/settings/general")
@@ -80,5 +172,48 @@ describe("app routing (real routeTree, memory history)", () => {
     expect(await screen.findByLabelText("Theme")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Close settings" }))
     expect(router.state.location.pathname).toBe("/")
+    await act(async () => {
+      router.history.back()
+      await router.load()
+    })
+    expect(router.state.location.pathname).toBe("/")
+  })
+
+  test("settings sections close back to the route that opened them", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const router = renderApp("/conn-local/proj-hena/session/sess-transcript")
+
+    await screen.findByRole("heading", { name: "Wire the collection stream protocol" })
+    await user.click(screen.getByRole("button", { name: "Settings" }))
+    await user.click(await screen.findByRole("button", { name: "Appearance" }))
+    await user.click(screen.getByRole("button", { name: "Close settings" }))
+
+    expect(router.state.location.pathname).toBe("/conn-local/proj-hena/session/sess-transcript")
+  })
+
+  test("server settings reject unknown connections", async () => {
+    mockMatchMedia(true)
+    renderApp("/settings/does-not-exist/providers")
+
+    expect(await screen.findByText("Connection not found.")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Providers" })).not.toBeInTheDocument()
+  })
+
+  test("changing the settings connection resets server-owned state", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const router = renderApp("/settings/conn-local/providers")
+
+    await user.click(await screen.findByRole("button", { name: "Disconnect Anthropic" }))
+    expect(screen.getByRole("button", { name: "Connect Anthropic" })).toBeInTheDocument()
+    await act(() =>
+      router.navigate({
+        to: "/settings/$connectionId/$section",
+        params: { connectionId: "conn-staging", section: "providers" },
+      }),
+    )
+
+    expect(await screen.findByRole("button", { name: "Disconnect Anthropic" })).toBeInTheDocument()
   })
 })

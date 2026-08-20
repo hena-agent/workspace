@@ -2,22 +2,21 @@ import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import type { Project } from "@/lib/types"
-import { getProjectNotificationState } from "@/mock/queries"
+import type { Project, ProjectNotification } from "@/lib/types"
 import { RailProjectTile } from "./rail-project-tile"
 import { LegacyIcon } from "./legacy-icon"
 
 export function Rail({
   projects,
-  selectedProjectId,
+  selectedProject,
   onSelectProject,
   onAddProject,
   onOpenSettings,
   className,
 }: {
-  projects: Project[]
-  selectedProjectId?: string
-  onSelectProject: (projectId: string) => void
+  projects: Array<{ project: Project; notification: ProjectNotification }>
+  selectedProject?: Project
+  onSelectProject: (project: Project) => void
   onAddProject: () => void
   onOpenSettings: () => void
   className?: string
@@ -31,15 +30,23 @@ export function Rail({
       )}
     >
       <div className="no-scrollbar flex h-full w-full flex-col items-center gap-3 overflow-y-auto px-3 py-3">
-        {projects.map((project) => (
-          <RailProjectTile
-            key={project.id}
-            project={project}
-            selected={project.id === selectedProjectId}
-            notification={getProjectNotificationState(project.id)}
-            onSelect={() => onSelectProject(project.id)}
-          />
-        ))}
+        {projects.map((item) => {
+          const duplicateName = projects.some(
+            (other) => other.project !== item.project && other.project.name === item.project.name,
+          )
+          return (
+            <RailProjectTile
+              key={`${item.project.connectionId}:${item.project.id}`}
+              project={item.project}
+              label={duplicateName ? `${item.project.name} (${item.project.connectionId})` : item.project.name}
+              selected={
+                item.project.id === selectedProject?.id && item.project.connectionId === selectedProject.connectionId
+              }
+              notification={item.notification}
+              onSelect={() => onSelectProject(item.project)}
+            />
+          )
+        })}
         <RailAction label="Open project" onClick={onAddProject}>
           <LegacyIcon name="plus" />
         </RailAction>

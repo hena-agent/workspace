@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils"
 
 type LegacyIconName =
   | "archive"
+  | "close"
   | "dot-grid"
   | "edit"
   | "folder-add-left"
@@ -27,27 +28,30 @@ export function LegacyIcon({ name, className }: { name: LegacyIconName; classNam
 }
 
 function body(name: LegacyIconName) {
+  if (name === "close") {
+    return <path d="M4 4L16 16M16 4L4 16" stroke="currentColor" strokeLinecap="square" />
+  }
   if (name === "menu") {
     return <path d="M2.5 5H17.5M2.5 10H17.5M2.5 15H17.5" stroke="currentColor" strokeLinecap="square" />
   }
   if (name === "sidebar") {
-    return <path d="M7.86667 2H5.2H2V18H5.2H7.86667M7.86667 2H18V18H7.86667M7.86667 2V18" stroke="currentColor" />
+    return <path d="M7.87 2H5.2H2V18H5.2H7.87M7.87 2H18V18H7.87M7.87 2V18" stroke="currentColor" />
   }
   if (name === "sidebar-active") {
     return (
       <>
-        <path d="M2 2V18H5.2H7.86667V2H5.2H2Z" fill="currentColor" fillOpacity="0.1" />
-        <path d="M7.86667 2H5.2H2V18H5.2H7.86667M7.86667 2H18V18H7.86667M7.86667 2V18" stroke="currentColor" />
+        <path d="M2 2V18H5.2H7.87V2H5.2H2Z" fill="currentColor" fillOpacity="0.1" />
+        <path d="M7.87 2H5.2H2V18H5.2H7.87M7.87 2H18V18H7.87M7.87 2V18" stroke="currentColor" />
       </>
     )
   }
   if (name === "plus") {
-    return <path d="M9.9987 2.20703V17.7904M2.20703 9.9987H17.7904" stroke="currentColor" strokeLinecap="square" />
+    return <path d="M10 2.21V17.79M2.21 10H17.79" stroke="currentColor" strokeLinecap="square" />
   }
   if (name === "help") {
     return (
       <path
-        d="M7.91683 7.91927V6.2526H12.0835V8.7526L10.0002 10.0026V12.0859M10.0002 13.7526V13.7609M17.9168 10.0026C17.9168 14.3749 14.3724 17.9193 10.0002 17.9193C5.62791 17.9193 2.0835 14.3749 2.0835 10.0026C2.0835 5.63035 5.62791 2.08594 10.0002 2.08594C14.3724 2.08594 17.9168 5.63035 17.9168 10.0026Z"
+        d="M7.92 7.92V6.25H12.08V8.75L10 10V12.09M10 13.75V13.76M17.92 10C17.92 14.37 14.37 17.92 10 17.92C5.63 17.92 2.08 14.37 2.08 10C2.08 5.63 5.63 2.09 10 2.09C14.37 2.09 17.92 5.63 17.92 10Z"
         stroke="currentColor"
         strokeLinecap="square"
       />
@@ -57,11 +61,11 @@ function body(name: LegacyIconName) {
     return (
       <>
         <path
-          d="M7.62516 4.46094L5.05225 3.86719L3.86475 5.05469L4.4585 7.6276L2.0835 9.21094V10.7943L4.4585 12.3776L3.86475 14.9505L5.05225 16.138L7.62516 15.5443L9.2085 17.9193H10.7918L12.3752 15.5443L14.9481 16.138L16.1356 14.9505L15.5418 12.3776L17.9168 10.7943V9.21094L15.5418 7.6276L16.1356 5.05469L14.9481 3.86719L12.3752 4.46094L10.7918 2.08594H9.2085L7.62516 4.46094Z"
+          d="M7.63 4.46L5.05 3.87L3.86 5.05L4.46 7.63L2.08 9.21V10.79L4.46 12.38L3.86 14.95L5.05 16.14L7.63 15.54L9.21 17.92H10.79L12.38 15.54L14.95 16.14L16.14 14.95L15.54 12.38L17.92 10.79V9.21L15.54 7.63L16.14 5.05L14.95 3.87L12.38 4.46L10.79 2.09H9.21L7.63 4.46Z"
           stroke="currentColor"
         />
         <path
-          d="M12.5002 10.0026C12.5002 11.3833 11.3809 12.5026 10.0002 12.5026C8.61945 12.5026 7.50016 11.3833 7.50016 10.0026C7.50016 8.62189 8.61945 7.5026 10.0002 7.5026C11.3809 7.5026 12.5002 8.62189 12.5002 10.0026Z"
+          d="M12.5 10C12.5 11.38 11.38 12.5 10 12.5C8.62 12.5 7.5 11.38 7.5 10C7.5 8.62 8.62 7.5 10 7.5C11.38 7.5 12.5 8.62 12.5 10Z"
           stroke="currentColor"
         />
       </>
@@ -70,7 +74,7 @@ function body(name: LegacyIconName) {
   if (name === "folder-add-left") {
     return (
       <path
-        d="M2.08333 9.58268V2.91602H8.33333L10 5.41602H17.9167V16.2493H8.75M3.75 12.0827V17.0827M1.25 14.5827H6.25"
+        d="M2.08 9.58V2.92H8.33L10 5.42H17.92V16.25H8.75M3.75 12.08V17.08M1.25 14.58H6.25"
         stroke="currentColor"
         strokeLinecap="square"
       />
@@ -79,24 +83,21 @@ function body(name: LegacyIconName) {
   if (name === "dot-grid") {
     return (
       <>
-        <path d="M2.08398 9.16602H3.75065V10.8327H2.08398V9.16602Z" fill="currentColor" />
-        <path d="M9.16732 9.16602H10.834V10.8327H9.16732V9.16602Z" fill="currentColor" />
-        <path d="M16.2507 9.16602H17.9173V10.8327H16.2507V9.16602Z" fill="currentColor" />
+        <path d="M2.08 9.17H3.75V10.83H2.08V9.17Z" fill="currentColor" />
+        <path d="M9.17 9.17H10.83V10.83H9.17V9.17Z" fill="currentColor" />
+        <path d="M16.25 9.17H17.92V10.83H16.25V9.17Z" fill="currentColor" />
       </>
     )
   }
   if (name === "archive") {
     return (
-      <path
-        d="M16.8747 6.24935V16.8743H3.12467V6.24935M2.08301 2.91602H17.9163V6.24935H2.08301V2.91602ZM8.33301 9.58268H11.6663"
-        stroke="currentColor"
-      />
+      <path d="M16.87 6.25V16.87H3.12V6.25M2.08 2.92H17.92V6.25H2.08V2.92ZM8.33 9.58H11.67" stroke="currentColor" />
     )
   }
   if (name === "edit") {
     return (
       <path
-        d="M13.5555 8.21534V13.5556H2.44434L2.44434 2.4445H7.78462M6.88878 9.11119C6.88878 9.11119 8.96327 9.0367 9.69678 8.3032L14.0301 3.96986C14.5824 3.4176 14.5824 2.52213 14.0301 1.96986C13.4778 1.4176 12.5824 1.4176 12.0301 1.96986L7.69678 6.3032C7.00513 6.99484 6.88878 9.11119 6.88878 9.11119Z"
+        d="M13.56 8.22V13.56H2.44L2.44 2.44H7.78M6.89 9.11C6.89 9.11 8.96 9.04 9.7 8.3L14.03 3.97C14.58 3.42 14.58 2.52 14.03 1.97C13.48 1.42 12.58 1.42 12.03 1.97L7.7 6.3C7.01 6.99 6.89 9.11 6.89 9.11Z"
         stroke="currentColor"
       />
     )

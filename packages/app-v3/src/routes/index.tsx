@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { LegacyHomeView } from "@/features/home/legacy-home-view"
 import { MOCK_NOW } from "@/mock/fixtures"
-import { getProject, listProjects } from "@/mock/queries"
+import { listProjects } from "@/mock/queries"
 
 export const Route = createFileRoute("/")({
   component: HomeRoute,
@@ -15,11 +15,12 @@ function HomeRoute() {
     <LegacyHomeView
       projects={projects}
       now={MOCK_NOW}
-      onOpenProject={(projectId) => {
-        const project = getProject(projectId)
-        if (!project) return
-        void navigate({ to: "/$connectionId/$projectId", params: { connectionId: project.connectionId, projectId } })
-      }}
+      onOpenProject={(project) =>
+        void navigate({
+          to: "/$connectionId/$projectId",
+          params: { connectionId: project.connectionId, projectId: project.id },
+        })
+      }
       onAddProject={() => {}}
     />
   )

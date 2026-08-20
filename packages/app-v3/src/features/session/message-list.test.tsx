@@ -10,7 +10,11 @@ describe("MessageList", () => {
   })
 
   test("renders every message in the log in order", () => {
-    const messages = listMessages("sess-transcript")
+    const messages = listMessages({
+      sessionId: "sess-transcript",
+      connectionId: "conn-local",
+      projectId: "proj-hena",
+    })
     render(<MessageList messages={messages} />)
 
     const log = screen.getByRole("log", { name: "Messages" })

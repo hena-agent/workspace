@@ -20,6 +20,11 @@ export type Project = {
   updatedAt: number
 }
 
+export type ProjectNotification = {
+  kind: "none" | "unread" | "permission" | "error"
+  working: boolean
+}
+
 export type AvatarColor = "pink" | "mint" | "orange" | "purple" | "cyan" | "lime"
 
 export type SessionStatus = "idle" | "working" | "error" | "permission" | "question"

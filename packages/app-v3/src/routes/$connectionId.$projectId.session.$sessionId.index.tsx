@@ -13,11 +13,13 @@ import {
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/")({
   component: SessionTranscriptRoute,
+  remountDeps: ({ params }) => params,
 })
 
 function SessionTranscriptRoute() {
-  const { sessionId } = Route.useParams()
-  const session = getSession(sessionId)
+  const { connectionId, projectId, sessionId } = Route.useParams()
+  const session = getSession({ id: sessionId, connectionId, projectId })
+  const sessionOwner = { sessionId, connectionId, projectId }
   const agents = listAgents()
   const models = listModels()
   const [agentId, setAgentId] = useState(agents[0].id)
@@ -32,10 +34,10 @@ function SessionTranscriptRoute() {
   return (
     <SessionTranscriptView
       session={session}
-      messages={listMessages(sessionId)}
-      todos={listTodos(sessionId)}
-      permissionRequest={getPermissionRequest(sessionId)}
-      questionRequest={getQuestionRequest(sessionId)}
+      messages={listMessages(sessionOwner)}
+      todos={listTodos(sessionOwner)}
+      permissionRequest={getPermissionRequest(sessionOwner)}
+      questionRequest={getQuestionRequest(sessionOwner)}
       agents={agents}
       models={models}
       agentId={agentId}

@@ -2,8 +2,7 @@ import { Loader2 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import type { Project } from "@/lib/types"
-import type { ProjectNotification } from "@/mock/queries"
+import type { Project, ProjectNotification } from "@/lib/types"
 
 const AVATAR_COLOR_CLASS: Record<NonNullable<Project["color"]>, string> = {
   pink: "bg-pink-500/20 text-pink-200",
@@ -23,11 +22,13 @@ const NOTIFICATION_CLASS: Record<ProjectNotification["kind"], string> = {
 
 export function RailProjectTile({
   project,
+  label,
   selected,
   notification,
   onSelect,
 }: {
   project: Project
+  label: string
   selected: boolean
   notification: ProjectNotification
   onSelect: () => void
@@ -38,7 +39,7 @@ export function RailProjectTile({
         <button
           type="button"
           aria-pressed={selected}
-          aria-label={project.name}
+          aria-label={label}
           onClick={onSelect}
           className={cn(
             "relative flex size-10 shrink-0 cursor-default items-center justify-center overflow-hidden rounded-[8px] p-1 transition-colors",
@@ -73,7 +74,7 @@ export function RailProjectTile({
           ) : null}
         </button>
       </TooltipTrigger>
-      <TooltipContent side="right">{project.name}</TooltipContent>
+      <TooltipContent side="right">{label}</TooltipContent>
     </Tooltip>
   )
 }

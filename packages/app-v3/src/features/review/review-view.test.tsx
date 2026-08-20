@@ -4,7 +4,11 @@ import { render, screen, within } from "@/test/test-utils"
 import { ReviewView } from "./review-view"
 import { listDiffFiles } from "@/mock/queries"
 
-const files = listDiffFiles("sess-transcript")
+const files = listDiffFiles({
+  sessionId: "sess-transcript",
+  connectionId: "conn-local",
+  projectId: "proj-hena",
+})
 
 describe("ReviewView", () => {
   test("shows an empty state when there are no changes", () => {

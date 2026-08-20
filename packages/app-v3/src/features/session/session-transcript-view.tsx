@@ -1,4 +1,3 @@
-import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Agent, Model, PermissionRequest, QuestionRequest, Session, SessionMessage, Todo } from "@/lib/types"
 import { Composer } from "./composer/composer"
 import { PermissionDock } from "./composer/permission-dock"
@@ -53,9 +52,7 @@ export function SessionTranscriptView({
   return (
     <div className="flex h-full w-full min-w-0 flex-col">
       <SessionTranscriptHeader session={session} onShare={onShare} onFork={onFork} onArchive={onArchive} />
-      <ScrollArea className="min-h-0 flex-1">
-        <MessageList messages={messages} />
-      </ScrollArea>
+      <MessageList messages={messages} />
       <div className="flex flex-col gap-2 border-t p-3">
         <TodoDock todos={todos} />
         {questionRequest ? <QuestionDock request={questionRequest} onChoose={onAnswerQuestion} /> : null}

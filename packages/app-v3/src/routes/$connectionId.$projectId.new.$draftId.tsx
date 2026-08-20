@@ -4,12 +4,13 @@ import { getProject, listAgents, listModels, listSessions } from "@/mock/queries
 
 export const Route = createFileRoute("/$connectionId/$projectId/new/$draftId")({
   component: NewSessionRoute,
+  remountDeps: ({ params }) => params,
 })
 
 function NewSessionRoute() {
   const { connectionId, projectId } = Route.useParams()
   const navigate = useNavigate()
-  const project = getProject(projectId)
+  const project = getProject({ id: projectId, connectionId })
 
   if (!project) {
     return (
@@ -23,7 +24,7 @@ function NewSessionRoute() {
       agents={listAgents()}
       models={listModels()}
       onStart={() => {
-        const existing = listSessions({ projectId }).at(0)?.id ?? "sess-transcript"
+        const existing = listSessions({ projectId, connectionId }).at(0)?.id ?? "sess-transcript"
         void navigate({
           to: "/$connectionId/$projectId/session/$sessionId",
           params: { connectionId, projectId, sessionId: existing },

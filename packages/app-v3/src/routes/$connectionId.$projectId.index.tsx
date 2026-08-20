@@ -9,7 +9,7 @@ export const Route = createFileRoute("/$connectionId/$projectId/")({
 function ProjectOverviewRoute() {
   const { connectionId, projectId } = Route.useParams()
   const navigate = useNavigate()
-  const project = getProject(projectId)
+  const project = getProject({ id: projectId, connectionId })
 
   if (!project) {
     return <div className="flex h-full w-full items-center justify-center">Project not found.</div>

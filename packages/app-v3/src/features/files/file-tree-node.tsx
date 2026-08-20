@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ChevronRight, File as FileIcon, Folder } from "lucide-react"
+import { ChevronRight, File, Folder } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { FileNode } from "@/lib/types"
 
@@ -36,7 +36,7 @@ export function FileTreeNode({
           active ? "bg-accent" : "hover:bg-accent/60",
         )}
       >
-        <FileIcon aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
+        <File aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate">{baseName(node.path)}</span>
       </button>
     )

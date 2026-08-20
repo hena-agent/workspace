@@ -49,12 +49,42 @@ describe("CommandPalette", () => {
       onOpenChange: (open) => {
         if (!open) closed = true
       },
-      onSelectProject: (id) => selected.push(id),
+      onSelectProject: (project) => selected.push(project.id),
     })
 
     await user.click(screen.getByText(henaProjects[0].name))
     expect(selected).toEqual([henaProjects[0].id])
     expect(closed).toBe(true)
+  })
+
+  test("keeps duplicate project and session identities distinct across connections", async () => {
+    const user = userEvent.setup()
+    const selectedProjects: string[] = []
+    const selectedSessions: string[] = []
+    const duplicateProjects = ["alpha", "beta"].map((connectionId) => ({
+      ...henaProjects[0],
+      connectionId,
+    }))
+    const duplicateSessions = ["alpha", "beta"].map((connectionId) => ({
+      ...henaSessions[0],
+      connectionId,
+    }))
+
+    renderPalette({
+      projects: duplicateProjects,
+      sessions: [],
+      onSelectProject: (project) => selectedProjects.push(project.connectionId),
+    })
+    await user.click(screen.getByText(`${duplicateProjects[1].name} (beta)`))
+    expect(selectedProjects).toEqual(["beta"])
+
+    renderPalette({
+      projects: [],
+      sessions: duplicateSessions,
+      onSelectSession: (session) => selectedSessions.push(session.connectionId),
+    })
+    await user.click(screen.getByText(`${duplicateSessions[0].title} (alpha)`))
+    expect(selectedSessions).toEqual(["alpha"])
   })
 
   test("selecting a server command calls onRunServerCommand and closes the palette", async () => {

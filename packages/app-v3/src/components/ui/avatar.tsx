@@ -1,17 +1,17 @@
-import * as React from "react"
-import { Avatar as AvatarPrimitive } from "radix-ui"
+import type { ComponentProps } from "react"
+import { Avatar } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 
-function Avatar({
+function AvatarRoot({
   className,
   size = "default",
   ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root> & {
+}: ComponentProps<typeof Avatar.Root> & {
   size?: "default" | "sm" | "lg"
 }) {
   return (
-    <AvatarPrimitive.Root
+    <Avatar.Root
       data-slot="avatar"
       data-size={size}
       className={cn(
@@ -23,9 +23,9 @@ function Avatar({
   )
 }
 
-function AvatarImage({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+function AvatarImage({ className, ...props }: ComponentProps<typeof Avatar.Image>) {
   return (
-    <AvatarPrimitive.Image
+    <Avatar.Image
       data-slot="avatar-image"
       className={cn("aspect-square size-full rounded-full object-cover", className)}
       {...props}
@@ -33,9 +33,9 @@ function AvatarImage({ className, ...props }: React.ComponentProps<typeof Avatar
   )
 }
 
-function AvatarFallback({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+function AvatarFallback({ className, ...props }: ComponentProps<typeof Avatar.Fallback>) {
   return (
-    <AvatarPrimitive.Fallback
+    <Avatar.Fallback
       data-slot="avatar-fallback"
       className={cn(
         "flex size-full items-center justify-center rounded-full bg-muted text-sm text-muted-foreground group-data-[size=sm]/avatar:text-xs",
@@ -46,7 +46,7 @@ function AvatarFallback({ className, ...props }: React.ComponentProps<typeof Ava
   )
 }
 
-function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
+function AvatarBadge({ className, ...props }: ComponentProps<"span">) {
   return (
     <span
       data-slot="avatar-badge"
@@ -62,7 +62,7 @@ function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
   )
 }
 
-function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
+function AvatarGroup({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="avatar-group"
@@ -75,7 +75,7 @@ function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
-function AvatarGroupCount({ className, ...props }: React.ComponentProps<"div">) {
+function AvatarGroupCount({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="avatar-group-count"
@@ -88,4 +88,4 @@ function AvatarGroupCount({ className, ...props }: React.ComponentProps<"div">) 
   )
 }
 
-export { Avatar, AvatarImage, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarBadge }
+export { AvatarRoot as Avatar, AvatarImage, AvatarFallback, AvatarGroup, AvatarGroupCount, AvatarBadge }

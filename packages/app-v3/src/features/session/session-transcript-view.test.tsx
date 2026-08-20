@@ -9,13 +9,14 @@ function noop() {}
 
 function renderView(sessionId: string) {
   const session = sessions.find((s) => s.id === sessionId)!
+  const sessionOwner = { sessionId, connectionId: session.connectionId, projectId: session.projectId }
   return render(
     <SessionTranscriptView
       session={session}
-      messages={listMessages(sessionId)}
-      todos={listTodos(sessionId)}
-      permissionRequest={getPermissionRequest(sessionId)}
-      questionRequest={getQuestionRequest(sessionId)}
+      messages={listMessages(sessionOwner)}
+      todos={listTodos(sessionOwner)}
+      permissionRequest={getPermissionRequest(sessionOwner)}
+      questionRequest={getQuestionRequest(sessionOwner)}
       agents={agents}
       models={models}
       agentId={agents[0].id}
@@ -61,8 +62,16 @@ describe("SessionTranscriptView", () => {
     render(
       <SessionTranscriptView
         session={session}
-        messages={listMessages("sess-transcript")}
-        todos={listTodos("sess-transcript")}
+        messages={listMessages({
+          sessionId: session.id,
+          connectionId: session.connectionId,
+          projectId: session.projectId,
+        })}
+        todos={listTodos({
+          sessionId: session.id,
+          connectionId: session.connectionId,
+          projectId: session.projectId,
+        })}
         agents={agents}
         models={models}
         agentId={agents[0].id}

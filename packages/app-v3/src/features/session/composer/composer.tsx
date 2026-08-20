@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import type { Agent, Model } from "@/lib/types"
 import { AgentModelPicker } from "./agent-model-picker"
-import { shouldSendOnEnter } from "./should-send-on-enter"
+import { getComposerEnterAction } from "./should-send-on-enter"
 
 export function Composer({
   agents,
@@ -15,6 +15,7 @@ export function Composer({
   onChangeAgent,
   onChangeModel,
   onSend,
+  onQueue,
   disabled,
   placeholder = "Message the agent…",
 }: {
@@ -25,16 +26,18 @@ export function Composer({
   onChangeAgent: (id: string) => void
   onChangeModel: (id: string) => void
   onSend: (text: string) => void
+  onQueue: (text: string) => void
   disabled?: boolean
   placeholder?: string
 }) {
   const [text, setText] = useState("")
   const hasFinePointer = useMediaQuery("(any-pointer: fine)")
 
-  function send() {
+  function submit(delivery: "send" | "queue") {
     const trimmed = text.trim()
     if (!trimmed) return
-    onSend(trimmed)
+    if (delivery === "queue") onQueue(trimmed)
+    if (delivery === "send") onSend(trimmed)
     setText("")
   }
 
@@ -45,10 +48,10 @@ export function Composer({
         value={text}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
-          if (shouldSendOnEnter(event, hasFinePointer)) {
-            event.preventDefault()
-            send()
-          }
+          const action = getComposerEnterAction(event, hasFinePointer)
+          if (!action) return
+          event.preventDefault()
+          submit(action)
         }}
         placeholder={placeholder}
         disabled={disabled}
@@ -67,7 +70,7 @@ export function Composer({
           size="icon"
           aria-label="Send message"
           disabled={disabled || text.trim().length === 0}
-          onClick={send}
+          onClick={() => submit("send")}
           className="hit-area"
         >
           <ArrowUp />

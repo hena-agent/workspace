@@ -4,12 +4,14 @@ import { SessionListItem } from "./session-list-item"
 export function SessionList({
   sessions,
   activeSessionId,
+  autoFocusSessionId,
   mobile = false,
   onSelectSession,
   onArchiveSession,
 }: {
   sessions: Session[]
   activeSessionId?: string
+  autoFocusSessionId?: string
   mobile?: boolean
   onSelectSession: (sessionId: string) => void
   onArchiveSession: (sessionId: string) => void
@@ -25,6 +27,7 @@ export function SessionList({
           key={session.id}
           session={session}
           active={session.id === activeSessionId}
+          autoFocus={session.id === autoFocusSessionId}
           mobile={mobile}
           onSelect={() => onSelectSession(session.id)}
           onArchive={() => onArchiveSession(session.id)}

@@ -23,12 +23,14 @@ function SessionStatusIndicator({ session }: { session: Session }) {
 export function SessionListItem({
   session,
   active,
+  autoFocus = false,
   mobile,
   onSelect,
   onArchive,
 }: {
   session: Session
   active: boolean
+  autoFocus?: boolean
   mobile: boolean
   onSelect: () => void
   onArchive: () => void
@@ -46,8 +48,9 @@ export function SessionListItem({
       <div className="flex min-w-0 items-center gap-1">
         <button
           type="button"
+          autoFocus={autoFocus}
           onClick={onSelect}
-          className="flex min-w-0 flex-1 items-center gap-2 py-1 text-left outline-none"
+          className="flex hit-area min-w-0 flex-1 items-center gap-2 py-1 text-left outline-none"
         >
           {hasStatus ? (
             <span className="flex size-6 shrink-0 items-center justify-center text-[var(--legacy-text-interactive)]">
@@ -62,8 +65,8 @@ export function SessionListItem({
           className={cn(
             "shrink-0 overflow-hidden transition-[width,opacity]",
             mobile
-              ? "w-6 opacity-100"
-              : "pointer-events-none w-0 opacity-0 group-focus-within/session:pointer-events-auto group-focus-within/session:w-6 group-focus-within/session:opacity-100 group-hover/session:pointer-events-auto group-hover/session:w-6 group-hover/session:opacity-100",
+              ? "w-[var(--hit-area)] opacity-100"
+              : "pointer-events-none w-0 opacity-0 group-focus-within/session:pointer-events-auto group-focus-within/session:w-[var(--hit-area)] group-focus-within/session:opacity-100 group-hover/session:pointer-events-auto group-hover/session:w-[var(--hit-area)] group-hover/session:opacity-100",
           )}
         >
           <Button
@@ -74,7 +77,7 @@ export function SessionListItem({
               event.stopPropagation()
               onArchive()
             }}
-            className="legacy-small-icon-button"
+            className="legacy-small-icon-button hit-area"
           >
             <LegacyIcon name="archive" className="size-4" />
           </Button>

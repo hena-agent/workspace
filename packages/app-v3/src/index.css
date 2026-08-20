@@ -102,8 +102,24 @@
   --legacy-warning: #6f6015;
   --legacy-critical: #fa3012;
   --legacy-button-neutral: #ffffff;
-  --hit-area: 28px;
+  --hit-area: 44px;
+  --row-height: 44px;
+}
+
+@media (any-pointer: fine) {
+  :root:not([data-density="comfortable"]) {
+    --row-height: 28px;
+  }
+}
+
+:root[data-density="compact"] {
   --row-height: 28px;
+}
+
+@media (any-pointer: fine) and (not (any-pointer: coarse)) {
+  :root {
+    --hit-area: 28px;
+  }
 }
 
 .dark {
@@ -199,8 +215,9 @@
 @layer components {
   .legacy-titlebar-button {
     width: 32px !important;
-    height: 24px !important;
-    min-height: 24px !important;
+    height: max(24px, var(--hit-area)) !important;
+    min-width: var(--hit-area) !important;
+    min-height: var(--hit-area) !important;
     border-radius: 6px;
     color: var(--legacy-icon-base);
   }
@@ -213,9 +230,9 @@
   }
 
   .legacy-rail-action {
-    width: 32px !important;
-    height: 32px !important;
-    min-height: 32px !important;
+    width: max(32px, var(--hit-area)) !important;
+    height: max(32px, var(--hit-area)) !important;
+    min-height: var(--hit-area) !important;
     border-radius: 6px;
     color: var(--legacy-icon-base);
   }
@@ -227,14 +244,15 @@
   }
 
   .legacy-small-icon-button {
-    width: 24px !important;
-    height: 24px !important;
-    min-height: 24px !important;
+    width: max(24px, var(--hit-area)) !important;
+    height: max(24px, var(--hit-area)) !important;
+    min-height: var(--hit-area) !important;
     border-radius: 6px;
     color: var(--legacy-icon-base);
   }
 
   .legacy-primary-button {
+    min-height: var(--hit-area);
     border-color: var(--legacy-border-weaker) !important;
     background: var(--legacy-button-neutral) !important;
     color: var(--legacy-text-strong) !important;
@@ -255,4 +273,5 @@
 
 @utility hit-area {
   min-height: max(var(--row-height), var(--hit-area));
+  min-width: var(--hit-area);
 }

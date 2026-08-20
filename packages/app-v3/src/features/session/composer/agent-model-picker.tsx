@@ -19,7 +19,7 @@ export function AgentModelPicker({
   return (
     <div className="flex items-center gap-1">
       <Select value={agentId} onValueChange={onChangeAgent}>
-        <SelectTrigger size="sm" aria-label="Agent" className="h-7 border-none px-2 text-xs shadow-none">
+        <SelectTrigger size="sm" aria-label="Agent" className="h-7 hit-area border-none px-2 text-xs shadow-none">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -31,7 +31,7 @@ export function AgentModelPicker({
         </SelectContent>
       </Select>
       <Select value={modelId} onValueChange={onChangeModel}>
-        <SelectTrigger size="sm" aria-label="Model" className="h-7 border-none px-2 text-xs shadow-none">
+        <SelectTrigger size="sm" aria-label="Model" className="h-7 hit-area border-none px-2 text-xs shadow-none">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

@@ -57,34 +57,46 @@ describe("CommandPalette", () => {
     expect(closed).toBe(true)
   })
 
-  test("keeps duplicate project and session identities distinct across connections", async () => {
+  test("keeps duplicate project and session labels distinct across projects and connections", async () => {
     const user = userEvent.setup()
     const selectedProjects: string[] = []
     const selectedSessions: string[] = []
-    const duplicateProjects = ["alpha", "beta"].map((connectionId) => ({
+    const duplicateProjects = ["alpha", "beta", "alpha"].map((connectionId, index) => ({
       ...henaProjects[0],
+      id: `project-${index}`,
       connectionId,
+      path: `/workspace-${index}`,
     }))
-    const duplicateSessions = ["alpha", "beta"].map((connectionId) => ({
+    const duplicateSessions = duplicateProjects.map((project, index) => ({
       ...henaSessions[0],
-      connectionId,
+      id: `session-${index}`,
+      connectionId: project.connectionId,
+      projectId: project.id,
     }))
 
     renderPalette({
       projects: duplicateProjects,
       sessions: [],
-      onSelectProject: (project) => selectedProjects.push(project.connectionId),
+      onSelectProject: (project) => selectedProjects.push(project.id),
     })
-    await user.click(screen.getByText(`${duplicateProjects[1].name} (beta)`))
-    expect(selectedProjects).toEqual(["beta"])
+    await user.click(
+      screen.getByText(
+        `${duplicateProjects[2].name} (${duplicateProjects[2].path}, ${duplicateProjects[2].connectionId})`,
+      ),
+    )
+    expect(selectedProjects).toEqual(["project-2"])
 
     renderPalette({
-      projects: [],
+      projects: duplicateProjects,
       sessions: duplicateSessions,
-      onSelectSession: (session) => selectedSessions.push(session.connectionId),
+      onSelectSession: (session) => selectedSessions.push(session.id),
     })
-    await user.click(screen.getByText(`${duplicateSessions[0].title} (alpha)`))
-    expect(selectedSessions).toEqual(["alpha"])
+    await user.click(
+      screen.getByText(
+        `${duplicateSessions[2].title} (${duplicateProjects[2].path}, ${duplicateSessions[2].connectionId})`,
+      ),
+    )
+    expect(selectedSessions).toEqual(["session-2"])
   })
 
   test("selecting a server command calls onRunServerCommand and closes the palette", async () => {

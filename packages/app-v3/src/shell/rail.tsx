@@ -38,7 +38,11 @@ export function Rail({
             <RailProjectTile
               key={`${item.project.connectionId}:${item.project.id}`}
               project={item.project}
-              label={duplicateName ? `${item.project.name} (${item.project.connectionId})` : item.project.name}
+              label={
+                duplicateName
+                  ? `${item.project.name} (${item.project.path}, ${item.project.connectionId})`
+                  : item.project.name
+              }
               selected={
                 item.project.id === selectedProject?.id && item.project.connectionId === selectedProject.connectionId
               }

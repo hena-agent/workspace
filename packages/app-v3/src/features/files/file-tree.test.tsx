@@ -11,11 +11,16 @@ describe("FileTree", () => {
     const user = userEvent.setup()
     render(<FileTree nodes={tree} onSelectFile={() => {}} />)
 
+    expect(screen.getByRole("list", { name: "Files" })).toBeInTheDocument()
+    expect(screen.getAllByRole("list").length).toBeGreaterThan(1)
+    expect(screen.queryByRole("tree")).not.toBeInTheDocument()
     expect(screen.getByText("hena")).toBeInTheDocument()
     expect(screen.getByText("package.json")).toBeInTheDocument()
     expect(screen.getByText("changelog.ts")).toBeInTheDocument()
 
-    await user.click(screen.getByText("collection"))
+    expect(screen.getByRole("button", { name: "collection" })).toHaveAttribute("aria-expanded", "true")
+    await user.click(screen.getByRole("button", { name: "collection" }))
+    expect(screen.getByRole("button", { name: "collection" })).toHaveAttribute("aria-expanded", "false")
     expect(screen.queryByText("changelog.ts")).not.toBeInTheDocument()
   })
 

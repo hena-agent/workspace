@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsSectionRouteImport } from './routes/settings.$section'
 import { Route as ConnectionIdProjectIdIndexRouteImport } from './routes/$connectionId.$projectId.index'
 import { Route as SettingsConnectionIdSectionRouteImport } from './routes/settings.$connectionId.$section'
@@ -28,6 +29,11 @@ const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsIndexRoute = SettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsSectionRoute = SettingsSectionRouteImport.update({
   id: '/$section',
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRouteWithChildren
   '/settings/$section': typeof SettingsSectionRoute
+  '/settings/': typeof SettingsIndexRoute
   '/settings/$connectionId/$section': typeof SettingsConnectionIdSectionRoute
   '/$connectionId/$projectId/': typeof ConnectionIdProjectIdIndexRoute
   '/$connectionId/$projectId/new/$draftId': typeof ConnectionIdProjectIdNewDraftIdRoute
@@ -84,8 +91,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/settings': typeof SettingsRouteWithChildren
   '/settings/$section': typeof SettingsSectionRoute
+  '/settings': typeof SettingsIndexRoute
   '/settings/$connectionId/$section': typeof SettingsConnectionIdSectionRoute
   '/$connectionId/$projectId': typeof ConnectionIdProjectIdIndexRoute
   '/$connectionId/$projectId/new/$draftId': typeof ConnectionIdProjectIdNewDraftIdRoute
@@ -98,6 +105,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRouteWithChildren
   '/settings/$section': typeof SettingsSectionRoute
+  '/settings/': typeof SettingsIndexRoute
   '/settings/$connectionId/$section': typeof SettingsConnectionIdSectionRoute
   '/$connectionId/$projectId/': typeof ConnectionIdProjectIdIndexRoute
   '/$connectionId/$projectId/new/$draftId': typeof ConnectionIdProjectIdNewDraftIdRoute
@@ -111,6 +119,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/settings/$section'
+    | '/settings/'
     | '/settings/$connectionId/$section'
     | '/$connectionId/$projectId/'
     | '/$connectionId/$projectId/new/$draftId'
@@ -120,8 +129,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/settings'
     | '/settings/$section'
+    | '/settings'
     | '/settings/$connectionId/$section'
     | '/$connectionId/$projectId'
     | '/$connectionId/$projectId/new/$draftId'
@@ -133,6 +142,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/settings/$section'
+    | '/settings/'
     | '/settings/$connectionId/$section'
     | '/$connectionId/$projectId/'
     | '/$connectionId/$projectId/new/$draftId'
@@ -166,6 +176,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/settings/': {
+      id: '/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof SettingsIndexRouteImport
+      parentRoute: typeof SettingsRoute
     }
     '/settings/$section': {
       id: '/settings/$section'
@@ -221,11 +238,13 @@ declare module '@tanstack/react-router' {
 
 interface SettingsRouteChildren {
   SettingsSectionRoute: typeof SettingsSectionRoute
+  SettingsIndexRoute: typeof SettingsIndexRoute
   SettingsConnectionIdSectionRoute: typeof SettingsConnectionIdSectionRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsSectionRoute: SettingsSectionRoute,
+  SettingsIndexRoute: SettingsIndexRoute,
   SettingsConnectionIdSectionRoute: SettingsConnectionIdSectionRoute,
 }
 

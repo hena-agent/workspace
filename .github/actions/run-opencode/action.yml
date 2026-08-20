@@ -305,26 +305,16 @@ runs:
           PLUGINS=$(jq -c '. + ["@ex-machina/opencode-anthropic-auth@1.8.1"]' <<< "$PLUGINS")
         fi
 
-        # .opencode/plugin/codex-web-search.ts is part of this repository, so
-        # unlike the plugin above it IS something a PR can modify — loading
-        # the checkout's own HEAD copy would let a PR get its own code
-        # executed with this job's credentials while reviewing itself. Fetch
-        # it from the PR's base commit instead, the same trust boundary this
-        # action previously used to load a custom review command from the
-        # base commit rather than the PR's copy. Overwrite the checkout's
-        # copy with that trusted content so its @opencode-ai/plugin import
-        # resolves through the node_modules installed below (module
-        # resolution walks up from the file's own directory), then reference
-        # it explicitly by path: automatic .opencode/plugin/ discovery is
-        # exactly what OPENCODE_DISABLE_PROJECT_CONFIG disables above, so it
-        # will not be found without this.
+        # .opencode/plugin/codex-web-search.ts is a generated bundle committed
+        # to this repository, so a PR can modify it. Loading the checkout's
+        # HEAD copy would let a PR execute its own code with this job's
+        # credentials while reviewing itself. Fetch the bundle from the PR's
+        # base commit instead, preserving the trust boundary this action used
+        # for the old custom review command. The bundle is self-contained, so
+        # it does not need package installation before OpenCode imports it.
+        # Reference it explicitly because OPENCODE_DISABLE_PROJECT_CONFIG also
+        # disables automatic .opencode/plugin discovery.
         BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
-        # Fetch, place, and install the plugin's dependency as one unit: a
-        # subshell with its own set -e reports success only if every step
-        # succeeds, without the outer set -euo pipefail aborting the whole
-        # review on a transient failure partway through (a registry blip on
-        # bun install, say) — this is one optional plugin's setup, not
-        # something that should take the review down with it.
         if [ -n "$BASE_SHA" ] && (
           set -e
           gh api \
@@ -333,9 +323,6 @@ runs:
             > "$REVIEW_CONTEXT/codex-web-search.ts"
           install -d -m 700 .opencode/plugin
           install -m 600 "$REVIEW_CONTEXT/codex-web-search.ts" .opencode/plugin/codex-web-search.ts
-          jq -cn --arg version "$OPENCODE_VERSION" '{dependencies: {"@opencode-ai/plugin": $version}}' \
-            > .opencode/package.json
-          cd .opencode && bun install --silent
         ) 2>/dev/null; then
           PLUGINS=$(jq -c --arg path "file://$(pwd)/.opencode/plugin/codex-web-search.ts" '. + [$path]' <<< "$PLUGINS")
 
@@ -361,7 +348,7 @@ runs:
             chmod 600 "$AUTH_JSON"
           fi
         else
-          echo "::notice::Could not fetch .opencode/plugin/codex-web-search.ts from the base commit or install its dependency; codex_web_search will be unavailable this run."
+          echo "::notice::Could not fetch the bundled .opencode/plugin/codex-web-search.ts from the base commit; codex_web_search will be unavailable this run."
         fi
 
         if [ "$PLUGINS" != "[]" ]; then

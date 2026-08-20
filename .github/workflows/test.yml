@@ -119,6 +119,9 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
+      - name: Check generated OpenCode plugin
+        run: bun run check:opencode-plugin
+
       - name: Build Hena test dependencies
         run: bun turbo build --filter='hena^...'
 

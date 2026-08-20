@@ -15,6 +15,8 @@
     "dev:console": "ulimit -n 10240 2>/dev/null; bun run --cwd packages/console/app dev",
     "dev:stats": "bun sst shell --stage=production -- bun run --cwd packages/stats/app dev",
     "dev:storybook": "bun --cwd packages/storybook storybook",
+    "build:opencode-plugin": "bun run script/opencode/build-codex-web-search.ts",
+    "check:opencode-plugin": "bun run script/opencode/build-codex-web-search.ts --check",
     "knip": "knip-bun",
     "lint": "oxlint",
     "typecheck": "bun turbo typecheck",

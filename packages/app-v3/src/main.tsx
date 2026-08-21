@@ -9,9 +9,7 @@ import { createAppRouter } from "./router"
 
 const router = createAppRouter()
 const embeddedOrigin =
-  !import.meta.env.DEV &&
-  (window.location.protocol === "http:" || window.location.protocol === "https:") &&
-  window.location.hostname !== "app.hena.dev"
+  import.meta.env.VITE_HENA_EMBEDDED === "true"
     ? new URL(import.meta.env.BASE_URL, window.location.origin).toString()
     : undefined
 

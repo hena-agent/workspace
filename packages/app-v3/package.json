@@ -8,6 +8,7 @@
     "dev": "vite",
     "start": "vite",
     "build": "bunx --package @typescript/native tsc -b && vite build",
+    "build:embedded": "VITE_HENA_EMBEDDED=true bun run build",
     "preview": "vite preview",
     "typecheck": "bunx --package @typescript/native tsc -b",
     "test": "bun test --preload ./happydom.ts ./src",

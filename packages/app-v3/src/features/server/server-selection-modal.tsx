@@ -66,16 +66,15 @@ export function ServerSelectionModal({
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Manage servers">
-          <span className="relative">
-            <ServerIcon />
-            {status ? (
-              <ConnectionStatusDot
-                status={status}
-                className="absolute -right-1 -bottom-1 size-1.5 ring-2 ring-background"
-              />
-            ) : null}
-          </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-label={`Manage servers. Current server: ${current?.name ?? "none"}`}
+          className="w-40 justify-start px-2"
+        >
+          <ServerIcon />
+          <span className="min-w-0 flex-1 truncate text-left">{current?.name ?? "No server"}</span>
+          {status ? <ConnectionStatusDot status={status} /> : null}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

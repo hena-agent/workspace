@@ -5,6 +5,7 @@ import { ProvidersSection } from "./providers-section"
 import { SERVER_SETTINGS_SECTIONS, type ServerSettingsSection } from "./server-settings-sections"
 import { ServersSection } from "./servers-section"
 import { SettingsNav } from "./settings-nav"
+import { StorageSection } from "./storage-section"
 
 export type { ServerSettingsSection } from "./server-settings-sections"
 
@@ -17,6 +18,9 @@ export function ServerSettingsView({
   mcpServers,
   connections,
   onRemoveConnection,
+  storage,
+  onClearCache,
+  onRemoveAllData,
 }: {
   section: ServerSettingsSection
   onSelectSection: (section: ServerSettingsSection) => void
@@ -26,6 +30,9 @@ export function ServerSettingsView({
   mcpServers: McpServer[]
   connections: Connection[]
   onRemoveConnection: (connectionId: string) => void
+  storage: { usedMib: number; budgetMib: number }
+  onClearCache: () => void
+  onRemoveAllData: () => void
 }) {
   const content = (() => {
     switch (section) {
@@ -37,6 +44,15 @@ export function ServerSettingsView({
         return <McpSection servers={mcpServers} />
       case "servers":
         return <ServersSection connections={connections} onRemove={onRemoveConnection} />
+      case "storage":
+        return (
+          <StorageSection
+            usedMib={storage.usedMib}
+            budgetMib={storage.budgetMib}
+            onClearCache={onClearCache}
+            onRemoveAllData={onRemoveAllData}
+          />
+        )
       default:
         section satisfies never
         return null

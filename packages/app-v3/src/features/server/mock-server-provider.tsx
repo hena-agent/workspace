@@ -22,7 +22,11 @@ export function MockServerProvider({
   initialConnections?: Connection[]
   pageOrigin?: string
 }) {
-  const [servers, setServers] = useState(() => initialConnections.map((connection) => ({ ...connection })))
+  const [servers, setServers] = useState(() =>
+    initialConnections.flatMap((connection) =>
+      isServerUrlAllowed(connection.url, pageOrigin) ? [{ ...connection }] : [],
+    ),
+  )
 
   function addServer(input: string) {
     const url = normalizeServerUrl(input)

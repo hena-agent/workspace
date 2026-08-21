@@ -29,7 +29,11 @@ afterEach(() => {
   document.documentElement.classList.remove("light", "dark")
 })
 
-function renderApp(initialPath: string, initialConnections?: Connection[], pageOrigin?: string) {
+function renderApp(
+  initialPath: string,
+  initialConnections?: Connection[],
+  pageOrigin = "http://localhost:4096",
+) {
   const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [initialPath] }) })
   render(
     <ThemeProvider>
@@ -48,7 +52,19 @@ describe("app routing (real routeTree, memory history)", () => {
 
     expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Open menu" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Manage servers. Current server: Local" })).toHaveTextContent("Local")
     expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
+  })
+
+  test("seeded connections obey the current origin transport rules", async () => {
+    mockMatchMedia(true)
+    const router = renderApp("/", undefined, "https://app.hena.dev")
+
+    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/${STAGING_SLUG}`)
+    expect(screen.getByRole("button", { name: "Manage servers. Current server: staging.hena.dev" })).toHaveTextContent(
+      "staging.hena.dev",
+    )
   })
 
   test("an unknown route inside a project falls back rather than crashing the shell", async () => {
@@ -67,7 +83,7 @@ describe("app routing (real routeTree, memory history)", () => {
     const router = renderApp(initialPath, [], "http://localhost:4096")
 
     expect(await screen.findByText("Session not found.")).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Manage servers" }))
+    await user.click(screen.getByRole("button", { name: /^Manage servers/ }))
     expect(screen.getByLabelText("Add a mock server")).toHaveValue("http://localhost:4096")
     await user.click(screen.getByRole("button", { name: "Add server" }))
 
@@ -81,7 +97,7 @@ describe("app routing (real routeTree, memory history)", () => {
     renderApp(`/${LOCAL_SLUG}`, [], "https://app.hena.dev")
 
     expect(await screen.findByText("Server not found.")).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Manage servers" }))
+    await user.click(screen.getByRole("button", { name: /^Manage servers/ }))
     await user.click(screen.getByRole("button", { name: "Add server" }))
 
     expect(screen.getByText("Enter an HTTP or HTTPS server URL allowed from this origin.")).toBeInTheDocument()
@@ -376,12 +392,28 @@ describe("app routing (real routeTree, memory history)", () => {
     expect(await screen.findByRole("button", { name: "Disconnect Anthropic" })).toBeInTheDocument()
   })
 
+  test("storage settings are scoped to the route server", async () => {
+    mockMatchMedia(true)
+    const router = renderApp(`/${LOCAL_SLUG}/settings/storage`)
+
+    expect(await screen.findByText("18 MiB of 50 MiB")).toBeInTheDocument()
+    await act(() =>
+      router.navigate({
+        to: "/$connectionId/settings/$section",
+        params: { connectionId: STAGING_SLUG, section: "storage" },
+      }),
+    )
+
+    expect(await screen.findByText("7 MiB of 50 MiB")).toBeInTheDocument()
+    expect(screen.queryByText("18 MiB of 50 MiB")).not.toBeInTheDocument()
+  })
+
   test("selecting a server updates the URL slug", async () => {
     mockMatchMedia(true)
     const user = userEvent.setup()
     const router = renderApp(`/${LOCAL_SLUG}`)
 
-    await user.click(await screen.findByRole("button", { name: "Manage servers" }))
+    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
     const dialog = await screen.findByRole("dialog", { name: "Servers" })
     await user.click(within(dialog).getByRole("button", { name: /staging\.hena\.dev/ }))
 
@@ -398,7 +430,7 @@ describe("app routing (real routeTree, memory history)", () => {
       ),
     )
 
-    await user.click(await screen.findByRole("button", { name: "Manage servers" }))
+    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
     const dialog = await screen.findByRole("dialog", { name: "Servers" })
     const offline = within(dialog).getByRole("button", { name: /staging\.hena\.dev/ })
 
@@ -420,7 +452,7 @@ describe("app routing (real routeTree, memory history)", () => {
     const user = userEvent.setup()
     const router = renderApp(`/${LOCAL_SLUG}`)
 
-    await user.click(await screen.findByRole("button", { name: "Manage servers" }))
+    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
     await user.type(screen.getByLabelText("Add a mock server"), "box.example.com")
     await user.click(screen.getByRole("button", { name: "Add server" }))
 

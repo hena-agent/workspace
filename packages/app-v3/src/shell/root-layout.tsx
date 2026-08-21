@@ -3,10 +3,13 @@ import { Outlet, useNavigate, useParams } from "@tanstack/react-router"
 import { CommandPalette } from "@/features/command-palette/command-palette"
 import { useMockServers } from "@/features/server/mock-server-provider"
 import { ServerSelectionModal } from "@/features/server/server-selection-modal"
+import { decodeServerSlug } from "@/lib/server-url"
 import type { Project } from "@/lib/types"
 import { MOCK_NOW } from "@/mock/fixtures"
 import { getProject, getProjectNotificationState, listProjects, listServerCommands, listSessions } from "@/mock/queries"
 import { AppShell } from "./app-shell"
+
+const DRAFT_INSTANCE_ID = crypto.randomUUID()
 
 export function RootLayout() {
   const navigate = useNavigate()
@@ -93,7 +96,7 @@ export function RootLayout() {
             params: {
               connectionId: params.connectionId,
               projectId: params.projectId,
-              draftId: `draft-${draftSequence.current}`,
+              draftId: `draft-${DRAFT_INSTANCE_ID}-${draftSequence.current}`,
             },
           })
         },
@@ -107,9 +110,12 @@ export function RootLayout() {
       titlebarActions={
         <ServerSelectionModal
           current={connection}
-          onSelect={(server) =>
-            void navigate({ to: "/$connectionId", params: { connectionId: servers.getSlug(server) } })
-          }
+          pendingUrl={connection ? undefined : decodeServerSlug(params.connectionId ?? "")}
+          onSelect={(server) => {
+            const connectionId = servers.getSlug(server)
+            if (params.connectionId === connectionId) return
+            void navigate({ to: "/$connectionId", params: { connectionId } })
+          }}
         />
       }
     >

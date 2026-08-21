@@ -17,11 +17,34 @@ import type { Connection } from "@/lib/types"
 import { ConnectionStatusDot } from "@/shell/connection-status-dot"
 import { useMockServers } from "./mock-server-provider"
 
-export function ServerSelectionModal({ current, onSelect }: { current?: Connection; onSelect: (server: Connection) => void }) {
+export function ServerSelectionModal({
+  current,
+  pendingUrl,
+  onSelect,
+}: {
+  current?: Connection
+  pendingUrl?: string
+  onSelect: (server: Connection) => void
+}) {
   const servers = useMockServers()
   const [open, setOpen] = useState(false)
-  const [url, setUrl] = useState("")
+  const [url, setUrl] = useState(pendingUrl ?? "")
   const [error, setError] = useState("")
+  const status = servers.connections.some((server) => server.status === "offline")
+    ? "offline"
+    : servers.connections.some((server) => server.status === "connecting")
+      ? "connecting"
+      : servers.connections.length
+        ? "online"
+        : undefined
+
+  function changeOpen(next: boolean) {
+    if (next && pendingUrl) {
+      setUrl(pendingUrl)
+      setError("")
+    }
+    setOpen(next)
+  }
 
   function select(server: Connection) {
     onSelect(server)
@@ -41,12 +64,17 @@ export function ServerSelectionModal({ current, onSelect }: { current?: Connecti
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={changeOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon-sm" aria-label="Manage servers">
           <span className="relative">
             <ServerIcon />
-            {current ? <ConnectionStatusDot status={current.status} className="absolute -right-1 -bottom-1 size-1.5 ring-2 ring-background" /> : null}
+            {status ? (
+              <ConnectionStatusDot
+                status={status}
+                className="absolute -right-1 -bottom-1 size-1.5 ring-2 ring-background"
+              />
+            ) : null}
           </span>
         </Button>
       </DialogTrigger>

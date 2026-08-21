@@ -22,4 +22,13 @@ describe("server URL slugs", () => {
     expect(decodeServerSlug(encodeServerSlug("https://SERVER.example.com/"))).toBeUndefined()
     expect(normalizeServerUrl("https://user:secret@server.example.com")).toBeUndefined()
   })
+
+  test("rejects explicit non-HTTP schemes", () => {
+    expect(normalizeServerUrl("ftp://server.example.com")).toBeUndefined()
+    expect(normalizeServerUrl("ws://server.example.com")).toBeUndefined()
+    expect(normalizeServerUrl("file:///tmp/server.sock")).toBeUndefined()
+    expect(normalizeServerUrl("mailto:admin@server.example.com")).toBeUndefined()
+    expect(normalizeServerUrl("http:server.example.com")).toBeUndefined()
+    expect(normalizeServerUrl("localhost:4096")).toBe("https://localhost:4096")
+  })
 })

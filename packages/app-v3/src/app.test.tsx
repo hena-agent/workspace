@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event"
 import { ThemeProvider } from "@/components/theme-provider"
 import { MockServerProvider } from "@/features/server/mock-server-provider"
 import { encodeServerSlug } from "@/lib/server-url"
+import type { Connection } from "@/lib/types"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { act, render, screen, waitFor, within } from "@/test/test-utils"
 import { routeTree } from "./routeTree.gen"
@@ -27,11 +28,11 @@ afterEach(() => {
   document.documentElement.classList.remove("light", "dark")
 })
 
-function renderApp(initialPath: string) {
+function renderApp(initialPath: string, initialConnections?: Connection[]) {
   const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [initialPath] }) })
   render(
     <ThemeProvider>
-      <MockServerProvider>
+      <MockServerProvider initialConnections={initialConnections}>
         <RouterProvider router={router} />
       </MockServerProvider>
     </ThemeProvider>,
@@ -56,6 +57,21 @@ describe("app routing (real routeTree, memory history)", () => {
     expect(
       within(await screen.findByRole("navigation", { name: "Projects" })).getByRole("button", { name: /^hena(?:,|$)/ }),
     ).toHaveAttribute("aria-pressed", "true")
+  })
+
+  test("registering a server from a fresh profile resumes its deep link", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const initialPath = `/${LOCAL_SLUG}/proj-hena/session/sess-transcript`
+    const router = renderApp(initialPath, [])
+
+    expect(await screen.findByText("Session not found.")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Manage servers" }))
+    expect(screen.getByLabelText("Add a mock server")).toHaveValue("http://localhost:4096")
+    await user.click(screen.getByRole("button", { name: "Add server" }))
+
+    expect(router.state.location.pathname).toBe(initialPath)
+    expect(await screen.findByRole("heading", { name: "Wire the collection stream protocol" })).toBeInTheDocument()
   })
 
   test("navigating rail -> session list -> transcript updates the URL and content", async () => {
@@ -272,15 +288,16 @@ describe("app routing (real routeTree, memory history)", () => {
     expect(await screen.findByLabelText("Message")).toHaveValue("")
   })
 
-  test("changing the draft id clears route-owned draft state", async () => {
+  test("new draft ids do not collide with a deep-linked draft after reload", async () => {
     mockMatchMedia(true)
     const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}/proj-hena/new/draft-existing`)
+    const initialPath = `/${LOCAL_SLUG}/proj-hena/new/draft-1`
+    const router = renderApp(initialPath)
 
     await user.type(await screen.findByLabelText("Message"), "old draft")
     await user.click(screen.getByRole("button", { name: "New session" }))
 
-    expect(router.state.location.pathname).not.toBe(`/${LOCAL_SLUG}/proj-hena/new/draft-existing`)
+    expect(router.state.location.pathname).not.toBe(initialPath)
     expect(await screen.findByLabelText("Message")).toHaveValue("")
   })
 
@@ -355,6 +372,13 @@ describe("app routing (real routeTree, memory history)", () => {
     await user.click(within(dialog).getByRole("button", { name: /staging\.hena\.dev/ }))
 
     expect(router.state.location.pathname).toBe(`/${STAGING_SLUG}`)
+  })
+
+  test("the titlebar reports the worst registered server status", async () => {
+    mockMatchMedia(true)
+    renderApp(`/${LOCAL_SLUG}`)
+
+    expect(await screen.findByTitle("Connecting")).toBeInTheDocument()
   })
 
   test("adding a mock server routes to its URL slug", async () => {

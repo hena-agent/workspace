@@ -17,12 +17,15 @@ function Harness({ initial }: { initial: ServerSettingsSection }) {
       mcpServers={mcpServers}
       connections={connections}
       onRemoveConnection={() => {}}
+      storage={{ usedMib: 12, budgetMib: 50 }}
+      onClearCache={() => {}}
+      onRemoveAllData={() => {}}
     />
   )
 }
 
 describe("ServerSettingsView", () => {
-  test("switches between providers, models, MCP, and server connections", async () => {
+  test("switches between server-owned sections", async () => {
     const user = userEvent.setup()
     render(<Harness initial="providers" />)
 
@@ -36,5 +39,8 @@ describe("ServerSettingsView", () => {
 
     await user.click(screen.getByRole("button", { name: "Server connections" }))
     expect(screen.getByText(connections[0].name)).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Storage" }))
+    expect(screen.getByText("12 MiB of 50 MiB")).toBeInTheDocument()
   })
 })

@@ -5,7 +5,6 @@ import { KeybindingsSection } from "./keybindings-section"
 import { NotificationsSection, type NotificationPreferences } from "./notifications-section"
 import { PROFILE_SETTINGS_SECTIONS, type ProfileSettingsSection } from "./profile-settings-sections"
 import { SettingsNav } from "./settings-nav"
-import { StorageSection } from "./storage-section"
 
 export type { ProfileSettingsSection } from "./profile-settings-sections"
 
@@ -22,9 +21,6 @@ export function ProfileSettingsView({
   onChangeReducedMotion,
   notifications,
   onChangeNotifications,
-  storage,
-  onClearCache,
-  onRemoveAllData,
 }: {
   section: ProfileSettingsSection
   onSelectSection: (section: ProfileSettingsSection) => void
@@ -38,9 +34,6 @@ export function ProfileSettingsView({
   onChangeReducedMotion: (value: boolean) => void
   notifications: NotificationPreferences
   onChangeNotifications: (next: NotificationPreferences) => void
-  storage: { usedMib: number; budgetMib: number }
-  onClearCache: () => void
-  onRemoveAllData: () => void
 }) {
   const content = (() => {
     switch (section) {
@@ -66,15 +59,6 @@ export function ProfileSettingsView({
         return <NotificationsSection preferences={notifications} onChange={onChangeNotifications} />
       case "keybindings":
         return <KeybindingsSection />
-      case "storage":
-        return (
-          <StorageSection
-            usedMib={storage.usedMib}
-            budgetMib={storage.budgetMib}
-            onClearCache={onClearCache}
-            onRemoveAllData={onRemoveAllData}
-          />
-        )
       default:
         section satisfies never
         return null

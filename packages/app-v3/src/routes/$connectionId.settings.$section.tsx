@@ -70,9 +70,6 @@ function SettingsRoute() {
         onChangeReducedMotion={setReducedMotion}
         notifications={notifications}
         onChangeNotifications={setNotifications}
-        storage={{ usedMib: 18, budgetMib: 50 }}
-        onClearCache={() => {}}
-        onRemoveAllData={() => {}}
       />
     )
   }
@@ -98,6 +95,12 @@ function SettingsRoute() {
       mcpServers={listMcpServers()}
       connections={servers.connections}
       onRemoveConnection={() => {}}
+      storage={{
+        usedMib: server.id === "conn-local" ? 18 : server.id === "conn-staging" ? 7 : 0,
+        budgetMib: 50,
+      }}
+      onClearCache={() => {}}
+      onRemoveAllData={() => {}}
     />
   )
 }

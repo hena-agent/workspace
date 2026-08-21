@@ -36,7 +36,7 @@ export function StorageSection({
           Clear
         </Button>
       </SettingsRow>
-      <SettingsRow label="Remove all local data" description="Signs out every connection on this device.">
+      <SettingsRow label="Remove all local data" description="Signs out this server and removes its local data.">
         <Button variant="destructive" size="sm" onClick={onRemoveAllData} className="hit-area">
           Remove
         </Button>

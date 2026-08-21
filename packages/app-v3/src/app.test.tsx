@@ -93,6 +93,16 @@ describe("app routing (real routeTree, memory history)", () => {
     expect(screen.getByRole("button", { name: "Manage servers. Current server: Local" })).toHaveTextContent("Local")
   })
 
+  test("an embedded path prefix remains part of the server identity", async () => {
+    mockMatchMedia(true)
+    const origin = "https://server.example.com"
+    const serverUrl = `${origin}/hena`
+    const router = renderApp("/", [], origin, serverUrl)
+
+    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/${encodeServerSlug(serverUrl)}`)
+  })
+
   test("an empty hosted profile redirects to the connect route", async () => {
     mockMatchMedia(true)
     const router = renderApp("/", [], "https://app.hena.dev")

@@ -31,7 +31,7 @@ export function MockServerProvider({
       isServerUrlAllowed(connection.url, pageOrigin) ? [{ ...connection }] : [],
     )
     const ownUrl = embeddedOrigin ? normalizeServerUrl(embeddedOrigin) : undefined
-    if (!ownUrl || ownUrl !== profileOrigin || !isServerUrlAllowed(ownUrl, pageOrigin)) return seeded
+    if (!ownUrl || new URL(ownUrl).origin !== profileOrigin || !isServerUrlAllowed(ownUrl, pageOrigin)) return seeded
 
     const ownServer =
       seeded.find((connection) => connection.url === ownUrl) ?? createMockConnection(ownUrl)

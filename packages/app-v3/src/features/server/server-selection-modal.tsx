@@ -92,6 +92,7 @@ export function ServerSelectionModal({
               variant="ghost"
               className="h-auto w-full justify-start px-2 py-2.5"
               aria-pressed={server.id === current?.id}
+              disabled={server.status === "offline"}
               onClick={() => select(server)}
             >
               <ConnectionStatusDot status={server.status} />

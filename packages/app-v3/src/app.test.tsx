@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { MockServerProvider } from "@/features/server/mock-server-provider"
 import { encodeServerSlug } from "@/lib/server-url"
 import type { Connection } from "@/lib/types"
+import { connections } from "@/mock/fixtures"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { act, render, screen, waitFor, within } from "@/test/test-utils"
 import { routeTree } from "./routeTree.gen"
@@ -385,6 +386,26 @@ describe("app routing (real routeTree, memory history)", () => {
     await user.click(within(dialog).getByRole("button", { name: /staging\.hena\.dev/ }))
 
     expect(router.state.location.pathname).toBe(`/${STAGING_SLUG}`)
+  })
+
+  test("offline servers remain visible but cannot be selected", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const router = renderApp(
+      `/${LOCAL_SLUG}`,
+      connections.map((connection) =>
+        connection.id === "conn-staging" ? { ...connection, status: "offline" } : connection,
+      ),
+    )
+
+    await user.click(await screen.findByRole("button", { name: "Manage servers" }))
+    const dialog = await screen.findByRole("dialog", { name: "Servers" })
+    const offline = within(dialog).getByRole("button", { name: /staging\.hena\.dev/ })
+
+    expect(offline).toBeDisabled()
+    await user.click(offline)
+    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
+    expect(dialog).toBeInTheDocument()
   })
 
   test("the titlebar reports the worst registered server status", async () => {

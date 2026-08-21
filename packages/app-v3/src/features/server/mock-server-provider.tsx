@@ -18,20 +18,23 @@ export function MockServerProvider({
   children,
   initialConnections = connections,
   pageOrigin = window.location.origin,
+  embeddedOrigin,
 }: {
   children: ReactNode
   initialConnections?: Connection[]
   pageOrigin?: string
+  embeddedOrigin?: string
 }) {
   const profileOrigin = new URL(pageOrigin).origin
   const [servers, setServers] = useState(() => {
     const seeded = initialConnections.flatMap((connection) =>
       isServerUrlAllowed(connection.url, pageOrigin) ? [{ ...connection }] : [],
     )
-    if (new URL(profileOrigin).protocol !== "http:") return seeded
+    const ownUrl = embeddedOrigin ? normalizeServerUrl(embeddedOrigin) : undefined
+    if (!ownUrl || ownUrl !== profileOrigin || !isServerUrlAllowed(ownUrl, pageOrigin)) return seeded
 
     const ownServer =
-      seeded.find((connection) => connection.url === profileOrigin) ?? createMockConnection(profileOrigin)
+      seeded.find((connection) => connection.url === ownUrl) ?? createMockConnection(ownUrl)
     return [ownServer, ...seeded.filter((connection) => connection.id !== ownServer.id)]
   })
 

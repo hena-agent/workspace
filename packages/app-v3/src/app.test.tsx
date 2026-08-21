@@ -33,11 +33,16 @@ function renderApp(
   initialPath: string,
   initialConnections?: Connection[],
   pageOrigin = "http://localhost:4096",
+  embeddedOrigin?: string,
 ) {
   const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [initialPath] }) })
   render(
     <ThemeProvider>
-      <MockServerProvider initialConnections={initialConnections} pageOrigin={pageOrigin}>
+      <MockServerProvider
+        initialConnections={initialConnections}
+        pageOrigin={pageOrigin}
+        embeddedOrigin={embeddedOrigin}
+      >
         <RouterProvider router={router} />
       </MockServerProvider>
     </ThemeProvider>,
@@ -70,13 +75,22 @@ describe("app routing (real routeTree, memory history)", () => {
   test("an embedded HTTP origin is the first seeded server", async () => {
     mockMatchMedia(true)
     const origin = "http://server.local:4096"
-    const router = renderApp("/", undefined, origin)
+    const router = renderApp("/", undefined, origin, origin)
 
     expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(`/${encodeServerSlug(origin)}`)
     expect(screen.getByRole("button", { name: "Manage servers. Current server: server.local:4096" })).toHaveTextContent(
       "server.local:4096",
     )
+  })
+
+  test("the Vite development origin is not seeded as a server", async () => {
+    mockMatchMedia(true)
+    const router = renderApp("/", undefined, "http://localhost:5173")
+
+    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
+    expect(screen.getByRole("button", { name: "Manage servers. Current server: Local" })).toHaveTextContent("Local")
   })
 
   test("an empty hosted profile redirects to the connect route", async () => {

@@ -12,7 +12,9 @@ const router = createAppRouter()
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
-      <MockServerProvider>
+      <MockServerProvider
+        embeddedOrigin={import.meta.env.VITE_HENA_EMBEDDED === "true" ? window.location.origin : undefined}
+      >
         <RouterProvider router={router} />
       </MockServerProvider>
     </ThemeProvider>

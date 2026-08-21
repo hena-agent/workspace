@@ -10,11 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as SettingsIndexRouteImport } from './routes/settings.index'
-import { Route as SettingsSectionRouteImport } from './routes/settings.$section'
+import { Route as ConnectionIdIndexRouteImport } from './routes/$connectionId.index'
+import { Route as ConnectionIdSettingsRouteImport } from './routes/$connectionId.settings'
 import { Route as ConnectionIdProjectIdIndexRouteImport } from './routes/$connectionId.$projectId.index'
-import { Route as SettingsConnectionIdSectionRouteImport } from './routes/settings.$connectionId.$section'
+import { Route as ConnectionIdSettingsIndexRouteImport } from './routes/$connectionId.settings.index'
+import { Route as ConnectionIdSettingsSectionRouteImport } from './routes/$connectionId.settings.$section'
 import { Route as ConnectionIdProjectIdNewDraftIdRouteImport } from './routes/$connectionId.$projectId.new.$draftId'
 import { Route as ConnectionIdProjectIdSessionSessionIdIndexRouteImport } from './routes/$connectionId.$projectId.session.$sessionId.index'
 import { Route as ConnectionIdProjectIdSessionSessionIdFilesRouteImport } from './routes/$connectionId.$projectId.session.$sessionId.files'
@@ -25,20 +25,15 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const ConnectionIdIndexRoute = ConnectionIdIndexRouteImport.update({
+  id: '/$connectionId/',
+  path: '/$connectionId/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsIndexRoute = SettingsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => SettingsRoute,
-} as any)
-const SettingsSectionRoute = SettingsSectionRouteImport.update({
-  id: '/$section',
-  path: '/$section',
-  getParentRoute: () => SettingsRoute,
+const ConnectionIdSettingsRoute = ConnectionIdSettingsRouteImport.update({
+  id: '/$connectionId/settings',
+  path: '/$connectionId/settings',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ConnectionIdProjectIdIndexRoute =
   ConnectionIdProjectIdIndexRouteImport.update({
@@ -46,11 +41,17 @@ const ConnectionIdProjectIdIndexRoute =
     path: '/$connectionId/$projectId/',
     getParentRoute: () => rootRouteImport,
   } as any)
-const SettingsConnectionIdSectionRoute =
-  SettingsConnectionIdSectionRouteImport.update({
-    id: '/$connectionId/$section',
-    path: '/$connectionId/$section',
-    getParentRoute: () => SettingsRoute,
+const ConnectionIdSettingsIndexRoute =
+  ConnectionIdSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => ConnectionIdSettingsRoute,
+  } as any)
+const ConnectionIdSettingsSectionRoute =
+  ConnectionIdSettingsSectionRouteImport.update({
+    id: '/$section',
+    path: '/$section',
+    getParentRoute: () => ConnectionIdSettingsRoute,
   } as any)
 const ConnectionIdProjectIdNewDraftIdRoute =
   ConnectionIdProjectIdNewDraftIdRouteImport.update({
@@ -79,11 +80,11 @@ const ConnectionIdProjectIdSessionSessionIdReviewRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/settings': typeof SettingsRouteWithChildren
-  '/settings/$section': typeof SettingsSectionRoute
-  '/settings/': typeof SettingsIndexRoute
-  '/settings/$connectionId/$section': typeof SettingsConnectionIdSectionRoute
+  '/$connectionId/settings': typeof ConnectionIdSettingsRouteWithChildren
+  '/$connectionId/': typeof ConnectionIdIndexRoute
+  '/$connectionId/settings/$section': typeof ConnectionIdSettingsSectionRoute
   '/$connectionId/$projectId/': typeof ConnectionIdProjectIdIndexRoute
+  '/$connectionId/settings/': typeof ConnectionIdSettingsIndexRoute
   '/$connectionId/$projectId/new/$draftId': typeof ConnectionIdProjectIdNewDraftIdRoute
   '/$connectionId/$projectId/session/$sessionId/files': typeof ConnectionIdProjectIdSessionSessionIdFilesRoute
   '/$connectionId/$projectId/session/$sessionId/review': typeof ConnectionIdProjectIdSessionSessionIdReviewRoute
@@ -91,10 +92,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/settings/$section': typeof SettingsSectionRoute
-  '/settings': typeof SettingsIndexRoute
-  '/settings/$connectionId/$section': typeof SettingsConnectionIdSectionRoute
+  '/$connectionId': typeof ConnectionIdIndexRoute
+  '/$connectionId/settings/$section': typeof ConnectionIdSettingsSectionRoute
   '/$connectionId/$projectId': typeof ConnectionIdProjectIdIndexRoute
+  '/$connectionId/settings': typeof ConnectionIdSettingsIndexRoute
   '/$connectionId/$projectId/new/$draftId': typeof ConnectionIdProjectIdNewDraftIdRoute
   '/$connectionId/$projectId/session/$sessionId/files': typeof ConnectionIdProjectIdSessionSessionIdFilesRoute
   '/$connectionId/$projectId/session/$sessionId/review': typeof ConnectionIdProjectIdSessionSessionIdReviewRoute
@@ -103,11 +104,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/settings': typeof SettingsRouteWithChildren
-  '/settings/$section': typeof SettingsSectionRoute
-  '/settings/': typeof SettingsIndexRoute
-  '/settings/$connectionId/$section': typeof SettingsConnectionIdSectionRoute
+  '/$connectionId/settings': typeof ConnectionIdSettingsRouteWithChildren
+  '/$connectionId/': typeof ConnectionIdIndexRoute
+  '/$connectionId/settings/$section': typeof ConnectionIdSettingsSectionRoute
   '/$connectionId/$projectId/': typeof ConnectionIdProjectIdIndexRoute
+  '/$connectionId/settings/': typeof ConnectionIdSettingsIndexRoute
   '/$connectionId/$projectId/new/$draftId': typeof ConnectionIdProjectIdNewDraftIdRoute
   '/$connectionId/$projectId/session/$sessionId/files': typeof ConnectionIdProjectIdSessionSessionIdFilesRoute
   '/$connectionId/$projectId/session/$sessionId/review': typeof ConnectionIdProjectIdSessionSessionIdReviewRoute
@@ -117,11 +118,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/settings'
-    | '/settings/$section'
-    | '/settings/'
-    | '/settings/$connectionId/$section'
+    | '/$connectionId/settings'
+    | '/$connectionId/'
+    | '/$connectionId/settings/$section'
     | '/$connectionId/$projectId/'
+    | '/$connectionId/settings/'
     | '/$connectionId/$projectId/new/$draftId'
     | '/$connectionId/$projectId/session/$sessionId/files'
     | '/$connectionId/$projectId/session/$sessionId/review'
@@ -129,10 +130,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/settings/$section'
-    | '/settings'
-    | '/settings/$connectionId/$section'
+    | '/$connectionId'
+    | '/$connectionId/settings/$section'
     | '/$connectionId/$projectId'
+    | '/$connectionId/settings'
     | '/$connectionId/$projectId/new/$draftId'
     | '/$connectionId/$projectId/session/$sessionId/files'
     | '/$connectionId/$projectId/session/$sessionId/review'
@@ -140,11 +141,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/settings'
-    | '/settings/$section'
-    | '/settings/'
-    | '/settings/$connectionId/$section'
+    | '/$connectionId/settings'
+    | '/$connectionId/'
+    | '/$connectionId/settings/$section'
     | '/$connectionId/$projectId/'
+    | '/$connectionId/settings/'
     | '/$connectionId/$projectId/new/$draftId'
     | '/$connectionId/$projectId/session/$sessionId/files'
     | '/$connectionId/$projectId/session/$sessionId/review'
@@ -153,7 +154,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  SettingsRoute: typeof SettingsRouteWithChildren
+  ConnectionIdSettingsRoute: typeof ConnectionIdSettingsRouteWithChildren
+  ConnectionIdIndexRoute: typeof ConnectionIdIndexRoute
   ConnectionIdProjectIdIndexRoute: typeof ConnectionIdProjectIdIndexRoute
   ConnectionIdProjectIdNewDraftIdRoute: typeof ConnectionIdProjectIdNewDraftIdRoute
   ConnectionIdProjectIdSessionSessionIdFilesRoute: typeof ConnectionIdProjectIdSessionSessionIdFilesRoute
@@ -170,26 +172,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+    '/$connectionId/': {
+      id: '/$connectionId/'
+      path: '/$connectionId'
+      fullPath: '/$connectionId/'
+      preLoaderRoute: typeof ConnectionIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/': {
-      id: '/settings/'
-      path: '/'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof SettingsIndexRouteImport
-      parentRoute: typeof SettingsRoute
-    }
-    '/settings/$section': {
-      id: '/settings/$section'
-      path: '/$section'
-      fullPath: '/settings/$section'
-      preLoaderRoute: typeof SettingsSectionRouteImport
-      parentRoute: typeof SettingsRoute
+    '/$connectionId/settings': {
+      id: '/$connectionId/settings'
+      path: '/$connectionId/settings'
+      fullPath: '/$connectionId/settings'
+      preLoaderRoute: typeof ConnectionIdSettingsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/$connectionId/$projectId/': {
       id: '/$connectionId/$projectId/'
@@ -198,12 +193,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectionIdProjectIdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/settings/$connectionId/$section': {
-      id: '/settings/$connectionId/$section'
-      path: '/$connectionId/$section'
-      fullPath: '/settings/$connectionId/$section'
-      preLoaderRoute: typeof SettingsConnectionIdSectionRouteImport
-      parentRoute: typeof SettingsRoute
+    '/$connectionId/settings/': {
+      id: '/$connectionId/settings/'
+      path: '/'
+      fullPath: '/$connectionId/settings/'
+      preLoaderRoute: typeof ConnectionIdSettingsIndexRouteImport
+      parentRoute: typeof ConnectionIdSettingsRoute
+    }
+    '/$connectionId/settings/$section': {
+      id: '/$connectionId/settings/$section'
+      path: '/$section'
+      fullPath: '/$connectionId/settings/$section'
+      preLoaderRoute: typeof ConnectionIdSettingsSectionRouteImport
+      parentRoute: typeof ConnectionIdSettingsRoute
     }
     '/$connectionId/$projectId/new/$draftId': {
       id: '/$connectionId/$projectId/new/$draftId'
@@ -236,25 +238,23 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface SettingsRouteChildren {
-  SettingsSectionRoute: typeof SettingsSectionRoute
-  SettingsIndexRoute: typeof SettingsIndexRoute
-  SettingsConnectionIdSectionRoute: typeof SettingsConnectionIdSectionRoute
+interface ConnectionIdSettingsRouteChildren {
+  ConnectionIdSettingsSectionRoute: typeof ConnectionIdSettingsSectionRoute
+  ConnectionIdSettingsIndexRoute: typeof ConnectionIdSettingsIndexRoute
 }
 
-const SettingsRouteChildren: SettingsRouteChildren = {
-  SettingsSectionRoute: SettingsSectionRoute,
-  SettingsIndexRoute: SettingsIndexRoute,
-  SettingsConnectionIdSectionRoute: SettingsConnectionIdSectionRoute,
+const ConnectionIdSettingsRouteChildren: ConnectionIdSettingsRouteChildren = {
+  ConnectionIdSettingsSectionRoute: ConnectionIdSettingsSectionRoute,
+  ConnectionIdSettingsIndexRoute: ConnectionIdSettingsIndexRoute,
 }
 
-const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
-  SettingsRouteChildren,
-)
+const ConnectionIdSettingsRouteWithChildren =
+  ConnectionIdSettingsRoute._addFileChildren(ConnectionIdSettingsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  SettingsRoute: SettingsRouteWithChildren,
+  ConnectionIdSettingsRoute: ConnectionIdSettingsRouteWithChildren,
+  ConnectionIdIndexRoute: ConnectionIdIndexRoute,
   ConnectionIdProjectIdIndexRoute: ConnectionIdProjectIdIndexRoute,
   ConnectionIdProjectIdNewDraftIdRoute: ConnectionIdProjectIdNewDraftIdRoute,
   ConnectionIdProjectIdSessionSessionIdFilesRoute:

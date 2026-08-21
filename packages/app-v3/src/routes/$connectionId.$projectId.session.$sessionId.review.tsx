@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { ReviewView } from "@/features/review/review-view"
+import { useMockServers } from "@/features/server/mock-server-provider"
 import { getSession, listDiffFiles } from "@/mock/queries"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/review")({
@@ -14,8 +15,9 @@ function ReviewRoute() {
   const { connectionId, projectId, sessionId } = Route.useParams()
   const { file } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
+  const server = useMockServers().getServerBySlug(connectionId)
 
-  if (!getSession({ id: sessionId, connectionId, projectId })) {
+  if (!server || !getSession({ id: sessionId, connectionId: server.id, projectId })) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Session not found.</div>
     )
@@ -23,7 +25,7 @@ function ReviewRoute() {
 
   return (
     <ReviewView
-      files={listDiffFiles({ sessionId, connectionId, projectId })}
+      files={listDiffFiles({ sessionId, connectionId: server.id, projectId })}
       activePath={file}
       onSelectFile={(path) => void navigate({ search: { file: path } })}
     />

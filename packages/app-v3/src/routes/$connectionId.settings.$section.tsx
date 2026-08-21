@@ -1,0 +1,103 @@
+import { useEffect, useState } from "react"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { useTheme } from "@/components/theme-provider"
+import type { FontSizePreference } from "@/features/settings/appearance-section"
+import type { DensityPreference } from "@/features/settings/general-section"
+import type { NotificationPreferences } from "@/features/settings/notifications-section"
+import { ProfileSettingsView } from "@/features/settings/profile-settings-view"
+import { PROFILE_SETTINGS_SECTION_VALUES } from "@/features/settings/profile-settings-sections"
+import { ServerSettingsView } from "@/features/settings/server-settings-view"
+import { SERVER_SETTINGS_SECTION_VALUES } from "@/features/settings/server-settings-sections"
+import { useMockServers } from "@/features/server/mock-server-provider"
+import { isOneOf } from "@/lib/utils"
+import { listMcpServers, listModels, listProviders } from "@/mock/queries"
+
+export const Route = createFileRoute("/$connectionId/settings/$section")({
+  component: SettingsRoute,
+  remountDeps: ({ params }) => params.connectionId,
+})
+
+function SettingsRoute() {
+  const { connectionId, section } = Route.useParams()
+  const navigate = useNavigate()
+  const servers = useMockServers()
+  const server = servers.getServerBySlug(connectionId)
+  const { theme, setTheme } = useTheme()
+  const [density, setDensity] = useState<DensityPreference>(() => {
+    const stored = localStorage.getItem("density")
+    if (stored === "comfortable" || stored === "compact") return stored
+    return window.matchMedia("(any-pointer: fine)").matches ? "compact" : "comfortable"
+  })
+  const [fontSize, setFontSize] = useState<FontSizePreference>(() => {
+    const stored = localStorage.getItem("font-size")
+    return stored === "small" || stored === "large" ? stored : "medium"
+  })
+  const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem("reduced-motion") === "true")
+  const [notifications, setNotifications] = useState<NotificationPreferences>({ sound: true, desktop: false })
+  const [providers, setProviders] = useState(() => listProviders())
+
+  useEffect(() => {
+    document.documentElement.dataset.density = density
+    document.documentElement.dataset.fontSize = fontSize
+    document.documentElement.dataset.reducedMotion = String(reducedMotion)
+    localStorage.setItem("density", density)
+    localStorage.setItem("font-size", fontSize)
+    localStorage.setItem("reduced-motion", String(reducedMotion))
+  }, [density, fontSize, reducedMotion])
+
+  if (!server) {
+    return <div className="flex size-full items-center justify-center text-sm text-muted-foreground">Connection not found.</div>
+  }
+
+  if (isOneOf(PROFILE_SETTINGS_SECTION_VALUES, section)) {
+    return (
+      <ProfileSettingsView
+        section={section}
+        onSelectSection={(next) =>
+          void navigate({
+            to: "/$connectionId/settings/$section",
+            params: { connectionId, section: next },
+            replace: true,
+          })
+        }
+        theme={theme}
+        onChangeTheme={setTheme}
+        density={density}
+        onChangeDensity={setDensity}
+        fontSize={fontSize}
+        onChangeFontSize={setFontSize}
+        reducedMotion={reducedMotion}
+        onChangeReducedMotion={setReducedMotion}
+        notifications={notifications}
+        onChangeNotifications={setNotifications}
+        storage={{ usedMib: 18, budgetMib: 50 }}
+        onClearCache={() => {}}
+        onRemoveAllData={() => {}}
+      />
+    )
+  }
+
+  const serverSection = isOneOf(SERVER_SETTINGS_SECTION_VALUES, section) ? section : "providers"
+  return (
+    <ServerSettingsView
+      section={serverSection}
+      onSelectSection={(next) =>
+        void navigate({
+          to: "/$connectionId/settings/$section",
+          params: { connectionId, section: next },
+          replace: true,
+        })
+      }
+      providers={providers}
+      onToggleProviderConnection={(id) =>
+        setProviders((current) =>
+          current.map((provider) => (provider.id === id ? { ...provider, connected: !provider.connected } : provider)),
+        )
+      }
+      models={listModels()}
+      mcpServers={listMcpServers()}
+      connections={servers.connections}
+      onRemoveConnection={() => {}}
+    />
+  )
+}

@@ -1,11 +1,15 @@
 import { useState } from "react"
 import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
+import { isOneOf } from "@/lib/utils"
 import { render, screen } from "@/test/test-utils"
+import { PROFILE_SETTINGS_SECTION_VALUES } from "./profile-settings-sections"
 import { ProfileSettingsView, type ProfileSettingsSection } from "./profile-settings-view"
+import type { SettingsSection } from "./settings-sections"
 
 function Harness({ initial }: { initial: ProfileSettingsSection }) {
-  const [section, setSection] = useState<ProfileSettingsSection>(initial)
+  const [section, setSection] = useState<SettingsSection>(initial)
+  if (!isOneOf(PROFILE_SETTINGS_SECTION_VALUES, section)) return null
   return (
     <ProfileSettingsView
       section={section}

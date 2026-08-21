@@ -408,6 +408,20 @@ describe("app routing (real routeTree, memory history)", () => {
     expect(screen.queryByText("18 MiB of 50 MiB")).not.toBeInTheDocument()
   })
 
+  test("settings navigation crosses profile and server ownership", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const router = renderApp(`/${LOCAL_SLUG}/settings/general`)
+
+    await user.click(await screen.findByRole("button", { name: "Storage" }))
+    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/settings/storage`)
+    expect(await screen.findByText("18 MiB of 50 MiB")).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "General" }))
+    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/settings/general`)
+    expect(await screen.findByLabelText("Theme")).toBeInTheDocument()
+  })
+
   test("selecting a server updates the URL slug", async () => {
     mockMatchMedia(true)
     const user = userEvent.setup()
@@ -478,6 +492,25 @@ describe("app routing (real routeTree, memory history)", () => {
     await user.click(offline)
     expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
     expect(dialog).toBeInTheDocument()
+  })
+
+  test("offline servers cannot be selected through the add form", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const router = renderApp(
+      `/${LOCAL_SLUG}`,
+      connections.map((connection) =>
+        connection.id === "conn-staging" ? { ...connection, status: "offline" } : connection,
+      ),
+    )
+
+    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
+    await user.type(screen.getByLabelText("Add a mock server"), "https://staging.hena.dev")
+    await user.click(screen.getByRole("button", { name: "Add server" }))
+
+    expect(screen.getByText("This server is offline and available only for diagnostics.")).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
+    expect(screen.getByRole("dialog", { name: "Servers" })).toBeInTheDocument()
   })
 
   test("the titlebar reports the worst registered server status", async () => {

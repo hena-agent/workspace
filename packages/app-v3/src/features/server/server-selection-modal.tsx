@@ -60,6 +60,10 @@ export function ServerSelectionModal({
       setError("Enter an HTTP or HTTPS server URL allowed from this origin.")
       return
     }
+    if (server.status === "offline") {
+      setError("This server is offline and available only for diagnostics.")
+      return
+    }
     setUrl("")
     setError("")
     select(server)

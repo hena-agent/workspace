@@ -1,14 +1,16 @@
 import { Button } from "@/components/ui/button"
 import { formatRelativeTime } from "@/lib/time"
-import type { Project } from "@/lib/types"
+import type { Connection, Project } from "@/lib/types"
 import { LegacyIcon } from "@/shell/legacy-icon"
 
 export function LegacyHomeView({
+  connection,
   projects,
   now,
   onOpenProject,
   onAddProject,
 }: {
+  connection: Connection
   projects: Project[]
   now: number
   onOpenProject: (project: Project) => void
@@ -23,7 +25,7 @@ export function LegacyHomeView({
           className="mx-auto mt-4 h-8 hit-area text-[14px] font-normal text-[var(--legacy-text-weak)]"
         >
           <span className="size-2 rounded-full bg-[var(--legacy-border-weak)]" />
-          Local
+          {connection.name}
         </Button>
         <div className="mt-20 flex w-full flex-col gap-4">
           <div className="flex items-center justify-between gap-2 pl-3">

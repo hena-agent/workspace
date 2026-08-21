@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { ProjectOverviewView } from "@/features/project/project-overview-view"
+import { useMockServers } from "@/features/server/mock-server-provider"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { getProject, listSessions } from "@/mock/queries"
 import { SessionList } from "@/shell/session-list"
@@ -15,7 +16,8 @@ function ProjectOverviewRoute() {
   const { connectionId, projectId } = Route.useParams()
   const navigate = useNavigate()
   const isDesktop = useMediaQuery(DESKTOP_QUERY)
-  const project = getProject({ id: projectId, connectionId })
+  const server = useMockServers().getServerBySlug(connectionId)
+  const project = server ? getProject({ id: projectId, connectionId: server.id }) : undefined
 
   if (!project) {
     return <div className="flex h-full w-full items-center justify-center">Project not found.</div>
@@ -44,7 +46,7 @@ function ProjectOverviewRoute() {
         </Button>
       </div>
       <SessionList
-        sessions={listSessions({ projectId, connectionId })}
+        sessions={listSessions({ projectId, connectionId: project.connectionId })}
         autoFocusSessionId={
           typeof window.history.state?.henaFocusSessionId === "string"
             ? window.history.state.henaFocusSessionId

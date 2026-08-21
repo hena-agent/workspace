@@ -2,9 +2,10 @@ import type { Connection, McpServer, Model, Provider } from "@/lib/types"
 import { McpSection } from "./mcp-section"
 import { ModelsSection } from "./models-section"
 import { ProvidersSection } from "./providers-section"
-import { SERVER_SETTINGS_SECTIONS, type ServerSettingsSection } from "./server-settings-sections"
+import type { ServerSettingsSection } from "./server-settings-sections"
 import { ServersSection } from "./servers-section"
 import { SettingsNav } from "./settings-nav"
+import { SETTINGS_SECTIONS, type SettingsSection } from "./settings-sections"
 import { StorageSection } from "./storage-section"
 
 export type { ServerSettingsSection } from "./server-settings-sections"
@@ -23,7 +24,7 @@ export function ServerSettingsView({
   onRemoveAllData,
 }: {
   section: ServerSettingsSection
-  onSelectSection: (section: ServerSettingsSection) => void
+  onSelectSection: (section: SettingsSection) => void
   providers: Provider[]
   onToggleProviderConnection: (providerId: string) => void
   models: Model[]
@@ -61,7 +62,7 @@ export function ServerSettingsView({
 
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4 md:flex-row md:p-6">
-      <SettingsNav sections={SERVER_SETTINGS_SECTIONS} active={section} onSelect={onSelectSection} />
+      <SettingsNav sections={SETTINGS_SECTIONS} active={section} onSelect={onSelectSection} />
       <div className="min-w-0 flex-1">{content}</div>
     </div>
   )

@@ -1,12 +1,16 @@
 import { useState } from "react"
 import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
+import { isOneOf } from "@/lib/utils"
 import { render, screen } from "@/test/test-utils"
+import { SERVER_SETTINGS_SECTION_VALUES } from "./server-settings-sections"
 import { ServerSettingsView, type ServerSettingsSection } from "./server-settings-view"
+import type { SettingsSection } from "./settings-sections"
 import { connections, mcpServers, models, providers } from "@/mock/fixtures"
 
 function Harness({ initial }: { initial: ServerSettingsSection }) {
-  const [section, setSection] = useState<ServerSettingsSection>(initial)
+  const [section, setSection] = useState<SettingsSection>(initial)
+  if (!isOneOf(SERVER_SETTINGS_SECTION_VALUES, section)) return null
   return (
     <ServerSettingsView
       section={section}

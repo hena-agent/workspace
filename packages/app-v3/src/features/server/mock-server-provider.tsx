@@ -1,7 +1,7 @@
 import { createContext, use, useState, type ReactNode } from "react"
 import type { Connection } from "@/lib/types"
-import { encodeServerSlug, normalizeServerUrl } from "@/lib/server-url"
-import { connections as initialConnections } from "@/mock/fixtures"
+import { decodeServerSlug, encodeServerSlug, normalizeServerUrl } from "@/lib/server-url"
+import { connections } from "@/mock/fixtures"
 
 const MockServerContext = createContext<
   | {
@@ -13,35 +13,46 @@ const MockServerContext = createContext<
   | undefined
 >(undefined)
 
-export function MockServerProvider({ children }: { children: ReactNode }) {
-  const [connections, setConnections] = useState(() => initialConnections.map((connection) => ({ ...connection })))
+export function MockServerProvider({
+  children,
+  initialConnections = connections,
+}: {
+  children: ReactNode
+  initialConnections?: Connection[]
+}) {
+  const [servers, setServers] = useState(() => initialConnections.map((connection) => ({ ...connection })))
 
   function addServer(input: string) {
     const url = normalizeServerUrl(input)
     if (!url) return
 
-    const existing = connections.find((connection) => connection.url === url)
+    const existing = servers.find((connection) => connection.url === url)
     if (existing) return existing
 
-    const connection: Connection = {
-      id: `conn-${encodeServerSlug(url)}`,
-      name: new URL(url).host,
-      url,
-      status: "online",
-    }
-    setConnections((current) => [...current, connection])
+    const known = connections.find((connection) => connection.url === url)
+    const connection: Connection = known
+      ? { ...known }
+      : {
+          id: `conn-${encodeServerSlug(url)}`,
+          name: new URL(url).host,
+          url,
+          status: "online",
+        }
+    setServers((current) => [...current, connection])
     return connection
   }
 
   function getServerBySlug(slug: string | undefined) {
     if (!slug) return
-    return connections.find((connection) => encodeServerSlug(connection.url) === slug)
+    const url = decodeServerSlug(slug)
+    if (!url) return
+    return servers.find((connection) => connection.url === url)
   }
 
   return (
     <MockServerContext
       value={{
-        connections,
+        connections: servers,
         addServer,
         getServerBySlug,
         getSlug: (connection) => encodeServerSlug(connection.url),

@@ -812,6 +812,8 @@ The slug encodes the origin twice in a URL served from that origin, which looks 
 
 The first slice ships this surface against a **real persisted registry and a mocked network**. The registry is real client-owned state: real add, Move, remove, reorder, real canonicalization, real base64url encoding and decoding, real validation, real tombstones, persisted locally and surviving reload. Status, version, and `feedId` come from a mock probe module behind a single seam that the real §5.1 capabilities call replaces later.
 
+The mock-only `app-v3` shell may prototype this surface with in-memory fixtures before that slice. Such a prototype is non-shipping UI validation and does not satisfy the persisted-registry acceptance criteria above.
+
 This is the smallest slice in which the slug, the confirmation gate, and Move-with-migration are demonstrable and testable end to end without a server. Mock fixtures use HTTPS addresses, since the hosted origin rejects plain HTTP (§10.3).
 
 ### 8.2 Session transcript

@@ -7,6 +7,7 @@ import { defineConfig } from "vite"
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: process.env.HENA_APP_BASE_PATH ?? "/",
   plugins: [
     // Must run before the React plugin: it generates routeTree.gen.ts from
     // src/routes/** so the React plugin compiles routes with an up-to-date tree.

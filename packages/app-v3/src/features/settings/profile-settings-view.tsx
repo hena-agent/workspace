@@ -3,15 +3,12 @@ import { GeneralSection, type DensityPreference } from "./general-section"
 import type { Theme } from "@/lib/theme"
 import { KeybindingsSection } from "./keybindings-section"
 import { NotificationsSection, type NotificationPreferences } from "./notifications-section"
-import { SettingsNav } from "./settings-nav"
-import { SETTINGS_SECTIONS, type SettingsSection } from "./settings-sections"
 import type { ProfileSettingsSection } from "./profile-settings-sections"
 
 export type { ProfileSettingsSection } from "./profile-settings-sections"
 
 export function ProfileSettingsView({
   section,
-  onSelectSection,
   theme,
   onChangeTheme,
   density,
@@ -24,7 +21,6 @@ export function ProfileSettingsView({
   onChangeNotifications,
 }: {
   section: ProfileSettingsSection
-  onSelectSection: (section: SettingsSection) => void
   theme: Theme
   onChangeTheme: (theme: Theme) => void
   density: DensityPreference
@@ -66,10 +62,5 @@ export function ProfileSettingsView({
     }
   })()
 
-  return (
-    <div className="flex h-full flex-col gap-6 overflow-y-auto p-4 md:flex-row md:p-6">
-      <SettingsNav sections={SETTINGS_SECTIONS} active={section} onSelect={onSelectSection} />
-      <div className="min-w-0 flex-1">{content}</div>
-    </div>
-  )
+  return content
 }

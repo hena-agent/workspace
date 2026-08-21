@@ -6,6 +6,7 @@ import { connections } from "@/mock/fixtures"
 const MockServerContext = createContext<
   | {
       connections: Connection[]
+      profileOrigin: string
       addServer: (url: string) => Connection | undefined
       getServerBySlug: (slug: string | undefined) => Connection | undefined
       getSlug: (connection: Connection) => string
@@ -22,11 +23,17 @@ export function MockServerProvider({
   initialConnections?: Connection[]
   pageOrigin?: string
 }) {
-  const [servers, setServers] = useState(() =>
-    initialConnections.flatMap((connection) =>
+  const profileOrigin = new URL(pageOrigin).origin
+  const [servers, setServers] = useState(() => {
+    const seeded = initialConnections.flatMap((connection) =>
       isServerUrlAllowed(connection.url, pageOrigin) ? [{ ...connection }] : [],
-    ),
-  )
+    )
+    if (new URL(profileOrigin).protocol !== "http:") return seeded
+
+    const ownServer =
+      seeded.find((connection) => connection.url === profileOrigin) ?? createMockConnection(profileOrigin)
+    return [ownServer, ...seeded.filter((connection) => connection.id !== ownServer.id)]
+  })
 
   function addServer(input: string) {
     const url = normalizeServerUrl(input)
@@ -35,15 +42,7 @@ export function MockServerProvider({
     const existing = servers.find((connection) => connection.url === url)
     if (existing) return existing
 
-    const known = connections.find((connection) => connection.url === url)
-    const connection: Connection = known
-      ? { ...known }
-      : {
-          id: `conn-${encodeServerSlug(url)}`,
-          name: new URL(url).host,
-          url,
-          status: "online",
-        }
+    const connection = createMockConnection(url)
     setServers((current) => [...current, connection])
     return connection
   }
@@ -59,6 +58,7 @@ export function MockServerProvider({
     <MockServerContext
       value={{
         connections: servers,
+        profileOrigin,
         addServer,
         getServerBySlug,
         getSlug: (connection) => encodeServerSlug(connection.url),
@@ -67,6 +67,17 @@ export function MockServerProvider({
       {children}
     </MockServerContext>
   )
+}
+
+function createMockConnection(url: string): Connection {
+  const known = connections.find((connection) => connection.url === url)
+  if (known) return { ...known }
+  return {
+    id: `conn-${encodeServerSlug(url)}`,
+    name: new URL(url).host,
+    url,
+    status: "online",
+  }
 }
 
 export function useMockServers() {

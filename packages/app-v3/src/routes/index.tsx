@@ -8,6 +8,6 @@ export const Route = createFileRoute("/")({
 function HomeRoute() {
   const servers = useMockServers()
   const server = servers.connections[0]
-  if (!server) return null
+  if (!server) return <Navigate to="/connect" replace />
   return <Navigate to="/$connectionId" params={{ connectionId: servers.getSlug(server) }} replace />
 }

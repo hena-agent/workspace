@@ -21,6 +21,9 @@ describe("server URL slugs", () => {
   test("rejects non-canonical and credential-bearing values", () => {
     expect(decodeServerSlug(encodeServerSlug("https://SERVER.example.com/"))).toBeUndefined()
     expect(normalizeServerUrl("https://user:secret@server.example.com")).toBeUndefined()
+    expect(normalizeServerUrl("https://@server.example.com")).toBeUndefined()
+    expect(normalizeServerUrl("https://server.example.com?")).toBeUndefined()
+    expect(normalizeServerUrl("https://server.example.com#")).toBeUndefined()
   })
 
   test("rejects explicit non-HTTP schemes", () => {

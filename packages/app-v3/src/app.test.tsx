@@ -67,6 +67,40 @@ describe("app routing (real routeTree, memory history)", () => {
     )
   })
 
+  test("an embedded HTTP origin is the first seeded server", async () => {
+    mockMatchMedia(true)
+    const origin = "http://server.local:4096"
+    const router = renderApp("/", undefined, origin)
+
+    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/${encodeServerSlug(origin)}`)
+    expect(screen.getByRole("button", { name: "Manage servers. Current server: server.local:4096" })).toHaveTextContent(
+      "server.local:4096",
+    )
+  })
+
+  test("an empty hosted profile redirects to the connect route", async () => {
+    mockMatchMedia(true)
+    const router = renderApp("/", [], "https://app.hena.dev")
+
+    expect(await screen.findByRole("heading", { name: "Connect to Hena" })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe("/connect")
+    expect(screen.getByText("https://app.hena.dev")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Open menu" })).not.toBeInTheDocument()
+  })
+
+  test("the connect route adds the first server", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const router = renderApp("/connect", [], "https://app.hena.dev")
+
+    await user.type(await screen.findByLabelText("Server URL"), "box.example.com")
+    await user.click(screen.getByRole("button", { name: "Add server" }))
+
+    expect(router.state.location.pathname).toBe(`/${encodeServerSlug("https://box.example.com")}`)
+    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
+  })
+
   test("an unknown route inside a project falls back rather than crashing the shell", async () => {
     mockMatchMedia(true)
     renderApp(`/${LOCAL_SLUG}/proj-hena`)
@@ -80,7 +114,7 @@ describe("app routing (real routeTree, memory history)", () => {
     mockMatchMedia(true)
     const user = userEvent.setup()
     const initialPath = `/${LOCAL_SLUG}/proj-hena/session/sess-transcript`
-    const router = renderApp(initialPath, [], "http://localhost:4096")
+    const router = renderApp(initialPath, [], "http://server.local:4096")
 
     expect(await screen.findByText("Session not found.")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: /^Manage servers/ }))
@@ -416,10 +450,20 @@ describe("app routing (real routeTree, memory history)", () => {
     await user.click(await screen.findByRole("button", { name: "Storage" }))
     expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/settings/storage`)
     expect(await screen.findByText("18 MiB of 50 MiB")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Storage" })).toHaveFocus()
 
     await user.click(screen.getByRole("button", { name: "General" }))
     expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/settings/general`)
     expect(await screen.findByLabelText("Theme")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "General" })).toHaveFocus()
+  })
+
+  test("the documented server-connections settings slug renders its section", async () => {
+    mockMatchMedia(true)
+    renderApp(`/${LOCAL_SLUG}/settings/server-connections`)
+
+    expect(await screen.findByText("http://localhost:4096")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Server connections" })).toHaveAttribute("aria-current", "true")
   })
 
   test("selecting a server updates the URL slug", async () => {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { Outlet, useNavigate, useParams } from "@tanstack/react-router"
+import { Outlet, useLocation, useNavigate, useParams } from "@tanstack/react-router"
 import { CommandPalette } from "@/features/command-palette/command-palette"
 import { useMockServers } from "@/features/server/mock-server-provider"
 import { ServerSelectionModal } from "@/features/server/server-selection-modal"
@@ -14,6 +14,12 @@ const DRAFT_INSTANCE_ID = Array.from(crypto.getRandomValues(new Uint32Array(4)),
 )
 
 export function RootLayout() {
+  const pathname = useLocation({ select: (location) => location.pathname })
+  if (pathname === "/connect") return <Outlet />
+  return <ShellLayout />
+}
+
+function ShellLayout() {
   const navigate = useNavigate()
   const params = useParams({ strict: false }) as {
     connectionId?: string

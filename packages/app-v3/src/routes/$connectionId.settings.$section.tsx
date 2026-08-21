@@ -8,6 +8,8 @@ import { ProfileSettingsView } from "@/features/settings/profile-settings-view"
 import { PROFILE_SETTINGS_SECTION_VALUES } from "@/features/settings/profile-settings-sections"
 import { ServerSettingsView } from "@/features/settings/server-settings-view"
 import { SERVER_SETTINGS_SECTION_VALUES } from "@/features/settings/server-settings-sections"
+import { SettingsNav } from "@/features/settings/settings-nav"
+import { SETTINGS_SECTIONS, type SettingsSection } from "@/features/settings/settings-sections"
 import { useMockServers } from "@/features/server/mock-server-provider"
 import { isOneOf } from "@/lib/utils"
 import { listMcpServers, listModels, listProviders } from "@/mock/queries"
@@ -49,42 +51,33 @@ function SettingsRoute() {
     return <div className="flex size-full items-center justify-center text-sm text-muted-foreground">Connection not found.</div>
   }
 
-  if (isOneOf(PROFILE_SETTINGS_SECTION_VALUES, section)) {
-    return (
-      <ProfileSettingsView
-        section={section}
-        onSelectSection={(next) =>
-          void navigate({
-            to: "/$connectionId/settings/$section",
-            params: { connectionId, section: next },
-            replace: true,
-          })
-        }
-        theme={theme}
-        onChangeTheme={setTheme}
-        density={density}
-        onChangeDensity={setDensity}
-        fontSize={fontSize}
-        onChangeFontSize={setFontSize}
-        reducedMotion={reducedMotion}
-        onChangeReducedMotion={setReducedMotion}
-        notifications={notifications}
-        onChangeNotifications={setNotifications}
-      />
-    )
+  function selectSection(next: SettingsSection) {
+    void navigate({
+      to: "/$connectionId/settings/$section",
+      params: { connectionId, section: next },
+      replace: true,
+    })
   }
 
+  const profileSection = isOneOf(PROFILE_SETTINGS_SECTION_VALUES, section) ? section : undefined
   const serverSection = isOneOf(SERVER_SETTINGS_SECTION_VALUES, section) ? section : "providers"
-  return (
+  const content = profileSection ? (
+    <ProfileSettingsView
+      section={profileSection}
+      theme={theme}
+      onChangeTheme={setTheme}
+      density={density}
+      onChangeDensity={setDensity}
+      fontSize={fontSize}
+      onChangeFontSize={setFontSize}
+      reducedMotion={reducedMotion}
+      onChangeReducedMotion={setReducedMotion}
+      notifications={notifications}
+      onChangeNotifications={setNotifications}
+    />
+  ) : (
     <ServerSettingsView
       section={serverSection}
-      onSelectSection={(next) =>
-        void navigate({
-          to: "/$connectionId/settings/$section",
-          params: { connectionId, section: next },
-          replace: true,
-        })
-      }
       providers={providers}
       onToggleProviderConnection={(id) =>
         setProviders((current) =>
@@ -102,5 +95,12 @@ function SettingsRoute() {
       onClearCache={() => {}}
       onRemoveAllData={() => {}}
     />
+  )
+
+  return (
+    <div className="flex h-full flex-col gap-6 overflow-y-auto p-4 md:flex-row md:p-6">
+      <SettingsNav sections={SETTINGS_SECTIONS} active={profileSection ?? serverSection} onSelect={selectSection} />
+      <div className="min-w-0 flex-1">{content}</div>
+    </div>
   )
 }

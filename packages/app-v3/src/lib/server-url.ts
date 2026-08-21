@@ -9,6 +9,8 @@ export function normalizeServerUrl(input: string) {
   if (scheme && !hostWithPort && !/^https?:\/\//i.test(trimmed)) return
 
   const value = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+  const authority = value.match(/^https?:\/\/([^/?#]*)/i)?.[1]
+  if (value.includes("?") || value.includes("#") || authority?.includes("@")) return
   if (!canParseUrl(value)) return
 
   const url = new URL(value)

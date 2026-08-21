@@ -39,14 +39,16 @@ export function ServerSelectionModal({
         : undefined
 
   function changeOpen(next: boolean) {
-    if (next && pendingUrl) {
-      setUrl(pendingUrl)
+    if (next) {
+      setUrl(pendingUrl ?? "")
       setError("")
     }
     setOpen(next)
   }
 
   function select(server: Connection) {
+    setUrl("")
+    setError("")
     onSelect(server)
     setOpen(false)
   }

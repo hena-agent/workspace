@@ -9,7 +9,7 @@ export function normalizeServerUrl(input: string) {
   if (scheme && !hostWithPort && !/^https?:\/\//i.test(trimmed)) return
 
   const value = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
-  if (!URL.canParse(value)) return
+  if (!canParseUrl(value)) return
 
   const url = new URL(value)
   if (url.protocol !== "http:" && url.protocol !== "https:") return
@@ -22,11 +22,11 @@ export function normalizeServerUrl(input: string) {
 }
 
 export function isServerUrlAllowed(url: string, pageOrigin: string) {
-  if (!URL.canParse(url)) return false
+  if (!canParseUrl(url)) return false
   const target = new URL(url)
   if (target.protocol === "https:") return true
 
-  if (!URL.canParse(pageOrigin)) return false
+  if (!canParseUrl(pageOrigin)) return false
   const page = new URL(pageOrigin)
   if (page.protocol !== "http:") return false
   if (target.origin === page.origin) return true
@@ -55,4 +55,14 @@ export function decodeServerSlug(slug: string) {
   const normalized = normalizeServerUrl(decoded)
   if (!normalized || encodeServerSlug(normalized) !== slug) return
   return normalized
+}
+
+function canParseUrl(value: string) {
+  if (typeof URL.canParse === "function") return URL.canParse(value)
+  try {
+    new URL(value)
+    return true
+  } catch {
+    return false
+  }
 }

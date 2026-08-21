@@ -44,4 +44,15 @@ describe("server URL slugs", () => {
     expect(isServerUrlAllowed("http://server.local:4096", "http://server.local:4096")).toBe(true)
     expect(isServerUrlAllowed("http://other.local:4096", "http://server.local:4096")).toBe(false)
   })
+
+  test("parses URLs when URL.canParse is unavailable", () => {
+    const canParse = Object.getOwnPropertyDescriptor(URL, "canParse")
+    Object.defineProperty(URL, "canParse", { configurable: true, value: undefined })
+    try {
+      expect(normalizeServerUrl("server.example.com")).toBe("https://server.example.com")
+      expect(normalizeServerUrl("https://")).toBeUndefined()
+    } finally {
+      if (canParse) Object.defineProperty(URL, "canParse", canParse)
+    }
+  })
 })

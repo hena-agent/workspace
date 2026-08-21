@@ -420,6 +420,46 @@ describe("app routing (real routeTree, memory history)", () => {
     expect(router.state.location.pathname).toBe(`/${STAGING_SLUG}`)
   })
 
+  test("selecting a server closes an open mobile drawer before navigating", async () => {
+    mockMatchMedia(false)
+    window.history.back = () => {
+      window.history.replaceState({}, "")
+      window.dispatchEvent(new PopStateEvent("popstate", { state: {} }))
+    }
+    const user = userEvent.setup()
+    const router = renderApp(`/${LOCAL_SLUG}`)
+
+    await user.click(await screen.findByRole("button", { name: "Open menu" }))
+    await user.click(screen.getByRole("button", { name: /^Manage servers/ }))
+    await user.click(
+      within(await screen.findByRole("dialog", { name: "Servers" })).getByRole("button", {
+        name: /staging\.hena\.dev/,
+      }),
+    )
+
+    expect(router.state.location.pathname).toBe(`/${STAGING_SLUG}`)
+    expect(window.history.state?.henaMobileNavigation).not.toBe(true)
+    expect(screen.queryByRole("navigation", { name: "Projects and sessions" })).not.toBeInTheDocument()
+  })
+
+  test("selecting an existing server clears stale add-server state", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    renderApp(`/${LOCAL_SLUG}`, undefined, "https://app.hena.dev")
+
+    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
+    expect(screen.getByLabelText("Add a mock server")).toHaveValue("http://localhost:4096")
+    await user.click(screen.getByRole("button", { name: "Add server" }))
+    expect(screen.getByText("Enter an HTTP or HTTPS server URL allowed from this origin.")).toBeInTheDocument()
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Servers" })).getByRole("button", { name: /staging\.hena\.dev/ }),
+    )
+
+    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
+    expect(screen.getByLabelText("Add a mock server")).toHaveValue("")
+    expect(screen.queryByText("Enter an HTTP or HTTPS server URL allowed from this origin.")).not.toBeInTheDocument()
+  })
+
   test("offline servers remain visible but cannot be selected", async () => {
     mockMatchMedia(true)
     const user = userEvent.setup()

@@ -113,11 +113,13 @@ export function RootLayout() {
         <ServerSelectionModal
           current={connection}
           pendingUrl={connection ? undefined : decodeServerSlug(params.connectionId ?? "")}
-          onSelect={(server) => {
-            const connectionId = servers.getSlug(server)
-            if (params.connectionId === connectionId) return
-            void navigate({ to: "/$connectionId", params: { connectionId } })
-          }}
+          onSelect={(server) =>
+            runAfterMobileNavClose(() => {
+              const connectionId = servers.getSlug(server)
+              if (params.connectionId === connectionId) return
+              void navigate({ to: "/$connectionId", params: { connectionId } })
+            })
+          }
         />
       }
     >

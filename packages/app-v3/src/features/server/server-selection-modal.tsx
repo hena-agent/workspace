@@ -55,7 +55,7 @@ export function ServerSelectionModal({
     event.preventDefault()
     const server = servers.addServer(url)
     if (!server) {
-      setError("Enter a valid HTTP or HTTPS server URL.")
+      setError("Enter an HTTP or HTTPS server URL allowed from this origin.")
       return
     }
     setUrl("")

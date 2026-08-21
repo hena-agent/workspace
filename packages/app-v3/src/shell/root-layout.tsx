@@ -9,7 +9,9 @@ import { MOCK_NOW } from "@/mock/fixtures"
 import { getProject, getProjectNotificationState, listProjects, listServerCommands, listSessions } from "@/mock/queries"
 import { AppShell } from "./app-shell"
 
-const DRAFT_INSTANCE_ID = crypto.randomUUID()
+const DRAFT_INSTANCE_ID = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) => value.toString(36)).join(
+  "-",
+)
 
 export function RootLayout() {
   const navigate = useNavigate()

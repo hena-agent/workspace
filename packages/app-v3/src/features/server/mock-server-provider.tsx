@@ -1,6 +1,6 @@
 import { createContext, use, useState, type ReactNode } from "react"
 import type { Connection } from "@/lib/types"
-import { decodeServerSlug, encodeServerSlug, normalizeServerUrl } from "@/lib/server-url"
+import { decodeServerSlug, encodeServerSlug, isServerUrlAllowed, normalizeServerUrl } from "@/lib/server-url"
 import { connections } from "@/mock/fixtures"
 
 const MockServerContext = createContext<
@@ -16,15 +16,17 @@ const MockServerContext = createContext<
 export function MockServerProvider({
   children,
   initialConnections = connections,
+  pageOrigin = window.location.origin,
 }: {
   children: ReactNode
   initialConnections?: Connection[]
+  pageOrigin?: string
 }) {
   const [servers, setServers] = useState(() => initialConnections.map((connection) => ({ ...connection })))
 
   function addServer(input: string) {
     const url = normalizeServerUrl(input)
-    if (!url) return
+    if (!url || !isServerUrlAllowed(url, pageOrigin)) return
 
     const existing = servers.find((connection) => connection.url === url)
     if (existing) return existing

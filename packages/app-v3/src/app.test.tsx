@@ -28,11 +28,11 @@ afterEach(() => {
   document.documentElement.classList.remove("light", "dark")
 })
 
-function renderApp(initialPath: string, initialConnections?: Connection[]) {
+function renderApp(initialPath: string, initialConnections?: Connection[], pageOrigin?: string) {
   const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [initialPath] }) })
   render(
     <ThemeProvider>
-      <MockServerProvider initialConnections={initialConnections}>
+      <MockServerProvider initialConnections={initialConnections} pageOrigin={pageOrigin}>
         <RouterProvider router={router} />
       </MockServerProvider>
     </ThemeProvider>,
@@ -63,7 +63,7 @@ describe("app routing (real routeTree, memory history)", () => {
     mockMatchMedia(true)
     const user = userEvent.setup()
     const initialPath = `/${LOCAL_SLUG}/proj-hena/session/sess-transcript`
-    const router = renderApp(initialPath, [])
+    const router = renderApp(initialPath, [], "http://localhost:4096")
 
     expect(await screen.findByText("Session not found.")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: "Manage servers" }))
@@ -72,6 +72,19 @@ describe("app routing (real routeTree, memory history)", () => {
 
     expect(router.state.location.pathname).toBe(initialPath)
     expect(await screen.findByRole("heading", { name: "Wire the collection stream protocol" })).toBeInTheDocument()
+  })
+
+  test("a hosted profile rejects loopback HTTP registration", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    renderApp(`/${LOCAL_SLUG}`, [], "https://app.hena.dev")
+
+    expect(await screen.findByText("Server not found.")).toBeInTheDocument()
+    await user.click(screen.getByRole("button", { name: "Manage servers" }))
+    await user.click(screen.getByRole("button", { name: "Add server" }))
+
+    expect(screen.getByText("Enter an HTTP or HTTPS server URL allowed from this origin.")).toBeInTheDocument()
+    expect(screen.queryByRole("heading", { name: "Recent projects" })).not.toBeInTheDocument()
   })
 
   test("navigating rail -> session list -> transcript updates the URL and content", async () => {

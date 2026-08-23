@@ -42,7 +42,9 @@ export function events(
     let deltaLive = false
     const pendingVolatile = new Set<string>()
     const pendingDeltas: Delta[] = []
+    const pendingSnapshots = new Map<string, (typeof scopes)[number]>()
     let writes = Promise.resolve()
+    let snapshotsScheduled = false
     let queuedBytes = 0
     let bufferedBytes = 0
     let ending = false
@@ -142,6 +144,7 @@ export function events(
         const scope = scopes[index]
         scopes.splice(index, 1)
         pendingVolatile.delete(`${collection}\u0000${locationKey}`)
+        pendingSnapshots.delete(scopeKey(scope))
         through.delete(scopeKey(scope))
         buffered.splice(
           0,
@@ -227,15 +230,27 @@ export function events(
         await writes
       }
     }
-    const scheduleFrames = (frames: ReadonlyArray<{ event: string; value: Record<string, unknown> }>) => {
+    const scheduleSnapshots = (incoming: ReadonlyArray<(typeof scopes)[number]>) => {
+      incoming.forEach((scope) => pendingSnapshots.set(scopeKey(scope), scope))
+      if (snapshotsScheduled) return
+      snapshotsScheduled = true
       writes = writes
         .then(async () => {
-          for (const item of frames) {
-            if (ending) return
-            await stream.writeSSE({ event: item.event, data: JSON.stringify(frame(item.value)) })
+          while (!ending && pendingSnapshots.size > 0) {
+            const scope = pendingSnapshots.values().next().value
+            if (!scope) return
+            pendingSnapshots.delete(scopeKey(scope))
+            for (const item of snapshotFrames(scope)) {
+              if (ending) return
+              await stream.writeSSE({ event: item.event, data: JSON.stringify(frame(item.value)) })
+            }
           }
         })
         .catch(disconnected.resolve)
+        .finally(() => {
+          snapshotsScheduled = false
+          if (pendingSnapshots.size > 0) scheduleSnapshots([])
+        })
     }
     const enqueueEmptySnapshot = (scope: (typeof scopes)[number]) => {
       const snapshotId = crypto.randomUUID()
@@ -269,7 +284,7 @@ export function events(
             return { ...last, rowKey: "", op: "reset", row: null, rowRevision: undefined }
           }),
         })
-        scheduleFrames(affectedScopes.flatMap((scope) => snapshotFrames(scope)))
+        scheduleSnapshots(affectedScopes)
         return
       }
       enqueue("rows", {

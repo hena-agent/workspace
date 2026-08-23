@@ -198,6 +198,34 @@ describe("collection events", () => {
     expect(output).not.toContain("slow_consumer")
   })
 
+  test("coalesces queued recovery snapshots by scope", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 4)
+      output += decoder.decode((await reader.read()).value)
+    output = ""
+
+    const rows = (marker: string) =>
+      Array.from({ length: 3 }, (_, index) => ({
+        key: `${marker}-${index}`,
+        row: { id: `${marker}-${index}`, text: marker + "x".repeat(450 * 1024) },
+        revision: "1",
+      }))
+    database.collections.replace("messages", "session-1", rows("first"), "tx-first")
+    database.collections.replace("messages", "session-1", rows("second"), "tx-second")
+
+    while (!output.includes("second-2")) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output.match(/event: snapshot.begin/g)).toHaveLength(1)
+    expect(output).not.toContain("first-2")
+  })
+
   test("buffers deltas until initial snapshots finish", async () => {
     database = createTestDatabase().database
     const deltas = createDeltaHub()

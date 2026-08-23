@@ -276,6 +276,51 @@ describe("collection projector", () => {
           WHERE collection = 'parts' AND scope_key = 'ses_1'
         `)
         expect(projected?.row.length).toBeLessThan(1024 * 1024)
+        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+          state: { input: expect.any(String), truncated: true, content: { bytes: 2 * 1024 * 1024 } },
+        })
+        expect(
+          yield* database.get<{ bytes: number }>(sql`
+            SELECT length(content) AS bytes FROM full_content WHERE id = 'msg_tool_tool_1_tool_input'
+          `),
+        ).toMatchObject({ bytes: 2 * 1024 * 1024 })
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
+  test("bounds completed tool results before writing stream rows", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`)
+        yield* database.run(sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1)`)
+        yield* database.run(sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`)
+        yield* database.run(sql`
+          INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data)
+          VALUES ('msg_tool', 'ses_1', 'assistant', 1, 1, 1, ${JSON.stringify({
+            agent: "build",
+            model: { id: "model", providerID: "provider" },
+            content: [{
+              type: "tool",
+              id: "tool_1",
+              name: "bash",
+              state: { status: "completed", input: {}, structured: {}, content: [], result: { value: "x".repeat(2 * 1024 * 1024) } },
+              time: { created: 1, completed: 2 },
+            }],
+            time: { created: 1 },
+          })})
+        `)
+
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.Step.Ended.type,
+          data: { sessionID: "ses_1", assistantMessageID: "msg_tool" },
+        })
+
+        const projected = yield* database.get<{ row: string }>(sql`SELECT row FROM collection_row WHERE collection = 'parts' AND scope_key = 'ses_1'`)
+        expect(projected?.row.length).toBeLessThan(1024 * 1024)
+        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+          state: { result: { truncated: true, content: { bytes: expect.any(Number) } } },
+        })
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
     )
   })

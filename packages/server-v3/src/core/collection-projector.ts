@@ -431,8 +431,21 @@ function projectPart(
       return { ...part, ...text }
     }
     if (part.state.status === "pending") {
-      const input = preview(part.state.input)
-      return { ...part, state: { ...part.state, input: input.text } }
+      const input = yield* projectText(
+        database,
+        sessionID,
+        revision,
+        `${messageID}_${part.id}_tool_input`,
+        part.state.input,
+      )
+      return {
+        ...part,
+        state: {
+          ...part.state,
+          input: input.text,
+          ...("truncated" in input ? { truncated: input.truncated, content: input.content } : {}),
+        },
+      }
     }
     const input = yield* projectJson(
       database,
@@ -448,6 +461,16 @@ function projectPart(
       `${messageID}_${part.id}_tool_structured`,
       part.state.structured,
     )
+    const result =
+      !("result" in part.state) || part.state.result === undefined
+        ? undefined
+        : yield* projectJson(
+            database,
+            sessionID,
+            revision,
+            `${messageID}_${part.id}_tool_result`,
+            part.state.result,
+          )
     const content = yield* Effect.forEach(part.state.content, (item, index) =>
       Effect.gen(function* () {
         if (item.type === "file") return item
@@ -461,7 +484,7 @@ function projectPart(
         return { ...item, ...text }
       }),
     )
-    return { ...part, state: { ...part.state, input, structured, content } }
+    return { ...part, state: { ...part.state, input, structured, content, ...(result === undefined ? {} : { result }) } }
   })
 }
 

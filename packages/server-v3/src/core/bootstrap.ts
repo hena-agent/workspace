@@ -287,8 +287,17 @@ function projectPart(
 ) {
   if (part.type === "text" || part.type === "reasoning")
     return { ...part, ...projectText(database, sessionID, revision, `${messageID}_${part.id}_text`, part.text) }
-  if (part.state.status === "pending")
-    return { ...part, state: { ...part.state, input: preview(part.state.input).text } }
+  if (part.state.status === "pending") {
+    const input = projectText(database, sessionID, revision, `${messageID}_${part.id}_tool_input`, part.state.input)
+    return {
+      ...part,
+      state: {
+        ...part.state,
+        input: input.text,
+        ...("truncated" in input ? { truncated: input.truncated, content: input.content } : {}),
+      },
+    }
+  }
   return {
     ...part,
     state: {
@@ -301,6 +310,17 @@ function projectPart(
         `${messageID}_${part.id}_tool_structured`,
         part.state.structured,
       ),
+      ...(!("result" in part.state) || part.state.result === undefined
+        ? {}
+        : {
+            result: projectJson(
+              database,
+              sessionID,
+              revision,
+              `${messageID}_${part.id}_tool_result`,
+              part.state.result,
+            ),
+          }),
       content: part.state.content.map((item, index) =>
         item.type === "file"
           ? item

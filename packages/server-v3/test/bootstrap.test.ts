@@ -77,6 +77,7 @@ describe("collection bootstrap", () => {
               input: { value: "D".repeat(2 * 1024 * 1024) },
               structured: { value: "E".repeat(2 * 1024 * 1024) },
               content: [],
+              result: { value: "G".repeat(2 * 1024 * 1024) },
             },
             time: { created: 5, completed: 6 },
           },
@@ -143,6 +144,12 @@ describe("collection bootstrap", () => {
       .rows.filter((part) => part.key.includes("part_pending") || part.key.includes("part_completed"))
     expect(JSON.stringify(toolParts).length).toBeLessThan(1024 * 1024)
     expect(toolParts).toHaveLength(2)
+    expect(toolParts.find((part) => part.key.includes("part_pending"))?.row).toMatchObject({
+      state: { truncated: true, content: { bytes: 2 * 1024 * 1024 } },
+    })
+    expect(toolParts.find((part) => part.key.includes("part_completed"))?.row).toMatchObject({
+      state: { result: { truncated: true, content: { bytes: expect.any(Number) } } },
+    })
     expect(database.collections.snapshot("sessionInputs", "ses_1").rows[0]?.row).toMatchObject({
       id: "msg_2",
       delivery: "queue",

@@ -103,7 +103,9 @@ export function bootstrapCollections(database: SyncDatabase) {
   const messages = database.raw
     .query<MessageRow, []>("SELECT id, session_id, type, data FROM session_message ORDER BY seq")
     .all()
-  const inputs = database.raw.query<InputRow, []>("SELECT * FROM session_input ORDER BY admitted_seq").all()
+  const inputs = database.raw
+    .query<InputRow, []>("SELECT * FROM session_input WHERE promoted_seq IS NULL ORDER BY admitted_seq")
+    .all()
   const todos = database.raw
     .query<TodoRow, []>("SELECT id, session_id, content, status, priority, time_updated FROM todo ORDER BY position")
     .all()

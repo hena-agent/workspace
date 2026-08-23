@@ -190,6 +190,7 @@ export const make = (dependencies: Dependencies) => {
       reason: "auto",
     })
 
+    let committed = false
     return yield* Effect.gen(function* () {
       const chunks: string[] = []
       let failed = false
@@ -221,18 +222,21 @@ export const make = (dependencies: Dependencies) => {
         )
       const summary = chunks.join("")
       if (!summarized || failed || !summary.trim()) return false
-      yield* dependencies.events.publish(SessionEvent.Compaction.Ended, {
-        sessionID: input.sessionID,
-        messageID,
-        timestamp: yield* DateTime.now,
-        reason: "auto",
-        text: summary,
-        recent: selected.recent,
-      })
+      yield* Effect.gen(function* () {
+        yield* dependencies.events.publish(SessionEvent.Compaction.Ended, {
+          sessionID: input.sessionID,
+          messageID,
+          timestamp: yield* DateTime.now,
+          reason: "auto",
+          text: summary,
+          recent: selected.recent,
+        })
+        committed = true
+      }).pipe(Effect.uninterruptible)
       return true
     }).pipe(
       Effect.onExit((exit) =>
-        Exit.isSuccess(exit) && exit.value
+        committed || (Exit.isSuccess(exit) && exit.value)
           ? Effect.void
           : Effect.gen(function* () {
               yield* dependencies.events.publish(SessionEvent.Compaction.Discarded, {

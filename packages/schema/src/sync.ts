@@ -81,6 +81,11 @@ export const FileListQuery = Schema.Struct({
   path: RelativePath.check(
     Schema.isPattern(/^(?![\\/]|[A-Za-z]:[\\/])(?!(?:.*[\\/])?\.\.(?:[\\/]|$)).*$/),
   ).pipe(optional),
+  limit: Schema.NumberFromString.check(
+    Schema.isInt(),
+    Schema.isGreaterThanOrEqualTo(1),
+    Schema.isLessThanOrEqualTo(1_000),
+  ).pipe(optional),
 }).annotate({ identifier: "Sync.FileListQuery" })
 
 export interface FileFindQuery extends Schema.Schema.Type<typeof FileFindQuery> {}

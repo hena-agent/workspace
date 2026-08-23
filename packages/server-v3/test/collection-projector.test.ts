@@ -80,6 +80,31 @@ describe("collection projector", () => {
     )
   })
 
+  test("does not rewrite promoted input history when the queue revision changes", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`)
+        yield* database.run(sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated, queue_revision) VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1, 101)`)
+        yield* database.run(sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`)
+        yield* Effect.forEach(Array.from({ length: 100 }), (_, index) =>
+          database.run(sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, queue_position, promoted_seq, time_created) VALUES (${`msg_history_${index}`}, 'ses_1', '{"text":"old"}', 'steer', ${index + 1}, 0, ${index + 1}, 1)`),
+          { discard: true },
+        )
+        yield* database.run(sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, queue_position, promoted_seq, time_created) VALUES ('msg_pending', 'ses_1', '{"text":"pending"}', 'queue', 101, 0, NULL, 1)`)
+
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.PromptAdmitted.type,
+          data: { sessionID: "ses_1", messageID: "msg_pending" },
+        })
+
+        expect(
+          yield* database.get<{ count: number }>(sql`SELECT COUNT(*) AS count FROM collection_change WHERE collection = 'sessionInputs'`),
+        ).toEqual({ count: 1 })
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
   test("removes a provisional compaction row when compaction is discarded", async () => {
     await Effect.runPromise(
       Effect.gen(function* () {

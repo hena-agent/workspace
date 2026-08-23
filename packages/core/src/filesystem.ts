@@ -26,6 +26,7 @@ export type Content = typeof Content.Type
 
 export const ListInput = Schema.Struct({
   path: RelativePath.pipe(Schema.optional),
+  limit: PositiveInt.pipe(Schema.optional),
 })
 export type ListInput = typeof ListInput.Type
 
@@ -92,16 +93,17 @@ const baseLayer = Layer.effect(
           Effect.orDie,
           Effect.map((items) =>
             items
-              .flatMap((item) => {
-                if (item.type !== "file" && item.type !== "directory") return []
+              .filter((item): item is typeof item & { type: "file" | "directory" } =>
+                item.type === "file" || item.type === "directory"
+              )
+              .slice(0, input.limit ?? 1_000)
+              .map((item) => {
                 const absolute = path.join(target.absolute, item.name)
                 const relative = path.relative(target.directory, absolute)
-                return [
-                  Entry.make({
-                    path: RelativePath.make(relative + (item.type === "directory" ? path.sep : "")),
-                    type: item.type,
-                  }),
-                ]
+                return Entry.make({
+                  path: RelativePath.make(relative + (item.type === "directory" ? path.sep : "")),
+                  type: item.type,
+                })
               })
               .sort((a, b) => (a.type === b.type ? a.path.localeCompare(b.path) : a.type === "directory" ? -1 : 1)),
           ),

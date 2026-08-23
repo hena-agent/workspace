@@ -6,7 +6,7 @@ import { fromRow } from "@hena/core/session/info"
 import { SessionProjector } from "@hena/core/session/projector"
 import { SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "@hena/core/session/sql"
 import { ProjectTable } from "@hena/core/project/sql"
-import { eq, sql } from "drizzle-orm"
+import { and, eq, isNull, sql } from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Session } from "@hena/schema/session"
 import { SessionMessage } from "@hena/schema/session-message"
@@ -278,7 +278,7 @@ function refreshInputs(database: DatabaseService, sessionID: string, txid: strin
     const inputs = yield* database
       .select()
       .from(SessionInputTable)
-      .where(eq(SessionInputTable.session_id, Session.ID.make(sessionID)))
+      .where(and(eq(SessionInputTable.session_id, Session.ID.make(sessionID)), isNull(SessionInputTable.promoted_seq)))
       .all()
     const projectedInputs = yield* Effect.forEach(inputs, (input) =>
       Effect.gen(function* () {

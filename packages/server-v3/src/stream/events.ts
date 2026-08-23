@@ -8,6 +8,7 @@ import type { StreamRegistry } from "../routes/streams"
 import type { DeltaHub } from "./delta"
 import type { OnlineRequestStore, VolatileCollection } from "../core/online-requests"
 import { fitsPage, pages } from "./pages"
+import type { Change } from "../storage/changes"
 
 export function events(
   c: Context,
@@ -34,10 +35,8 @@ export function events(
       database.collections.snapshot("locations", "").rows.map((row) => row.key),
     )
     const through = new Map<string, number>()
-    const buffered: Array<{
-      scope: (typeof scopes)[number]
-      changes: readonly ReturnType<typeof database.changes.after>[number][]
-    }> = []
+    const buffered: Array<readonly Change[]> = []
+    const replay = new Map<number, Change>()
     let live = false
     let volatileLive = false
     const pendingVolatile = new Set<string>()
@@ -81,40 +80,29 @@ export function events(
         enqueue("delta", { type: "delta", ...delta })
       }),
     )
-    const publish = (
-      scope: (typeof scopes)[number],
-      changes: readonly ReturnType<typeof database.changes.after>[number][],
-    ) => {
-      if (scope.collection === "locations") {
-        changes
-          .filter((change) => change.op === "insert" || change.op === "update")
-          .forEach((change) => addLocation(change.rowKey))
-        changes.filter((change) => change.op === "delete").forEach((change) => removeLocation(change.rowKey))
-      }
+    const publish = (changes: readonly Change[]) => {
+      changes
+        .filter((change) => change.collection === "locations" && (change.op === "insert" || change.op === "update"))
+        .forEach((change) => addLocation(change.rowKey))
+      changes
+        .filter((change) => change.collection === "locations" && change.op === "delete")
+        .forEach((change) => removeLocation(change.rowKey))
+      const visible = changes.filter((change) =>
+        scopes.some((scope) => scope.collection === change.collection && scope.scopeKey === change.scopeKey)
+      )
+      if (visible.length === 0) return
       if (!live) {
-        buffered.push({ scope, changes })
+        buffered.push(visible)
         return
       }
-      enqueueChanges(scope, changes)
+      enqueueChanges(visible)
     }
-    const unsubscribe = new Map<string, () => void>()
-    scopes
-      .filter((scope) => !isVolatile(scope.collection))
-      .forEach((scope) =>
-        unsubscribe.set(
-          scopeKey(scope),
-          database.changes.subscribe(scope.collection, scope.scopeKey, (changes) => publish(scope, changes)),
-        ),
-      )
+    const unsubscribe = database.changes.subscribeTransactions(publish)
     function addLocation(locationKey: string) {
       if (!subscription.lists) return
       const settings = { collection: "settings" as const, scopeKey: locationKey }
       if (!scopes.some((scope) => scope.collection === settings.collection && scope.scopeKey === locationKey)) {
         scopes.push(settings)
-        unsubscribe.set(
-          scopeKey(settings),
-          database.changes.subscribe(settings.collection, locationKey, (changes) => publish(settings, changes)),
-        )
         enqueueSnapshot(settings)
       }
       for (const collection of ["agents", "models", "providers"] as const) {
@@ -132,11 +120,15 @@ export function events(
         if (index === -1) continue
         const scope = scopes[index]
         scopes.splice(index, 1)
-        unsubscribe.get(scopeKey(scope))?.()
-        unsubscribe.delete(scopeKey(scope))
         pendingVolatile.delete(`${collection}\u0000${locationKey}`)
         through.delete(scopeKey(scope))
-        buffered.splice(0, buffered.length, ...buffered.filter((item) => scopeKey(item.scope) !== scopeKey(scope)))
+        buffered.splice(
+          0,
+          buffered.length,
+          ...buffered
+            .map((changes) => changes.filter((change) => scopeKey(change) !== scopeKey(scope)))
+            .filter((changes) => changes.length > 0),
+        )
         enqueueEmptySnapshot(scope)
       }
     }
@@ -217,29 +209,34 @@ export function events(
       enqueue("snapshot.begin", { type: "snapshot.begin", scope, snapshotId, baseSeq: throughSeq, replace: true })
       enqueue("snapshot.end", { type: "snapshot.end", scope, snapshotId, keyCount: 0, throughSeq })
     }
-    const enqueueChanges = (
-      scope: (typeof scopes)[number],
-      changes: readonly ReturnType<typeof database.changes.after>[number][],
-    ) => {
+    const enqueueChanges = (changes: readonly Change[]) => {
       if (changes.length === 0) return
-      const fromSeq = (through.get(scopeKey(scope)) ?? changes[0]!.seq - 1) + 1
+      const affectedScopes = Array.from(
+        new Map(changes.map((change) => {
+          const scope = { collection: change.collection, scopeKey: change.scopeKey }
+          return [scopeKey(scope), scope]
+        })).values(),
+      )
+      const fromSeq = changes[0].seq
       const throughSeq = changes.at(-1)!.seq
-      through.set(scopeKey(scope), throughSeq)
+      affectedScopes.forEach((scope) => through.set(scopeKey(scope), throughSeq))
       if (!fitsPage(changes)) {
-        const last = changes.at(-1)!
         enqueue("rows", {
           type: "rows",
-          scope,
+          affectedScopes,
           fromSeq,
           throughSeq,
-          changes: [{ ...last, rowKey: "", op: "reset", row: null, rowRevision: undefined }],
+          changes: affectedScopes.map((scope) => {
+            const last = changes.findLast((change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey)!
+            return { ...last, rowKey: "", op: "reset", row: null, rowRevision: undefined }
+          }),
         })
-        enqueueSnapshot(scope)
+        affectedScopes.forEach(enqueueSnapshot)
         return
       }
       enqueue("rows", {
         type: "rows",
-        scope,
+        affectedScopes,
         fromSeq,
         throughSeq,
         changes,
@@ -260,22 +257,20 @@ export function events(
       ) {
         const changes = database.changes.after(scope.collection, scope.scopeKey, cursor.seq)
         through.set(scopeKey(scope), cursor.seq)
-        groupTransactions(changes).forEach((transaction) => enqueueChanges(scope, transaction))
+        changes.forEach((change) => replay.set(change.seq, change))
         continue
       }
       await writeFrames(snapshotFrames(scope))
     }
 
+    groupTransactions(Array.from(replay.values()).sort((left, right) => left.seq - right.seq)).forEach(enqueueChanges)
+
     live = true
     volatileLive = true
     buffered
-      .map(({ scope, changes }) => ({
-        scope,
-        changes: changes.filter((change) => change.seq > (through.get(scopeKey(scope)) ?? 0)),
-      }))
-      .filter(({ changes }) => changes.length > 0)
-      .sort((left, right) => left.changes[0]!.seq - right.changes[0]!.seq)
-      .forEach(({ scope, changes }) => publish(scope, changes))
+      .filter((changes) => changes.some((change) => change.seq > (through.get(scopeKey(change)) ?? 0)))
+      .sort((left, right) => left[0].seq - right[0].seq)
+      .forEach(enqueueChanges)
     pendingVolatile.forEach((key) => {
       const [collection, scopeKey] = key.split("\u0000") as [VolatileCollection, string]
       enqueueVolatile({ collection, scopeKey })
@@ -286,7 +281,7 @@ export function events(
     await disconnected.promise
     clearInterval(heartbeat)
     streams.detach("local", resource.id, resource.generation)
-    unsubscribe.forEach((remove) => remove())
+    unsubscribe()
     unsubscribeOnline()
     unsubscribeDeltas.forEach((remove) => remove())
     await writes

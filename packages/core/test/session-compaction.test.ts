@@ -9,7 +9,7 @@ import { SessionMessage } from "@hena/core/session/message"
 import { SessionV2 } from "@hena/core/session"
 import { LLM, LLMEvent, Model } from "@hena/llm"
 import { route } from "@hena/llm/protocols/openai-chat"
-import { DateTime, Effect, Stream } from "effect"
+import { DateTime, Deferred, Effect, Fiber, Stream } from "effect"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, EventV2.node])))
@@ -81,5 +81,55 @@ it.effect("automatic compaction publishes text deltas", () =>
         expect.objectContaining({ text: "first" }),
         expect.objectContaining({ text: " second" }),
       ])
+  }),
+)
+
+it.effect("does not discard a compaction interrupted after completion commits", () =>
+  Effect.gen(function* () {
+    const events = yield* EventV2.Service
+    const ended = yield* Deferred.make<void>()
+    const release = yield* Deferred.make<void>()
+    const observed: string[] = []
+    const unsubscribe = yield* events.listen((event) =>
+      Effect.gen(function* () {
+        observed.push(event.type)
+        if (event.type !== SessionEvent.Compaction.Ended.type) return
+        yield* Deferred.succeed(ended, undefined)
+        yield* Deferred.await(release)
+      }),
+    )
+    const model = Model.make({
+      id: "compact",
+      provider: "test",
+      route: route.with({ limits: { context: 100_000, output: 4_096 } }),
+    })
+    const compact = SessionCompaction.make({
+      events,
+      llm: { stream: () => Stream.make(LLMEvent.textDelta({ id: "summary", text: "summary" })) },
+      config: [],
+    })
+    const fiber = yield* compact.compactAfterOverflow({
+      sessionID: SessionV2.ID.make("ses_compaction_interrupt"),
+      entries: [{
+        seq: 0,
+        message: SessionMessage.User.make({
+          id: SessionMessage.ID.make("msg_user"),
+          type: "user",
+          text: "x".repeat(40_000),
+          time: { created: DateTime.makeUnsafe(1) },
+        }),
+      }],
+      model,
+      request: LLM.request({ model, messages: [], tools: [] }),
+    }).pipe(Effect.forkChild)
+
+    yield* Deferred.await(ended)
+    const interrupted = yield* Fiber.interrupt(fiber).pipe(Effect.forkChild)
+    yield* Deferred.succeed(release, undefined)
+    yield* Fiber.join(interrupted)
+    yield* unsubscribe
+
+    expect(observed).toContain(SessionEvent.Compaction.Ended.type)
+    expect(observed).not.toContain(SessionEvent.Compaction.Discarded.type)
   }),
 )

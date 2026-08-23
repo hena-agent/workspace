@@ -226,7 +226,7 @@ export function createCoreDomain(
       ),
     listFiles: (input) =>
       runtime.runPromise(
-        FileSystem.Service.use((fs) => fs.list({ path: input.path })).pipe(
+        FileSystem.Service.use((fs) => fs.list({ path: input.path, limit: input.limit })).pipe(
           Effect.provide(LocationServiceMap.Service.get(location(input))),
         ),
       ),

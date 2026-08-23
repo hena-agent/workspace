@@ -33,6 +33,7 @@ type ChangeRow = {
 
 export function createChangeStore(database: Database, feed: { get(): { runtimeId: string; retainedFloor: number } }) {
   const listeners = new Map<string, Set<(changes: readonly Change[]) => void>>()
+  const transactionListeners = new Set<(changes: readonly Change[]) => void>()
   const select = database.query<ChangeRow, [string, string, number]>(`
     SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
     FROM collection_change
@@ -60,6 +61,7 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
   let publishedSeq = Math.max(current.get()!.seq, feed.get().retainedFloor)
   let batchDepth = 0
   const publish = (changes: readonly Change[]) => {
+    transactionListeners.forEach((listener) => listener(changes))
     const scopes = changes.reduce((grouped, change) => {
       const key = scopeKey(change.collection, change.scopeKey)
       grouped.set(key, [...(grouped.get(key) ?? []), change])
@@ -137,6 +139,10 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
         if (scoped.size === 0) listeners.delete(key)
       }
     },
+    subscribeTransactions(listener: (changes: readonly Change[]) => void) {
+      transactionListeners.add(listener)
+      return () => transactionListeners.delete(listener)
+    },
     batch<Value>(run: () => Value) {
       batchDepth++
       try {
@@ -168,6 +174,7 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
     },
     close() {
       listeners.clear()
+      transactionListeners.clear()
     },
   }
 

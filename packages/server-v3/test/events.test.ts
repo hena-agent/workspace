@@ -168,6 +168,43 @@ describe("collection events", () => {
     expect(output).toContain('"txid":"tx-one"')
   })
 
+  test("keeps cross-scope transactions in one rows frame", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 4)
+      output += decoder.decode((await reader.read()).value)
+
+    output = ""
+    database.changes.batch(() => {
+      database!.collections.write({
+        collection: "messages",
+        scopeKey: "session-1",
+        rowKey: "message-one",
+        row: { id: "message-one" },
+        revision: "1",
+        txid: "tx-cross-scope",
+      })
+      database!.collections.write({
+        collection: "todos",
+        scopeKey: "session-1",
+        rowKey: "todo-one",
+        row: { id: "todo-one" },
+        revision: "1",
+        txid: "tx-cross-scope",
+      })
+    })
+    while (!output.includes("todo-one")) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output.match(/event: rows/g)).toHaveLength(1)
+    expect(output).toContain('"affectedScopes":[{"collection":"messages","scopeKey":"session-1"},{"collection":"todos","scopeKey":"session-1"}]')
+  })
+
   test("discovers location catalogs added while connected", async () => {
     database = createTestDatabase().database
     const online = createOnlineRequestStore()

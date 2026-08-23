@@ -1,5 +1,7 @@
 import { Sync } from "@hena/schema/sync"
 import { PromptInput } from "@hena/schema/prompt-input"
+import { Session } from "@hena/schema/session"
+import { SessionMessage } from "@hena/schema/session-message"
 import { sValidator } from "@hono/standard-validator"
 import { Schema } from "effect"
 import { Hono } from "hono"
@@ -7,6 +9,9 @@ import type { CoreDomain } from "../core/domain"
 import { error, validationHook } from "../http/error"
 import { preview } from "../storage/content"
 import { fitsPage } from "../stream/pages"
+
+const SessionParams = Schema.Struct({ sessionId: Session.ID })
+const InputParams = Schema.Struct({ sessionId: Session.ID, inputId: SessionMessage.ID })
 
 export function createSessionRoutes(domain: CoreDomain) {
   return new Hono()
@@ -21,34 +26,41 @@ export function createSessionRoutes(domain: CoreDomain) {
     )
     .post(
       "/session/:sessionId/input/:inputId/cancel",
+      sValidator("param", Schema.toStandardSchemaV1(InputParams), validationHook),
       sValidator("json", Schema.toStandardSchemaV1(Sync.CancelInput), validationHook),
       async (c) => c.json(await domain.cancelInput(
-          c.req.param("sessionId"),
-          c.req.param("inputId"),
+          c.req.valid("param").sessionId,
+          c.req.valid("param").inputId,
           c.req.valid("json"),
         )),
     )
     .put(
       "/session/:sessionId/input-order",
+      sValidator("param", Schema.toStandardSchemaV1(SessionParams), validationHook),
       sValidator("json", Schema.toStandardSchemaV1(Sync.ReorderInputs), validationHook),
       async (c) => c.json(await domain.reorderInputs(
-          c.req.param("sessionId"),
+          c.req.valid("param").sessionId,
           c.req.valid("json"),
         )),
     )
     .post(
       "/session/:sessionId/prompt",
+      sValidator("param", Schema.toStandardSchemaV1(SessionParams), validationHook),
       sValidator("json", Schema.toStandardSchemaV1(Sync.AdmitPrompt), validationHook),
       async (c) => {
         if (oversizedPrompt(c.req.valid("json").prompt))
           return error(c, 413, "payload_too_large", "Prompt exceeds the supported size")
-        return c.json(await domain.admitPrompt(c.req.param("sessionId"), c.req.valid("json")))
+        return c.json(await domain.admitPrompt(c.req.valid("param").sessionId, c.req.valid("json")))
       },
     )
-    .post("/session/:sessionId/interrupt", async (c) => {
-      await domain.interrupt(c.req.param("sessionId"))
-      return c.json({ outcome: "applied" as const })
-    })
+    .post(
+      "/session/:sessionId/interrupt",
+      sValidator("param", Schema.toStandardSchemaV1(SessionParams), validationHook),
+      async (c) => {
+        await domain.interrupt(c.req.valid("param").sessionId)
+        return c.json({ outcome: "applied" as const })
+      },
+    )
 }
 
 function oversizedPrompt(prompt: PromptInput.Prompt) {

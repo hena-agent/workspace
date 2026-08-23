@@ -26,12 +26,9 @@ const layer = Layer.effectDiscard(
         const sessionID = sessionId(event.data)
         return sessionID ? refresh(database.db, sessionID, event.type === SessionEvent.Moved.type) : Effect.void
       })
-    const unsubscribeTodos = yield* events.listen((event) =>
-      event.type === SessionTodo.Event.Updated.type
-        ? refreshTodos(database.db, decodeTodoUpdate(event.data).sessionID, crypto.randomUUID()).pipe(Effect.orDie)
-        : Effect.void
+    yield* events.project(SessionTodo.Event.Updated, (event) =>
+      refreshTodos(database.db, decodeTodoUpdate(event.data).sessionID, crypto.randomUUID()).pipe(Effect.orDie),
     )
-    yield* Effect.addFinalizer(() => unsubscribeTodos)
   }),
 )
 
@@ -319,12 +316,13 @@ function replaceScope(
       SELECT row_key, row, row_revision FROM collection_row
       WHERE collection = ${collection} AND scope_key = ${scopeKey}
     `)
+    const existingByKey = new Map(existing.map((row) => [row.row_key, row]))
     const incoming = new Set(rows.map((row) => row.key))
     for (const row of rows) {
       const encoded = JSON.stringify(row.row)
       if (new TextEncoder().encode(encoded).byteLength > 1024 * 1024)
         return yield* Effect.die("Collection row exceeds 1 MiB")
-      const stored = existing.find((entry) => entry.row_key === row.key)
+      const stored = existingByKey.get(row.key)
       if (stored?.row === encoded && stored.row_revision === row.revision) continue
       yield* database.run(sql`
         INSERT INTO collection_row (collection, scope_key, row_key, row, row_revision)

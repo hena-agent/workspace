@@ -153,7 +153,7 @@ v1 synchronizes the core-loop set:
 
 Phase 2 collections, with manifest entries written now and marked deferred: `serverCommands`, `skills`, `mcpServers` (needs the V2 MCP group in core), `integrations`, `sessionDiffs`, `ptys` (Milestone 2 terminal).
 
-The durable todo ID is a core migration, not a client workaround: todos gain a server-issued stable ID (ULID) that survives reorder and edit. The `(session_id, position)` key is demoted to ordering data.
+The durable todo ID is a core migration, not a client workaround: todos gain a server-issued stable ID (ULID) that survives reorder and edit. The `(session_id, position)` key is demoted to ordering data. The rollback-compatible `todo.updated` event remains live-only, and all of its registered database projectors commit in one transaction before listeners are notified.
 
 ### 4.4 The settings collection
 

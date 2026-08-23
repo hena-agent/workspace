@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { asc } from "drizzle-orm"
+import { asc, sql } from "drizzle-orm"
 import { Effect } from "effect"
 import { Database } from "@hena/core/database/database"
 import { LayerNode } from "@hena/core/effect/layer-node"
@@ -71,11 +71,20 @@ describe("SessionTodo", () => {
         { content: "first", position: 1 },
       ])
 
+      const edited = yield* todos.update({
+        sessionID,
+        todos: [
+          { content: "second edited", status: "in_progress", priority: "low" },
+          { content: "first edited", status: "completed", priority: "high" },
+        ],
+      })
+      expect(edited.map((todo) => todo.id)).toEqual(initial.map((todo) => todo.id))
+
       const replacement = yield* todos.update({
         sessionID,
-        todos: [{ id: initial[0]!.id, content: "replacement", status: "completed", priority: "medium" }],
+        todos: [{ id: edited[0]!.id, content: "replacement", status: "completed", priority: "medium" }],
       })
-      expect(replacement[0]!.id).toBe(initial[0]!.id)
+      expect(replacement[0]!.id).toBe(edited[0]!.id)
       expect(yield* todos.get(sessionID)).toEqual(replacement)
 
       yield* todos.update({ sessionID, todos: [] })
@@ -85,9 +94,40 @@ describe("SessionTodo", () => {
           sessionID,
           todos: initial,
         },
+        { sessionID, todos: edited },
         { sessionID, todos: replacement },
         { sessionID, todos: [] },
       ])
+    }),
+  )
+
+  it.effect("rolls back todo rows when a live projector fails", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const events = yield* EventV2.Service
+      const todos = yield* SessionTodo.Service
+      yield* db.run(sql`
+        INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
+        VALUES (1, 'feed', 0, 'runtime')
+      `).pipe(Effect.orDie)
+      yield* events.project(SessionTodo.Event.Updated, () =>
+        Effect.gen(function* () {
+          yield* db.run(sql`
+            INSERT INTO collection_row (collection, scope_key, row_key, row, row_revision)
+            VALUES ('todos', ${sessionID}, 'todo_projected', '{}', '1')
+          `).pipe(Effect.orDie)
+          yield* Effect.die("projection failed")
+        }),
+      )
+
+      yield* Effect.exit(todos.update({
+        sessionID,
+        todos: [{ content: "not committed", status: "pending", priority: "high" }],
+      }))
+
+      expect(yield* db.select().from(TodoTable).all().pipe(Effect.orDie)).toEqual([])
+      expect(yield* db.all(sql`SELECT row_key FROM collection_row WHERE collection = 'todos'`)).toEqual([])
     }),
   )
 

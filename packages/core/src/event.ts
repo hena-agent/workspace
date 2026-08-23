@@ -390,6 +390,13 @@ export const layerWith = (options?: LayerOptions) =>
               return event
             }
           }
+          const list = projectors.get(event.type) ?? []
+          if (list.length > 0)
+            yield* db
+              .transaction(() => Effect.forEach(list, (projector) => projector(event as Payload), { discard: true }), {
+                behavior: "immediate",
+              })
+              .pipe(Effect.orDie)
           yield* notify(event as Payload, false)
           return event
         })

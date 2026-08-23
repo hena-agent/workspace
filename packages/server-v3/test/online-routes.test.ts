@@ -50,4 +50,23 @@ describe("online reply routes", () => {
       resolution: { requestID: "que_1", answers: [["A"]] },
     })
   })
+
+  test("rejects malformed permission and question IDs", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const body = JSON.stringify({ location: { directory: "/repo" }, sessionID: "ses_1", nonce: "nonce", reply: "once" })
+    const permission = await app.request("/api/permission/invalid/reply", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+    })
+    const question = await app.request("/api/question/invalid/reply", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ location: { directory: "/repo" }, sessionID: "ses_1", nonce: "nonce", answers: [] }),
+    })
+
+    expect(permission.status).toBe(400)
+    expect(question.status).toBe(400)
+  })
 })

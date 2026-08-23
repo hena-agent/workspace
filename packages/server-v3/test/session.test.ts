@@ -132,6 +132,26 @@ describe("session mutations", () => {
     })
   })
 
+  test("rejects malformed session and input route IDs", async () => {
+    database = createTestDatabase().database
+    const domain = recordingDomain()
+    const app = createApp({ database, domain })
+    const prompt = await app.request("/api/session/invalid/prompt", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idempotencyKey: "invalid-session", prompt: { text: "hello" } }),
+    })
+    const cancel = await app.request("/api/session/ses_1/input/invalid/cancel", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idempotencyKey: "invalid-input", expectedRevision: 0 }),
+    })
+
+    expect(prompt.status).toBe(400)
+    expect(cancel.status).toBe(400)
+    expect(domain.calls).toEqual([])
+  })
+
   test("maps core idempotency conflicts to the RPC error envelope", async () => {
     database = createTestDatabase().database
     const domain = recordingDomain()

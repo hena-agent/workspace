@@ -307,8 +307,10 @@ export async function bootstrapLocationCollections(
   domain: CoreDomain,
   online: OnlineRequestStore,
 ) {
+  const locations = database.collections.snapshot("locations", "").rows
+  online.retainCatalogs(locations.map((location) => location.key))
   const results = await Promise.allSettled(
-    database.collections.snapshot("locations", "").rows.map(async (location) => {
+    locations.map(async (location) => {
       const ref = location.row as { directory: string; workspaceID?: string }
       const catalog = await domain.catalog(ref)
       online.replace(

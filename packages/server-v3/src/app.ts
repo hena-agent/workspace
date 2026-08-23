@@ -27,7 +27,7 @@ export function createApp(input: {
 }) {
   const app = new Hono()
   app.onError((cause, context) => coreError(context, cause))
-  app.use("/api/*", exactOriginCors(input.corsOrigins ?? ["https://app.hena.dev"]))
+  app.use("/api/*", exactOriginCors(Array.from(new Set(["https://app.hena.dev", ...(input.corsOrigins ?? [])]))))
   app.use("/api/*", (context, next) =>
     bodyLimit({
       maxSize: requestLimit(context.req.path),

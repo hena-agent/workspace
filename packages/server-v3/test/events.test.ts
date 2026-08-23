@@ -182,6 +182,38 @@ describe("collection events", () => {
     expect(output.slice(0, output.indexOf("event: delta")).match(/event: snapshot.end/g)).toHaveLength(4)
   })
 
+  test("bounds deltas buffered during initial snapshots", async () => {
+    database = createTestDatabase().database
+    const deltas = createDeltaHub()
+    const app = createApp({ database, deltas })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 1)
+      output += decoder.decode((await reader.read()).value)
+
+    Array.from({ length: 5 }, () =>
+      deltas.publish({
+        sessionId: "session-1",
+        messageId: "message-1",
+        partId: "part-1",
+        partKind: "text",
+        text: "x".repeat(900 * 1024),
+      }),
+    )
+    while (!output.includes("slow_consumer")) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      output += decoder.decode(chunk.value)
+    }
+    await reader.cancel()
+
+    expect(output).toContain("slow_consumer")
+    expect(output.match(/event: snapshot.end/g)?.length ?? 0).toBeLessThan(4)
+  })
+
   test("subscribes once per distinct delta session", async () => {
     database = createTestDatabase().database
     const deltas = createDeltaHub()
@@ -382,6 +414,9 @@ describe("collection events", () => {
     for (const collection of ["settings", "agents", "models", "providers"])
       expect(output).toContain(`"scope":{"collection":"${collection}","scopeKey":${JSON.stringify(location)}}`)
     expect(output.match(/"keyCount":0/g)).toHaveLength(4)
+    expect(online.snapshot("agents", location).rows).toEqual([])
+    expect(online.snapshot("models", location).rows).toEqual([])
+    expect(online.snapshot("providers", location).rows).toEqual([])
   })
 
   test("does not restore initial catalogs after their location is removed", async () => {

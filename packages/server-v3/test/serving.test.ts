@@ -52,8 +52,9 @@ describe("serving", () => {
 
   test("allows configured origins and rejects unknown origins", async () => {
     database = createTestDatabase().database
-    const app = createApp({ database, corsOrigins: ["https://app.hena.dev"] })
+    const app = createApp({ database, corsOrigins: ["https://custom.example"] })
     const allowed = await app.request("/api/collection/capabilities", { headers: { origin: "https://app.hena.dev" } })
+    const custom = await app.request("/api/collection/capabilities", { headers: { origin: "https://custom.example" } })
     const sameOrigin = await app.request("http://localhost/api/settings/profile/theme", {
       method: "PUT",
       headers: { origin: "http://localhost", "content-type": "application/json" },
@@ -68,6 +69,7 @@ describe("serving", () => {
     const rejected = await app.request("/api/collection/capabilities", { headers: { origin: "https://evil.example" } })
 
     expect(allowed.headers.get("access-control-allow-origin")).toBe("https://app.hena.dev")
+    expect(custom.headers.get("access-control-allow-origin")).toBe("https://custom.example")
     expect(sameOrigin.status).toBe(200)
     expect(sameOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost")
     expect(devOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost:5173")
@@ -108,11 +110,7 @@ async function runServer(
   source = 'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); await instance.stop()',
 ) {
   const child = Bun.spawn({
-    cmd: [
-      process.execPath,
-      "-e",
-      source,
-    ],
+    cmd: [process.execPath, "-e", source],
     cwd: resolve(import.meta.dir, ".."),
     env: { ...process.env, HENA_DB: database },
     stdout: "ignore",

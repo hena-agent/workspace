@@ -44,6 +44,7 @@ export function events(
     const pendingDeltas: Delta[] = []
     let writes = Promise.resolve()
     let queuedBytes = 0
+    let bufferedBytes = 0
     let ending = false
     const disconnected = Promise.withResolvers<void>()
     const disconnect = () => {
@@ -52,21 +53,33 @@ export function events(
     }
     streams.bind("local", resource.id, resource.generation, disconnect)
     stream.onAbort(disconnect)
+    const slowConsumer = () => {
+      ending = true
+      writes = writes
+        .then(() =>
+          stream.writeSSE({
+            event: "error",
+            data: JSON.stringify(frame({ type: "error", code: "slow_consumer" })),
+          }),
+        )
+        .then(() => stream.close())
+        .finally(disconnected.resolve)
+    }
+    const reserveBuffer = (value: unknown) => {
+      const size = new TextEncoder().encode(JSON.stringify(value)).byteLength
+      if (queuedBytes + bufferedBytes + size > 4 * 1024 * 1024) {
+        slowConsumer()
+        return false
+      }
+      bufferedBytes += size
+      return true
+    }
     const enqueue = (event: string, value: Record<string, unknown>) => {
       if (ending) return
       const data = JSON.stringify(frame(value))
       const size = new TextEncoder().encode(data).byteLength
-      if (queuedBytes + size > 4 * 1024 * 1024) {
-        ending = true
-        writes = writes
-          .then(() =>
-            stream.writeSSE({
-              event: "error",
-              data: JSON.stringify(frame({ type: "error", code: "slow_consumer" })),
-            }),
-          )
-          .then(() => stream.close())
-          .finally(disconnected.resolve)
+      if (queuedBytes + bufferedBytes + size > 4 * 1024 * 1024) {
+        slowConsumer()
         return
       }
       queuedBytes += size
@@ -80,6 +93,7 @@ export function events(
     const unsubscribeDeltas = Array.from(new Set(subscription.sessions), (sessionID) =>
       deltas.subscribe(sessionID, (delta) => {
         if (!deltaLive) {
+          if (!reserveBuffer(delta)) return
           pendingDeltas.push(delta)
           return
         }
@@ -98,6 +112,7 @@ export function events(
       )
       if (visible.length === 0) return
       if (!live) {
+        if (!reserveBuffer(visible)) return
         buffered.push(visible)
         return
       }
@@ -137,6 +152,7 @@ export function events(
         )
         enqueueEmptySnapshot(scope)
       }
+      for (const collection of ["agents", "models", "providers"] as const) online.remove(collection, locationKey)
     }
     const enqueueVolatile = (scope: { collection: VolatileCollection; scopeKey: string }) => {
       volatileFrames(scope).forEach((item) => enqueue(item.event, item.value))
@@ -301,6 +317,7 @@ export function events(
 
     live = true
     volatileLive = true
+    bufferedBytes = 0
     buffered
       .filter((changes) => changes.some((change) => change.seq > (through.get(scopeKey(change)) ?? 0)))
       .sort((left, right) => left[0].seq - right[0].seq)

@@ -293,4 +293,14 @@ describe("collection bootstrap", () => {
     await refresh
     expect(settled).toBe(true)
   })
+
+  test("removes catalogs for locations that no longer exist", async () => {
+    database = createTestDatabase().database
+    const online = createOnlineRequestStore()
+    online.replace("agents", '{"directory":"/removed"}', [{ key: "stale", row: { id: "stale" } }])
+
+    await bootstrapLocationCollections(database, unavailableCoreDomain(), online)
+
+    expect(online.snapshot("agents", '{"directory":"/removed"}').rows).toEqual([])
+  })
 })

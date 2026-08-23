@@ -91,6 +91,20 @@ export function createOnlineRequestStore() {
       rows.set(sourceKey(target, scopeKey), new Map(incoming.map((row) => [row.key, row.row])))
       changed(target, scopeKey)
     },
+    remove(target: VolatileCollection, scopeKey: string) {
+      if (rows.delete(sourceKey(target, scopeKey))) changed(target, scopeKey)
+    },
+    retainCatalogs(scopeKeys: readonly string[]) {
+      const retained = new Set(scopeKeys)
+      for (const collection of ["agents", "models", "providers"] as const) {
+        Array.from(rows.keys())
+          .filter((key) => key.startsWith(`${collection}\u0000`) && !retained.has(key.slice(collection.length + 1)))
+          .forEach((key) => {
+            rows.delete(key)
+            changed(collection, key.slice(collection.length + 1))
+          })
+      }
+    },
     snapshot(target: VolatileCollection, scopeKey = "") {
       return {
         revision,

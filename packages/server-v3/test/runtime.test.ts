@@ -45,4 +45,37 @@ describe("core runtime", () => {
       await Bun.file(filename).delete()
     }
   })
+
+  test("does not persist inline attachment contents in idempotency responses", async () => {
+    const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
+    const bootstrap = createCoreDomain(undefined, undefined, undefined, filename)
+    await bootstrap.ready()
+    await bootstrap.dispose()
+    createSyncDatabase(new Database(filename, { create: true })).close()
+    const domain = createCoreDomain(undefined, undefined, undefined, filename)
+    await domain.ready()
+    const uri = `data:text/plain;base64,${"x".repeat(1024 * 1024)}`
+
+    try {
+      const created = await domain.createSession({
+        idempotencyKey: "compact-response",
+        sessionID: Session.ID.create(),
+        messageID: SessionMessage.ID.create(),
+        location: Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() }),
+        prompt: { text: "attachment", files: [{ uri }] },
+        delivery: "queue",
+      })
+      expect(created.admitted.id).toBeDefined()
+    } finally {
+      await domain.dispose()
+    }
+
+    const database = new Database(filename)
+    const stored = database.query<{ response: string }, []>("SELECT response FROM idempotency_record").get()!.response
+    database.close()
+    await Bun.file(filename).delete()
+
+    expect(stored).not.toContain(uri)
+    expect(stored.length).toBeLessThan(10_000)
+  })
 })

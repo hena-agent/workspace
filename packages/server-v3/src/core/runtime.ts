@@ -77,6 +77,7 @@ export function createCoreDomain(
         affectedScopes: Array<{ collection: string; scopeKey: string }>
       },
     ) => Response
+    persist?: (response: Response) => unknown
   }) =>
     Database.Service.use((database) =>
       database.db.transaction((tx) =>
@@ -131,7 +132,7 @@ export function createCoreDomain(
           const response = input.response(value, receipt)
           yield* tx.run(sql`
             INSERT INTO idempotency_record (principal, operation, key, fingerprint, response, txid, created_at)
-            VALUES ('local', ${input.operation}, ${input.key}, ${requestFingerprint}, ${JSON.stringify(response)}, ${txid}, ${Date.now()})
+            VALUES ('local', ${input.operation}, ${input.key}, ${requestFingerprint}, ${JSON.stringify(input.persist?.(response) ?? response)}, ${txid}, ${Date.now()})
           `)
           return response
         }),
@@ -164,6 +165,7 @@ export function createCoreDomain(
             admitted: encodeAdmitted(result.admitted),
             receipt,
           }),
+          persist: compactAdmissionResponse,
         }).pipe(
           Effect.tap((response) =>
             SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(response.session.id))),
@@ -186,6 +188,7 @@ export function createCoreDomain(
             }),
           ),
           response: (admitted, receipt) => ({ admitted: encodeAdmitted(admitted), receipt }),
+          persist: compactAdmissionResponse,
         }).pipe(Effect.tap(() => SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(sessionID))))),
       ),
     interrupt: async (sessionID) => {
@@ -244,8 +247,7 @@ export function createCoreDomain(
       if (!online) throw new Error("Online request store is unavailable")
       return online.serialize("permission", requestID, async () => {
         const request = online.request("permission", requestID, input.sessionID, input.nonce)
-        if (!request)
-          return { outcome: "already_resolved", resolution: online.authoritative("permission", requestID) }
+        if (!request) return { outcome: "already_resolved", resolution: online.authoritative("permission", requestID) }
         const result = await runtime.runPromise(
           PermissionV2.Service.use((service) =>
             service.reply({
@@ -280,8 +282,7 @@ export function createCoreDomain(
       if (!online) throw new Error("Online request store is unavailable")
       return online.serialize("question", requestID, async () => {
         const request = online.request("question", requestID, input.sessionID, input.nonce)
-        if (!request)
-          return { outcome: "already_resolved", resolution: online.authoritative("question", requestID) }
+        if (!request) return { outcome: "already_resolved", resolution: online.authoritative("question", requestID) }
         const result = await runtime.runPromise(
           QuestionV2.Service.use((service) =>
             service.reply({
@@ -333,4 +334,27 @@ export function createCoreDomain(
 
 function location(input: { directory: string; workspaceID?: string }) {
   return Schema.decodeUnknownSync(Location.Ref)(input)
+}
+
+function compactAdmissionResponse(response: unknown) {
+  if (typeof response !== "object" || response === null || !("admitted" in response)) return response
+  const admitted = response.admitted
+  if (typeof admitted !== "object" || admitted === null || !("prompt" in admitted)) return response
+  const prompt = admitted.prompt
+  if (typeof prompt !== "object" || prompt === null || !("files" in prompt) || !Array.isArray(prompt.files))
+    return response
+  return {
+    ...response,
+    admitted: {
+      ...admitted,
+      prompt: {
+        ...prompt,
+        files: prompt.files.map((file) =>
+          typeof file === "object" && file !== null && "uri" in file && typeof file.uri === "string"
+            ? { ...file, uri: file.uri.startsWith("data:") ? "" : file.uri }
+            : file,
+        ),
+      },
+    },
+  }
 }

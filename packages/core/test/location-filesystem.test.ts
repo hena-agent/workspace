@@ -56,6 +56,21 @@ describe("FileSystem", () => {
     ),
   )
 
+  it.live("applies list limits after sorting", () =>
+    withTmp((directory) =>
+      Effect.gen(function* () {
+        yield* Effect.promise(() => fs.writeFile(path.join(directory, "a"), "file"))
+        yield* Effect.promise(() => fs.mkdir(path.join(directory, "dir")))
+
+        const entries = yield* (yield* FileSystem.Service).list({ limit: 1 })
+
+        expect(entries.map((entry) => ({ path: entry.path, type: entry.type }))).toEqual([
+          { path: RelativePath.make("dir" + path.sep), type: "directory" },
+        ])
+      }).pipe(provide(directory)),
+    ),
+  )
+
   it.live("rejects lexical escapes", () =>
     withTmp((directory) =>
       Effect.gen(function* () {

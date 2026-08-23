@@ -93,10 +93,10 @@ const baseLayer = Layer.effect(
           Effect.orDie,
           Effect.map((items) =>
             items
-              .filter((item): item is typeof item & { type: "file" | "directory" } =>
-                item.type === "file" || item.type === "directory"
+              .filter(
+                (item): item is typeof item & { type: "file" | "directory" } =>
+                  item.type === "file" || item.type === "directory",
               )
-              .slice(0, input.limit ?? 1_000)
               .map((item) => {
                 const absolute = path.join(target.absolute, item.name)
                 const relative = path.relative(target.directory, absolute)
@@ -105,7 +105,8 @@ const baseLayer = Layer.effect(
                   type: item.type,
                 })
               })
-              .sort((a, b) => (a.type === b.type ? a.path.localeCompare(b.path) : a.type === "directory" ? -1 : 1)),
+              .sort((a, b) => (a.type === b.type ? a.path.localeCompare(b.path) : a.type === "directory" ? -1 : 1))
+              .slice(0, input.limit ?? 1_000),
           ),
         )
       }),

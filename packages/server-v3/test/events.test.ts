@@ -327,6 +327,49 @@ describe("collection events", () => {
       expect(output).toContain(`"scope":{"collection":"${collection}","scopeKey":${JSON.stringify(location)}}`)
     expect(output.match(/"keyCount":0/g)).toHaveLength(4)
   })
+
+  test("does not restore initial catalogs after their location is removed", async () => {
+    database = createTestDatabase().database
+    const online = createOnlineRequestStore()
+    const location = JSON.stringify({ directory: "/removed-during-snapshot" })
+    database.collections.write({
+      collection: "locations",
+      scopeKey: "",
+      rowKey: location,
+      row: { directory: "/removed-during-snapshot" },
+      revision: "1",
+    })
+    database.collections.write({
+      collection: "settings",
+      scopeKey: location,
+      rowKey: "theme",
+      row: { value: "stale" },
+      revision: "1",
+    })
+    online.replace("agents", location, [{ key: "stale", row: { id: "stale-agent" } }])
+    const app = createApp({ database, online })
+    const created = await app.request("/api/collection/streams", { method: "POST" })
+    const stream = (await created.json()) as { streamId: string }
+    await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revision: 1, lists: true, sessions: [], cursors: {} }),
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 1)
+      output += decoder.decode((await reader.read()).value)
+
+    output = ""
+    database.collections.delete("locations", "", location)
+    while (!output.includes('"op":"delete"')) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output).not.toContain('"value":"stale"')
+    expect(output).not.toContain('"id":"stale-agent"')
+  })
 })
 
 async function createSubscribedStream(

@@ -275,6 +275,7 @@ export function events(
       })
     })()
     for (const item of initial) {
+      if (!scopes.some((scope) => scopeKey(scope) === scopeKey(item.scope))) continue
       if (isVolatile(item.scope.collection)) {
         await writeFrames(volatileFrames({ collection: item.scope.collection, scopeKey: item.scope.scopeKey }))
         continue

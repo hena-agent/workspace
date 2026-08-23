@@ -47,6 +47,11 @@ describe("collection bootstrap", () => {
       );
       INSERT INTO todo VALUES ('todo_1', 'ses_1', 'Ship it', 'pending', 'high', 0, 8, 9);
     `)
+    const uri = `data:text/plain;base64,${"A".repeat(40 * 1024)}`
+    database.raw.query("UPDATE session_input SET prompt = ? WHERE id = 'msg_2'").run(JSON.stringify({
+      text: "queued",
+      files: [{ uri }],
+    }))
 
     bootstrapCollections(database)
 
@@ -64,7 +69,17 @@ describe("collection bootstrap", () => {
     expect(database.collections.snapshot("sessionInputs", "ses_1").rows[0]?.row).toMatchObject({
       id: "msg_2",
       delivery: "queue",
+      prompt: { files: [{ truncated: true, content: { bytes: uri.length } }] },
     })
+    const projected = database.collections.snapshot("sessionInputs", "ses_1").rows[0]!.row as {
+      prompt: { files: Array<{ content: { id: string; revision: string } }> }
+    }
+    expect(database.content.page({
+      ...projected.prompt.files[0]!.content,
+      sessionID: "ses_1",
+      offset: 0,
+      limit: 256 * 1024,
+    })?.text).toBe(uri)
     expect(database.collections.snapshot("todos", "ses_1").rows[0]?.row).toMatchObject({
       id: "todo_1",
       content: "Ship it",

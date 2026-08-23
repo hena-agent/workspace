@@ -14,6 +14,10 @@ export function pages<Item>(items: readonly Item[]) {
   }, [])
 }
 
+export function fitsPage(items: readonly unknown[]) {
+  return items.length <= MaxItems && bytes(items) <= MaxPayloadBytes
+}
+
 function bytes(value: unknown) {
   return new TextEncoder().encode(JSON.stringify(value)).byteLength
 }

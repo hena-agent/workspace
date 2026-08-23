@@ -1,4 +1,5 @@
 import { SessionMessage } from "@hena/schema/session-message"
+import { PromptInput } from "@hena/schema/prompt-input"
 import { Schema } from "effect"
 import { preview } from "../storage/content"
 import { fingerprint } from "../storage/fingerprint"
@@ -189,10 +190,11 @@ function hydrateSessionCollections(
     "sessionInputs",
     sessionID,
     inputs.map((input) => {
+      const prompt = projectPrompt(database, sessionID, input.id, JSON.parse(input.prompt))
       const row = {
         id: input.id,
         sessionID: input.session_id,
-        prompt: JSON.parse(input.prompt),
+        prompt,
         delivery: input.delivery,
         admittedSeq: input.admitted_seq,
         promotedSeq: input.promoted_seq ?? undefined,
@@ -211,6 +213,31 @@ function hydrateSessionCollections(
       revision: String(todo.time_updated),
     })),
   )
+}
+
+function projectPrompt(
+  database: SyncDatabase,
+  sessionID: string,
+  inputID: string,
+  prompt: PromptInput.Prompt,
+) {
+  if (!prompt.files) return prompt
+  const revision = fingerprint(prompt)
+  return {
+    ...prompt,
+    files: prompt.files.map((file, index) => {
+      const projected = preview(file.uri)
+      if (!projected.truncated) return file
+      const id = `${inputID}_attachment_${index}`
+      database.content.put({ id, sessionID, revision, text: file.uri })
+      return {
+        ...file,
+        uri: projected.text,
+        truncated: true as const,
+        content: { id, revision, bytes: projected.totalBytes },
+      }
+    }),
+  }
 }
 
 function projectPart(

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { createApp } from "../src/app"
 import type { SyncDatabase } from "../src/storage/database"
 import { createTestDatabase } from "./fixture"
+import { Hostname } from "../src/main"
 
 describe("serving", () => {
   let database: SyncDatabase | undefined
@@ -54,6 +55,12 @@ describe("serving", () => {
     const rejected = await app.request("/api/collection/capabilities", { headers: { origin: "https://evil.example" } })
 
     expect(allowed.headers.get("access-control-allow-origin")).toBe("https://app.hena.dev")
+    expect(rejected.status).toBe(401)
     expect(rejected.headers.get("access-control-allow-origin")).toBeNull()
+    expect(await rejected.json()).toMatchObject({ error: { code: "unauthorized" } })
+  })
+
+  test("binds the unauthenticated server to loopback", () => {
+    expect(Hostname).toBe("127.0.0.1")
   })
 })

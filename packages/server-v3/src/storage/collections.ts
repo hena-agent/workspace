@@ -33,7 +33,7 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
       revision: string
       txid?: string
     }) {
-      return database.transaction(() => {
+      return changes.batch(() => database.transaction(() => {
         upsert.run(input.collection, input.scopeKey, input.rowKey, encodeRow(input.row), input.revision)
         return changes.append({
           collection: input.collection,
@@ -44,13 +44,13 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
           rowRevision: input.revision,
           txid: input.txid,
         })
-      })()
+      })())
     },
     delete(collection: string, scopeKey: string, rowKey: string, txid?: string) {
-      return database.transaction(() => {
+      return changes.batch(() => database.transaction(() => {
         remove.run(collection, scopeKey, rowKey)
         return changes.append({ collection, scopeKey, rowKey, op: "delete", row: null, txid })
-      })()
+      })())
     },
     replace(
       collection: string,
@@ -58,7 +58,7 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
       rows: ReadonlyArray<{ key: string; row: unknown; revision: string }>,
       txid?: string,
     ) {
-      return database.transaction(() => {
+      return changes.batch(() => database.transaction(() => {
         const incoming = new Set(rows.map((row) => row.key))
         const current = list.all(collection, scopeKey)
         const output = rows.map((row) => {
@@ -78,7 +78,7 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
           output.push(changes.append({ collection, scopeKey, rowKey: stale.row_key, op: "delete", row: null, txid }))
         }
         return output
-      })()
+      })())
     },
     hydrate(collection: string, scopeKey: string, rows: ReadonlyArray<{ key: string; row: unknown; revision: string }>) {
       return database.transaction(() => {

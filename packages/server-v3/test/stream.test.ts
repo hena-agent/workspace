@@ -29,4 +29,20 @@ describe("stream registry", () => {
     time += 101
     expect(streams.get("local", stream.id)).toBeUndefined()
   })
+
+  test("supersedes the previous attachment generation", () => {
+    const streams = createStreamRegistry({ graceMs: 1_000 })
+    const stream = streams.create("local")
+    const first = streams.attach("local", stream.id)!
+    let disconnected = false
+    expect(streams.bind("local", stream.id, first.generation, () => {
+      disconnected = true
+    })).toBe(true)
+
+    const second = streams.attach("local", stream.id)!
+
+    expect(disconnected).toBe(true)
+    expect(second.generation).toBe(first.generation + 1)
+    expect(streams.bind("local", stream.id, first.generation, () => {})).toBe(false)
+  })
 })

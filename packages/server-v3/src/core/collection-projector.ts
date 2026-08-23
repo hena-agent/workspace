@@ -10,6 +10,7 @@ import { Context, Effect, Layer, Schema } from "effect"
 import { Session } from "@hena/schema/session"
 import { SessionMessage } from "@hena/schema/session-message"
 import { SessionTodo } from "@hena/schema/session-todo"
+import { PromptInput } from "@hena/schema/prompt-input"
 import { preview } from "../storage/content"
 import { fingerprint } from "../storage/fingerprint"
 
@@ -24,13 +25,9 @@ const layer = Layer.effectDiscard(
         const sessionID = sessionId(event.data)
         return sessionID ? refresh(database.db, sessionID) : Effect.void
       })
-    const unsubscribe = yield* events.listen((event) =>
-      Effect.gen(function* () {
-        if (event.type === SessionTodo.Event.Updated.type)
-          yield* refreshTodos(database.db, decodeTodoUpdate(event.data).sessionID, crypto.randomUUID())
-      }).pipe(Effect.orDie),
+    yield* events.project(SessionTodo.Event.Updated, (event) =>
+      refreshTodos(database.db, decodeTodoUpdate(event.data).sessionID, crypto.randomUUID()).pipe(Effect.orDie),
     )
-    yield* Effect.addFinalizer(() => unsubscribe)
   }),
 )
 
@@ -67,6 +64,20 @@ function refresh(database: DatabaseService, sessionID: string) {
         false,
       )
     if (!session) yield* removeScopeRow(database, "sessions", "", sessionID, txid)
+    if (session) {
+      const location = {
+        directory: session.directory,
+        ...(session.workspace_id ? { workspaceID: session.workspace_id } : {}),
+      }
+      yield* replaceScope(
+        database,
+        "locations",
+        "",
+        [{ key: JSON.stringify(location), row: location, revision: "1" }],
+        txid,
+        false,
+      )
+    }
 
     const messages = yield* database
       .select()
@@ -110,24 +121,30 @@ function refresh(database: DatabaseService, sessionID: string) {
       .from(SessionInputTable)
       .where(eq(SessionInputTable.session_id, Session.ID.make(sessionID)))
       .all()
+    const projectedInputs = yield* Effect.forEach(inputs, (input) =>
+      Effect.gen(function* () {
+        const prompt = yield* projectPrompt(database, sessionID, input.id, input.prompt)
+        return {
+          key: input.id,
+          row: {
+            id: input.id,
+            sessionID: input.session_id,
+            prompt,
+            delivery: input.delivery,
+            admittedSeq: input.admitted_seq,
+            promotedSeq: input.promoted_seq ?? undefined,
+            queuePosition: input.queue_position,
+            timeCreated: input.time_created,
+          },
+          revision: String(input.promoted_seq ?? input.admitted_seq),
+        }
+      }),
+    )
     yield* replaceScope(
       database,
       "sessionInputs",
       sessionID,
-      inputs.map((input) => ({
-        key: input.id,
-        row: {
-          id: input.id,
-          sessionID: input.session_id,
-          prompt: input.prompt,
-          delivery: input.delivery,
-          admittedSeq: input.admitted_seq,
-          promotedSeq: input.promoted_seq ?? undefined,
-          queuePosition: input.queue_position,
-          timeCreated: input.time_created,
-        },
-        revision: String(input.promoted_seq ?? input.admitted_seq),
-      })),
+      projectedInputs,
       txid,
     )
     yield* refreshTodos(database, sessionID, txid)
@@ -198,6 +215,31 @@ function projectText(database: DatabaseService, sessionID: string, revision: str
       truncated: true as const,
       content: { id, revision, bytes: projected.totalBytes, lines: projected.totalLines },
     }
+  })
+}
+
+function projectPrompt(database: DatabaseService, sessionID: string, inputID: string, prompt: PromptInput.Prompt) {
+  return Effect.gen(function* () {
+    if (!prompt.files) return prompt
+    const revision = fingerprint(prompt)
+    const files = yield* Effect.forEach(prompt.files, (file, index) =>
+      Effect.gen(function* () {
+        const projected = preview(file.uri)
+        if (!projected.truncated) return file
+        const id = `${inputID}_attachment_${index}`
+        yield* database.run(sql`
+          INSERT OR REPLACE INTO full_content (id, session_id, revision, content, created_at)
+          VALUES (${id}, ${sessionID}, ${revision}, ${file.uri}, ${Date.now()})
+        `)
+        return {
+          ...file,
+          uri: projected.text,
+          truncated: true as const,
+          content: { id, revision, bytes: projected.totalBytes },
+        }
+      }),
+    )
+    return { ...prompt, files }
   })
 }
 

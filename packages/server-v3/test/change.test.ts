@@ -81,7 +81,7 @@ describe("collection changes", () => {
   test("publishes changelog rows inserted by the core transaction", () => {
     database = createTestDatabase().database
     const received = new Array<string>()
-    const unsubscribe = database.changes.subscribe("messages", "ses_1", (change) => received.push(change.rowKey))
+    const unsubscribe = database.changes.subscribe("messages", "ses_1", (changes) => received.push(...changes.map((change) => change.rowKey)))
     database.raw
       .query(
         `
@@ -106,6 +106,19 @@ describe("collection changes", () => {
     unsubscribe()
 
     expect(received).toEqual(["msg_1"])
+  })
+
+  test("publishes one callback for all scoped rows in a transaction", () => {
+    database = createTestDatabase().database
+    const received = new Array<readonly string[]>()
+    database.changes.subscribe("messages", "ses_1", (changes) => received.push(changes.map((change) => change.rowKey)))
+
+    database.collections.replace("messages", "ses_1", [
+      { key: "msg_1", row: { id: "msg_1" }, revision: "1" },
+      { key: "msg_2", row: { id: "msg_2" }, revision: "1" },
+    ], "tx-1")
+
+    expect(received).toEqual([["msg_1", "msg_2"]])
   })
 
   test("rejects oversized rows before writing the changelog", () => {

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { createApp } from "../src/app"
 import type { SyncDatabase } from "../src/storage/database"
 import { createTestDatabase } from "./fixture"
+import { createOnlineRequestStore } from "../src/core/online-requests"
 
 describe("collection events", () => {
   let database: SyncDatabase | undefined
@@ -45,6 +46,53 @@ describe("collection events", () => {
 
     expect(output).toContain("event: rows")
     expect(output).toContain('"id":"message-live"')
+  })
+
+  test("keeps every transaction in one rows frame", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 4) output += decoder.decode((await reader.read()).value)
+
+    database.collections.replace("messages", "session-1", [
+      { key: "message-one", row: { id: "message-one" }, revision: "1" },
+      { key: "message-two", row: { id: "message-two" }, revision: "1" },
+    ], "tx-one")
+    while (!output.includes("message-two")) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output.match(/event: rows/g)).toHaveLength(1)
+    expect(output).toContain('"txid":"tx-one"')
+  })
+
+  test("discovers location catalogs added while connected", async () => {
+    database = createTestDatabase().database
+    const online = createOnlineRequestStore()
+    const app = createApp({ database, online })
+    const created = await app.request("/api/collection/streams", { method: "POST" })
+    const stream = await created.json() as { streamId: string }
+    await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revision: 1, lists: true, sessions: [], cursors: {} }),
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 6) output += decoder.decode((await reader.read()).value)
+
+    const location = JSON.stringify({ directory: "/new" })
+    database.collections.write({ collection: "locations", scopeKey: "", rowKey: location, row: { directory: "/new" }, revision: "1" })
+    online.replace("agents", location, [{ key: "build", row: { id: "build" } }])
+    while (!output.includes('"id":"build"')) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output).toContain(`"scopeKey":${JSON.stringify(location)}`)
   })
 })
 

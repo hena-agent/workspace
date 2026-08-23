@@ -32,7 +32,7 @@ type ChangeRow = {
 }
 
 export function createChangeStore(database: Database, feed: { get(): { runtimeId: string } }) {
-  const listeners = new Map<string, Set<(change: Change) => void>>()
+  const listeners = new Map<string, Set<(changes: readonly Change[]) => void>>()
   const select = database.query<ChangeRow, [string, string, number]>(`
     SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
     FROM collection_change
@@ -58,11 +58,26 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
   `)
 
   let publishedSeq = current.get()!.seq
-  const publish = (change: Change) => {
-    publishedSeq = Math.max(publishedSeq, change.seq)
-    listeners.get(scopeKey(change.collection, change.scopeKey))?.forEach((listener) => listener(change))
+  let batchDepth = 0
+  const publish = (changes: readonly Change[]) => {
+    const scopes = changes.reduce((grouped, change) => {
+      const key = scopeKey(change.collection, change.scopeKey)
+      grouped.set(key, [...(grouped.get(key) ?? []), change])
+      return grouped
+    }, new Map<string, Change[]>())
+    scopes.forEach((scoped, key) => listeners.get(key)?.forEach((listener) => listener(scoped)))
   }
-  const publishPersisted = () => persisted.all(publishedSeq).map(fromRow).forEach(publish)
+  const publishPersisted = () => {
+    const changes = persisted.all(publishedSeq).map(fromRow)
+    if (changes.length === 0) return
+    publishedSeq = changes.at(-1)!.seq
+    changes.reduce<Change[][]>((transactions, change) => {
+      const current = transactions.at(-1)
+      if (current && change.txid !== undefined && current[0]!.txid === change.txid) current.push(change)
+      else transactions.push([change])
+      return transactions
+    }, []).forEach(publish)
+  }
 
   const store = {
     append(input: Omit<ChangeInput, "row"> & { row?: unknown | null }): Change {
@@ -90,7 +105,7 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
           createdAt,
         )
       const change = { ...input, row: input.row ?? null, seq: Number(result.lastInsertRowid), runtimeId, createdAt }
-      publish(change)
+      if (batchDepth === 0) publishPersisted()
       return change
     },
     after(collection: string, scopeKey: string, seq: number) {
@@ -112,7 +127,7 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
     reset(collection: string, scopeKey: string) {
       return store.append({ collection, scopeKey, rowKey: "", op: "reset", row: null })
     },
-    subscribe(collection: string, scope: string, listener: (change: Change) => void) {
+    subscribe(collection: string, scope: string, listener: (changes: readonly Change[]) => void) {
       const key = scopeKey(collection, scope)
       const scoped = listeners.get(key) ?? new Set()
       scoped.add(listener)
@@ -120,6 +135,15 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
       return () => {
         scoped.delete(listener)
         if (scoped.size === 0) listeners.delete(key)
+      }
+    },
+    batch<Value>(run: () => Value) {
+      batchDepth++
+      try {
+        return run()
+      } finally {
+        batchDepth--
+        if (batchDepth === 0) publishPersisted()
       }
     },
     publishPersisted,

@@ -10,6 +10,8 @@ import { Flag } from "@hena/core/flag/flag"
 
 if (import.meta.main) await start()
 
+export const Hostname = "127.0.0.1"
+
 export async function start(input?: { port?: number; publicDir?: string }) {
   assertNoPassword()
   const deltas = createDeltaHub()
@@ -28,6 +30,13 @@ export async function start(input?: { port?: number; publicDir?: string }) {
       ),
     )
   })
+  const unsubscribeLocations = database.changes.subscribe("locations", "", () => {
+    bootstrapLocationCollections(database, domain, online).catch((cause) =>
+      console.error(
+        JSON.stringify({ type: "catalog_refresh_error", name: cause instanceof Error ? cause.name : "Unknown" }),
+      ),
+    )
+  })
   const app = createApp({
     database,
     domain,
@@ -37,6 +46,7 @@ export async function start(input?: { port?: number; publicDir?: string }) {
     publicDir: input?.publicDir ?? path.resolve(import.meta.dir, "../../app-v3/dist"),
   })
   const server = Bun.serve({
+    hostname: Hostname,
     port: input?.port ?? readPort(process.argv) ?? 4106,
     fetch: app.fetch,
   })
@@ -45,6 +55,7 @@ export async function start(input?: { port?: number; publicDir?: string }) {
   const stop = async () => {
     clearInterval(compaction)
     unsubscribeCatalog()
+    unsubscribeLocations()
     await domain.dispose()
     database.close()
     await server.stop()

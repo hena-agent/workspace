@@ -1,5 +1,6 @@
 import type { Database } from "bun:sqlite"
 import { fingerprint } from "./fingerprint"
+import type { createChangeStore } from "./changes"
 
 export class IdempotencyConflict extends Error {
   readonly code = "idempotency_conflict"
@@ -17,7 +18,7 @@ type RecordRow = {
   response: string
 }
 
-export function createIdempotencyStore(database: Database) {
+export function createIdempotencyStore(database: Database, changes: ReturnType<typeof createChangeStore>) {
   const inFlight = new Map<string, { fingerprint: string; response: Promise<unknown> }>()
   const get = database.query<RecordRow, [string, string, string]>(`
     SELECT fingerprint, response FROM idempotency_record
@@ -35,7 +36,7 @@ export function createIdempotencyStore(database: Database) {
       if (recorded?.fingerprint !== undefined && recorded.fingerprint !== requestFingerprint) throw new IdempotencyConflict()
       if (recorded) return { outcome: "exact_retry" as const, response: JSON.parse(recorded.response) as Response }
 
-      return database.transaction(() => {
+      return changes.batch(() => database.transaction(() => {
         const response = execute()
         insert.run(
           input.principal,
@@ -47,7 +48,7 @@ export function createIdempotencyStore(database: Database) {
           Date.now(),
         )
         return { outcome: "applied" as const, response }
-      })()
+      })())
     },
     async runAsync<Response>(input: IdempotencyInput, execute: () => Promise<Response>) {
       const requestFingerprint = fingerprint(input.payload)

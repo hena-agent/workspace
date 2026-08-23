@@ -12,6 +12,7 @@ type StreamResource = {
   generation: number
   expiresAt: number
   subscription?: Subscription
+  disconnect?: () => void
 }
 
 export class StreamRevisionConflict extends Error {
@@ -55,13 +56,26 @@ export function createStreamRegistry(config: { graceMs: number; now?: () => numb
     attach(principal: string, id: string) {
       const resource = owned(principal, id)
       if (!resource) return undefined
+      resource.disconnect?.()
       resource.generation++
+      resource.disconnect = undefined
       resource.expiresAt = Number.POSITIVE_INFINITY
-      return resource
+      return { ...resource }
     },
-    detach(principal: string, id: string) {
+    bind(principal: string, id: string, generation: number, disconnect: () => void) {
+      const resource = owned(principal, id)
+      if (!resource || resource.generation !== generation) {
+        disconnect()
+        return false
+      }
+      resource.disconnect = disconnect
+      return true
+    },
+    detach(principal: string, id: string, generation?: number) {
       const resource = owned(principal, id)
       if (!resource) return
+      if (generation !== undefined && resource.generation !== generation) return
+      resource.disconnect = undefined
       resource.expiresAt = now() + config.graceMs
     },
     delete(principal: string, id: string) {

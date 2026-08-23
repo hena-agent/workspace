@@ -38,7 +38,7 @@ export function createSyncDatabase(database: Database) {
         return retainedFloor
       })()
     },
-    idempotency: createIdempotencyStore(database),
+    idempotency: createIdempotencyStore(database, changes),
     close: () => {
       changes.close()
       database.close()

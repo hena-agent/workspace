@@ -119,9 +119,11 @@ export const QuestionReply = Schema.Struct({
 }).annotate({ identifier: "Sync.QuestionReply" })
 
 export function canonicalJson(value: unknown): string {
+  if (value === undefined) throw new TypeError("Cannot canonicalize undefined")
   if (value === null || typeof value !== "object") return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`
+  if (Array.isArray(value)) return `[${value.map((entry) => entry === undefined ? "null" : canonicalJson(entry)).join(",")}]`
   return `{${Object.entries(value)
+    .filter(([, entry]) => entry !== undefined)
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
     .join(",")}}`

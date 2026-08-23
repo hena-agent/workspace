@@ -277,6 +277,7 @@ describe("collection projector", () => {
         `)
         expect(projected?.row.length).toBeLessThan(1024 * 1024)
         expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+          ordinal: 0,
           state: { input: expect.any(String), truncated: true, content: { bytes: 2 * 1024 * 1024 } },
         })
         expect(

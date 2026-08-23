@@ -137,6 +137,7 @@ describe("collection bootstrap", () => {
     expect(database.collections.snapshot("parts", "ses_1").rows[0]?.row).toMatchObject({
       id: "part_1",
       messageID: "msg_1",
+      ordinal: 0,
       truncated: true,
     })
     const toolParts = database.collections
@@ -145,9 +146,11 @@ describe("collection bootstrap", () => {
     expect(JSON.stringify(toolParts).length).toBeLessThan(1024 * 1024)
     expect(toolParts).toHaveLength(2)
     expect(toolParts.find((part) => part.key.includes("part_pending"))?.row).toMatchObject({
+      ordinal: 2,
       state: { truncated: true, content: { bytes: 2 * 1024 * 1024 } },
     })
     expect(toolParts.find((part) => part.key.includes("part_completed"))?.row).toMatchObject({
+      ordinal: 3,
       state: { result: { truncated: true, content: { bytes: expect.any(Number) } } },
     })
     expect(database.collections.snapshot("sessionInputs", "ses_1").rows[0]?.row).toMatchObject({

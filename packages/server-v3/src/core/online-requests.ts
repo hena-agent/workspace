@@ -20,19 +20,27 @@ export function createOnlineRequestStore() {
 
   const changed = (collection: VolatileCollection, scopeKey: string) => {
     revision++
-    listeners.forEach((listener) => listener(collection, scopeKey))
+    listeners.forEach((listener) => {
+      try {
+        listener(collection, scopeKey)
+      } catch (cause) {
+        console.error(
+          JSON.stringify({ type: "online_listener_error", name: cause instanceof Error ? cause.name : "Unknown" }),
+        )
+      }
+    })
   }
 
   return {
     project(event: { type: string; data: unknown; location?: Placement }) {
       if (isRequestEvent(event.data) && event.type === "permission.v2.asked") {
-        scoped("permissions", "").set(event.data.id, { ...event.data, nonce: crypto.randomUUID() })
+        scoped("permissions", "").set(event.data.id, boundRequest(event.data, crypto.randomUUID()))
         rememberPlacement("permission", event.data.id, event.location)
         changed("permissions", "")
         return
       }
       if (isRequestEvent(event.data) && event.type === "question.v2.asked") {
-        scoped("questions", "").set(event.data.id, { ...event.data, nonce: crypto.randomUUID() })
+        scoped("questions", "").set(event.data.id, boundRequest(event.data, crypto.randomUUID()))
         rememberPlacement("question", event.data.id, event.location)
         changed("questions", "")
         return
@@ -163,6 +171,19 @@ function sourceKey(collection: VolatileCollection, scopeKey: string) {
   return `${collection}\u0000${scopeKey}`
 }
 
+function boundRequest(data: { id: string; sessionID: string } & Record<string, unknown>, nonce: string) {
+  const row = { ...data, nonce }
+  if (fitsPage([{ key: data.id, row, revision: "0" }])) return row
+  const withoutMetadata = {
+    ...data,
+    ...(data.metadata === undefined ? {} : { metadata: { truncated: true } }),
+    nonce,
+    truncated: true,
+  }
+  if (fitsPage([{ key: data.id, row: withoutMetadata, revision: "0" }])) return withoutMetadata
+  return { id: data.id, sessionID: data.sessionID, nonce, truncated: true }
+}
+
 function isRequestEvent(data: unknown): data is { id: string; sessionID: string } & Record<string, unknown> {
   return (
     typeof data === "object" &&
@@ -181,3 +202,4 @@ function isPendingRow(data: unknown): data is Row {
 function isResolutionEvent(data: unknown): data is { requestID: string } & Record<string, unknown> {
   return typeof data === "object" && data !== null && "requestID" in data && typeof data.requestID === "string"
 }
+import { fitsPage } from "../stream/pages"

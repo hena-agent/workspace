@@ -269,13 +269,13 @@ function projectMessageParts(
   message: (typeof SessionMessage.Message)["Encoded"],
 ) {
   if (message.type !== "assistant") return Effect.succeed([])
-  return Effect.forEach(message.content, (part) =>
+  return Effect.forEach(message.content, (part, ordinal) =>
     Effect.gen(function* () {
       const revision = fingerprint(part)
       const row = yield* projectPart(database, sessionID, message.id, revision, part)
       return {
         key: JSON.stringify([message.id, part.type, part.id]),
-        row: { ...row, messageID: message.id },
+        row: { ...row, messageID: message.id, ordinal },
         revision,
       }
     }),

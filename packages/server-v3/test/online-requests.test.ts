@@ -112,6 +112,39 @@ describe("online requests", () => {
     expect(online.resolution("permission", "per_0")).toBeUndefined()
     expect(online.resolution("permission", "per_1024")).toMatchObject({ requestID: "per_1024" })
   })
+
+  test("bounds volatile requests and isolates listener failures", () => {
+    const online = createOnlineRequestStore()
+    let notified = false
+    online.subscribe(() => {
+      throw new Error("listener failed")
+    })
+    online.subscribe(() => {
+      notified = true
+    })
+
+    expect(() =>
+      online.project({
+        type: "permission.v2.asked",
+        data: {
+          id: "per_large",
+          sessionID: "ses_1",
+          action: "read",
+          resources: ["file"],
+          metadata: { output: "x".repeat(2 * 1024 * 1024) },
+        },
+      }),
+    ).not.toThrow()
+
+    expect(notified).toBe(true)
+    expect(JSON.stringify(online.snapshot("permissions")).length).toBeLessThan(1024 * 1024)
+    expect(online.snapshot("permissions").rows[0]?.row).toMatchObject({
+      id: "per_large",
+      action: "read",
+      truncated: true,
+      metadata: { truncated: true },
+    })
+  })
 })
 
 function requireNonce(row: Record<string, unknown>) {

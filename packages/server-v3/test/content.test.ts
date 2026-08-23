@@ -12,7 +12,9 @@ describe("full content", () => {
   test("pages on UTF-8 code point boundaries", async () => {
     database = createTestDatabase().database
     database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "a😀b" })
-    const response = await createApp({ database }).request("/api/content/content-1?sessionID=session-1&revision=r1&offset=0&limit=5")
+    const response = await createApp({ database }).request(
+      "/api/content/content-1?sessionID=session-1&revision=r1&offset=0&limit=5",
+    )
 
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ text: "a😀", offset: 0, nextOffset: 5, totalBytes: 6, revision: "r1" })
@@ -21,7 +23,9 @@ describe("full content", () => {
   test("rejects offsets in the middle of a code point", async () => {
     database = createTestDatabase().database
     database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "a😀b" })
-    const response = await createApp({ database }).request("/api/content/content-1?sessionID=session-1&revision=r1&offset=2")
+    const response = await createApp({ database }).request(
+      "/api/content/content-1?sessionID=session-1&revision=r1&offset=2",
+    )
 
     expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({ error: { code: "validation" } })
@@ -30,7 +34,9 @@ describe("full content", () => {
   test("advances past a code point larger than the requested limit", async () => {
     database = createTestDatabase().database
     database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "😀b" })
-    const response = await createApp({ database }).request("/api/content/content-1?sessionID=session-1&revision=r1&offset=0&limit=1")
+    const response = await createApp({ database }).request(
+      "/api/content/content-1?sessionID=session-1&revision=r1&offset=0&limit=1",
+    )
 
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ text: "😀", offset: 0, nextOffset: 4 })
@@ -80,5 +86,30 @@ describe("full content", () => {
     expect(
       database.content.page({ id: "content-1", sessionID: "session-1", revision: "r2", offset: 0, limit: 10 })?.text,
     ).toBe("current")
+  })
+
+  test("retains content referenced by a durable message", () => {
+    database = createTestDatabase().database
+    database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "attachment" })
+    database.collections.write({
+      collection: "messages",
+      scopeKey: "session-1",
+      rowKey: "message-1",
+      row: { files: [{ content: { id: "content-1", revision: "r1", bytes: 10 } }] },
+      revision: "row-1",
+    })
+    database.collections.write({
+      collection: "todos",
+      scopeKey: "session-1",
+      rowKey: "todo-1",
+      row: { id: "todo-1" },
+      revision: "row-1",
+    })
+
+    database.compact({ changeMaxRows: 1, changeMaxAgeMs: Number.MAX_SAFE_INTEGER })
+
+    expect(
+      database.content.page({ id: "content-1", sessionID: "session-1", revision: "r1", offset: 0, limit: 20 })?.text,
+    ).toBe("attachment")
   })
 })

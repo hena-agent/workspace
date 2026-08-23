@@ -18,14 +18,14 @@ export function createContentStore(database: Database) {
         json_extract(content.value, '$.id') AS id,
         json_extract(content.value, '$.revision') AS revision
       FROM collection_row, json_tree(collection_row.row) AS content
-      WHERE collection_row.collection IN ('parts', 'sessionInputs')
+      WHERE collection_row.collection IN ('messages', 'parts', 'sessionInputs')
         AND content.key = 'content' AND content.type = 'object'
       UNION
       SELECT collection_change.scope_key AS session_id,
         json_extract(content.value, '$.id') AS id,
         json_extract(content.value, '$.revision') AS revision
       FROM collection_change, json_tree(collection_change.row) AS content
-      WHERE collection_change.collection IN ('parts', 'sessionInputs')
+      WHERE collection_change.collection IN ('messages', 'parts', 'sessionInputs')
         AND content.key = 'content' AND content.type = 'object'
     )
     DELETE FROM full_content
@@ -47,9 +47,8 @@ export function createContentStore(database: Database) {
       const bytes = new TextEncoder().encode(row.content)
       if (input.offset > bytes.length || !isCodePointBoundary(bytes, input.offset)) throw new InvalidContentOffset()
       const boundary = endingBoundary(bytes, Math.min(bytes.length, input.offset + input.limit))
-      const end = boundary === input.offset && input.offset < bytes.length
-        ? followingBoundary(bytes, input.offset)
-        : boundary
+      const end =
+        boundary === input.offset && input.offset < bytes.length ? followingBoundary(bytes, input.offset) : boundary
       return {
         text: new TextDecoder().decode(bytes.subarray(input.offset, end)),
         offset: input.offset,
@@ -94,6 +93,9 @@ function isCodePointBoundary(bytes: Uint8Array, offset: number) {
 }
 
 function followingBoundary(bytes: Uint8Array, offset: number) {
-  return [offset + 1, offset + 2, offset + 3, offset + 4]
-    .find((candidate) => candidate <= bytes.length && isCodePointBoundary(bytes, candidate)) ?? bytes.length
+  return (
+    [offset + 1, offset + 2, offset + 3, offset + 4].find(
+      (candidate) => candidate <= bytes.length && isCodePointBoundary(bytes, candidate),
+    ) ?? bytes.length
+  )
 }

@@ -62,6 +62,41 @@ describe("collection events", () => {
     expect(output).toContain('"id":"message-live"')
   })
 
+  test("captures initial durable scopes at one sequence", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 1)
+      output += decoder.decode((await reader.read()).value)
+
+    database.changes.batch(() => {
+      database!.collections.write({
+        collection: "messages",
+        scopeKey: "session-1",
+        rowKey: "message-race",
+        row: { id: "message-race" },
+        revision: "1",
+        txid: "tx-snapshot-race",
+      })
+      database!.collections.write({
+        collection: "parts",
+        scopeKey: "session-1",
+        rowKey: "part-race",
+        row: { id: "part-race" },
+        revision: "1",
+        txid: "tx-snapshot-race",
+      })
+    })
+    while (!output.includes('"txid":"tx-snapshot-race"')) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output.match(/"id":"part-race"/g)).toHaveLength(1)
+  })
+
   test("streams initial snapshots larger than the live backpressure limit", async () => {
     database = createTestDatabase().database
     Array.from({ length: 5 }, (_, index) =>
@@ -202,7 +237,9 @@ describe("collection events", () => {
     await reader.cancel()
 
     expect(output.match(/event: rows/g)).toHaveLength(1)
-    expect(output).toContain('"affectedScopes":[{"collection":"messages","scopeKey":"session-1"},{"collection":"todos","scopeKey":"session-1"}]')
+    expect(output).toContain(
+      '"affectedScopes":[{"collection":"messages","scopeKey":"session-1"},{"collection":"todos","scopeKey":"session-1"}]',
+    )
   })
 
   test("discovers location catalogs added while connected", async () => {

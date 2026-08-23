@@ -88,7 +88,7 @@ export function events(
         .filter((change) => change.collection === "locations" && change.op === "delete")
         .forEach((change) => removeLocation(change.rowKey))
       const visible = changes.filter((change) =>
-        scopes.some((scope) => scope.collection === change.collection && scope.scopeKey === change.scopeKey)
+        scopes.some((scope) => scope.collection === change.collection && scope.scopeKey === change.scopeKey),
       )
       if (visible.length === 0) return
       if (!live) {
@@ -169,8 +169,10 @@ export function events(
       }
       enqueueVolatile({ collection, scopeKey })
     })
-    const snapshotFrames = (scope: (typeof scopes)[number]) => {
-      const snapshot = database.collections.snapshot(scope.collection, scope.scopeKey)
+    const snapshotFrames = (
+      scope: (typeof scopes)[number],
+      snapshot = database.collections.snapshot(scope.collection, scope.scopeKey),
+    ) => {
       through.set(scopeKey(scope), snapshot.throughSeq)
       const snapshotId = crypto.randomUUID()
       return [
@@ -212,10 +214,12 @@ export function events(
     const enqueueChanges = (changes: readonly Change[]) => {
       if (changes.length === 0) return
       const affectedScopes = Array.from(
-        new Map(changes.map((change) => {
-          const scope = { collection: change.collection, scopeKey: change.scopeKey }
-          return [scopeKey(scope), scope]
-        })).values(),
+        new Map(
+          changes.map((change) => {
+            const scope = { collection: change.collection, scopeKey: change.scopeKey }
+            return [scopeKey(scope), scope]
+          }),
+        ).values(),
       )
       const fromSeq = changes[0].seq
       const throughSeq = changes.at(-1)!.seq
@@ -227,7 +231,9 @@ export function events(
           fromSeq,
           throughSeq,
           changes: affectedScopes.map((scope) => {
-            const last = changes.findLast((change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey)!
+            const last = changes.findLast(
+              (change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey,
+            )!
             return { ...last, rowKey: "", op: "reset", row: null, rowRevision: undefined }
           }),
         })
@@ -244,23 +250,41 @@ export function events(
     }
     enqueue("stream.ready", { type: "stream.ready" })
     await writes
-    for (const scope of scopes) {
-      if (isVolatile(scope.collection)) {
-        await writeFrames(volatileFrames({ collection: scope.collection, scopeKey: scope.scopeKey }))
+    const initial = database.raw.transaction(() => {
+      const feed = database.feed.get()
+      const baseSeq = database.changes.current()
+      return scopes.map((scope) => {
+        if (isVolatile(scope.collection)) return { scope }
+        const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]
+        if (cursor?.feedId === feed.feedId && cursor.seq >= feed.retainedFloor && cursor.seq <= baseSeq) {
+          return {
+            scope,
+            cursor,
+            changes: database.changes
+              .after(scope.collection, scope.scopeKey, cursor.seq)
+              .filter((change) => change.seq <= baseSeq),
+          }
+        }
+        return {
+          scope,
+          snapshot: {
+            ...database.collections.snapshot(scope.collection, scope.scopeKey),
+            throughSeq: baseSeq,
+          },
+        }
+      })
+    })()
+    for (const item of initial) {
+      if (isVolatile(item.scope.collection)) {
+        await writeFrames(volatileFrames({ collection: item.scope.collection, scopeKey: item.scope.scopeKey }))
         continue
       }
-      const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]
-      if (
-        cursor?.feedId === database.feed.get().feedId &&
-        cursor.seq >= database.feed.get().retainedFloor &&
-        cursor.seq <= database.changes.current()
-      ) {
-        const changes = database.changes.after(scope.collection, scope.scopeKey, cursor.seq)
-        through.set(scopeKey(scope), cursor.seq)
-        changes.forEach((change) => replay.set(change.seq, change))
+      if (item.cursor) {
+        through.set(scopeKey(item.scope), item.cursor.seq)
+        item.changes?.forEach((change) => replay.set(change.seq, change))
         continue
       }
-      await writeFrames(snapshotFrames(scope))
+      await writeFrames(snapshotFrames(item.scope, item.snapshot))
     }
 
     groupTransactions(Array.from(replay.values()).sort((left, right) => left.seq - right.seq)).forEach(enqueueChanges)

@@ -219,7 +219,7 @@ DELETE /api/collection/streams/:streamId
 
 `GET /capabilities` is the handshake and the only endpoint callable before trust: `{ feedId, protocol: { min, max }, auth: "none" | "required" }`, no credential required, `Cache-Control: no-store`, CORS headers on every status including 401. It exposes no data beyond the handshake.
 
-`POST /streams` returns `{ streamId, generation, expiresAt, feed: { feedId, runtimeId, retainedFloor }, subscriptionRevision }`. `streamId` is 128 bits of `crypto.getRandomValues` in base64url. The resource binds to the authenticated principal; in auth phase 1 that principal is `"local"`. There is no separate control token (§5.7 cut 1).
+`POST /streams` returns `{ streamId, generation, expiresAt, feed: { feedId, runtimeId, retainedFloor }, subscriptionRevision }`. `streamId` is 128 bits of `crypto.getRandomValues` in base64url. The resource binds to the authenticated principal; in auth phase 1 that principal is `"local"`. There is no separate control token (§5.7 cut 1). Each stream accepts at most 100 Session subscriptions and 1,000 cursors.
 
 The subscription PUT supplies complete desired state, revisioned, exactly as web-ui.md §5.1 defines:
 

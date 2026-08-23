@@ -80,6 +80,30 @@ describe("app", () => {
     expect(await response.json()).toMatchObject({ error: { code: "validation" } })
   })
 
+  test("bounds subscription sessions and cursors", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const created = await app.request("/api/collection/streams", { method: "POST" })
+    const stream: unknown = await created.json()
+    if (!stream || typeof stream !== "object" || !("streamId" in stream) || typeof stream.streamId !== "string")
+      throw new Error("Stream response is missing streamId")
+    const streamId = stream.streamId
+    const subscribe = (sessions: string[], cursors: Record<string, { feedId: string; seq: number }>) =>
+      app.request(`/api/collection/streams/${streamId}/subscription`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ revision: 1, lists: false, sessions, cursors }),
+      })
+
+    const sessions = await subscribe(Array.from({ length: 101 }, (_, index) => `ses_${index}`), {})
+    const cursors = await subscribe([], Object.fromEntries(
+      Array.from({ length: 1_001 }, (_, index) => [`messages:ses_${index}`, { feedId: "feed", seq: 0 }]),
+    ))
+
+    expect(sessions.status).toBe(400)
+    expect(cursors.status).toBe(400)
+  })
+
   test("rejects control request bodies larger than 64 KiB", async () => {
     database = createTestDatabase().database
     const response = await createApp({ database }).request("/api/collection/streams/missing/subscription", {

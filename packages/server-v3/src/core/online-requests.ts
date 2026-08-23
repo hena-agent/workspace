@@ -6,6 +6,7 @@ type Resolution = Record<string, unknown>
 export function createOnlineRequestStore() {
   const rows = new Map<string, Map<string, Record<string, unknown>>>()
   const resolutions = new Map<string, Resolution>()
+  const replies = new Map<string, Promise<unknown>>()
   const listeners = new Set<(collection: VolatileCollection, scopeKey: string) => void>()
   const catalogListeners = new Set<() => void>()
   let revision = 0
@@ -40,8 +41,23 @@ export function createOnlineRequestStore() {
     resolution(kind: Kind, id: string) {
       return resolutions.get(`${kind}:${id}`)
     },
+    complete(kind: Kind, id: string, resolution: Resolution) {
+      const key = `${kind}:${id}`
+      const authoritative = resolutions.get(key) ?? resolution
+      resolutions.set(key, authoritative)
+      if (scoped(collection(kind), "").delete(id)) changed(collection(kind), "")
+      return authoritative
+    },
     authoritative(kind: Kind, id: string) {
       return resolutions.get(`${kind}:${id}`) ?? scoped(collection(kind), "").get(id) ?? { status: "missing" }
+    },
+    serialize<T>(kind: Kind, id: string, reply: () => Promise<T>) {
+      const key = `${kind}:${id}`
+      const result = (replies.get(key) ?? Promise.resolve()).then(reply, reply)
+      replies.set(key, result)
+      return result.finally(() => {
+        if (replies.get(key) === result) replies.delete(key)
+      })
     },
     replace(target: VolatileCollection, scopeKey: string, incoming: readonly { key: string; row: Record<string, unknown> }[]) {
       rows.set(sourceKey(target, scopeKey), new Map(incoming.map((row) => [row.key, row.row])))

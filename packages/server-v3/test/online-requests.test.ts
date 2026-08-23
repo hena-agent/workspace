@@ -44,4 +44,28 @@ describe("online requests", () => {
     expect(invalidations).toBe(1)
     expect(online.snapshot("providers", '{"directory":"/repo"}').rows).toHaveLength(1)
   })
+
+  test("serializes replies for the same request", async () => {
+    const online = createOnlineRequestStore()
+    const started = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const calls: string[] = []
+    const first = online.serialize("permission", "per_1", async () => {
+      calls.push("first")
+      started.resolve()
+      await release.promise
+      return "first"
+    })
+    await started.promise
+    const second = online.serialize("permission", "per_1", async () => {
+      calls.push("second")
+      return "second"
+    })
+    await Promise.resolve()
+
+    expect(calls).toEqual(["first"])
+    release.resolve()
+    expect(await Promise.all([first, second])).toEqual(["first", "second"])
+    expect(calls).toEqual(["first", "second"])
+  })
 })

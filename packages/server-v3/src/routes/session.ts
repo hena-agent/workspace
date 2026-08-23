@@ -6,6 +6,7 @@ import { Hono } from "hono"
 import type { CoreDomain } from "../core/domain"
 import { error, validationHook } from "../http/error"
 import { preview } from "../storage/content"
+import { fitsPage } from "../stream/pages"
 
 export function createSessionRoutes(domain: CoreDomain) {
   return new Hono()
@@ -67,7 +68,21 @@ function oversizedPrompt(prompt: PromptInput.Prompt) {
       }
     }),
   }
-  return new TextEncoder().encode(JSON.stringify(projected)).byteLength > 1024 * 1024 - 1024
+  return !fitsPage([{
+    key: "x".repeat(64),
+    revision: "x".repeat(64),
+    row: {
+      id: "x".repeat(64),
+      sessionID: "x".repeat(64),
+      prompt: projected,
+      delivery: "queue",
+      admittedSeq: Number.MAX_SAFE_INTEGER,
+      promotedSeq: Number.MAX_SAFE_INTEGER,
+      queuePosition: Number.MAX_SAFE_INTEGER,
+      queueRevision: Number.MAX_SAFE_INTEGER,
+      timeCreated: Number.MAX_SAFE_INTEGER,
+    },
+  }])
 }
 
 function inlinedBytes(uri: string) {

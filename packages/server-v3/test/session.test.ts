@@ -73,13 +73,13 @@ describe("session mutations", () => {
     expect(response.status).toBe(200)
   })
 
-  test("rejects prompt text that cannot fit in a collection row", async () => {
+  test("rejects prompt text that cannot fit in a stream frame", async () => {
     database = createTestDatabase().database
     const domain = recordingDomain()
     const response = await createApp({ database, domain }).request(`/api/session/${Session.ID.create()}/prompt`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "oversized-text", prompt: { text: "x".repeat(1024 * 1024) } }),
+      body: JSON.stringify({ idempotencyKey: "oversized-text", prompt: { text: "x".repeat(1024 * 1024 - 8 * 1024) } }),
     })
 
     expect(response.status).toBe(413)

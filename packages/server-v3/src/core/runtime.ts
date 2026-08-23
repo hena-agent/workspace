@@ -229,68 +229,72 @@ export function createCoreDomain(
       ),
     replyPermission: async (requestID, input) => {
       if (!online) throw new Error("Online request store is unavailable")
-      if (!online.pending("permission", requestID, input.sessionID, input.nonce))
-        return { outcome: "already_resolved", resolution: online.authoritative("permission", requestID) }
-      const result = await runtime.runPromise(
-        PermissionV2.Service.use((service) =>
-          service.reply({
-            requestID: PermissionV2.ID.make(requestID),
-            reply: input.reply,
-            message: input.message,
-          }),
-        ).pipe(
-          Effect.provide(LocationServiceMap.Service.get(location(input.location))),
-          Effect.match({
-            onFailure: (error) => ({ success: false as const, error }),
-            onSuccess: () => ({ success: true as const }),
-          }),
-        ),
-      )
-      if (!result.success) {
-        if (result.error instanceof PermissionV2.NotFoundError)
+      return online.serialize("permission", requestID, async () => {
+        if (!online.pending("permission", requestID, input.sessionID, input.nonce))
           return { outcome: "already_resolved", resolution: online.authoritative("permission", requestID) }
-        throw result.error
-      }
-      return {
-        outcome: "applied",
-        resolution: online.resolution("permission", requestID) ?? {
-          sessionID: input.sessionID,
-          requestID,
-          reply: input.reply,
-        },
-      }
+        const result = await runtime.runPromise(
+          PermissionV2.Service.use((service) =>
+            service.reply({
+              requestID: PermissionV2.ID.make(requestID),
+              reply: input.reply,
+              message: input.message,
+            }),
+          ).pipe(
+            Effect.provide(LocationServiceMap.Service.get(location(input.location))),
+            Effect.match({
+              onFailure: (error) => ({ success: false as const, error }),
+              onSuccess: () => ({ success: true as const }),
+            }),
+          ),
+        )
+        if (!result.success) {
+          if (result.error instanceof PermissionV2.NotFoundError)
+            return { outcome: "already_resolved", resolution: online.authoritative("permission", requestID) }
+          throw result.error
+        }
+        return {
+          outcome: "applied",
+          resolution: online.complete("permission", requestID, {
+            sessionID: input.sessionID,
+            requestID,
+            reply: input.reply,
+          }),
+        }
+      })
     },
     replyQuestion: async (requestID, input) => {
       if (!online) throw new Error("Online request store is unavailable")
-      if (!online.pending("question", requestID, input.sessionID, input.nonce))
-        return { outcome: "already_resolved", resolution: online.authoritative("question", requestID) }
-      const result = await runtime.runPromise(
-        QuestionV2.Service.use((service) =>
-          service.reply({
-            requestID: QuestionV2.ID.make(requestID),
+      return online.serialize("question", requestID, async () => {
+        if (!online.pending("question", requestID, input.sessionID, input.nonce))
+          return { outcome: "already_resolved", resolution: online.authoritative("question", requestID) }
+        const result = await runtime.runPromise(
+          QuestionV2.Service.use((service) =>
+            service.reply({
+              requestID: QuestionV2.ID.make(requestID),
+              answers: input.answers,
+            }),
+          ).pipe(
+            Effect.provide(LocationServiceMap.Service.get(location(input.location))),
+            Effect.match({
+              onFailure: (error) => ({ success: false as const, error }),
+              onSuccess: () => ({ success: true as const }),
+            }),
+          ),
+        )
+        if (!result.success) {
+          if (result.error instanceof QuestionV2.NotFoundError)
+            return { outcome: "already_resolved", resolution: online.authoritative("question", requestID) }
+          throw result.error
+        }
+        return {
+          outcome: "applied",
+          resolution: online.complete("question", requestID, {
+            sessionID: input.sessionID,
+            requestID,
             answers: input.answers,
           }),
-        ).pipe(
-          Effect.provide(LocationServiceMap.Service.get(location(input.location))),
-          Effect.match({
-            onFailure: (error) => ({ success: false as const, error }),
-            onSuccess: () => ({ success: true as const }),
-          }),
-        ),
-      )
-      if (!result.success) {
-        if (result.error instanceof QuestionV2.NotFoundError)
-          return { outcome: "already_resolved", resolution: online.authoritative("question", requestID) }
-        throw result.error
-      }
-      return {
-        outcome: "applied",
-        resolution: online.resolution("question", requestID) ?? {
-          sessionID: input.sessionID,
-          requestID,
-          answers: input.answers,
-        },
-      }
+        }
+      })
     },
     catalog: (input) =>
       runtime.runPromise(

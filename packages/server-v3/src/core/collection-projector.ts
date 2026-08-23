@@ -24,7 +24,7 @@ const layer = Layer.effectDiscard(
     for (const definition of SessionEvent.DurableDefinitions)
       yield* events.project(definition, (event) => {
         const sessionID = sessionId(event.data)
-        return sessionID ? refresh(database.db, sessionID) : Effect.void
+        return sessionID ? refresh(database.db, sessionID, event.type === SessionEvent.Moved.type) : Effect.void
       })
     const unsubscribeTodos = yield* events.listen((event) =>
       event.type === SessionTodo.Event.Updated.type
@@ -50,7 +50,7 @@ const decodeMessage = Schema.decodeUnknownSync(SessionMessage.Message)
 const encodeMessage = Schema.encodeSync(SessionMessage.Message)
 const decodeTodoUpdate = Schema.decodeUnknownSync(SessionTodo.Event.Updated.data)
 
-function refresh(database: DatabaseService, sessionID: string) {
+function refresh(database: DatabaseService, sessionID: string, moved: boolean) {
   return Effect.gen(function* () {
     const txid = (yield* MutationTxid) ?? crypto.randomUUID()
     const session = yield* database
@@ -103,19 +103,15 @@ function refresh(database: DatabaseService, sessionID: string) {
           txid,
           false,
         )
-      const location = {
-        directory: session.directory,
-        ...(session.workspace_id ? { workspaceID: session.workspace_id } : {}),
-      }
-      yield* replaceScope(
-        database,
-        "locations",
-        "",
-        [{ key: JSON.stringify(location), row: location, revision: "1" }],
-        txid,
-        false,
-      )
     }
+    const locationKey = session && JSON.stringify({
+      directory: session.directory,
+      ...(session.workspace_id ? { workspaceID: session.workspace_id } : {}),
+    })
+    const location = locationKey && (yield* database.get(sql`
+      SELECT 1 FROM collection_row WHERE collection = 'locations' AND scope_key = '' AND row_key = ${locationKey}
+    `))
+    if (!session || moved || !location) yield* reconcileLocations(database, txid)
 
     const messages = yield* database
       .select()
@@ -208,6 +204,30 @@ function refreshTodos(database: DatabaseService, sessionID: string, txid: string
         row: { id: todo.id, content: todo.content, status: todo.status, priority: todo.priority },
         revision: String(todo.time_updated),
       })),
+      txid,
+    )
+  })
+}
+
+export function reconcileLocations(database: DatabaseService, txid: string) {
+  return Effect.gen(function* () {
+    const projects = yield* database.select({ directory: ProjectTable.worktree }).from(ProjectTable).all()
+    const sessions = yield* database
+      .select({ directory: SessionTable.directory, workspaceID: SessionTable.workspace_id })
+      .from(SessionTable)
+      .all()
+    const locations = new Map([
+      ...projects.map((project) => ({ directory: project.directory })),
+      ...sessions.map((session) => ({
+        directory: session.directory,
+        ...(session.workspaceID ? { workspaceID: session.workspaceID } : {}),
+      })),
+    ].map((location) => [JSON.stringify(location), location]))
+    yield* replaceScope(
+      database,
+      "locations",
+      "",
+      Array.from(locations, ([key, row]) => ({ key, row, revision: "1" })),
       txid,
     )
   })

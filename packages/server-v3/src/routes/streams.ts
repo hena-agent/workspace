@@ -11,7 +11,12 @@ import type { OnlineRequestStore } from "../core/online-requests"
 
 export type StreamRegistry = ReturnType<typeof createStreamRegistry>
 
-export function createStreamRoutes(database: SyncDatabase, streams: StreamRegistry, deltas: DeltaHub, online: OnlineRequestStore) {
+export function createStreamRoutes(
+  database: SyncDatabase,
+  streams: StreamRegistry,
+  deltas: DeltaHub,
+  online: OnlineRequestStore,
+) {
   return new Hono()
     .post("/streams", (c) => {
       const stream = streams.create("local")
@@ -36,7 +41,9 @@ export function createStreamRoutes(database: SyncDatabase, streams: StreamRegist
       "/streams/:streamId/subscription",
       sValidator("json", Schema.toStandardSchemaV1(Sync.Subscription), validationHook),
       (c) => {
-        const stream = streams.get("local", c.req.param("streamId"))
+        const streamID = c.req.param("streamId")
+        if (!streamID) return error(c, 404, "not_found", "Stream not found")
+        const stream = streams.get("local", streamID)
         if (!stream) return error(c, 404, "not_found", "Stream not found")
         try {
           const subscription = streams.subscribe("local", stream.id, c.req.valid("json"))

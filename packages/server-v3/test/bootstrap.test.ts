@@ -70,6 +70,12 @@ describe("collection bootstrap", () => {
         files: [{ uri }],
       }),
     )
+    database.raw
+      .query("INSERT INTO session_message VALUES ('msg_3', 'ses_1', 'user', 2, 7, 7, ?)")
+      .run(JSON.stringify({ time: { created: 7 }, text: "promoted", files: [{ uri, mime: "text/plain" }], agents: [] }))
+    database.raw
+      .query("UPDATE session SET path = '', model = ? WHERE id = 'ses_1'")
+      .run(JSON.stringify({ id: "model", providerID: "provider" }))
     database.collections.hydrate("parts", "ses_deleted", [
       {
         key: "part-deleted",
@@ -82,12 +88,22 @@ describe("collection bootstrap", () => {
     expect(bootstrapCollections(database)).toBe(true)
 
     expect(database.collections.snapshot("projects", "").rows[0]?.row).toMatchObject({ id: "global", name: "Repo" })
-    expect(database.collections.snapshot("sessions", "").rows[0]?.row).toMatchObject({ id: "ses_1", queueRevision: 2 })
+    expect(database.collections.snapshot("sessions", "").rows[0]?.row).toMatchObject({
+      id: "ses_1",
+      queueRevision: 2,
+      model: { id: "model", providerID: "provider", variant: "default" },
+    })
+    expect(database.collections.snapshot("sessions", "").rows[0]?.row).not.toHaveProperty("subpath")
     const sessionRevision = database.collections.snapshot("sessions", "").rows[0]?.revision
     expect(database.collections.snapshot("locations", "").rows[0]?.row).toEqual({ directory: "/repo" })
     expect(database.collections.snapshot("messages", "ses_1").rows[0]?.row).toMatchObject({
       id: "msg_1",
       type: "assistant",
+    })
+    expect(database.collections.snapshot("messages", "ses_1").rows[1]?.row).toMatchObject({
+      id: "msg_3",
+      type: "user",
+      files: [{ truncated: true, content: { bytes: uri.length } }],
     })
     expect(database.collections.snapshot("parts", "ses_1").rows[0]?.row).toMatchObject({
       id: "part_1",

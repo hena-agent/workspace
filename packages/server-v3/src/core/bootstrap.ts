@@ -1,5 +1,7 @@
 import { SessionMessage } from "@hena/schema/session-message"
+import { Session } from "@hena/schema/session"
 import { PromptInput } from "@hena/schema/prompt-input"
+import { fromRow, type SessionInfoRow } from "@hena/core/session/info"
 import { Schema } from "effect"
 import { preview } from "../storage/content"
 import { fingerprint } from "../storage/fingerprint"
@@ -23,28 +25,7 @@ type ProjectRow = {
   commands: string | null
 }
 
-type SessionRow = {
-  id: string
-  project_id: string
-  workspace_id: string | null
-  parent_id: string | null
-  directory: string
-  path: string | null
-  title: string
-  agent: string | null
-  model: string | null
-  cost: number
-  tokens_input: number
-  tokens_output: number
-  tokens_reasoning: number
-  tokens_cache_read: number
-  tokens_cache_write: number
-  revert: string | null
-  time_created: number
-  time_updated: number
-  time_archived: number | null
-  queue_revision: number
-}
+type SessionRow = Omit<SessionInfoRow, "model" | "revert"> & { model: string | null; revert: string | null }
 
 type MessageRow = {
   id: string
@@ -75,6 +56,7 @@ type TodoRow = {
 
 const decodeMessage = Schema.decodeUnknownSync(SessionMessage.Message)
 const encodeMessage = Schema.encodeSync(SessionMessage.Message)
+const encodeSession = Schema.encodeUnknownSync(Session.Info)
 
 export function bootstrapCollections(database: SyncDatabase) {
   database.raw.exec(`UPDATE todo SET id = 'todo_' || lower(hex(randomblob(16))) WHERE id IS NULL`)
@@ -138,7 +120,7 @@ export function bootstrapCollections(database: SyncDatabase) {
       todosBySession.get(session.id) ?? [],
     ),
   )
-  const sessionIDs = new Set(sessions.map((session) => session.id))
+  const sessionIDs = new Set<string>(sessions.map((session) => session.id))
   const staleSessionIDs = database.raw
     .query<{ session_id: string }, []>(
       `
@@ -192,7 +174,19 @@ function hydrateSessionCollections(
     return {
       message: {
         key: message.id,
-        row: message.type === "assistant" ? { ...message, content: undefined } : message,
+        row:
+          message.type === "assistant"
+            ? { ...message, content: undefined }
+            : message.type === "user"
+              ? {
+                  ...message,
+                  ...projectPrompt(database, sessionID, message.id, {
+                    text: message.text,
+                    files: message.files,
+                    agents: message.agents,
+                  }),
+                }
+              : message,
         revision,
       },
       parts:
@@ -387,30 +381,7 @@ export function createLocationCollectionRefresh(
 }
 
 function sessionRow(session: SessionRow) {
-  return {
-    id: session.id,
-    projectID: session.project_id,
-    parentID: session.parent_id ?? undefined,
-    title: session.title,
-    agent: session.agent ?? undefined,
-    model: parseJson(session.model),
-    cost: session.cost,
-    tokens: {
-      input: session.tokens_input,
-      output: session.tokens_output,
-      reasoning: session.tokens_reasoning,
-      cache: { read: session.tokens_cache_read, write: session.tokens_cache_write },
-    },
-    location: { directory: session.directory, ...(session.workspace_id ? { workspaceID: session.workspace_id } : {}) },
-    subpath: session.path ?? undefined,
-    revert: parseJson(session.revert),
-    queueRevision: session.queue_revision,
-    time: {
-      created: session.time_created,
-      updated: session.time_updated,
-      archived: session.time_archived ?? undefined,
-    },
-  }
+  return encodeSession(fromRow({ ...session, model: parseJson(session.model), revert: parseJson(session.revert) }))
 }
 
 function parseJson(input: string | null) {

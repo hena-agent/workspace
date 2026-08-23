@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createApp } from "../src/app"
+import type { AppType } from "../src/app"
 import { assertNoPassword } from "../src/main"
 import type { SyncDatabase } from "../src/storage/database"
 import { createTestDatabase } from "./fixture"
+import { hc, type InferResponseType } from "hono/client"
 
 describe("app", () => {
   let database: SyncDatabase | undefined
@@ -22,6 +24,15 @@ describe("app", () => {
     })
   })
 
+  test("includes global failures in the client contract", () => {
+    const client = hc<AppType>("http://localhost")
+    const response: InferResponseType<typeof client.api.session.$post, 500> = {
+      error: { code: "internal", message: "Internal server error" },
+    }
+
+    expect(response.error.code).toBe("internal")
+  })
+
   test("refuses phase-one startup when a password is configured", () => {
     expect(() => assertNoPassword("secret")).toThrow("phase 2")
     expect(() => assertNoPassword("")).not.toThrow()
@@ -30,17 +41,21 @@ describe("app", () => {
   test("logs bounded request metadata without query values", async () => {
     database = createTestDatabase().database
     const records: unknown[] = []
-    const response = await createApp({ database, logger: (record) => records.push(record) })
-      .request("/api/collection/capabilities?secret=canary", { headers: { "x-correlation-id": "request-1" } })
+    const response = await createApp({ database, logger: (record) => records.push(record) }).request(
+      "/api/collection/capabilities?secret=canary",
+      { headers: { "x-correlation-id": "request-1" } },
+    )
 
     expect(response.headers.get("x-correlation-id")).toBe("request-1")
-    expect(records).toEqual([{
-      method: "GET",
-      path: "/api/collection/capabilities",
-      status: 200,
-      durationMs: expect.any(Number),
-      correlationId: "request-1",
-    }])
+    expect(records).toEqual([
+      {
+        method: "GET",
+        path: "/api/collection/capabilities",
+        status: 200,
+        durationMs: expect.any(Number),
+        correlationId: "request-1",
+      },
+    ])
     expect(JSON.stringify(records)).not.toContain("canary")
   })
 
@@ -48,7 +63,7 @@ describe("app", () => {
     database = createTestDatabase().database
     const app = createApp({ database })
     const created = await app.request("/api/collection/streams", { method: "POST" })
-    const stream = await created.json() as { streamId: string }
+    const stream = (await created.json()) as { streamId: string }
 
     expect(created.status).toBe(201)
     expect(stream.streamId).toHaveLength(22)
@@ -69,7 +84,7 @@ describe("app", () => {
     database = createTestDatabase().database
     const app = createApp({ database })
     const created = await app.request("/api/collection/streams", { method: "POST" })
-    const stream = await created.json() as { streamId: string }
+    const stream = (await created.json()) as { streamId: string }
     const response = await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
@@ -95,10 +110,16 @@ describe("app", () => {
         body: JSON.stringify({ revision: 1, lists: false, sessions, cursors }),
       })
 
-    const sessions = await subscribe(Array.from({ length: 101 }, (_, index) => `ses_${index}`), {})
-    const cursors = await subscribe([], Object.fromEntries(
-      Array.from({ length: 1_001 }, (_, index) => [`messages:ses_${index}`, { feedId: "feed", seq: 0 }]),
-    ))
+    const sessions = await subscribe(
+      Array.from({ length: 101 }, (_, index) => `ses_${index}`),
+      {},
+    )
+    const cursors = await subscribe(
+      [],
+      Object.fromEntries(
+        Array.from({ length: 1_001 }, (_, index) => [`messages:ses_${index}`, { feedId: "feed", seq: 0 }]),
+      ),
+    )
 
     expect(sessions.status).toBe(400)
     expect(cursors.status).toBe(400)
@@ -132,25 +153,28 @@ describe("app", () => {
     database = createTestDatabase().database
     const app = createApp({ database })
     const created = await app.request("/api/collection/streams", { method: "POST" })
-    const stream = await created.json() as { streamId: string }
-    const request = () => app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ revision: 1, lists: true, sessions: [], cursors: {} }),
-    })
+    const stream = (await created.json()) as { streamId: string }
+    const request = () =>
+      app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ revision: 1, lists: true, sessions: [], cursors: {} }),
+      })
 
     await request()
     const response = await request()
 
     expect(response.status).toBe(409)
-    expect(await response.json()).toEqual({ error: { code: "subscription_revision_conflict", message: "Subscription revisions must increase" } })
+    expect(await response.json()).toEqual({
+      error: { code: "subscription_revision_conflict", message: "Subscription revisions must increase" },
+    })
   })
 
   test("does not attach a stream before it has a subscription", async () => {
     database = createTestDatabase().database
     const app = createApp({ database })
     const created = await app.request("/api/collection/streams", { method: "POST" })
-    const stream = await created.json() as { streamId: string }
+    const stream = (await created.json()) as { streamId: string }
 
     const events = await app.request(`/api/collection/streams/${stream.streamId}/events`)
     const subscribed = await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {

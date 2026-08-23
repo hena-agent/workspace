@@ -9,9 +9,32 @@ import { WorkspaceV2 } from "../workspace"
 import { SessionSchema } from "./schema"
 import { SessionTable } from "./sql"
 import { SessionMessage } from "./message"
-import { Snapshot } from "../snapshot"
 
-export function fromRow(row: typeof SessionTable.$inferSelect): SessionSchema.Info {
+export type SessionInfoRow = Pick<
+  typeof SessionTable.$inferSelect,
+  | "id"
+  | "project_id"
+  | "title"
+  | "parent_id"
+  | "agent"
+  | "model"
+  | "cost"
+  | "tokens_input"
+  | "tokens_output"
+  | "tokens_reasoning"
+  | "tokens_cache_read"
+  | "tokens_cache_write"
+  | "directory"
+  | "workspace_id"
+  | "path"
+  | "revert"
+  | "queue_revision"
+  | "time_created"
+  | "time_updated"
+  | "time_archived"
+>
+
+export function fromRow(row: SessionInfoRow): SessionSchema.Info {
   return SessionSchema.Info.make({
     id: SessionSchema.ID.make(row.id),
     projectID: ProjectV2.ID.make(row.project_id),

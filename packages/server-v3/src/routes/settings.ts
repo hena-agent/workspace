@@ -11,23 +11,25 @@ export function createSettingRoutes(database: SyncDatabase) {
   return new Hono().put(
     "/settings/:scope/:key",
     sValidator("json", Schema.toStandardSchemaV1(Sync.SettingReplace), validationHook),
-    async (c) => {
+    (c) => {
       const body = c.req.valid("json")
-      if (!validSetting(c.req.param("key"), body.value))
+      const scope = c.req.param("scope")
+      const key = c.req.param("key")
+      if (!scope || !key || !validSetting(key, body.value))
         return error(c, 400, "validation", "Setting key or value is not allowed")
       try {
-        const result = await database.idempotency.run(
+        const result = database.idempotency.run(
           {
             principal: "local",
             operation: "settings.replace",
             key: body.idempotencyKey,
-            payload: { scope: c.req.param("scope"), key: c.req.param("key"), body },
+            payload: { scope, key, body },
           },
           () => {
             const txid = crypto.randomUUID()
             const replaced = database.settings.replace({
-              scope: c.req.param("scope"),
-              key: c.req.param("key"),
+              scope,
+              key,
               value: body.value,
               expectedRevision: body.expectedRevision,
               txid,
@@ -39,7 +41,7 @@ export function createSettingRoutes(database: SyncDatabase) {
                 txid,
                 outcome: "applied" as const,
                 through: { feedId: database.feed.get().feedId, seq: replaced.change.seq },
-                affectedScopes: [{ collection: "settings", scopeKey: c.req.param("scope") }],
+                affectedScopes: [{ collection: "settings", scopeKey: scope }],
               },
             }
           },

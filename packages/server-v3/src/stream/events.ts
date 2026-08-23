@@ -16,7 +16,9 @@ export function events(
   deltas: DeltaHub,
   online: OnlineRequestStore,
 ) {
-  const existing = streams.get("local", c.req.param("streamId"))
+  const streamID = c.req.param("streamId")
+  if (!streamID) return error(c, 404, "not_found", "Stream not found")
+  const existing = streams.get("local", streamID)
   if (!existing) return error(c, 404, "not_found", "Stream not found")
   if (!existing.subscription) return error(c, 409, "conflict", "Subscribe before attaching")
   const resource = streams.attach("local", existing.id)
@@ -32,7 +34,10 @@ export function events(
       database.collections.snapshot("locations", "").rows.map((row) => row.key),
     )
     const through = new Map<string, number>()
-    const buffered: Array<{ scope: (typeof scopes)[number]; changes: readonly ReturnType<typeof database.changes.after>[number][] }> = []
+    const buffered: Array<{
+      scope: (typeof scopes)[number]
+      changes: readonly ReturnType<typeof database.changes.after>[number][]
+    }> = []
     let live = false
     let volatileLive = false
     const pendingVolatile = new Set<string>()
@@ -53,30 +58,37 @@ export function events(
       if (queuedBytes + size > 4 * 1024 * 1024) {
         ending = true
         writes = writes
-          .then(() => stream.writeSSE({
-            event: "error",
-            data: JSON.stringify(frame({ type: "error", code: "slow_consumer" })),
-          }))
+          .then(() =>
+            stream.writeSSE({
+              event: "error",
+              data: JSON.stringify(frame({ type: "error", code: "slow_consumer" })),
+            }),
+          )
           .then(() => stream.close())
           .finally(disconnected.resolve)
         return
       }
       queuedBytes += size
       writes = writes
-        .then(() => ending ? undefined : stream.writeSSE({ event, data }))
+        .then(() => (ending ? undefined : stream.writeSSE({ event, data })))
         .catch(disconnected.resolve)
         .finally(() => {
           queuedBytes -= size
         })
     }
-    const unsubscribeDeltas = subscription.sessions.map((sessionID) =>
+    const unsubscribeDeltas = Array.from(new Set(subscription.sessions), (sessionID) =>
       deltas.subscribe(sessionID, (delta) => {
         enqueue("delta", { type: "delta", ...delta })
       }),
     )
-    const publish = (scope: (typeof scopes)[number], changes: readonly ReturnType<typeof database.changes.after>[number][]) => {
+    const publish = (
+      scope: (typeof scopes)[number],
+      changes: readonly ReturnType<typeof database.changes.after>[number][],
+    ) => {
       if (scope.collection === "locations") {
-        changes.filter((change) => change.op === "insert" || change.op === "update").forEach((change) => addLocation(change.rowKey))
+        changes
+          .filter((change) => change.op === "insert" || change.op === "update")
+          .forEach((change) => addLocation(change.rowKey))
         changes.filter((change) => change.op === "delete").forEach((change) => removeLocation(change.rowKey))
       }
       if (!live) {
@@ -86,9 +98,14 @@ export function events(
       enqueueChanges(scope, changes)
     }
     const unsubscribe = new Map<string, () => void>()
-    scopes.filter((scope) => !isVolatile(scope.collection)).forEach((scope) =>
-      unsubscribe.set(scopeKey(scope), database.changes.subscribe(scope.collection, scope.scopeKey, (changes) => publish(scope, changes)))
-    )
+    scopes
+      .filter((scope) => !isVolatile(scope.collection))
+      .forEach((scope) =>
+        unsubscribe.set(
+          scopeKey(scope),
+          database.changes.subscribe(scope.collection, scope.scopeKey, (changes) => publish(scope, changes)),
+        ),
+      )
     function addLocation(locationKey: string) {
       if (!subscription.lists) return
       const settings = { collection: "settings" as const, scopeKey: locationKey }
@@ -133,7 +150,14 @@ export function events(
       return [
         {
           event: "snapshot.begin",
-          value: { type: "snapshot.begin", scope, snapshotId, baseSeq, replace: true, sourceRevision: snapshot.revision },
+          value: {
+            type: "snapshot.begin",
+            scope,
+            snapshotId,
+            baseSeq,
+            replace: true,
+            sourceRevision: snapshot.revision,
+          },
         },
         ...pages(snapshot.rows).map((rows) => ({
           event: "snapshot.page",
@@ -153,13 +177,39 @@ export function events(
       }
       enqueueVolatile({ collection, scopeKey })
     })
-    const enqueueSnapshot = (scope: (typeof scopes)[number]) => {
+    const snapshotFrames = (scope: (typeof scopes)[number]) => {
       const snapshot = database.collections.snapshot(scope.collection, scope.scopeKey)
       through.set(scopeKey(scope), snapshot.throughSeq)
       const snapshotId = crypto.randomUUID()
-      enqueue("snapshot.begin", { type: "snapshot.begin", scope, snapshotId, baseSeq: snapshot.throughSeq, replace: true })
-      pages(snapshot.rows).forEach((rows) => enqueue("snapshot.page", { type: "snapshot.page", scope, snapshotId, rows }))
-      enqueue("snapshot.end", { type: "snapshot.end", scope, snapshotId, keyCount: snapshot.rows.length, throughSeq: snapshot.throughSeq })
+      return [
+        {
+          event: "snapshot.begin",
+          value: { type: "snapshot.begin", scope, snapshotId, baseSeq: snapshot.throughSeq, replace: true },
+        },
+        ...pages(snapshot.rows).map((rows) => ({
+          event: "snapshot.page",
+          value: { type: "snapshot.page", scope, snapshotId, rows },
+        })),
+        {
+          event: "snapshot.end",
+          value: {
+            type: "snapshot.end",
+            scope,
+            snapshotId,
+            keyCount: snapshot.rows.length,
+            throughSeq: snapshot.throughSeq,
+          },
+        },
+      ]
+    }
+    const enqueueSnapshot = (scope: (typeof scopes)[number]) => {
+      snapshotFrames(scope).forEach((item) => enqueue(item.event, item.value))
+    }
+    const writeFrames = async (frames: ReadonlyArray<{ event: string; value: Record<string, unknown> }>) => {
+      for (const item of frames) {
+        enqueue(item.event, item.value)
+        await writes
+      }
     }
     const enqueueEmptySnapshot = (scope: (typeof scopes)[number]) => {
       const snapshotId = crypto.randomUUID()
@@ -167,7 +217,10 @@ export function events(
       enqueue("snapshot.begin", { type: "snapshot.begin", scope, snapshotId, baseSeq: throughSeq, replace: true })
       enqueue("snapshot.end", { type: "snapshot.end", scope, snapshotId, keyCount: 0, throughSeq })
     }
-    const enqueueChanges = (scope: (typeof scopes)[number], changes: readonly ReturnType<typeof database.changes.after>[number][]) => {
+    const enqueueChanges = (
+      scope: (typeof scopes)[number],
+      changes: readonly ReturnType<typeof database.changes.after>[number][],
+    ) => {
       if (changes.length === 0) return
       const fromSeq = (through.get(scopeKey(scope)) ?? changes[0]!.seq - 1) + 1
       const throughSeq = changes.at(-1)!.seq
@@ -193,14 +246,16 @@ export function events(
       })
     }
     enqueue("stream.ready", { type: "stream.ready" })
+    await writes
     for (const scope of scopes) {
       if (isVolatile(scope.collection)) {
-        enqueueVolatile({ collection: scope.collection, scopeKey: scope.scopeKey })
+        await writeFrames(volatileFrames({ collection: scope.collection, scopeKey: scope.scopeKey }))
         continue
       }
       const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]
       if (
-        cursor?.feedId === database.feed.get().feedId && cursor.seq >= database.feed.get().retainedFloor &&
+        cursor?.feedId === database.feed.get().feedId &&
+        cursor.seq >= database.feed.get().retainedFloor &&
         cursor.seq <= database.changes.current()
       ) {
         const changes = database.changes.after(scope.collection, scope.scopeKey, cursor.seq)
@@ -208,13 +263,16 @@ export function events(
         groupTransactions(changes).forEach((transaction) => enqueueChanges(scope, transaction))
         continue
       }
-      enqueueSnapshot(scope)
+      await writeFrames(snapshotFrames(scope))
     }
 
     live = true
     volatileLive = true
     buffered
-      .map(({ scope, changes }) => ({ scope, changes: changes.filter((change) => change.seq > (through.get(scopeKey(scope)) ?? 0)) }))
+      .map(({ scope, changes }) => ({
+        scope,
+        changes: changes.filter((change) => change.seq > (through.get(scopeKey(scope)) ?? 0)),
+      }))
       .filter(({ changes }) => changes.length > 0)
       .sort((left, right) => left.changes[0]!.seq - right.changes[0]!.seq)
       .forEach(({ scope, changes }) => publish(scope, changes))
@@ -245,8 +303,13 @@ function groupTransactions<Change extends { txid?: string }>(changes: readonly C
 }
 
 function isVolatile(collection: string): collection is VolatileCollection {
-  return collection === "permissions" || collection === "questions" || collection === "agents" ||
-    collection === "models" || collection === "providers"
+  return (
+    collection === "permissions" ||
+    collection === "questions" ||
+    collection === "agents" ||
+    collection === "models" ||
+    collection === "providers"
+  )
 }
 
 function scopeKey(scope: { collection: string; scopeKey: string }) {

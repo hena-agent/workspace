@@ -1,4 +1,5 @@
 import { Hono } from "hono"
+import type { ApplyGlobalResponse } from "hono/client"
 import { compress } from "hono/compress"
 import { bodyLimit } from "hono/body-limit"
 import type { SyncDatabase } from "./storage/database"
@@ -27,10 +28,13 @@ export function createApp(input: {
   const app = new Hono()
   app.onError((cause, context) => coreError(context, cause))
   app.use("/api/*", exactOriginCors(input.corsOrigins ?? ["https://app.hena.dev"]))
-  app.use("/api/*", (context, next) => bodyLimit({
-    maxSize: requestLimit(context.req.path),
-    onError: (current) => current.json({ error: { code: "payload_too_large", message: "Request body is too large" } }, 413),
-  })(context, next))
+  app.use("/api/*", (context, next) =>
+    bodyLimit({
+      maxSize: requestLimit(context.req.path),
+      onError: (current) =>
+        current.json({ error: { code: "payload_too_large", message: "Request body is too large" } }, 413),
+    })(context, next),
+  )
   if (input.logger)
     app.use("*", async (context, next) => {
       const started = performance.now()
@@ -67,7 +71,19 @@ export function createApp(input: {
   return api.route("/", createStaticRoutes(input.publicDir))
 }
 
-export type AppType = ReturnType<typeof createApp>
+type ErrorResponse = { error: { code: string; message: string; details?: Record<string, unknown> } }
+
+export type AppType = ApplyGlobalResponse<
+  ReturnType<typeof createApp>,
+  {
+    400: { json: ErrorResponse }
+    404: { json: ErrorResponse }
+    409: { json: ErrorResponse }
+    413: { json: ErrorResponse }
+    429: { json: ErrorResponse }
+    500: { json: ErrorResponse }
+  }
+>
 
 function requestLimit(path: string) {
   if (path === "/api/session" || /\/api\/session\/[^/]+\/prompt$/.test(path)) return 28 * 1024 * 1024

@@ -9,9 +9,27 @@ describe("collection changes", () => {
 
   test("reads scoped changes in sequence order", () => {
     database = createTestDatabase().database
-    database.changes.append({ collection: "messages", scopeKey: "session-1", rowKey: "m2", op: "insert", row: { id: "m2" } })
-    database.changes.append({ collection: "messages", scopeKey: "session-2", rowKey: "m3", op: "insert", row: { id: "m3" } })
-    database.changes.append({ collection: "messages", scopeKey: "session-1", rowKey: "m1", op: "update", row: { id: "m1" } })
+    database.changes.append({
+      collection: "messages",
+      scopeKey: "session-1",
+      rowKey: "m2",
+      op: "insert",
+      row: { id: "m2" },
+    })
+    database.changes.append({
+      collection: "messages",
+      scopeKey: "session-2",
+      rowKey: "m3",
+      op: "insert",
+      row: { id: "m3" },
+    })
+    database.changes.append({
+      collection: "messages",
+      scopeKey: "session-1",
+      rowKey: "m1",
+      op: "update",
+      row: { id: "m1" },
+    })
 
     const rows = database.changes.after("messages", "session-1", 0)
 
@@ -40,22 +58,68 @@ describe("collection changes", () => {
 
   test("finds the latest projected transaction for a specific row", () => {
     database = createTestDatabase().database
-    database.changes.append({ collection: "sessions", scopeKey: "", rowKey: "ses_1", op: "update", row: {}, txid: "target" })
-    database.changes.append({ collection: "sessions", scopeKey: "", rowKey: "ses_2", op: "update", row: {}, txid: "other" })
+    database.changes.append({
+      collection: "sessions",
+      scopeKey: "",
+      rowKey: "ses_1",
+      op: "update",
+      row: {},
+      txid: "target",
+    })
+    database.changes.append({
+      collection: "sessions",
+      scopeKey: "",
+      rowKey: "ses_2",
+      op: "update",
+      row: {},
+      txid: "other",
+    })
 
     expect(database.changes.latest([{ collection: "sessions", scopeKey: "", rowKey: "ses_1" }])?.txid).toBe("target")
+  })
+
+  test("publishes changelog rows inserted by the core transaction", () => {
+    database = createTestDatabase().database
+    const received = new Array<string>()
+    const unsubscribe = database.changes.subscribe("messages", "ses_1", (change) => received.push(change.rowKey))
+    database.raw
+      .query(
+        `
+      INSERT INTO collection_change
+        (collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+      )
+      .run(
+        "messages",
+        "ses_1",
+        "msg_1",
+        "insert",
+        '{"id":"msg_1"}',
+        "1",
+        "tx-1",
+        database.feed.get().runtimeId,
+        Date.now(),
+      )
+
+    database.changes.publishPersisted()
+    unsubscribe()
+
+    expect(received).toEqual(["msg_1"])
   })
 
   test("rejects oversized rows before writing the changelog", () => {
     database = createTestDatabase().database
 
-    expect(() => database!.collections.write({
-      collection: "messages",
-      scopeKey: "ses_1",
-      rowKey: "msg_1",
-      row: { text: "x".repeat(1024 * 1024) },
-      revision: "1",
-    })).toThrow("exceeds 1 MiB")
+    expect(() =>
+      database!.collections.write({
+        collection: "messages",
+        scopeKey: "ses_1",
+        rowKey: "msg_1",
+        row: { text: "x".repeat(1024 * 1024) },
+        revision: "1",
+      }),
+    ).toThrow("exceeds 1 MiB")
     expect(database.changes.current()).toBe(0)
   })
 })

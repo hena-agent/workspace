@@ -11,7 +11,7 @@ describe("settings mutation", () => {
   test("writes a revisioned row and returns its receipt", async () => {
     database = createTestDatabase().database
     const response = await replace(createApp({ database }), { idempotencyKey: "key-1", value: "dark" })
-    const body = await response.json() as { revision: string; receipt: { through: { seq: number } } }
+    const body = (await response.json()) as { revision: string; receipt: { through: { seq: number } } }
 
     expect(response.status).toBe(200)
     expect(database.settings.get("profile", "theme")).toEqual({ value: "dark", revision: body.revision })
@@ -21,12 +21,31 @@ describe("settings mutation", () => {
   test("replays the exact result without writing twice", async () => {
     database = createTestDatabase().database
     const app = createApp({ database })
-    const first = await (await replace(app, { idempotencyKey: "key-1", value: "dark" })).json() as { revision: string }
-    const retry = await (await replace(app, { idempotencyKey: "key-1", value: "dark" })).json() as { revision: string; receipt: { outcome: string } }
+    const first = (await (await replace(app, { idempotencyKey: "key-1", value: "dark" })).json()) as {
+      revision: string
+    }
+    const retry = (await (await replace(app, { idempotencyKey: "key-1", value: "dark" })).json()) as {
+      revision: string
+      receipt: { outcome: string }
+    }
 
     expect(retry.revision).toBe(first.revision)
     expect(retry.receipt.outcome).toBe("exact_retry")
     expect(database.changes.after("settings", "profile", 0)).toHaveLength(1)
+  })
+
+  test("rejects an idempotency key reused for a different setting target", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    await replace(app, { idempotencyKey: "key-1", value: "dark" })
+    const response = await app.request("/api/settings/workspace/theme", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idempotencyKey: "key-1", value: "dark" }),
+    })
+
+    expect(response.status).toBe(409)
+    expect(database.settings.get("workspace", "theme")).toBeUndefined()
   })
 
   test("rejects a stale expected revision", async () => {

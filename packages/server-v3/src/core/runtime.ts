@@ -25,35 +25,54 @@ import { sql } from "drizzle-orm"
 import { fingerprint } from "../storage/fingerprint"
 import { IdempotencyConflict } from "../storage/idempotency"
 
-export function createCoreDomain(deltaHub?: DeltaHub, online?: OnlineRequestStore): CoreDomain {
+export function createCoreDomain(
+  deltaHub?: DeltaHub,
+  online?: OnlineRequestStore,
+  publishPersisted?: () => void,
+): CoreDomain {
   const runtime = ManagedRuntime.make(
-    AppNodeBuilder.build(LayerNode.group([SessionV2.node, LocationServiceMap.node, EventV2.node, Database.node, CollectionProjector]), [
-      [SessionExecution.node, SessionExecutionLocal.node],
-    ]),
+    AppNodeBuilder.build(
+      LayerNode.group([SessionV2.node, LocationServiceMap.node, EventV2.node, Database.node, CollectionProjector]),
+      [[SessionExecution.node, SessionExecutionLocal.node]],
+    ),
   )
-  if (deltaHub || online)
+  if (deltaHub || online || publishPersisted)
     runtime.runFork(
       EventV2.Service.use((events) =>
-        events.all().pipe(Stream.runForEach((event) => Effect.sync(() => {
-          if (deltaHub) publishDelta(deltaHub, event)
-          online?.project(event)
-        }))),
+        events.all().pipe(
+          Stream.runForEach((event) =>
+            Effect.sync(() => {
+              if (deltaHub) publishDelta(deltaHub, event)
+              online?.project(event)
+              publishPersisted?.()
+            }),
+          ),
+        ),
       ),
     )
 
-  const mutation = <Value, Error, Requirements, Response extends { receipt: { outcome: "applied" | "noop" | "exact_retry" } }>(input: {
+  const mutation = <
+    Value,
+    Error,
+    Requirements,
+    Response extends { receipt: { outcome: "applied" | "noop" | "exact_retry" } },
+  >(input: {
     operation: string
     key: string
     payload: unknown
     execute: Effect.Effect<Value, Error, Requirements>
     targets: (value: Value) => Array<{ collection: string; scopeKey: string; rowKey?: string }>
-    response: (value: Value, receipt: {
-      txid: string
-      outcome: "applied"
-      through: { feedId: string; seq: number }
-      affectedScopes: Array<{ collection: string; scopeKey: string }>
-    }) => Response
-  }) => Database.Service.use((database) =>
+    response: (
+      value: Value,
+      receipt: {
+        txid: string
+        outcome: "applied"
+        through: { feedId: string; seq: number }
+        affectedScopes: Array<{ collection: string; scopeKey: string }>
+      },
+    ) => Response
+  }) =>
+    Database.Service.use((database) =>
       database.db.transaction((tx) =>
         Effect.gen(function* () {
           const requestFingerprint = fingerprint(input.payload)
@@ -84,7 +103,8 @@ export function createCoreDomain(deltaHub?: DeltaHub, online?: OnlineRequestStor
                   ORDER BY seq DESC LIMIT 1
                 `),
           )
-          const latest = changes.filter((change): change is { seq: number } => change !== undefined)
+          const latest = changes
+            .filter((change): change is { seq: number } => change !== undefined)
             .sort((left, right) => right.seq - left.seq)[0]
           const feed = yield* tx.get<{ feed_id: string }>(sql`SELECT feed_id FROM collection_feed WHERE id = 1`)
           if (!feed) return yield* Effect.die("collection_feed is missing")
@@ -93,15 +113,18 @@ export function createCoreDomain(deltaHub?: DeltaHub, online?: OnlineRequestStor
             outcome: "applied" as const,
             through: {
               feedId: feed.feed_id,
-              seq: latest?.seq ?? (yield* tx.get<{ seq: number }>(
-                sql`SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change`,
-              ))!.seq,
+              seq:
+                latest?.seq ??
+                (yield* tx.get<{ seq: number }>(sql`SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change`))!.seq,
             },
             affectedScopes: targets
               .map((target) => ({ collection: target.collection, scopeKey: target.scopeKey }))
-              .filter((scope, index, scopes) => scopes.findIndex((item) =>
-                item.collection === scope.collection && item.scopeKey === scope.scopeKey
-              ) === index),
+              .filter(
+                (scope, index, scopes) =>
+                  scopes.findIndex(
+                    (item) => item.collection === scope.collection && item.scopeKey === scope.scopeKey,
+                  ) === index,
+              ),
           }
           const response = input.response(value, receipt)
           yield* tx.run(sql`
@@ -111,80 +134,94 @@ export function createCoreDomain(deltaHub?: DeltaHub, online?: OnlineRequestStor
           return response
         }),
       ),
-  )
+    ).pipe(Effect.tap(() => Effect.sync(() => publishPersisted?.())))
 
   return {
     ready: () => runtime.runPromise(EventV2.Service.use(() => Effect.void)),
-    createSession: (input) => runtime.runPromise(mutation({
-      operation: "session.create",
-      key: input.idempotencyKey,
-      payload: input,
-      execute: SessionV2.Service.use((service) =>
-        Effect.gen(function* () {
-          const session = yield* service.create({ id: input.sessionID, location: input.location })
-          const admitted = yield* service.prompt({
-            id: input.messageID,
-            sessionID: session.id,
-            prompt: input.prompt,
-            delivery: input.delivery,
-          })
-          return { session, admitted }
-        }),
-      ),
-      targets: (result) => [
-        { collection: "sessions", scopeKey: "", rowKey: result.session.id },
-        { collection: "sessionInputs", scopeKey: result.session.id, rowKey: result.admitted.id },
-      ],
-      response: (result, receipt) => ({ ...result, receipt }),
-    })),
-    admitPrompt: (sessionID, input) => runtime.runPromise(mutation({
-      operation: "session.prompt",
-      key: input.idempotencyKey,
-      payload: { sessionID, ...input },
-      execute: SessionV2.Service.use((service) =>
-        service.prompt({
-          id: input.messageID,
-          sessionID: SessionV2.ID.make(sessionID),
-          prompt: input.prompt,
-          delivery: input.delivery,
-        }),
-      ),
-      targets: (admitted) => [{ collection: "sessionInputs", scopeKey: admitted.sessionID, rowKey: admitted.id }],
-      response: (admitted, receipt) => ({ admitted, receipt }),
-    })),
-    interrupt: (sessionID) =>
+    createSession: (input) =>
       runtime.runPromise(
-        SessionV2.Service.use((service) => service.interrupt(SessionV2.ID.make(sessionID))),
+        mutation({
+          operation: "session.create",
+          key: input.idempotencyKey,
+          payload: input,
+          execute: SessionV2.Service.use((service) =>
+            Effect.gen(function* () {
+              const session = yield* service.create({ id: input.sessionID, location: input.location })
+              const admitted = yield* service.prompt({
+                id: input.messageID,
+                sessionID: session.id,
+                prompt: input.prompt,
+                delivery: input.delivery,
+              })
+              return { session, admitted }
+            }),
+          ),
+          targets: (result) => [
+            { collection: "sessions", scopeKey: "", rowKey: result.session.id },
+            { collection: "sessionInputs", scopeKey: result.session.id, rowKey: result.admitted.id },
+          ],
+          response: (result, receipt) => ({ ...result, receipt }),
+        }),
       ),
-    cancelInput: (sessionID, messageID, input) => runtime.runPromise(mutation({
-      operation: "session.input.cancel",
-      key: input.idempotencyKey,
-      payload: { sessionID, messageID, ...input },
-      execute: SessionV2.Service.use((service) => service.cancelInput({
-        sessionID: SessionV2.ID.make(sessionID),
-        messageID: SessionMessage.ID.make(messageID),
-        expectedRevision: input.expectedRevision,
-      })),
-      targets: () => [{ collection: "sessions", scopeKey: "", rowKey: sessionID }],
-      response: (revision, receipt) => ({ revision, receipt }),
-    })),
-    reorderInputs: (sessionID, input) => runtime.runPromise(mutation({
-      operation: "session.input.reorder",
-      key: input.idempotencyKey,
-      payload: { sessionID, ...input },
-      execute: SessionV2.Service.use((service) => service.reorderInputs({
-        sessionID: SessionV2.ID.make(sessionID),
-        messageIDs: input.messageIDs.map((messageID) => SessionMessage.ID.make(messageID)),
-        expectedRevision: input.expectedRevision,
-      })),
-      targets: () => [{ collection: "sessions", scopeKey: "", rowKey: sessionID }],
-      response: (revision, receipt) => ({ revision, receipt }),
-    })),
+    admitPrompt: (sessionID, input) =>
+      runtime.runPromise(
+        mutation({
+          operation: "session.prompt",
+          key: input.idempotencyKey,
+          payload: { sessionID, ...input },
+          execute: SessionV2.Service.use((service) =>
+            service.prompt({
+              id: input.messageID,
+              sessionID: SessionV2.ID.make(sessionID),
+              prompt: input.prompt,
+              delivery: input.delivery,
+            }),
+          ),
+          targets: (admitted) => [{ collection: "sessionInputs", scopeKey: admitted.sessionID, rowKey: admitted.id }],
+          response: (admitted, receipt) => ({ admitted, receipt }),
+        }),
+      ),
+    interrupt: (sessionID) =>
+      runtime.runPromise(SessionV2.Service.use((service) => service.interrupt(SessionV2.ID.make(sessionID)))),
+    cancelInput: (sessionID, messageID, input) =>
+      runtime.runPromise(
+        mutation({
+          operation: "session.input.cancel",
+          key: input.idempotencyKey,
+          payload: { sessionID, messageID, ...input },
+          execute: SessionV2.Service.use((service) =>
+            service.cancelInput({
+              sessionID: SessionV2.ID.make(sessionID),
+              messageID: SessionMessage.ID.make(messageID),
+              expectedRevision: input.expectedRevision,
+            }),
+          ),
+          targets: () => [{ collection: "sessions", scopeKey: "", rowKey: sessionID }],
+          response: (revision, receipt) => ({ revision, receipt }),
+        }),
+      ),
+    reorderInputs: (sessionID, input) =>
+      runtime.runPromise(
+        mutation({
+          operation: "session.input.reorder",
+          key: input.idempotencyKey,
+          payload: { sessionID, ...input },
+          execute: SessionV2.Service.use((service) =>
+            service.reorderInputs({
+              sessionID: SessionV2.ID.make(sessionID),
+              messageIDs: input.messageIDs.map((messageID) => SessionMessage.ID.make(messageID)),
+              expectedRevision: input.expectedRevision,
+            }),
+          ),
+          targets: () => [{ collection: "sessions", scopeKey: "", rowKey: sessionID }],
+          response: (revision, receipt) => ({ revision, receipt }),
+        }),
+      ),
     listFiles: (input) =>
       runtime.runPromise(
-        FileSystem.Service.use((fs) =>
-          fs.list({ path: input.path ? RelativePath.make(input.path) : undefined }),
-        ).pipe(Effect.provide(LocationServiceMap.Service.get(location(input)))),
+        FileSystem.Service.use((fs) => fs.list({ path: input.path ? RelativePath.make(input.path) : undefined })).pipe(
+          Effect.provide(LocationServiceMap.Service.get(location(input))),
+        ),
       ),
     findFiles: (input) =>
       runtime.runPromise(
@@ -201,11 +238,13 @@ export function createCoreDomain(deltaHub?: DeltaHub, online?: OnlineRequestStor
       if (!online.pending("permission", requestID, input.sessionID, input.nonce))
         return { outcome: "already_resolved", resolution: online.authoritative("permission", requestID) }
       const result = await runtime.runPromise(
-        PermissionV2.Service.use((service) => service.reply({
-          requestID: PermissionV2.ID.make(requestID),
-          reply: input.reply,
-          message: input.message,
-        })).pipe(
+        PermissionV2.Service.use((service) =>
+          service.reply({
+            requestID: PermissionV2.ID.make(requestID),
+            reply: input.reply,
+            message: input.message,
+          }),
+        ).pipe(
           Effect.provide(LocationServiceMap.Service.get(location(input.location))),
           Effect.match({
             onFailure: (error) => ({ success: false as const, error }),
@@ -232,10 +271,12 @@ export function createCoreDomain(deltaHub?: DeltaHub, online?: OnlineRequestStor
       if (!online.pending("question", requestID, input.sessionID, input.nonce))
         return { outcome: "already_resolved", resolution: online.authoritative("question", requestID) }
       const result = await runtime.runPromise(
-        QuestionV2.Service.use((service) => service.reply({
-          requestID: QuestionV2.ID.make(requestID),
-          answers: input.answers,
-        })).pipe(
+        QuestionV2.Service.use((service) =>
+          service.reply({
+            requestID: QuestionV2.ID.make(requestID),
+            answers: input.answers,
+          }),
+        ).pipe(
           Effect.provide(LocationServiceMap.Service.get(location(input.location))),
           Effect.match({
             onFailure: (error) => ({ success: false as const, error }),

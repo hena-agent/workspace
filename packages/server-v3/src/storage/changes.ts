@@ -40,6 +40,12 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
     ORDER BY seq
   `)
   const current = database.query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
+  const persisted = database.query<ChangeRow, [number]>(`
+    SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
+    FROM collection_change
+    WHERE seq > ?
+    ORDER BY seq
+  `)
   const latest = database.query<{ seq: number; txid: string | null }, [string, string]>(`
     SELECT seq, txid FROM collection_change
     WHERE collection = ? AND scope_key = ?
@@ -51,28 +57,40 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
     ORDER BY seq DESC LIMIT 1
   `)
 
+  let publishedSeq = current.get()!.seq
+  const publish = (change: Change) => {
+    publishedSeq = Math.max(publishedSeq, change.seq)
+    listeners.get(scopeKey(change.collection, change.scopeKey))?.forEach((listener) => listener(change))
+  }
+  const publishPersisted = () => persisted.all(publishedSeq).map(fromRow).forEach(publish)
+
   const store = {
     append(input: Omit<ChangeInput, "row"> & { row?: unknown | null }): Change {
-      if (input.op === "reset" && (input.rowKey !== "" || input.row != null)) throw new Error("reset must have an empty row key and null row")
+      if (input.op === "reset" && (input.rowKey !== "" || input.row != null))
+        throw new Error("reset must have an empty row key and null row")
       if (input.op !== "reset" && input.rowKey === "") throw new Error("only reset may have an empty row key")
       const createdAt = Date.now()
       const runtimeId = feed.get().runtimeId
-      const result = database.query(`
+      const result = database
+        .query(
+          `
         INSERT INTO collection_change (collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        input.collection,
-        input.scopeKey,
-        input.rowKey,
-        input.op,
-        input.row == null ? null : JSON.stringify(input.row),
-        input.rowRevision ?? null,
-        input.txid ?? null,
-        runtimeId,
-        createdAt,
-      )
+      `,
+        )
+        .run(
+          input.collection,
+          input.scopeKey,
+          input.rowKey,
+          input.op,
+          input.row == null ? null : JSON.stringify(input.row),
+          input.rowRevision ?? null,
+          input.txid ?? null,
+          runtimeId,
+          createdAt,
+        )
       const change = { ...input, row: input.row ?? null, seq: Number(result.lastInsertRowid), runtimeId, createdAt }
-      listeners.get(scopeKey(input.collection, input.scopeKey))?.forEach((listener) => listener(change))
+      publish(change)
       return change
     },
     after(collection: string, scopeKey: string, seq: number) {
@@ -83,9 +101,11 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
     },
     latest(scopes: ReadonlyArray<{ collection: string; scopeKey: string; rowKey?: string }>) {
       return scopes
-        .map((scope) => scope.rowKey
-          ? latestRow.get(scope.collection, scope.scopeKey, scope.rowKey)
-          : latest.get(scope.collection, scope.scopeKey))
+        .map((scope) =>
+          scope.rowKey
+            ? latestRow.get(scope.collection, scope.scopeKey, scope.rowKey)
+            : latest.get(scope.collection, scope.scopeKey),
+        )
         .filter((change): change is { seq: number; txid: string | null } => change !== null)
         .sort((left, right) => right.seq - left.seq)[0]
     },
@@ -102,17 +122,28 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
         if (scoped.size === 0) listeners.delete(key)
       }
     },
+    publishPersisted,
     compact(input: { now: number; maxAgeMs: number; maxRows: number }) {
-      const age = database.query<{ seq: number }, [number]>(
-        "SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change WHERE created_at < ?",
-      ).get(input.now - input.maxAgeMs)!.seq
-      const size = database.query<{ seq: number }, [number]>(`
+      const age = database
+        .query<
+          { seq: number },
+          [number]
+        >("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change WHERE created_at < ?")
+        .get(input.now - input.maxAgeMs)!.seq
+      const size = database
+        .query<{ seq: number }, [number]>(
+          `
         SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change
         WHERE seq NOT IN (SELECT seq FROM collection_change ORDER BY seq DESC LIMIT ?)
-      `).get(input.maxRows)!.seq
+      `,
+        )
+        .get(input.maxRows)!.seq
       const retainedFloor = Math.max(age, size)
       if (retainedFloor > 0) database.query("DELETE FROM collection_change WHERE seq <= ?").run(retainedFloor)
       return retainedFloor
+    },
+    close() {
+      listeners.clear()
     },
   }
 

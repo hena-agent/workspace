@@ -17,7 +17,12 @@ export function createSettingRoutes(database: SyncDatabase) {
         return error(c, 400, "validation", "Setting key or value is not allowed")
       try {
         const result = await database.idempotency.run(
-          { principal: "local", operation: "settings.replace", key: body.idempotencyKey, payload: body },
+          {
+            principal: "local",
+            operation: "settings.replace",
+            key: body.idempotencyKey,
+            payload: { scope: c.req.param("scope"), key: c.req.param("key"), body },
+          },
           () => {
             const txid = crypto.randomUUID()
             const replaced = database.settings.replace({
@@ -40,12 +45,19 @@ export function createSettingRoutes(database: SyncDatabase) {
           },
         )
         if (result.outcome === "exact_retry")
-          return c.json({ ...result.response, receipt: { ...result.response.receipt, outcome: "exact_retry" as const } })
+          return c.json({
+            ...result.response,
+            receipt: { ...result.response.receipt, outcome: "exact_retry" as const },
+          })
         return c.json(result.response)
       } catch (cause) {
-        if (cause instanceof IdempotencyConflict) return error(c, 409, cause.code, "Idempotency key was reused with different input")
+        if (cause instanceof IdempotencyConflict)
+          return error(c, 409, cause.code, "Idempotency key was reused with different input")
         if (cause instanceof RevisionConflict)
-          return c.json({ error: { code: cause.code, message: cause.message, details: { authoritative: cause.authoritative } } }, 409)
+          return c.json(
+            { error: { code: cause.code, message: cause.message, details: { authoritative: cause.authoritative } } },
+            409,
+          )
         if (cause instanceof SettingTooLarge)
           return c.json({ error: { code: "payload_too_large", message: "Setting value exceeds 16 KiB" } }, 413)
         throw cause
@@ -61,7 +73,10 @@ function validSetting(key: string, value: unknown) {
   if (key === "queueDelivery") return value === "steer" || value === "queue"
   if (key !== "defaultModel" || typeof value !== "object" || value === null || Array.isArray(value)) return false
   const model = value as Record<string, unknown>
-  return Object.keys(model).every((field) => ["id", "providerID", "variant"].includes(field)) &&
-    typeof model.id === "string" && typeof model.providerID === "string" &&
+  return (
+    Object.keys(model).every((field) => ["id", "providerID", "variant"].includes(field)) &&
+    typeof model.id === "string" &&
+    typeof model.providerID === "string" &&
     (model.variant === undefined || typeof model.variant === "string")
+  )
 }

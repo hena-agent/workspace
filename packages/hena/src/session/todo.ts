@@ -27,15 +27,17 @@ const layer = Layer.effect(
     const { db } = yield* Database.Service
 
     const update = Effect.fn("Todo.update")(function* (input: { sessionID: SessionID; todos: ReadonlyArray<Info> }) {
+      const todos = input.todos.map((todo) => ({ ...todo, id: todo.id ?? SessionTodo.ID.create() }))
       yield* db
         .transaction((tx) =>
           Effect.gen(function* () {
             yield* tx.delete(TodoTable).where(eq(TodoTable.session_id, input.sessionID)).run()
-            if (input.todos.length === 0) return
+            if (todos.length === 0) return
             yield* tx
               .insert(TodoTable)
               .values(
-                input.todos.map((todo, position) => ({
+                todos.map((todo, position) => ({
+                  id: todo.id,
                   session_id: input.sessionID,
                   content: todo.content,
                   status: todo.status,
@@ -47,7 +49,7 @@ const layer = Layer.effect(
           }),
         )
         .pipe(Effect.orDie)
-      yield* events.publish(Event.Updated, input)
+      yield* events.publish(Event.Updated, { ...input, todos })
     })
 
     const get = Effect.fn("Todo.get")(function* (sessionID: SessionID) {
@@ -59,6 +61,7 @@ const layer = Layer.effect(
         .all()
         .pipe(Effect.orDie)
       return rows.map((row) => ({
+        id: row.id,
         content: row.content,
         status: row.status,
         priority: row.priority,

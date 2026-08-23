@@ -186,6 +186,57 @@ describe("collection projector", () => {
     )
   })
 
+  test("refreshes the assistant superseded by a new provider step", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(sql`
+          INSERT INTO project (id, worktree, time_created, time_updated, sandboxes)
+          VALUES ('global', '/project', 1, 1, '[]')
+        `)
+        yield* database.run(sql`
+          INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
+          VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1)
+        `)
+        yield* database.run(sql`
+          INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
+          VALUES (1, 'feed', 0, 'runtime')
+        `)
+        const incomplete = {
+          id: "msg_previous",
+          type: "assistant",
+          agent: "build",
+          model: { id: "model", providerID: "provider" },
+          content: [],
+          time: { created: 1 },
+        }
+        yield* database.run(sql`
+          INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data)
+          VALUES
+            ('msg_previous', 'ses_1', 'assistant', 1, 1, 2, ${JSON.stringify({ ...incomplete, time: { created: 1, completed: 2 } })}),
+            ('msg_current', 'ses_1', 'assistant', 2, 2, 2, ${JSON.stringify({ ...incomplete, id: "msg_current", time: { created: 2 } })})
+        `)
+        yield* database.run(sql`
+          INSERT INTO collection_row (collection, scope_key, row_key, row, row_revision)
+          VALUES ('messages', 'ses_1', 'msg_previous', ${JSON.stringify(incomplete)}, 'stale')
+        `)
+
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.Step.Started.type,
+          data: { sessionID: "ses_1", assistantMessageID: "msg_current" },
+        })
+
+        const projected = yield* database.get<{ row: string }>(sql`
+          SELECT row FROM collection_row
+          WHERE collection = 'messages' AND scope_key = 'ses_1' AND row_key = 'msg_previous'
+        `)
+        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+          time: { completed: 2 },
+        })
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
   test("stores promoted user attachments outside the stream row", async () => {
     await Effect.runPromise(
       Effect.gen(function* () {

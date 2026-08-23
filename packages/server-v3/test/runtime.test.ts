@@ -93,6 +93,55 @@ describe("core runtime", () => {
     expect(stored.length).toBeLessThan(10_000)
   })
 
+  test("waits for a concurrent writer before reading idempotency state", async () => {
+    const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
+    const workerPath = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.worker.ts`
+    const bootstrap = createCoreDomain(undefined, undefined, undefined, filename)
+    await bootstrap.ready()
+    await bootstrap.dispose()
+    createSyncDatabase(new Database(filename, { create: true })).close()
+    const domain = createCoreDomain(undefined, undefined, undefined, filename)
+    await domain.ready()
+    const location = Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() })
+    await Bun.write(
+      workerPath,
+      `import { Database } from "bun:sqlite"
+let database
+self.onmessage = (event) => {
+  database = new Database(event.data.filename)
+  database.exec("PRAGMA busy_timeout = 5000; BEGIN IMMEDIATE")
+  database.run("UPDATE collection_feed SET retained_floor = retained_floor + 1 WHERE id = 1")
+  postMessage("locked")
+  setTimeout(() => {
+    database.exec("COMMIT")
+    database.close()
+    postMessage("committed")
+  }, 100)
+}`,
+    )
+    const worker = new Worker(workerPath)
+
+    try {
+      const locked = nextWorkerMessage(worker)
+      worker.postMessage({ filename })
+      await locked
+      const committed = nextWorkerMessage(worker)
+      const mutation = domain.createSession({
+        idempotencyKey: "concurrent-writer",
+        sessionID: Session.ID.create(),
+        messageID: SessionMessage.ID.create(),
+        location,
+        prompt: { text: "prompt" },
+        delivery: "queue",
+      })
+      await Promise.all([committed, mutation])
+    } finally {
+      worker.terminate()
+      await domain.dispose()
+      await Promise.all([Bun.file(filename).delete(), Bun.file(workerPath).delete()])
+    }
+  })
+
   test("rejects mismatched pending online replies", async () => {
     const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
     const online = createOnlineRequestStore()
@@ -134,3 +183,7 @@ describe("core runtime", () => {
     }
   })
 })
+
+function nextWorkerMessage(worker: Worker) {
+  return new Promise<void>((resolve) => worker.addEventListener("message", () => resolve(), { once: true }))
+}

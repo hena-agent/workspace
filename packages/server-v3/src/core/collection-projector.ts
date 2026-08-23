@@ -6,7 +6,7 @@ import { fromRow } from "@hena/core/session/info"
 import { SessionProjector } from "@hena/core/session/projector"
 import { SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "@hena/core/session/sql"
 import { ProjectTable } from "@hena/core/project/sql"
-import { and, eq, isNull, sql } from "drizzle-orm"
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Session } from "@hena/schema/session"
 import { SessionMessage } from "@hena/schema/session-message"
@@ -94,6 +94,23 @@ export function refreshDurableEvent(
       `)
       if (shell) yield* refreshMessage(database, event.data.sessionID, shell.id, txid)
       return
+    }
+
+    if (event.type === SessionEvent.Step.Started.type && event.data.assistantMessageID) {
+      const previous = yield* database
+        .select({ id: SessionMessageTable.id })
+        .from(SessionMessageTable)
+        .where(
+          and(
+            eq(SessionMessageTable.session_id, Session.ID.make(event.data.sessionID)),
+            eq(SessionMessageTable.type, "assistant"),
+            ne(SessionMessageTable.id, SessionMessage.ID.make(event.data.assistantMessageID)),
+          ),
+        )
+        .orderBy(desc(SessionMessageTable.seq))
+        .limit(1)
+        .get()
+      if (previous) yield* refreshMessage(database, event.data.sessionID, previous.id, txid)
     }
 
     const messageID =

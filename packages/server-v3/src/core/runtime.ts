@@ -137,6 +137,7 @@ export function createCoreDomain(
           `)
           return (input.persist ? persisted : response) as Response
         }),
+        { behavior: "immediate" },
       ),
     ).pipe(Effect.tap(() => Effect.sync(() => publishPersisted?.())))
 

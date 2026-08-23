@@ -92,6 +92,18 @@ describe("app", () => {
     expect(await response.json()).toMatchObject({ error: { code: "payload_too_large" } })
   })
 
+  test("allows base64 expansion before validating prompt attachments", async () => {
+    database = createTestDatabase().database
+    const response = await createApp({ database }).request("/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json", "content-length": String(21 * 1024 * 1024) },
+      body: "{}",
+    })
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: { code: "validation" } })
+  })
+
   test("returns a typed revision conflict", async () => {
     database = createTestDatabase().database
     const app = createApp({ database })

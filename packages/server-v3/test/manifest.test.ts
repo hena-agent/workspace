@@ -11,5 +11,8 @@ describe("collection manifest", () => {
     expect(scopes).toContainEqual({ collection: "providers", scopeKey: '{"directory":"/repo"}' })
     expect(scopes).toContainEqual({ collection: "messages", scopeKey: "ses_1" })
     expect(scopes).toContainEqual({ collection: "projects", scopeKey: "" })
+    expect(scopes).toContainEqual({ collection: "settings", scopeKey: "profile" })
+    expect(scopes).toContainEqual({ collection: "settings", scopeKey: '{"directory":"/repo"}' })
+    expect(scopes).not.toContainEqual({ collection: "settings", scopeKey: "" })
   })
 })

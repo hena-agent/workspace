@@ -88,6 +88,12 @@ export function events(
     )
     function addLocation(scopeKey: string) {
       if (!subscription.lists) return
+      const settings = { collection: "settings" as const, scopeKey }
+      if (!scopes.some((scope) => scope.collection === settings.collection && scope.scopeKey === scopeKey)) {
+        scopes.push(settings)
+        unsubscribe.push(database.changes.subscribe(settings.collection, scopeKey, (changes) => publish(settings, changes)))
+        enqueueSnapshot(settings)
+      }
       for (const collection of ["agents", "models", "providers"] as const) {
         if (scopes.some((scope) => scope.collection === collection && scope.scopeKey === scopeKey)) continue
         const scope = { collection, scopeKey }

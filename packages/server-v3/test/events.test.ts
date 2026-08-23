@@ -88,8 +88,10 @@ describe("collection events", () => {
 
     const location = JSON.stringify({ directory: "/new" })
     database.collections.write({ collection: "locations", scopeKey: "", rowKey: location, row: { directory: "/new" }, revision: "1" })
+    database.collections.write({ collection: "settings", scopeKey: location, rowKey: "theme", row: { value: "dark" }, revision: "1" })
     online.replace("agents", location, [{ key: "build", row: { id: "build" } }])
-    while (!output.includes('"id":"build"')) output += decoder.decode((await reader.read()).value)
+    while (!output.includes('"id":"build"') || !output.includes('"value":"dark"'))
+      output += decoder.decode((await reader.read()).value)
     await reader.cancel()
 
     expect(output).toContain(`"scopeKey":${JSON.stringify(location)}`)

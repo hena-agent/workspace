@@ -70,7 +70,7 @@ export function createApp(input: {
 export type AppType = ReturnType<typeof createApp>
 
 function requestLimit(path: string) {
-  if (path === "/api/session" || /\/api\/session\/[^/]+\/prompt$/.test(path)) return 20 * 1024 * 1024
+  if (path === "/api/session" || /\/api\/session\/[^/]+\/prompt$/.test(path)) return 28 * 1024 * 1024
   if (path.startsWith("/api/settings/")) return 20 * 1024
   return 64 * 1024
 }

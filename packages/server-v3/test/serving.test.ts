@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
+import { rm } from "node:fs/promises"
+import { resolve } from "node:path"
 import { createApp } from "../src/app"
 import type { SyncDatabase } from "../src/storage/database"
 import { createTestDatabase } from "./fixture"
@@ -63,4 +65,28 @@ describe("serving", () => {
   test("binds the unauthenticated server to loopback", () => {
     expect(Hostname).toBe("127.0.0.1")
   })
+
+  test("starts against fresh and previously migrated databases", async () => {
+    const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
+
+    await runServer(path)
+    await runServer(path)
+    await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
+  }, 30_000)
 })
+
+async function runServer(database: string) {
+  const child = Bun.spawn({
+    cmd: [
+      process.execPath,
+      "-e",
+      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); await instance.stop()',
+    ],
+    cwd: resolve(import.meta.dir, ".."),
+    env: { ...process.env, HENA_DB: database },
+    stdout: "ignore",
+    stderr: "pipe",
+  })
+  const [exitCode, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()])
+  expect(exitCode, stderr).toBe(0)
+}

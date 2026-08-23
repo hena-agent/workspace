@@ -60,12 +60,11 @@ export function createCoreDomain(
     key: string
     payload: unknown
     execute: Effect.Effect<Value, Error, Requirements>
-    targets: (value: Value) => Array<{ collection: string; scopeKey: string; rowKey?: string }>
     response: (
       value: Value,
       receipt: {
         txid: string
-        outcome: "applied"
+        outcome: "applied" | "noop"
         through: { feedId: string; seq: number }
         affectedScopes: Array<{ collection: string; scopeKey: string }>
       },
@@ -88,42 +87,37 @@ export function createCoreDomain(
 
           const txid = crypto.randomUUID()
           const value = yield* input.execute.pipe(Effect.provideService(MutationTxid, txid))
-          const targets = input.targets(value)
-          const changes = yield* Effect.forEach(targets, (target) =>
-            target.rowKey
-              ? tx.get<{ seq: number }>(sql`
-                  SELECT seq FROM collection_change
-                  WHERE collection = ${target.collection} AND scope_key = ${target.scopeKey} AND row_key = ${target.rowKey}
-                  ORDER BY seq DESC LIMIT 1
-                `)
-              : tx.get<{ seq: number }>(sql`
-                  SELECT seq FROM collection_change
-                  WHERE collection = ${target.collection} AND scope_key = ${target.scopeKey}
-                  ORDER BY seq DESC LIMIT 1
-                `),
-          )
-          const latest = changes
-            .filter((change): change is { seq: number } => change !== undefined)
-            .sort((left, right) => right.seq - left.seq)[0]
-          const feed = yield* tx.get<{ feed_id: string }>(sql`SELECT feed_id FROM collection_feed WHERE id = 1`)
+          const changes = yield* tx.all<{ seq: number; collection: string; scope_key: string }>(sql`
+            SELECT seq, collection, scope_key FROM collection_change WHERE txid = ${txid} ORDER BY seq
+          `)
+          const latest = changes.at(-1)
+          const feed = yield* tx.get<{ feed_id: string; retained_floor: number }>(sql`
+            SELECT feed_id, retained_floor FROM collection_feed WHERE id = 1
+          `)
           if (!feed) return yield* Effect.die("collection_feed is missing")
+          const applied = changes.length > 0
           const receipt = {
             txid,
-            outcome: "applied" as const,
+            outcome: applied ? "applied" as const : "noop" as const,
             through: {
               feedId: feed.feed_id,
               seq:
                 latest?.seq ??
-                (yield* tx.get<{ seq: number }>(sql`SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change`))!.seq,
+                Math.max(
+                  (yield* tx.get<{ seq: number }>(sql`SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change`))!.seq,
+                  feed.retained_floor,
+                ),
             },
-            affectedScopes: targets
-              .map((target) => ({ collection: target.collection, scopeKey: target.scopeKey }))
-              .filter(
-                (scope, index, scopes) =>
-                  scopes.findIndex(
-                    (item) => item.collection === scope.collection && item.scopeKey === scope.scopeKey,
-                  ) === index,
-              ),
+            affectedScopes: applied
+              ? changes
+                .map((change) => ({ collection: change.collection, scopeKey: change.scope_key }))
+                .filter(
+                  (scope, index, scopes) =>
+                    scopes.findIndex(
+                      (item) => item.collection === scope.collection && item.scopeKey === scope.scopeKey,
+                    ) === index,
+                )
+              : [],
           }
           const response = input.response(value, receipt)
           yield* tx.run(sql`
@@ -156,10 +150,6 @@ export function createCoreDomain(
               return { session, admitted }
             }),
           ),
-          targets: (result) => [
-            { collection: "sessions", scopeKey: "", rowKey: result.session.id },
-            { collection: "sessionInputs", scopeKey: result.session.id, rowKey: result.admitted.id },
-          ],
           response: (result, receipt) => ({ ...result, receipt }),
         }).pipe(
           Effect.tap((response) =>
@@ -182,10 +172,6 @@ export function createCoreDomain(
               resume: false,
             }),
           ),
-          targets: (admitted) => [
-            { collection: "sessions", scopeKey: "", rowKey: admitted.sessionID },
-            { collection: "sessionInputs", scopeKey: admitted.sessionID, rowKey: admitted.id },
-          ],
           response: (admitted, receipt) => ({ admitted, receipt }),
         }).pipe(
           Effect.tap(() => SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(sessionID)))),
@@ -206,10 +192,6 @@ export function createCoreDomain(
               expectedRevision: input.expectedRevision,
             }),
           ),
-          targets: () => [
-            { collection: "sessions", scopeKey: "", rowKey: sessionID },
-            { collection: "sessionInputs", scopeKey: sessionID, rowKey: messageID },
-          ],
           response: (revision, receipt) => ({ revision, receipt }),
         }),
       ),
@@ -226,10 +208,6 @@ export function createCoreDomain(
               expectedRevision: input.expectedRevision,
             }),
           ),
-          targets: () => [
-            { collection: "sessions", scopeKey: "", rowKey: sessionID },
-            { collection: "sessionInputs", scopeKey: sessionID },
-          ],
           response: (revision, receipt) => ({ revision, receipt }),
         }),
       ),

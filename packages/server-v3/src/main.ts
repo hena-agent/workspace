@@ -16,10 +16,12 @@ export async function start(input?: { port?: number; publicDir?: string }) {
   assertNoPassword()
   const deltas = createDeltaHub()
   const online = createOnlineRequestStore()
+  const persisted = { publish: () => {} }
+  const domain = createCoreDomain(deltas, online, () => persisted.publish())
+  await domain.ready()
   const sqlite = await import("bun:sqlite")
   const database = createSyncDatabase(new sqlite.Database(Database.path(), { create: true }))
-  const domain = createCoreDomain(deltas, online, database.changes.publishPersisted)
-  await domain.ready()
+  persisted.publish = database.changes.publishPersisted
   database.compact()
   if (bootstrapCollections(database)) database.feed.replace()
   await bootstrapLocationCollections(database, domain, online)

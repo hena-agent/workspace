@@ -48,6 +48,24 @@ describe("collection events", () => {
     expect(output).toContain('"id":"message-live"')
   })
 
+  test("replaces a future cursor with a snapshot", async () => {
+    database = createTestDatabase().database
+    database.collections.write({ collection: "messages", scopeKey: "session-1", rowKey: "message-1", row: { id: "message-1" }, revision: "1" })
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app, {
+      "messages:session-1": { feedId: database.feed.get().feedId, seq: 100 },
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while (!output.includes('"id":"message-1"')) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output).toContain("event: snapshot.begin")
+    expect(output).not.toContain('"fromSeq":101')
+  })
+
   test("keeps every transaction in one rows frame", async () => {
     database = createTestDatabase().database
     const app = createApp({ database })
@@ -98,13 +116,16 @@ describe("collection events", () => {
   })
 })
 
-async function createSubscribedStream(app: ReturnType<typeof createApp>) {
+async function createSubscribedStream(
+  app: ReturnType<typeof createApp>,
+  cursors: Record<string, { feedId: string; seq: number }> = {},
+) {
   const created = await app.request("/api/collection/streams", { method: "POST" })
   const stream = await created.json() as { streamId: string }
   await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
     method: "PUT",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ revision: 1, lists: false, sessions: ["session-1"], cursors: {} }),
+    body: JSON.stringify({ revision: 1, lists: false, sessions: ["session-1"], cursors }),
   })
   return stream
 }

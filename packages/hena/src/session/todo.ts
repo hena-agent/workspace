@@ -56,6 +56,7 @@ const layer = Layer.effect(
         .all()
         .pipe(Effect.orDie)
       return rows.map((row) => ({
+        id: row.id,
         content: row.content,
         status: row.status,
         priority: row.priority,

@@ -27,6 +27,15 @@ describe("full content", () => {
     expect(await response.json()).toMatchObject({ error: { code: "validation" } })
   })
 
+  test("advances past a code point larger than the requested limit", async () => {
+    database = createTestDatabase().database
+    database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "😀b" })
+    const response = await createApp({ database }).request("/api/content/content-1?sessionID=session-1&revision=r1&offset=0&limit=1")
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ text: "😀", offset: 0, nextOffset: 4 })
+  })
+
   test("fails closed for a different owning session or revision", async () => {
     database = createTestDatabase().database
     database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "secret" })

@@ -39,15 +39,19 @@ describe("legacy session todos", () => {
 
       const initial = yield* todos.update({
         sessionID,
-        todos: [{ content: "first", status: "pending", priority: "high" }],
+        todos: [
+          { content: "first", status: "pending", priority: "high" },
+          { content: "second", status: "pending", priority: "low" },
+        ],
       })
+      const listed = yield* todos.get(sessionID)
       const updated = yield* todos.update({
         sessionID,
-        todos: [{ content: "changed", status: "in_progress", priority: "medium" }],
+        todos: [...listed].reverse(),
       })
 
-      expect(updated[0]?.id).toBe(initial[0]?.id)
-      expect(updated[0]?.content).toBe("changed")
+      expect(listed.map((todo) => todo.id)).toEqual(initial.map((todo) => todo.id))
+      expect(updated.map((todo) => todo.id)).toEqual([initial[1]?.id, initial[0]?.id])
     }),
   )
 })

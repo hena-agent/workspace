@@ -22,7 +22,10 @@ export function createContentStore(database: Database) {
       if (!row) return undefined
       const bytes = new TextEncoder().encode(row.content)
       if (input.offset > bytes.length || !isCodePointBoundary(bytes, input.offset)) throw new InvalidContentOffset()
-      const end = endingBoundary(bytes, Math.min(bytes.length, input.offset + input.limit))
+      const boundary = endingBoundary(bytes, Math.min(bytes.length, input.offset + input.limit))
+      const end = boundary === input.offset && input.offset < bytes.length
+        ? followingBoundary(bytes, input.offset)
+        : boundary
       return {
         text: new TextDecoder().decode(bytes.subarray(input.offset, end)),
         offset: input.offset,
@@ -61,4 +64,9 @@ function endingBoundary(bytes: Uint8Array, target: number) {
 
 function isCodePointBoundary(bytes: Uint8Array, offset: number) {
   return offset === bytes.length || bytes[offset] === undefined || bytes[offset]! >> 6 !== 2
+}
+
+function followingBoundary(bytes: Uint8Array, offset: number) {
+  return [offset + 1, offset + 2, offset + 3, offset + 4]
+    .find((candidate) => candidate <= bytes.length && isCodePointBoundary(bytes, candidate)) ?? bytes.length
 }

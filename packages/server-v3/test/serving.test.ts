@@ -54,9 +54,16 @@ describe("serving", () => {
     database = createTestDatabase().database
     const app = createApp({ database, corsOrigins: ["https://app.hena.dev"] })
     const allowed = await app.request("/api/collection/capabilities", { headers: { origin: "https://app.hena.dev" } })
+    const sameOrigin = await app.request("http://localhost/api/settings/profile/theme", {
+      method: "PUT",
+      headers: { origin: "http://localhost", "content-type": "application/json" },
+      body: JSON.stringify({ idempotencyKey: "same-origin", value: "dark" }),
+    })
     const rejected = await app.request("/api/collection/capabilities", { headers: { origin: "https://evil.example" } })
 
     expect(allowed.headers.get("access-control-allow-origin")).toBe("https://app.hena.dev")
+    expect(sameOrigin.status).toBe(200)
+    expect(sameOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost")
     expect(rejected.status).toBe(401)
     expect(rejected.headers.get("access-control-allow-origin")).toBeNull()
     expect(await rejected.json()).toMatchObject({ error: { code: "unauthorized" } })

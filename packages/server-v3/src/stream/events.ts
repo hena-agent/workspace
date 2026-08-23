@@ -172,7 +172,10 @@ export function events(
         continue
       }
       const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]
-      if (cursor?.feedId === database.feed.get().feedId && cursor.seq >= database.feed.get().retainedFloor) {
+      if (
+        cursor?.feedId === database.feed.get().feedId && cursor.seq >= database.feed.get().retainedFloor &&
+        cursor.seq <= database.changes.current()
+      ) {
         const changes = database.changes.after(scope.collection, scope.scopeKey, cursor.seq)
         through.set(scopeKey(scope), cursor.seq)
         groupTransactions(changes).forEach((transaction) => enqueueChanges(scope, transaction))

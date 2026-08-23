@@ -1,9 +1,11 @@
 import { Sync } from "@hena/schema/sync"
+import { PromptInput } from "@hena/schema/prompt-input"
 import { sValidator } from "@hono/standard-validator"
 import { Schema } from "effect"
 import { Hono } from "hono"
 import type { CoreDomain } from "../core/domain"
 import { error, validationHook } from "../http/error"
+import { preview } from "../storage/content"
 
 export function createSessionRoutes(domain: CoreDomain) {
   return new Hono()
@@ -11,8 +13,8 @@ export function createSessionRoutes(domain: CoreDomain) {
       "/session",
       sValidator("json", Schema.toStandardSchemaV1(Sync.CreateSession), validationHook),
       async (c) => {
-        if (oversizedAttachment(c.req.valid("json").prompt))
-          return error(c, 413, "payload_too_large", "Attachment exceeds 5 MiB")
+        if (oversizedPrompt(c.req.valid("json").prompt))
+          return error(c, 413, "payload_too_large", "Prompt exceeds the supported size")
         return c.json(await domain.createSession(c.req.valid("json")))
       },
     )
@@ -37,8 +39,8 @@ export function createSessionRoutes(domain: CoreDomain) {
       "/session/:sessionId/prompt",
       sValidator("json", Schema.toStandardSchemaV1(Sync.AdmitPrompt), validationHook),
       async (c) => {
-        if (oversizedAttachment(c.req.valid("json").prompt))
-          return error(c, 413, "payload_too_large", "Attachment exceeds 5 MiB")
+        if (oversizedPrompt(c.req.valid("json").prompt))
+          return error(c, 413, "payload_too_large", "Prompt exceeds the supported size")
         return c.json(await domain.admitPrompt(c.req.param("sessionId"), c.req.valid("json")))
       },
     )
@@ -48,9 +50,24 @@ export function createSessionRoutes(domain: CoreDomain) {
     })
 }
 
-function oversizedAttachment(prompt: { files?: readonly { uri: string }[] }) {
+function oversizedPrompt(prompt: PromptInput.Prompt) {
   const sizes = prompt.files?.map((file) => inlinedBytes(file.uri)) ?? []
-  return sizes.some((size) => size > 5 * 1024 * 1024) || sizes.reduce((total, size) => total + size, 0) > 20 * 1024 * 1024
+  if (sizes.some((size) => size > 5 * 1024 * 1024) || sizes.reduce((total, size) => total + size, 0) > 20 * 1024 * 1024)
+    return true
+  const projected = {
+    ...prompt,
+    files: prompt.files?.map((file) => {
+      const uri = preview(file.uri)
+      if (!uri.truncated) return file
+      return {
+        ...file,
+        uri: uri.text,
+        truncated: true,
+        content: { id: "x".repeat(64), revision: "x".repeat(64), bytes: uri.totalBytes },
+      }
+    }),
+  }
+  return new TextEncoder().encode(JSON.stringify(projected)).byteLength > 1024 * 1024 - 1024
 }
 
 function inlinedBytes(uri: string) {

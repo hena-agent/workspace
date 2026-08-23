@@ -19,7 +19,6 @@ type RecordRow = {
 }
 
 export function createIdempotencyStore(database: Database, changes: ReturnType<typeof createChangeStore>) {
-  const inFlight = new Map<string, { fingerprint: string; response: Promise<unknown> }>()
   const get = database.query<RecordRow, [string, string, string]>(`
     SELECT fingerprint, response FROM idempotency_record
     WHERE principal = ? AND operation = ? AND key = ?
@@ -49,32 +48,6 @@ export function createIdempotencyStore(database: Database, changes: ReturnType<t
         )
         return { outcome: "applied" as const, response }
       })())
-    },
-    async runAsync<Response>(input: IdempotencyInput, execute: () => Promise<Response>) {
-      const requestFingerprint = fingerprint(input.payload)
-      const recorded = get.get(input.principal, input.operation, input.key)
-      if (recorded?.fingerprint !== undefined && recorded.fingerprint !== requestFingerprint) throw new IdempotencyConflict()
-      if (recorded) return { outcome: "exact_retry" as const, response: JSON.parse(recorded.response) as Response }
-
-      const identity = `${input.principal}\u0000${input.operation}\u0000${input.key}`
-      const pending = inFlight.get(identity)
-      if (pending?.fingerprint !== undefined && pending.fingerprint !== requestFingerprint) throw new IdempotencyConflict()
-      if (pending) return { outcome: "exact_retry" as const, response: await pending.response as Response }
-
-      const response = Promise.resolve().then(execute).then((value) => {
-        insert.run(
-          input.principal,
-          input.operation,
-          input.key,
-          requestFingerprint,
-          JSON.stringify(value),
-          responseTxid(value),
-          Date.now(),
-        )
-        return value
-      }).finally(() => inFlight.delete(identity))
-      inFlight.set(identity, { fingerprint: requestFingerprint, response })
-      return { outcome: "applied" as const, response: await response }
     },
   }
 }

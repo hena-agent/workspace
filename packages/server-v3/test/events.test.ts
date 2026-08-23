@@ -219,11 +219,15 @@ describe("collection events", () => {
     database.collections.replace("messages", "session-1", rows("first"), "tx-first")
     database.collections.replace("messages", "session-1", rows("second"), "tx-second")
 
-    while (!output.includes("second-2")) output += decoder.decode((await reader.read()).value)
+    while (!output.includes("second-2") || !output.slice(output.indexOf("second-2")).includes("event: snapshot.end"))
+      output += decoder.decode((await reader.read()).value)
+    const trailing = await Promise.race([reader.read(), Bun.sleep(20).then(() => undefined)])
+    if (trailing && !trailing.done) output += decoder.decode(trailing.value)
     await reader.cancel()
 
     expect(output.match(/event: snapshot.begin/g)).toHaveLength(1)
     expect(output).not.toContain("first-2")
+    expect(output.match(/event: [^\n]+/g)?.at(-1)).toBe("event: snapshot.end")
   })
 
   test("buffers deltas until initial snapshots finish", async () => {

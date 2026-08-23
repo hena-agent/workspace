@@ -47,38 +47,4 @@ describe("idempotency ledger", () => {
     expect(database.changes.after("settings", "", 0)).toEqual([])
   })
 
-  test("joins concurrent exact retries before executing twice", async () => {
-    database = createTestDatabase().database
-    let executions = 0
-    const execute = async () => {
-      executions++
-      await Bun.sleep(10)
-      return { receipt: { txid: "tx-joined" } }
-    }
-
-    const [first, second] = await Promise.all([
-      database.idempotency.runAsync({ principal: "local", operation: "prompt", key: "same", payload: { text: "hi" } }, execute),
-      database.idempotency.runAsync({ principal: "local", operation: "prompt", key: "same", payload: { text: "hi" } }, execute),
-    ])
-
-    expect(executions).toBe(1)
-    expect([first.outcome, second.outcome].sort()).toEqual(["applied", "exact_retry"])
-  })
-
-  test("rejects a conflicting concurrent payload before execution", async () => {
-    database = createTestDatabase().database
-    const first = database.idempotency.runAsync(
-      { principal: "local", operation: "prompt", key: "same", payload: { text: "first" } },
-      async () => {
-        await Bun.sleep(10)
-        return { receipt: { txid: "tx-first" } }
-      },
-    )
-
-    await expect(database.idempotency.runAsync(
-      { principal: "local", operation: "prompt", key: "same", payload: { text: "second" } },
-      async () => ({ receipt: { txid: "tx-second" } }),
-    )).rejects.toBeInstanceOf(IdempotencyConflict)
-    await first
-  })
 })

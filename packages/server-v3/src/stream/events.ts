@@ -42,7 +42,10 @@ export function events(
     let deltaLive = false
     const pendingVolatile = new Set<string>()
     const pendingDeltas: Delta[] = []
-    const pendingSnapshots = new Map<string, (typeof scopes)[number]>()
+    const pendingRecoveries = new Map<
+      string,
+      { scope: (typeof scopes)[number]; fromSeq: number; throughSeq: number; change: Change }
+    >()
     let writes = Promise.resolve()
     let snapshotsScheduled = false
     let queuedBytes = 0
@@ -144,7 +147,7 @@ export function events(
         const scope = scopes[index]
         scopes.splice(index, 1)
         pendingVolatile.delete(`${collection}\u0000${locationKey}`)
-        pendingSnapshots.delete(scopeKey(scope))
+        pendingRecoveries.delete(scopeKey(scope))
         through.delete(scopeKey(scope))
         buffered.splice(
           0,
@@ -230,17 +233,36 @@ export function events(
         await writes
       }
     }
-    const scheduleSnapshots = (incoming: ReadonlyArray<(typeof scopes)[number]>) => {
-      incoming.forEach((scope) => pendingSnapshots.set(scopeKey(scope), scope))
+    const scheduleRecoveries = (
+      incoming: ReadonlyArray<{
+        scope: (typeof scopes)[number]
+        fromSeq: number
+        throughSeq: number
+        change: Change
+      }>,
+    ) => {
+      incoming.forEach((recovery) => pendingRecoveries.set(scopeKey(recovery.scope), recovery))
       if (snapshotsScheduled) return
       snapshotsScheduled = true
       writes = writes
         .then(async () => {
-          while (!ending && pendingSnapshots.size > 0) {
-            const scope = pendingSnapshots.values().next().value
-            if (!scope) return
-            pendingSnapshots.delete(scopeKey(scope))
-            for (const item of snapshotFrames(scope)) {
+          while (!ending && pendingRecoveries.size > 0) {
+            const recovery = pendingRecoveries.values().next().value
+            if (!recovery) return
+            pendingRecoveries.delete(scopeKey(recovery.scope))
+            await stream.writeSSE({
+              event: "rows",
+              data: JSON.stringify(
+                frame({
+                  type: "rows",
+                  affectedScopes: [recovery.scope],
+                  fromSeq: recovery.fromSeq,
+                  throughSeq: recovery.throughSeq,
+                  changes: [recovery.change],
+                }),
+              ),
+            })
+            for (const item of snapshotFrames(recovery.scope)) {
               if (ending) return
               await stream.writeSSE({ event: item.event, data: JSON.stringify(frame(item.value)) })
             }
@@ -249,7 +271,7 @@ export function events(
         .catch(disconnected.resolve)
         .finally(() => {
           snapshotsScheduled = false
-          if (pendingSnapshots.size > 0) scheduleSnapshots([])
+          if (pendingRecoveries.size > 0) scheduleRecoveries([])
         })
     }
     const enqueueEmptySnapshot = (scope: (typeof scopes)[number]) => {
@@ -272,19 +294,19 @@ export function events(
       const throughSeq = changes.at(-1)!.seq
       affectedScopes.forEach((scope) => through.set(scopeKey(scope), throughSeq))
       if (!fitsPage(changes)) {
-        enqueue("rows", {
-          type: "rows",
-          affectedScopes,
-          fromSeq,
-          throughSeq,
-          changes: affectedScopes.map((scope) => {
+        scheduleRecoveries(
+          affectedScopes.map((scope) => {
             const last = changes.findLast(
               (change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey,
             )!
-            return { ...last, rowKey: "", op: "reset", row: null, rowRevision: undefined }
+            return {
+              scope,
+              fromSeq,
+              throughSeq,
+              change: { ...last, rowKey: "", op: "reset", row: null, rowRevision: undefined },
+            }
           }),
-        })
-        scheduleSnapshots(affectedScopes)
+        )
         return
       }
       enqueue("rows", {

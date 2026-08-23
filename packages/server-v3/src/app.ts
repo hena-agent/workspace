@@ -14,7 +14,7 @@ import { createContentRoutes } from "./routes/content"
 import { createDeltaHub, type DeltaHub } from "./stream/delta"
 import { createOnlineRequestStore, type OnlineRequestStore } from "./core/online-requests"
 import { createOnlineRoutes } from "./routes/online"
-import { coreError, type ErrorCode } from "./http/error"
+import { coreError, error, type ErrorCode } from "./http/error"
 
 export function createApp(input: {
   database: SyncDatabase
@@ -27,6 +27,11 @@ export function createApp(input: {
 }) {
   const app = new Hono()
   app.onError((cause, context) => coreError(context, cause))
+  app.notFound((context) =>
+    context.req.path.startsWith("/api")
+      ? error(context, 404, "not_found", "API route not found")
+      : context.text("404 Not Found", 404),
+  )
   app.use("/api/*", exactOriginCors(Array.from(new Set(["https://app.hena.dev", ...(input.corsOrigins ?? [])]))))
   app.use("/api/*", (context, next) =>
     bodyLimit({

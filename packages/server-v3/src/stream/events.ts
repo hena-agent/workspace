@@ -105,13 +105,16 @@ export function events(
         enqueue("delta", { type: "delta", ...delta })
       }),
     )
-    const publish = (changes: readonly Change[]) => {
+    const updateLocations = (changes: readonly Change[]) => {
       changes
         .filter((change) => change.collection === "locations" && (change.op === "insert" || change.op === "update"))
         .forEach((change) => addLocation(change.rowKey))
       changes
         .filter((change) => change.collection === "locations" && change.op === "delete")
         .forEach((change) => removeLocation(change.rowKey))
+    }
+    const publish = (changes: readonly Change[]) => {
+      updateLocations(changes)
       const visible = changes.filter((change) =>
         scopes.some((scope) => scope.collection === change.collection && scope.scopeKey === change.scopeKey),
       )
@@ -359,6 +362,7 @@ export function events(
     }
 
     for (const changes of groupTransactions(Array.from(replay.values()).sort((left, right) => left.seq - right.seq))) {
+      updateLocations(changes)
       enqueueChanges(changes)
       await writes
     }

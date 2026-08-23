@@ -24,6 +24,14 @@ describe("app", () => {
     })
   })
 
+  test("returns the documented JSON envelope for unknown API routes", async () => {
+    database = createTestDatabase().database
+    const response = await createApp({ database }).request("/api/missing")
+
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: { code: "not_found", message: "API route not found" } })
+  })
+
   test("includes global failures in the client contract", () => {
     const client = hc<AppType>("http://localhost")
     const response: InferResponseType<typeof client.api.session.$post, 500> = {

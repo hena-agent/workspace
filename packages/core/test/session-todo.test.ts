@@ -94,8 +94,8 @@ describe("SessionTodo", () => {
       const edited = yield* todos.update({
         sessionID,
         todos: [
-          { content: "second edited", status: "in_progress", priority: "low" },
-          { content: "first edited", status: "completed", priority: "high" },
+          { ...initial[0], content: "second edited", status: "in_progress", priority: "low" },
+          { ...initial[1], content: "first edited", status: "completed", priority: "high" },
         ],
       })
       expect(edited.map((todo) => todo.id)).toEqual(initial.map((todo) => todo.id))
@@ -118,6 +118,32 @@ describe("SessionTodo", () => {
         { sessionID, todos: replacement },
         { sessionID, todos: [] },
       ])
+    }),
+  )
+
+  it.effect("assigns new identities to todos that omit IDs", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const todos = yield* SessionTodo.Service
+      const initial = yield* todos.update({
+        sessionID,
+        todos: [
+          { content: "first", status: "pending", priority: "high" },
+          { content: "second", status: "pending", priority: "low" },
+        ],
+      })
+
+      const reordered = yield* todos.update({
+        sessionID,
+        todos: [
+          { content: "inserted", status: "pending", priority: "medium" },
+          { content: "second", status: "pending", priority: "low" },
+          { content: "first", status: "pending", priority: "high" },
+        ],
+      })
+
+      expect(reordered.map((todo) => todo.id)).not.toContain(initial[0].id)
+      expect(reordered.map((todo) => todo.id)).not.toContain(initial[1].id)
     }),
   )
 

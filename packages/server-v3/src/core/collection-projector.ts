@@ -14,6 +14,7 @@ import { SessionTodo } from "@hena/schema/session-todo"
 import { PromptInput } from "@hena/schema/prompt-input"
 import { preview } from "../storage/content"
 import { fingerprint } from "../storage/fingerprint"
+import { fitsPage } from "../stream/pages"
 
 type DatabaseService = Database.Interface["db"]
 
@@ -30,6 +31,9 @@ const layer = Layer.effectDiscard(
       })
     }
     yield* events.project(SessionEvent.Compaction.Started, (event) => refreshCompactionStart(database.db, event))
+    yield* events.project(SessionEvent.Compaction.Discarded, (event) =>
+      refreshCompactionDiscarded(database.db, event.data),
+    )
     yield* events.project(SessionTodo.Event.Updated, (event) =>
       refreshTodos(database.db, decodeTodoUpdate(event.data).sessionID, crypto.randomUUID()).pipe(Effect.orDie),
     )
@@ -140,11 +144,12 @@ function refresh(database: DatabaseService, sessionID: string, moved: boolean, m
         if (message.row.type !== "assistant") return []
         return yield* Effect.forEach(message.row.content, (part) =>
           Effect.gen(function* () {
-            const row = yield* projectPart(database, sessionID, message.row.id, message.revision, part)
+            const revision = fingerprint(part)
+            const row = yield* projectPart(database, sessionID, message.row.id, revision, part)
             return {
               key: JSON.stringify([message.row.id, part.type, part.id]),
               row: { ...row, messageID: message.row.id },
-              revision: message.revision,
+              revision,
             }
           }),
         )
@@ -223,6 +228,13 @@ export function projectCompactionStart(
     txid,
     false,
   )
+}
+
+export function refreshCompactionDiscarded(
+  database: DatabaseService,
+  input: (typeof SessionEvent.Compaction.Discarded.Type)["data"],
+) {
+  return refresh(database, input.sessionID, false)
 }
 
 function refreshTodos(database: DatabaseService, sessionID: string, txid: string) {
@@ -362,8 +374,7 @@ function replaceScope(
     const incoming = new Set(rows.map((row) => row.key))
     for (const row of rows) {
       const encoded = JSON.stringify(row.row)
-      if (new TextEncoder().encode(encoded).byteLength > 1024 * 1024)
-        return yield* Effect.die("Collection row exceeds 1 MiB")
+      if (!fitsPage([row])) yield* Effect.die("Collection row exceeds stream frame limit")
       const stored = existingByKey.get(row.key)
       if (stored?.row === encoded && stored.row_revision === row.revision) continue
       yield* database.run(sql`

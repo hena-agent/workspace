@@ -2,7 +2,11 @@ import { describe, expect, test } from "bun:test"
 import { Database } from "@hena/core/database/database"
 import { DateTime, Effect } from "effect"
 import { sql } from "drizzle-orm"
-import { projectCompactionStart, reconcileLocations } from "../src/core/collection-projector"
+import {
+  projectCompactionStart,
+  reconcileLocations,
+  refreshCompactionDiscarded,
+} from "../src/core/collection-projector"
 import { SessionMessage } from "@hena/schema/session-message"
 import { Session } from "@hena/schema/session"
 
@@ -70,6 +74,34 @@ describe("collection projector", () => {
           WHERE collection = 'messages' AND scope_key = 'ses_1' AND row_key = 'msg_compaction'
         `),
         ).toMatchObject({ row: expect.stringContaining('"type":"compaction"') })
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
+  test("removes a provisional compaction row when compaction is discarded", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(sql`
+          INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
+          VALUES (1, 'feed', 0, 'runtime')
+        `)
+        const event = {
+          sessionID: Session.ID.make("ses_1"),
+          messageID: SessionMessage.ID.make("msg_compaction"),
+          timestamp: DateTime.makeUnsafe(1),
+          reason: "auto" as const,
+        }
+        yield* projectCompactionStart(database, event, "tx_1")
+
+        yield* refreshCompactionDiscarded(database, event)
+
+        expect(
+          yield* database.get(sql`
+            SELECT row FROM collection_row
+            WHERE collection = 'messages' AND scope_key = 'ses_1' AND row_key = 'msg_compaction'
+          `),
+        ).toBeUndefined()
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
     )
   })

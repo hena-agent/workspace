@@ -16,7 +16,7 @@ const it = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, Todo.
 const sessionID = SessionID.make("ses_legacy_todo")
 
 describe("legacy session todos", () => {
-  it.effect("reuses persisted IDs for updates that omit them", () =>
+  it.effect("repairs old IDs and preserves explicit identities", () =>
     Effect.gen(function* () {
       const { db } = yield* Database.Service
       yield* db
@@ -62,6 +62,7 @@ describe("legacy session todos", () => {
 
       expect(rollback[0]?.id).toMatch(/^todo_/)
       expect(initial.map((todo) => todo.id)).toEqual(initial.map(() => expect.stringMatching(/^todo_/)))
+      expect(initial.map((todo) => todo.id)).not.toContain(rollback[0]?.id)
       expect(listed.map((todo) => todo.id)).toEqual(initial.map((todo) => todo.id))
       expect(updated.map((todo) => todo.id)).toEqual([initial[1]?.id, initial[0]?.id])
     }),

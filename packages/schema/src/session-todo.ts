@@ -13,7 +13,7 @@ export const ID = Schema.String.check(Schema.isStartsWith("todo_")).pipe(
 export type ID = typeof ID.Type
 
 export const Info = Schema.Struct({
-  id: ID.pipe(optional),
+  id: ID.pipe(optional).annotate({ description: "Stable identity from a prior update; omit only for a new todo" }),
   content: Schema.String.annotate({ description: "Brief description of the task" }),
   status: Schema.String.annotate({
     description: "Current status of the task: pending, in_progress, completed, cancelled",

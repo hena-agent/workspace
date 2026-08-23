@@ -197,11 +197,14 @@ function hydrateSessionCollections(
       },
       parts:
         message.type === "assistant"
-          ? message.content.map((part) => ({
-              key: JSON.stringify([message.id, part.type, part.id]),
-              row: { ...projectPart(database, sessionID, message.id, revision, part), messageID: message.id },
-              revision,
-            }))
+          ? message.content.map((part) => {
+              const partRevision = fingerprint(part)
+              return {
+                key: JSON.stringify([message.id, part.type, part.id]),
+                row: { ...projectPart(database, sessionID, message.id, partRevision, part), messageID: message.id },
+                revision: partRevision,
+              }
+            })
           : [],
     }
   })

@@ -44,10 +44,13 @@ export type Event =
   | EventSessionNextRetried
   | EventSessionNextCompactionStarted
   | EventSessionNextCompactionDelta
+  | EventSessionNextCompactionDiscarded
   | EventSessionNextCompactionEnded
   | EventSessionNextRevertStaged
   | EventSessionNextRevertCleared
   | EventSessionNextRevertCommitted
+  | EventSessionNextInputCanceled
+  | EventSessionNextInputReordered
   | EventMessagePartDelta
   | EventSessionDiff
   | EventSessionError
@@ -656,6 +659,7 @@ export type Pty = {
 }
 
 export type Todo = {
+  id?: string
   /**
    * Brief description of the task
    */
@@ -1154,6 +1158,15 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "session.next.compaction.discarded"
+        properties: {
+          timestamp: number
+          sessionID: string
+          messageID: string
+        }
+      }
+    | {
+        id: string
         type: "session.next.compaction.ended"
         properties: {
           timestamp: number
@@ -1188,6 +1201,26 @@ export type GlobalEvent = {
           timestamp: number
           sessionID: string
           messageID: string
+        }
+      }
+    | {
+        id: string
+        type: "session.next.input.canceled"
+        properties: {
+          timestamp: number
+          sessionID: string
+          messageID: string
+          expectedRevision: number
+        }
+      }
+    | {
+        id: string
+        type: "session.next.input.reordered"
+        properties: {
+          timestamp: number
+          sessionID: string
+          messageIDs: Array<string>
+          expectedRevision: number
         }
       }
     | {
@@ -1636,6 +1669,8 @@ export type GlobalEvent = {
     | SyncEventSessionNextRevertStaged
     | SyncEventSessionNextRevertCleared
     | SyncEventSessionNextRevertCommitted
+    | SyncEventSessionNextInputCanceled
+    | SyncEventSessionNextInputReordered
 }
 
 /**
@@ -2761,6 +2796,8 @@ export type SessionDurableEvent =
   | SessionNextRevertStaged
   | SessionNextRevertCleared
   | SessionNextRevertCommitted
+  | SessionNextInputCanceled
+  | SessionNextInputReordered
 
 export type SessionHistory = {
   data: Array<SessionDurableEvent>
@@ -2888,10 +2925,13 @@ export type V2Event =
   | SessionNextRetried
   | SessionNextCompactionStarted
   | SessionNextCompactionDelta
+  | SessionNextCompactionDiscarded
   | SessionNextCompactionEnded
   | SessionNextRevertStaged
   | SessionNextRevertCleared
   | SessionNextRevertCommitted
+  | SessionNextInputCanceled
+  | SessionNextInputReordered
   | MessagePartDelta
   | SessionDiff
   | SessionError
@@ -3819,6 +3859,40 @@ export type SyncEventSessionNextRevertCommitted = {
   }
 }
 
+export type SyncEventSessionNextInputCanceled = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.input.canceled.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      messageID: string
+      expectedRevision: number
+    }
+  }
+}
+
+export type SyncEventSessionNextInputReordered = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.input.reordered.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      messageIDs: Array<string>
+      expectedRevision: number
+    }
+  }
+}
+
 export type ConfigV2ReferenceGit = {
   repository: string
   branch?: string
@@ -3923,6 +3997,7 @@ export type SessionV2Info = {
   location: LocationRef
   subpath?: string
   revert?: RevertState
+  queueRevision?: number
 }
 
 export type PromptInputFileAttachment = {
@@ -4767,6 +4842,46 @@ export type SessionNextRevertCommitted = {
   }
 }
 
+export type SessionNextInputCanceled = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "session.next.input.canceled"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    expectedRevision: number
+  }
+}
+
+export type SessionNextInputReordered = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "session.next.input.reordered"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    timestamp: number
+    sessionID: string
+    messageIDs: Array<string>
+    expectedRevision: number
+  }
+}
+
 export type ModelApi =
   | {
       id: string
@@ -5293,6 +5408,25 @@ export type SessionNextCompactionDelta = {
     sessionID: string
     messageID: string
     text: string
+  }
+}
+
+export type SessionNextCompactionDiscarded = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "session.next.compaction.discarded"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    timestamp: number
+    sessionID: string
+    messageID: string
   }
 }
 
@@ -6606,6 +6740,16 @@ export type EventSessionNextCompactionDelta = {
   }
 }
 
+export type EventSessionNextCompactionDiscarded = {
+  id: string
+  type: "session.next.compaction.discarded"
+  properties: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+  }
+}
+
 export type EventSessionNextCompactionEnded = {
   id: string
   type: "session.next.compaction.ended"
@@ -6645,6 +6789,28 @@ export type EventSessionNextRevertCommitted = {
     timestamp: number
     sessionID: string
     messageID: string
+  }
+}
+
+export type EventSessionNextInputCanceled = {
+  id: string
+  type: "session.next.input.canceled"
+  properties: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+    expectedRevision: number
+  }
+}
+
+export type EventSessionNextInputReordered = {
+  id: string
+  type: "session.next.input.reordered"
+  properties: {
+    timestamp: number
+    sessionID: string
+    messageIDs: Array<string>
+    expectedRevision: number
   }
 }
 

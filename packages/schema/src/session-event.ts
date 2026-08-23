@@ -417,6 +417,15 @@ export namespace Compaction {
   })
   export type Delta = typeof Delta.Type
 
+  export const Discarded = Event.define({
+    type: "session.next.compaction.discarded",
+    schema: {
+      ...Base,
+      messageID: SessionMessage.ID,
+    },
+  })
+  export type Discarded = typeof Discarded.Type
+
   export const Ended = Event.define({
     type: "session.next.compaction.ended",
     ...options,
@@ -519,6 +528,7 @@ export const Definitions = Event.inventory(
   Retried,
   Compaction.Started,
   Compaction.Delta,
+  Compaction.Discarded,
   Compaction.Ended,
   RevertEvent.Staged,
   RevertEvent.Cleared,

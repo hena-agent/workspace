@@ -52,6 +52,18 @@ describe("collection bootstrap", () => {
       INSERT INTO todo VALUES (NULL, 'ses_1', 'Ship it', 'pending', 'high', 0, 8, 9);
     `)
     const uri = `data:text/plain;base64,${"A".repeat(40 * 1024)}`
+    const largeOutput = "B".repeat(40 * 1024)
+    database.raw.query("UPDATE session_message SET data = ? WHERE id = 'msg_1'").run(
+      JSON.stringify({
+        time: { created: 5 },
+        agent: "build",
+        model: { id: "model", providerID: "provider" },
+        content: [
+          { type: "text", id: "part_1", text: largeOutput },
+          { type: "text", id: "part_2", text: "initial" },
+        ],
+      }),
+    )
     database.raw.query("UPDATE session_input SET prompt = ? WHERE id = 'msg_2'").run(
       JSON.stringify({
         text: "queued",
@@ -80,6 +92,7 @@ describe("collection bootstrap", () => {
     expect(database.collections.snapshot("parts", "ses_1").rows[0]?.row).toMatchObject({
       id: "part_1",
       messageID: "msg_1",
+      truncated: true,
     })
     expect(database.collections.snapshot("sessionInputs", "ses_1").rows[0]?.row).toMatchObject({
       id: "msg_2",
@@ -114,6 +127,31 @@ describe("collection bootstrap", () => {
     ).toBeUndefined()
     expect(database.changes.after("projects", "", 0)).toEqual([])
     expect(bootstrapCollections(database)).toBe(false)
+    const initialParts = database.collections.snapshot("parts", "ses_1").rows
+    database.raw.query("UPDATE session_message SET data = ? WHERE id = 'msg_1'").run(
+      JSON.stringify({
+        time: { created: 5 },
+        agent: "build",
+        model: { id: "model", providerID: "provider" },
+        content: [
+          { type: "text", id: "part_1", text: largeOutput },
+          { type: "text", id: "part_2", text: "updated" },
+        ],
+      }),
+    )
+    expect(bootstrapCollections(database)).toBe(true)
+    const updatedParts = database.collections.snapshot("parts", "ses_1").rows
+    expect(updatedParts.find((part) => part.key.includes("part_1"))?.revision).toBe(
+      initialParts.find((part) => part.key.includes("part_1"))?.revision,
+    )
+    expect(updatedParts.find((part) => part.key.includes("part_2"))?.revision).not.toBe(
+      initialParts.find((part) => part.key.includes("part_2"))?.revision,
+    )
+    expect(
+      database.raw
+        .query<{ count: number }, []>("SELECT COUNT(*) AS count FROM full_content WHERE id = 'msg_1_part_1_text'")
+        .get(),
+    ).toEqual({ count: 1 })
     database.raw.exec("UPDATE session SET queue_revision = 3 WHERE id = 'ses_1'")
     expect(bootstrapCollections(database)).toBe(true)
     expect(database.collections.snapshot("sessions", "").rows[0]?.revision).not.toBe(sessionRevision)

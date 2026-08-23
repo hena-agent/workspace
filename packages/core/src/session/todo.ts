@@ -37,20 +37,9 @@ const layer = Layer.effect(
       readonly todos: ReadonlyArray<UpdateInfo>
     }) {
       yield* repairMissingIDs(db, input.sessionID)
-      const existing = yield* db
-        .select({ id: TodoTable.id })
-        .from(TodoTable)
-        .where(eq(TodoTable.session_id, input.sessionID))
-        .orderBy(asc(TodoTable.position))
-        .all()
-        .pipe(Effect.orDie)
-      const normalized = input.todos.map((todo, index) => ({
+      const normalized = input.todos.map((todo) => ({
         ...todo,
-        id: todo.id
-          ? SessionTodo.ID.make(todo.id)
-          : existing[index]?.id && !input.todos.some((item) => item.id === existing[index].id)
-            ? existing[index].id
-            : SessionTodo.ID.create(),
+        id: todo.id ? SessionTodo.ID.make(todo.id) : SessionTodo.ID.create(),
       }))
       yield* events.publish(Event.Updated, { ...input, todos: normalized })
       return normalized

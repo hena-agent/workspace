@@ -4,6 +4,10 @@ type Row = { id: string; sessionID: string; nonce: string } & Record<string, unk
 type Resolution = Record<string, unknown>
 type Placement = { directory: string; workspaceID?: string }
 
+export class OnlineRequestConflict extends Error {
+  readonly code = "online_request_conflict"
+}
+
 export function createOnlineRequestStore() {
   const rows = new Map<string, Map<string, Record<string, unknown>>>()
   const resolutions = new Map<string, Resolution>()
@@ -59,9 +63,6 @@ export function createOnlineRequestStore() {
       placements.delete(key)
       if (scoped(collection(kind), "").delete(id)) changed(collection(kind), "")
       return authoritative
-    },
-    authoritative(kind: Kind, id: string) {
-      return resolutions.get(`${kind}:${id}`) ?? scoped(collection(kind), "").get(id) ?? { status: "missing" }
     },
     interrupt(sessionID: string) {
       const targets = ["permissions", "questions"] as const

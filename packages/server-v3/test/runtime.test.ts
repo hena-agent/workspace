@@ -5,6 +5,7 @@ import { Location } from "@hena/schema/location"
 import { Database } from "bun:sqlite"
 import { Schema } from "effect"
 import { createCoreDomain } from "../src/core/runtime"
+import { createOnlineRequestStore } from "../src/core/online-requests"
 import { createSyncDatabase } from "../src/storage/database"
 
 describe("core runtime", () => {
@@ -55,17 +56,30 @@ describe("core runtime", () => {
     const domain = createCoreDomain(undefined, undefined, undefined, filename)
     await domain.ready()
     const uri = `data:text/plain;base64,${"x".repeat(1024 * 1024)}`
+    const sessionID = Session.ID.create()
+    const messageID = SessionMessage.ID.create()
+    const location = Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() })
 
     try {
       const created = await domain.createSession({
         idempotencyKey: "compact-response",
-        sessionID: Session.ID.create(),
-        messageID: SessionMessage.ID.create(),
-        location: Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() }),
+        sessionID,
+        messageID,
+        location,
+        prompt: { text: "attachment", files: [{ uri }] },
+        delivery: "queue",
+      })
+      const retried = await domain.createSession({
+        idempotencyKey: "compact-response",
+        sessionID,
+        messageID,
+        location,
         prompt: { text: "attachment", files: [{ uri }] },
         delivery: "queue",
       })
       expect(created.admitted.id).toBeDefined()
+      expect(created.admitted).toMatchObject({ prompt: { files: [{ uri: "" }] } })
+      expect(retried.admitted).toMatchObject({ prompt: { files: [{ uri: "" }] } })
     } finally {
       await domain.dispose()
     }
@@ -77,5 +91,46 @@ describe("core runtime", () => {
 
     expect(stored).not.toContain(uri)
     expect(stored.length).toBeLessThan(10_000)
+  })
+
+  test("rejects mismatched pending online replies", async () => {
+    const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
+    const online = createOnlineRequestStore()
+    const domain = createCoreDomain(undefined, online, undefined, filename)
+    await domain.ready()
+    const location = Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() })
+    const sessionID = Session.ID.make("ses_1")
+    online.project({
+      type: "permission.v2.asked",
+      data: { id: "per_1", sessionID: "ses_1" },
+      location,
+    })
+    online.project({
+      type: "question.v2.asked",
+      data: { id: "que_1", sessionID: "ses_1" },
+      location,
+    })
+
+    try {
+      await expect(
+        domain.replyPermission("per_1", {
+          location,
+          sessionID,
+          nonce: "wrong",
+          reply: "once",
+        }),
+      ).rejects.toThrow("does not match")
+      await expect(
+        domain.replyQuestion("que_1", {
+          location,
+          sessionID: Session.ID.make("ses_wrong"),
+          nonce: "wrong",
+          answers: [],
+        }),
+      ).rejects.toThrow("does not match")
+    } finally {
+      await domain.dispose()
+      await Bun.file(filename).delete()
+    }
   })
 })

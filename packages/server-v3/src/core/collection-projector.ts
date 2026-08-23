@@ -238,15 +238,29 @@ function projectMessageRow(
   message: (typeof SessionMessage.Message)["Encoded"],
 ) {
   if (message.type === "assistant") return Effect.succeed({ ...message, content: undefined })
-  if (message.type !== "user") return Effect.succeed(message)
-  return Effect.map(
-    projectPrompt(database, sessionID, message.id, {
-      text: message.text,
-      files: message.files,
-      agents: message.agents,
-    }),
-    (prompt) => ({ ...message, ...prompt }),
-  )
+  if (message.type === "user")
+    return Effect.map(
+      projectPrompt(database, sessionID, message.id, {
+        text: message.text,
+        files: message.files,
+        agents: message.agents,
+      }),
+      (prompt) => ({ ...message, ...prompt }),
+    )
+  if (message.type === "system" || message.type === "synthetic")
+    return Effect.map(
+      projectText(database, sessionID, fingerprint(message), `${message.id}_text`, message.text),
+      (text) => ({ ...message, ...text }),
+    )
+  if (message.type === "shell")
+    return Effect.map(
+      projectText(database, sessionID, fingerprint(message), `${message.id}_output`, message.output),
+      (output) =>
+        "truncated" in output
+          ? { ...message, output: output.text, truncated: output.truncated, content: output.content }
+          : message,
+    )
+  return Effect.succeed(message)
 }
 
 function projectMessageParts(

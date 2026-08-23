@@ -61,6 +61,25 @@ describe("collection bootstrap", () => {
         content: [
           { type: "text", id: "part_1", text: largeOutput },
           { type: "text", id: "part_2", text: "initial" },
+          {
+            type: "tool",
+            id: "part_pending",
+            name: "bash",
+            state: { status: "pending", input: "C".repeat(2 * 1024 * 1024) },
+            time: { created: 5 },
+          },
+          {
+            type: "tool",
+            id: "part_completed",
+            name: "bash",
+            state: {
+              status: "completed",
+              input: { value: "D".repeat(2 * 1024 * 1024) },
+              structured: { value: "E".repeat(2 * 1024 * 1024) },
+              content: [],
+            },
+            time: { created: 5, completed: 6 },
+          },
         ],
       }),
     )
@@ -73,6 +92,9 @@ describe("collection bootstrap", () => {
     database.raw
       .query("INSERT INTO session_message VALUES ('msg_3', 'ses_1', 'user', 2, 7, 7, ?)")
       .run(JSON.stringify({ time: { created: 7 }, text: "promoted", files: [{ uri, mime: "text/plain" }], agents: [] }))
+    database.raw
+      .query("INSERT INTO session_message VALUES ('msg_4', 'ses_1', 'shell', 3, 8, 8, ?)")
+      .run(JSON.stringify({ time: { created: 8 }, callID: "call_1", command: "build", output: "F".repeat(2 * 1024 * 1024) }))
     database.raw
       .query("UPDATE session SET path = '', model = ? WHERE id = 'ses_1'")
       .run(JSON.stringify({ id: "model", providerID: "provider" }))
@@ -105,11 +127,22 @@ describe("collection bootstrap", () => {
       type: "user",
       files: [{ truncated: true, content: { bytes: uri.length } }],
     })
+    expect(database.collections.snapshot("messages", "ses_1").rows[2]?.row).toMatchObject({
+      id: "msg_4",
+      type: "shell",
+      truncated: true,
+      content: { bytes: 2 * 1024 * 1024 },
+    })
     expect(database.collections.snapshot("parts", "ses_1").rows[0]?.row).toMatchObject({
       id: "part_1",
       messageID: "msg_1",
       truncated: true,
     })
+    const toolParts = database.collections
+      .snapshot("parts", "ses_1")
+      .rows.filter((part) => part.key.includes("part_pending") || part.key.includes("part_completed"))
+    expect(JSON.stringify(toolParts).length).toBeLessThan(1024 * 1024)
+    expect(toolParts).toHaveLength(2)
     expect(database.collections.snapshot("sessionInputs", "ses_1").rows[0]?.row).toMatchObject({
       id: "msg_2",
       delivery: "queue",

@@ -42,6 +42,8 @@ export function coreError(
   if (cause._tag === "Session.PromptConflictError") return error(c, 409, "conflict", "Prompt message ID conflicts")
   if (cause.code === "idempotency_conflict")
     return error(c, 409, "idempotency_conflict", "Idempotency key was reused with different input")
+  if (cause.code === "online_request_conflict")
+    return error(c, 409, "online_request_conflict", "Online request credentials do not match")
   if (cause.code === "stream_limit_exceeded")
     return error(c, 429, "stream_limit_exceeded", "Too many stream resources")
   console.error(JSON.stringify({ type: "request_error", name: cause.name, tag: cause._tag }))

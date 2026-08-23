@@ -56,7 +56,7 @@ describe("online requests", () => {
 
     expect(online.snapshot("permissions").rows).toEqual([])
     expect(online.snapshot("questions").rows).toEqual([])
-    expect(online.authoritative("permission", "per_1")).toEqual({ status: "missing" })
+    expect(online.resolution("permission", "per_1")).toBeUndefined()
   })
 
   test("invalidates location catalogs without durable changes", () => {

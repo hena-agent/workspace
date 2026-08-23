@@ -19,7 +19,7 @@ import { publishDelta } from "./delta-events"
 import { CollectionProjector } from "./collection-projector"
 import { MutationTxid } from "./collection-projector"
 import type { CoreDomain } from "./domain"
-import type { OnlineRequestStore } from "./online-requests"
+import { OnlineRequestConflict, type OnlineRequestStore } from "./online-requests"
 import { Database } from "@hena/core/database/database"
 import { sql } from "drizzle-orm"
 import { fingerprint } from "../storage/fingerprint"
@@ -130,11 +130,12 @@ export function createCoreDomain(
               : [],
           }
           const response = input.response(value, receipt)
+          const persisted = input.persist?.(response) ?? response
           yield* tx.run(sql`
             INSERT INTO idempotency_record (principal, operation, key, fingerprint, response, txid, created_at)
-            VALUES ('local', ${input.operation}, ${input.key}, ${requestFingerprint}, ${JSON.stringify(input.persist?.(response) ?? response)}, ${txid}, ${Date.now()})
+            VALUES ('local', ${input.operation}, ${input.key}, ${requestFingerprint}, ${JSON.stringify(persisted)}, ${txid}, ${Date.now()})
           `)
-          return response
+          return (input.persist ? persisted : response) as Response
         }),
       ),
     ).pipe(Effect.tap(() => Effect.sync(() => publishPersisted?.())))
@@ -247,7 +248,7 @@ export function createCoreDomain(
       if (!online) throw new Error("Online request store is unavailable")
       return online.serialize("permission", requestID, async () => {
         const request = online.request("permission", requestID, input.sessionID, input.nonce)
-        if (!request) return { outcome: "already_resolved", resolution: online.authoritative("permission", requestID) }
+        if (!request) return resolvedReply(online, "permission", requestID)
         const result = await runtime.runPromise(
           PermissionV2.Service.use((service) =>
             service.reply({
@@ -265,7 +266,7 @@ export function createCoreDomain(
         )
         if (!result.success) {
           if (result.error instanceof PermissionV2.NotFoundError)
-            return { outcome: "already_resolved", resolution: online.authoritative("permission", requestID) }
+            return resolvedReply(online, "permission", requestID)
           throw result.error
         }
         return {
@@ -282,7 +283,7 @@ export function createCoreDomain(
       if (!online) throw new Error("Online request store is unavailable")
       return online.serialize("question", requestID, async () => {
         const request = online.request("question", requestID, input.sessionID, input.nonce)
-        if (!request) return { outcome: "already_resolved", resolution: online.authoritative("question", requestID) }
+        if (!request) return resolvedReply(online, "question", requestID)
         const result = await runtime.runPromise(
           QuestionV2.Service.use((service) =>
             service.reply({
@@ -299,7 +300,7 @@ export function createCoreDomain(
         )
         if (!result.success) {
           if (result.error instanceof QuestionV2.NotFoundError)
-            return { outcome: "already_resolved", resolution: online.authoritative("question", requestID) }
+            return resolvedReply(online, "question", requestID)
           throw result.error
         }
         return {
@@ -330,6 +331,12 @@ export function createCoreDomain(
       await runtime.dispose()
     },
   }
+}
+
+function resolvedReply(online: OnlineRequestStore, kind: "permission" | "question", requestID: string) {
+  const resolution = online.resolution(kind, requestID)
+  if (!resolution) throw new OnlineRequestConflict(`${kind} request does not match a resolved request`)
+  return { outcome: "already_resolved" as const, resolution }
 }
 
 function location(input: { directory: string; workspaceID?: string }) {

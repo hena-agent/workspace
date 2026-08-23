@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createApp } from "../src/app"
 import { unavailableCoreDomain } from "../src/core/domain"
+import { OnlineRequestConflict } from "../src/core/online-requests"
 import { createTestDatabase } from "./fixture"
 import type { SyncDatabase } from "../src/storage/database"
 
@@ -48,6 +49,26 @@ describe("online reply routes", () => {
     expect(await response.json()).toEqual({
       outcome: "already_resolved",
       resolution: { requestID: "que_1", answers: [["A"]] },
+    })
+  })
+
+  test("returns a conflict without exposing a mismatched pending request", async () => {
+    database = createTestDatabase().database
+    const domain = {
+      ...unavailableCoreDomain(),
+      replyPermission: async () => {
+        throw new OnlineRequestConflict("permission request does not match")
+      },
+    }
+    const response = await createApp({ database, domain }).request("/api/permission/per_1/reply", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ location: { directory: "/repo" }, sessionID: "ses_1", nonce: "wrong", reply: "once" }),
+    })
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: { code: "online_request_conflict", message: "Online request credentials do not match" },
     })
   })
 

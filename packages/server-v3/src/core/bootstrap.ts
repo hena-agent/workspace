@@ -176,19 +176,7 @@ function hydrateSessionCollections(
     return {
       message: {
         key: message.id,
-        row:
-          message.type === "assistant"
-            ? { ...message, content: undefined }
-            : message.type === "user"
-              ? {
-                  ...message,
-                  ...projectPrompt(database, sessionID, message.id, {
-                    text: message.text,
-                    files: message.files,
-                    agents: message.agents,
-                  }),
-                }
-              : message,
+        row: projectMessage(database, sessionID, message),
         revision,
       },
       parts:
@@ -245,6 +233,31 @@ function hydrateSessionCollections(
   return messagesChanged || partsChanged || inputsChanged || todosChanged
 }
 
+function projectMessage(
+  database: SyncDatabase,
+  sessionID: string,
+  message: (typeof SessionMessage.Message)["Encoded"],
+) {
+  if (message.type === "assistant") return { ...message, content: undefined }
+  if (message.type === "user")
+    return {
+      ...message,
+      ...projectPrompt(database, sessionID, message.id, {
+        text: message.text,
+        files: message.files,
+        agents: message.agents,
+      }),
+    }
+  if (message.type === "system" || message.type === "synthetic")
+    return { ...message, ...projectText(database, sessionID, fingerprint(message), `${message.id}_text`, message.text) }
+  if (message.type === "shell") {
+    const output = projectText(database, sessionID, fingerprint(message), `${message.id}_output`, message.output)
+    if ("truncated" in output)
+      return { ...message, output: output.text, truncated: output.truncated, content: output.content }
+  }
+  return message
+}
+
 function projectPrompt(database: SyncDatabase, sessionID: string, inputID: string, prompt: PromptInput.Prompt) {
   if (!prompt.files) return prompt
   const revision = fingerprint(prompt)
@@ -274,11 +287,20 @@ function projectPart(
 ) {
   if (part.type === "text" || part.type === "reasoning")
     return { ...part, ...projectText(database, sessionID, revision, `${messageID}_${part.id}_text`, part.text) }
-  if (part.state.status === "pending") return part
+  if (part.state.status === "pending")
+    return { ...part, state: { ...part.state, input: preview(part.state.input).text } }
   return {
     ...part,
     state: {
       ...part.state,
+      input: projectJson(database, sessionID, revision, `${messageID}_${part.id}_tool_input`, part.state.input),
+      structured: projectJson(
+        database,
+        sessionID,
+        revision,
+        `${messageID}_${part.id}_tool_structured`,
+        part.state.structured,
+      ),
       content: part.state.content.map((item, index) =>
         item.type === "file"
           ? item
@@ -289,6 +311,14 @@ function projectPart(
       ),
     },
   }
+}
+
+function projectJson(database: SyncDatabase, sessionID: string, revision: string, id: string, value: unknown) {
+  const text = JSON.stringify(value)
+  const projected = preview(text)
+  if (!projected.truncated) return value
+  database.content.put({ id, sessionID, revision, text })
+  return { truncated: true, content: { id, revision, bytes: projected.totalBytes } }
 }
 
 function projectText(database: SyncDatabase, sessionID: string, revision: string, id: string, text: string) {

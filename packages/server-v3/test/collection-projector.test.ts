@@ -279,4 +279,49 @@ describe("collection projector", () => {
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
     )
   })
+
+  test("projects oversized shell output before writing stream rows", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(sql`
+          INSERT INTO project (id, worktree, time_created, time_updated, sandboxes)
+          VALUES ('global', '/project', 1, 1, '[]')
+        `)
+        yield* database.run(sql`
+          INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
+          VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1)
+        `)
+        yield* database.run(sql`
+          INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
+          VALUES (1, 'feed', 0, 'runtime')
+        `)
+        yield* database.run(sql`
+          INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data)
+          VALUES ('msg_shell', 'ses_1', 'shell', 1, 1, 1, ${JSON.stringify({
+            callID: "call_1",
+            command: "build",
+            output: "x".repeat(2 * 1024 * 1024),
+            time: { created: 1 },
+          })})
+        `)
+
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.Shell.Ended.type,
+          data: { sessionID: "ses_1", callID: "call_1" },
+        })
+
+        const projected = yield* database.get<{ row: string }>(sql`
+          SELECT row FROM collection_row
+          WHERE collection = 'messages' AND scope_key = 'ses_1' AND row_key = 'msg_shell'
+        `)
+        expect(projected?.row.length).toBeLessThan(1024 * 1024)
+        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+          output: expect.any(String),
+          truncated: true,
+          content: { bytes: 2 * 1024 * 1024 },
+        })
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
 })

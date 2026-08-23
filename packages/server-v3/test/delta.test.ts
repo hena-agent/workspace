@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { createDeltaHub } from "../src/stream/delta"
+import { publishDelta } from "../src/core/delta-events"
 
 describe("delta hub", () => {
   test("uses UTF-8 byte offsets and isolates sessions", () => {
@@ -28,6 +29,19 @@ describe("delta hub", () => {
     hub.publish({ ...identity, text: "old" })
     hub.finalize(identity)
     hub.publish({ ...identity, text: "new" })
+
+    expect(output.at(-1)?.offset).toBe(0)
+  })
+
+  test("clears compaction offsets when the attempt is discarded", () => {
+    const hub = createDeltaHub()
+    const output: Array<{ offset: number }> = []
+    hub.subscribe("session-1", (delta) => output.push(delta))
+    const data = { sessionID: "session-1", messageID: "message-1" }
+
+    publishDelta(hub, { type: "session.next.compaction.delta", data: { ...data, text: "old" } })
+    publishDelta(hub, { type: "session.next.compaction.discarded", data })
+    publishDelta(hub, { type: "session.next.compaction.delta", data: { ...data, text: "new" } })
 
     expect(output.at(-1)?.offset).toBe(0)
   })

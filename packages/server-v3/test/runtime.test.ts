@@ -37,6 +37,7 @@ describe("core runtime", () => {
       if (!created.session.time || typeof created.session.time !== "object" || !("created" in created.session.time))
         throw new Error("Created session response is missing time.created")
       expect(typeof created.session.time.created).toBe("number")
+      expect(created.session.queueRevision).toBe(1)
       expect(typeof created.admitted.timeCreated).toBe("number")
       expect(typeof admitted.admitted.timeCreated).toBe("number")
     } finally {

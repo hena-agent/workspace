@@ -2,10 +2,12 @@ type Kind = "permission" | "question"
 export type VolatileCollection = "permissions" | "questions" | "agents" | "models" | "providers"
 type Row = { id: string; sessionID: string; nonce: string } & Record<string, unknown>
 type Resolution = Record<string, unknown>
+type Placement = { directory: string; workspaceID?: string }
 
 export function createOnlineRequestStore() {
   const rows = new Map<string, Map<string, Record<string, unknown>>>()
   const resolutions = new Map<string, Resolution>()
+  const placements = new Map<string, Placement>()
   const replies = new Map<string, Promise<unknown>>()
   const listeners = new Set<(collection: VolatileCollection, scopeKey: string) => void>()
   const catalogListeners = new Set<() => void>()
@@ -17,14 +19,16 @@ export function createOnlineRequestStore() {
   }
 
   return {
-    project(event: { type: string; data: unknown }) {
+    project(event: { type: string; data: unknown; location?: Placement }) {
       if (isRequestEvent(event.data) && event.type === "permission.v2.asked") {
         scoped("permissions", "").set(event.data.id, { ...event.data, nonce: crypto.randomUUID() })
+        rememberPlacement("permission", event.data.id, event.location)
         changed("permissions", "")
         return
       }
       if (isRequestEvent(event.data) && event.type === "question.v2.asked") {
         scoped("questions", "").set(event.data.id, { ...event.data, nonce: crypto.randomUUID() })
+        rememberPlacement("question", event.data.id, event.location)
         changed("questions", "")
         return
       }
@@ -35,8 +39,15 @@ export function createOnlineRequestStore() {
         resolve("questions", event.data.requestID, event.data)
     },
     pending(kind: Kind, id: string, sessionID: string, nonce: string) {
-      const row = scoped(collection(kind), "").get(id) as Row | undefined
-      return row?.sessionID === sessionID && row.nonce === nonce
+      const row = scoped(collection(kind), "").get(id)
+      return isPendingRow(row) && row.sessionID === sessionID && row.nonce === nonce
+    },
+    request(kind: Kind, id: string, sessionID: string, nonce: string) {
+      const row = scoped(collection(kind), "").get(id)
+      const location = placements.get(`${kind}:${id}`)
+      return isPendingRow(row) && row.sessionID === sessionID && row.nonce === nonce && location
+        ? { location }
+        : undefined
     },
     resolution(kind: Kind, id: string) {
       return resolutions.get(`${kind}:${id}`)
@@ -45,6 +56,7 @@ export function createOnlineRequestStore() {
       const key = `${kind}:${id}`
       const authoritative = resolutions.get(key) ?? resolution
       resolutions.set(key, authoritative)
+      placements.delete(key)
       if (scoped(collection(kind), "").delete(id)) changed(collection(kind), "")
       return authoritative
     },
@@ -56,7 +68,10 @@ export function createOnlineRequestStore() {
       targets.forEach((target) => {
         const scopedRows = scoped(target, "")
         const removed = Array.from(scopedRows).filter(([, row]) => row.sessionID === sessionID)
-        removed.forEach(([id]) => scopedRows.delete(id))
+        removed.forEach(([id]) => {
+          scopedRows.delete(id)
+          placements.delete(`${target === "permissions" ? "permission" : "question"}:${id}`)
+        })
         if (removed.length > 0) changed(target, "")
       })
     },
@@ -101,8 +116,16 @@ export function createOnlineRequestStore() {
 
   function resolve(target: "permissions" | "questions", id: string, resolution: Resolution) {
     if (!scoped(target, "").delete(id)) return
-    resolutions.set(`${target === "permissions" ? "permission" : "question"}:${id}`, resolution)
+    const key = `${target === "permissions" ? "permission" : "question"}:${id}`
+    placements.delete(key)
+    resolutions.set(key, resolution)
     changed(target, "")
+  }
+
+  function rememberPlacement(kind: Kind, id: string, placement?: Placement) {
+    const key = `${kind}:${id}`
+    if (placement) placements.set(key, placement)
+    else placements.delete(key)
   }
 }
 
@@ -125,6 +148,10 @@ function isRequestEvent(data: unknown): data is { id: string; sessionID: string 
     "sessionID" in data &&
     typeof data.sessionID === "string"
   )
+}
+
+function isPendingRow(data: unknown): data is Row {
+  return isRequestEvent(data) && "nonce" in data && typeof data.nonce === "string"
 }
 
 function isResolutionEvent(data: unknown): data is { requestID: string } & Record<string, unknown> {

@@ -8,7 +8,7 @@ export function publishDelta(hub: DeltaHub, event: Event) {
   if (!identity) return
   const text = event.type === "session.next.compaction.delta" ? event.data.text : event.type.endsWith(".delta") ? event.data.delta : undefined
   if (typeof text === "string") hub.publish({ ...identity, text })
-  if (event.type.endsWith(".ended")) hub.finalize(identity)
+  if (event.type.endsWith(".ended") || event.type === "session.next.compaction.discarded") hub.finalize(identity)
 }
 
 function isRecord(input: unknown): input is Record<string, unknown> {

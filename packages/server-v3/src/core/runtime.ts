@@ -156,7 +156,7 @@ export function createCoreDomain(
                 delivery: input.delivery,
                 resume: false,
               })
-              return { session, admitted }
+              return { session: yield* service.get(session.id), admitted }
             }),
           ),
           response: (result, receipt) => ({
@@ -243,7 +243,8 @@ export function createCoreDomain(
     replyPermission: async (requestID, input) => {
       if (!online) throw new Error("Online request store is unavailable")
       return online.serialize("permission", requestID, async () => {
-        if (!online.pending("permission", requestID, input.sessionID, input.nonce))
+        const request = online.request("permission", requestID, input.sessionID, input.nonce)
+        if (!request)
           return { outcome: "already_resolved", resolution: online.authoritative("permission", requestID) }
         const result = await runtime.runPromise(
           PermissionV2.Service.use((service) =>
@@ -253,7 +254,7 @@ export function createCoreDomain(
               message: input.message,
             }),
           ).pipe(
-            Effect.provide(LocationServiceMap.Service.get(location(input.location))),
+            Effect.provide(LocationServiceMap.Service.get(location(request.location))),
             Effect.match({
               onFailure: (error) => ({ success: false as const, error }),
               onSuccess: () => ({ success: true as const }),
@@ -278,7 +279,8 @@ export function createCoreDomain(
     replyQuestion: async (requestID, input) => {
       if (!online) throw new Error("Online request store is unavailable")
       return online.serialize("question", requestID, async () => {
-        if (!online.pending("question", requestID, input.sessionID, input.nonce))
+        const request = online.request("question", requestID, input.sessionID, input.nonce)
+        if (!request)
           return { outcome: "already_resolved", resolution: online.authoritative("question", requestID) }
         const result = await runtime.runPromise(
           QuestionV2.Service.use((service) =>
@@ -287,7 +289,7 @@ export function createCoreDomain(
               answers: input.answers,
             }),
           ).pipe(
-            Effect.provide(LocationServiceMap.Service.get(location(input.location))),
+            Effect.provide(LocationServiceMap.Service.get(location(request.location))),
             Effect.match({
               onFailure: (error) => ({ success: false as const, error }),
               onSuccess: () => ({ success: true as const }),

@@ -1,6 +1,6 @@
 export * as SessionProjector from "./projector"
 
-import { and, asc, desc, eq, gt, isNull, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm"
 import { DateTime, Effect, Layer, Schema } from "effect"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
@@ -17,7 +17,7 @@ import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, Sessio
 import type { DeepMutable } from "../schema"
 import { SessionSchema } from "./schema"
 import { SessionTodo } from "@hena/schema/session-todo"
-import { QueueRevisionConflictError, QueueStateConflictError } from "./error"
+import { QueueRevisionConflictError, QueueStateConflictError, TodoConflictError } from "./error"
 
 type DatabaseService = Database.Interface["db"]
 
@@ -220,7 +220,8 @@ const layer = Layer.effectDiscard(
         const todos = event.data.todos.filter(
           (todo): todo is typeof todo & { id: SessionTodo.ID } => todo.id !== undefined,
         )
-        if (todos.length !== event.data.todos.length) return yield* Effect.die("Projected todos require IDs")
+        if (todos.length !== event.data.todos.length) yield* Effect.die("Projected todos require IDs")
+        yield* validateTodoIDs(db, event.data.sessionID, todos)
         yield* db.delete(TodoTable).where(eq(TodoTable.session_id, event.data.sessionID)).run().pipe(Effect.orDie)
         if (todos.length > 0)
           yield* db
@@ -591,4 +592,29 @@ function queueStateConflict(db: DatabaseService, sessionID: SessionSchema.ID, re
         Effect.die(new QueueStateConflictError({ sessionID, revision, messageIDs: pending.map((row) => row.id) })),
       ),
     )
+}
+
+function validateTodoIDs(
+  db: DatabaseService,
+  sessionID: SessionSchema.ID,
+  todos: ReadonlyArray<SessionTodo.Info & { id: SessionTodo.ID }>,
+) {
+  return Effect.gen(function* () {
+    const duplicate = todos.find((todo, index) => todos.findIndex((candidate) => candidate.id === todo.id) !== index)
+    if (duplicate)
+      yield* Effect.die(new TodoConflictError({ sessionID, todoID: duplicate.id, reason: "duplicate" }))
+    const owned = todos.length === 0
+      ? []
+      : yield* db
+        .select({ id: TodoTable.id, sessionID: TodoTable.session_id })
+        .from(TodoTable)
+        .where(inArray(TodoTable.id, todos.map((todo) => todo.id)))
+        .all()
+        .pipe(Effect.orDie)
+    const foreign = owned.find((todo) => todo.sessionID !== sessionID)
+    if (foreign)
+      yield* Effect.die(
+        new TodoConflictError({ sessionID, todoID: foreign.id, reason: "owned_by_another_session" }),
+      )
+  })
 }

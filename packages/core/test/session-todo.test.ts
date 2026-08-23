@@ -147,6 +147,52 @@ describe("SessionTodo", () => {
     }),
   )
 
+  it.effect("rejects duplicate and foreign todo identities with typed conflicts", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const todos = yield* SessionTodo.Service
+      const duplicateID = SessionTodo.ID.create()
+      const duplicate = yield* todos.update({
+        sessionID,
+        todos: [
+          { id: duplicateID, content: "first", status: "pending", priority: "high" },
+          { id: duplicateID, content: "second", status: "pending", priority: "low" },
+        ],
+      }).pipe(Effect.flip)
+      expect(duplicate).toMatchObject({
+        _tag: "Session.TodoConflictError",
+        sessionID,
+        todoID: duplicateID,
+        reason: "duplicate",
+      })
+
+      const existing = yield* todos.update({
+        sessionID,
+        todos: [{ content: "owned", status: "pending", priority: "high" }],
+      })
+      const otherSessionID = SessionV2.ID.make("ses_todo_other")
+      yield* db.insert(SessionTable).values({
+        id: otherSessionID,
+        project_id: Project.ID.global,
+        slug: "other",
+        directory: "/project",
+        title: "other",
+        version: "test",
+      }).run().pipe(Effect.orDie)
+      const foreign = yield* todos.update({
+        sessionID: otherSessionID,
+        todos: [{ ...existing[0], content: "stolen" }],
+      }).pipe(Effect.flip)
+      expect(foreign).toMatchObject({
+        _tag: "Session.TodoConflictError",
+        sessionID: otherSessionID,
+        todoID: existing[0].id,
+        reason: "owned_by_another_session",
+      })
+    }),
+  )
+
   it.effect("rolls back todo rows when a live projector fails", () =>
     Effect.gen(function* () {
       yield* setup

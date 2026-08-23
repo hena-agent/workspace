@@ -11,8 +11,8 @@ describe("online requests", () => {
       type: "permission.v2.asked",
       data: { id: "per_1", sessionID: "ses_1", action: "read", resources: ["file"] },
     })
-    const pending = online.snapshot("permissions").rows[0]!.row
-    const nonce = pending.nonce as string
+    const pending = online.snapshot("permissions").rows[0].row
+    const nonce = requireNonce(pending)
 
     expect(online.pending("permission", "per_1", "ses_1", nonce)).toBe(true)
     expect(online.pending("permission", "per_1", "ses_2", nonce)).toBe(false)
@@ -31,6 +31,20 @@ describe("online requests", () => {
 
     expect(online.snapshot("permissions").rows).toEqual([])
     expect(online.snapshot("questions").rows).toHaveLength(1)
+  })
+
+  test("retains the original location for authenticated replies", () => {
+    const online = createOnlineRequestStore()
+    online.project({
+      type: "permission.v2.asked",
+      location: { directory: "/original" },
+      data: { id: "per_1", sessionID: "ses_1" },
+    })
+    const nonce = requireNonce(online.snapshot("permissions").rows[0].row)
+
+    expect(online.request("permission", "per_1", "ses_1", nonce)).toEqual({
+      location: { directory: "/original" },
+    })
   })
 
   test("removes requests when their session is interrupted", () => {
@@ -81,3 +95,8 @@ describe("online requests", () => {
     expect(calls).toEqual(["first", "second"])
   })
 })
+
+function requireNonce(row: Record<string, unknown>) {
+  if (typeof row.nonce !== "string") throw new Error("Pending request is missing its nonce")
+  return row.nonce
+}

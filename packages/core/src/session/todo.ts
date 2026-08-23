@@ -9,18 +9,20 @@ import { EventV2 } from "../event"
 import { SessionSchema } from "./schema"
 import { TodoTable } from "./sql"
 import { SessionProjector } from "./projector"
+import { TodoConflictError } from "./error"
 
 export const Info = SessionTodo.Info
 export type Info = typeof Info.Type
 export const ID = SessionTodo.ID
 type UpdateInfo = Omit<Info, "id"> & { readonly id?: string }
 export const Event = SessionTodo.Event
+export { TodoConflictError }
 
 export interface Interface {
   readonly update: (input: {
     readonly sessionID: SessionSchema.ID
     readonly todos: ReadonlyArray<UpdateInfo>
-  }) => Effect.Effect<ReadonlyArray<Info>>
+  }) => Effect.Effect<ReadonlyArray<Info>, TodoConflictError>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ReadonlyArray<Info>>
 }
 
@@ -41,7 +43,11 @@ const layer = Layer.effect(
         ...todo,
         id: todo.id ? SessionTodo.ID.make(todo.id) : SessionTodo.ID.create(),
       }))
-      yield* events.publish(Event.Updated, { ...input, todos: normalized })
+      yield* events.publish(Event.Updated, { ...input, todos: normalized }).pipe(
+        Effect.catchDefect((defect) =>
+          defect instanceof TodoConflictError ? Effect.fail(defect) : Effect.die(defect)
+        ),
+      )
       return normalized
     })
 

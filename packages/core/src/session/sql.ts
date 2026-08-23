@@ -1,9 +1,10 @@
-import { sqliteTable, text, integer, index, primaryKey, real, uniqueIndex } from "drizzle-orm/sqlite-core"
+import { sqliteTable, text, integer, index, real, uniqueIndex } from "drizzle-orm/sqlite-core"
 import * as DatabasePath from "../database/path"
 import { ProjectTable } from "../project/sql"
 import type { SessionMessage } from "./message"
 import type { Prompt } from "./prompt"
 import type { SessionInput } from "./input"
+import type { SessionTodo } from "@hena/schema/session-todo"
 import type { Snapshot } from "../snapshot"
 import { PermissionV1 } from "../v1/permission"
 import { ProjectV2 } from "../project"
@@ -57,6 +58,7 @@ export const SessionTable = sqliteTable(
     ...Timestamps,
     time_compacting: integer(),
     time_archived: integer(),
+    queue_revision: integer().notNull().default(0),
   },
   (table) => [
     index("session_project_idx").on(table.project_id),
@@ -100,6 +102,7 @@ export const PartTable = sqliteTable(
 export const TodoTable = sqliteTable(
   "todo",
   {
+    id: text().$type<SessionTodo.ID>().primaryKey(),
     session_id: text()
       .$type<SessionSchema.ID>()
       .notNull()
@@ -111,7 +114,7 @@ export const TodoTable = sqliteTable(
     ...Timestamps,
   },
   (table) => [
-    primaryKey({ columns: [table.session_id, table.position] }),
+    uniqueIndex("todo_session_position_idx").on(table.session_id, table.position),
     index("todo_session_idx").on(table.session_id),
   ],
 )
@@ -148,6 +151,7 @@ export const SessionInputTable = sqliteTable(
     prompt: text({ mode: "json" }).notNull().$type<Prompt>(),
     delivery: text().$type<SessionInput.Delivery>().notNull(),
     admitted_seq: integer().notNull(),
+    queue_position: integer().notNull(),
     promoted_seq: integer(),
     time_created: integer()
       .notNull()

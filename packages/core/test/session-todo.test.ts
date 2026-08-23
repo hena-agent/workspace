@@ -52,17 +52,15 @@ describe("SessionTodo", () => {
       )
       yield* Effect.addFinalizer(() => unsubscribe)
 
-      yield* todos.update({
+      const initial = yield* todos.update({
         sessionID,
         todos: [
           { content: "second", status: "pending", priority: "low" },
           { content: "first", status: "in_progress", priority: "high" },
         ],
       })
-      expect(yield* todos.get(sessionID)).toEqual([
-        { content: "second", status: "pending", priority: "low" },
-        { content: "first", status: "in_progress", priority: "high" },
-      ])
+      expect(initial.every((todo) => todo.id?.startsWith("todo_"))).toBe(true)
+      expect(yield* todos.get(sessionID)).toEqual(initial)
       expect(
         (yield* db.select().from(TodoTable).orderBy(asc(TodoTable.position)).all().pipe(Effect.orDie)).map((row) => ({
           content: row.content,
@@ -73,20 +71,21 @@ describe("SessionTodo", () => {
         { content: "first", position: 1 },
       ])
 
-      yield* todos.update({ sessionID, todos: [{ content: "replacement", status: "completed", priority: "medium" }] })
-      expect(yield* todos.get(sessionID)).toEqual([{ content: "replacement", status: "completed", priority: "medium" }])
+      const replacement = yield* todos.update({
+        sessionID,
+        todos: [{ id: initial[0]!.id, content: "replacement", status: "completed", priority: "medium" }],
+      })
+      expect(replacement[0]!.id).toBe(initial[0]!.id)
+      expect(yield* todos.get(sessionID)).toEqual(replacement)
 
       yield* todos.update({ sessionID, todos: [] })
       expect(yield* todos.get(sessionID)).toEqual([])
       expect(published.map((event) => event.data)).toEqual([
         {
           sessionID,
-          todos: [
-            { content: "second", status: "pending", priority: "low" },
-            { content: "first", status: "in_progress", priority: "high" },
-          ],
+          todos: initial,
         },
-        { sessionID, todos: [{ content: "replacement", status: "completed", priority: "medium" }] },
+        { sessionID, todos: replacement },
         { sessionID, todos: [] },
       ])
     }),

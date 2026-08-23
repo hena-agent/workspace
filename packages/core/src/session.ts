@@ -16,7 +16,7 @@ import { Database } from "./database/database"
 import { SessionProjector } from "./session/projector"
 import { SessionMessageTable, SessionTable } from "./session/sql"
 import { SessionSchema } from "./session/schema"
-import { AbsolutePath, PositiveInt, RelativePath } from "./schema"
+import { AbsolutePath, NonNegativeInt, PositiveInt, RelativePath } from "./schema"
 import { AgentV2 } from "./agent"
 import { SessionV1 } from "./v1/session"
 import { InstallationVersion } from "./installation/version"
@@ -105,10 +105,18 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
   sessionID: SessionSchema.ID,
   messageID: SessionMessage.ID,
 }) {}
+export class QueueRevisionConflictError extends Schema.TaggedErrorClass<QueueRevisionConflictError>()(
+  "Session.QueueRevisionConflictError",
+  {
+    sessionID: SessionSchema.ID,
+    expected: NonNegativeInt,
+    actual: NonNegativeInt,
+  },
+) {}
 export const MessageNotFoundError = SessionRevert.MessageNotFoundError
 export type MessageNotFoundError = SessionRevert.MessageNotFoundError
 
-export type Error = NotFoundError | MessageDecodeError | OperationUnavailableError | PromptConflictError
+export type Error = NotFoundError | MessageDecodeError | OperationUnavailableError | PromptConflictError | QueueRevisionConflictError
 
 export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
@@ -151,6 +159,16 @@ export interface Interface {
     delivery?: SessionInput.Delivery
     resume?: boolean
   }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
+  readonly cancelInput: (input: {
+    sessionID: SessionSchema.ID
+    messageID: SessionMessage.ID
+    expectedRevision: number
+  }) => Effect.Effect<number, NotFoundError | QueueRevisionConflictError>
+  readonly reorderInputs: (input: {
+    sessionID: SessionSchema.ID
+    messageIDs: ReadonlyArray<SessionMessage.ID>
+    expectedRevision: number
+  }) => Effect.Effect<number, NotFoundError | QueueRevisionConflictError>
   readonly shell: (input: {
     id?: EventV2.ID
     sessionID: SessionSchema.ID
@@ -384,6 +402,36 @@ const layer = Layer.effect(
           }),
         ),
       ),
+      cancelInput: Effect.fn("V2Session.cancelInput")(function* (input) {
+        const session = yield* result.get(input.sessionID)
+        const actual = session.queueRevision ?? 0
+        if (actual !== input.expectedRevision)
+          return yield* new QueueRevisionConflictError({
+            sessionID: input.sessionID,
+            expected: input.expectedRevision,
+            actual,
+          })
+        yield* events.publish(SessionEvent.InputCanceled, {
+          ...input,
+          timestamp: yield* DateTime.now,
+        })
+        return input.expectedRevision + 1
+      }),
+      reorderInputs: Effect.fn("V2Session.reorderInputs")(function* (input) {
+        const session = yield* result.get(input.sessionID)
+        const actual = session.queueRevision ?? 0
+        if (actual !== input.expectedRevision)
+          return yield* new QueueRevisionConflictError({
+            sessionID: input.sessionID,
+            expected: input.expectedRevision,
+            actual,
+          })
+        yield* events.publish(SessionEvent.InputReordered, {
+          ...input,
+          timestamp: yield* DateTime.now,
+        })
+        return input.expectedRevision + 1
+      }),
       shell: Effect.fn("V2Session.shell")(function* () {
         return yield* new OperationUnavailableError({ operation: "shell" })
       }),

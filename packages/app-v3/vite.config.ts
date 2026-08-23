@@ -27,5 +27,8 @@ export default defineConfig({
       ".ts.net",
       ...(process.env.HENA_VITE_ALLOWED_HOSTS?.split(",").map((host) => host.trim()).filter(Boolean) ?? []),
     ],
+    proxy: {
+      "/api": process.env.HENA_SERVER_V3_URL ?? "http://localhost:4106",
+    },
   },
 })

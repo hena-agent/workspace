@@ -92,15 +92,18 @@ describe("TodoWriteTool", () => {
       ]
 
       expect((yield* toolDefinitions(registry)).map((tool) => tool.name)).toEqual([TodoWriteTool.name])
-      expect(yield* settleTool(registry, call(todoList))).toEqual({
-        result: { type: "text", value: JSON.stringify(todoList, null, 2) },
+      const settled = yield* settleTool(registry, call(todoList))
+      const normalized = yield* service.get(sessionID)
+      expect(normalized[0]!.id?.startsWith("todo_")).toBe(true)
+      expect(settled).toEqual({
+        result: { type: "text", value: JSON.stringify(normalized, null, 2) },
         output: {
-          structured: { todos: todoList },
-          content: [{ type: "text", text: JSON.stringify(todoList, null, 2) }],
+          structured: { todos: normalized },
+          content: [{ type: "text", text: JSON.stringify(normalized, null, 2) }],
         },
       })
       expect(assertions).toMatchObject([{ sessionID, action: "todowrite", resources: ["*"], save: ["*"] }])
-      expect(yield* service.get(sessionID)).toEqual(todoList)
+      expect(yield* service.get(sessionID)).toEqual(normalized)
     }),
   )
 
@@ -109,7 +112,7 @@ describe("TodoWriteTool", () => {
       yield* setup
       const registry = yield* ToolRegistry.Service
       const service = yield* SessionTodo.Service
-      yield* service.update({ sessionID, todos: [{ content: "keep", status: "pending", priority: "low" }] })
+      const kept = yield* service.update({ sessionID, todos: [{ content: "keep", status: "pending", priority: "low" }] })
       deny = true
 
       expect(
@@ -118,7 +121,7 @@ describe("TodoWriteTool", () => {
         type: "error",
         value: "Unable to update todos",
       })
-      expect(yield* service.get(sessionID)).toEqual([{ content: "keep", status: "pending", priority: "low" }])
+      expect(yield* service.get(sessionID)).toEqual(kept)
       expect(assertions).toMatchObject([{ sessionID, action: "todowrite", resources: ["*"], save: ["*"] }])
     }),
   )

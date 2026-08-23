@@ -1,6 +1,6 @@
 export * as SessionProjector from "./projector"
 
-import { and, desc, eq, gt, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gt, isNull, or, sql } from "drizzle-orm"
 import { DateTime, Effect, Layer, Schema } from "effect"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
@@ -15,6 +15,7 @@ import { WorkspaceV2 } from "../workspace"
 import { SessionContextEpoch } from "./context-epoch"
 import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, SessionTable } from "./sql"
 import type { DeepMutable } from "../schema"
+import { SessionSchema } from "./schema"
 
 type DatabaseService = Database.Interface["db"]
 
@@ -359,6 +360,7 @@ const layer = Layer.effectDiscard(
           promotedSeq: event.durable.seq,
         })
         yield* run(db, event)
+        yield* incrementQueueRevision(db, event.data.sessionID)
       }),
     )
     yield* events.project(SessionEvent.PromptAdmitted, (event) =>
@@ -372,6 +374,58 @@ const layer = Layer.effectDiscard(
           delivery: event.data.delivery,
           timeCreated: event.data.timestamp,
         })
+        yield* incrementQueueRevision(db, event.data.sessionID)
+      }),
+    )
+    yield* events.project(SessionEvent.InputCanceled, (event) =>
+      Effect.gen(function* () {
+        yield* requireQueueRevision(db, event.data.sessionID, event.data.expectedRevision)
+        const deleted = yield* db
+          .delete(SessionInputTable)
+          .where(
+            and(
+              eq(SessionInputTable.session_id, event.data.sessionID),
+              eq(SessionInputTable.id, event.data.messageID),
+              isNull(SessionInputTable.promoted_seq),
+            ),
+          )
+          .returning({ id: SessionInputTable.id })
+          .get()
+          .pipe(Effect.orDie)
+        if (!deleted) return yield* Effect.die("Queued input is no longer pending")
+        yield* incrementQueueRevision(db, event.data.sessionID)
+      }),
+    )
+    yield* events.project(SessionEvent.InputReordered, (event) =>
+      Effect.gen(function* () {
+        yield* requireQueueRevision(db, event.data.sessionID, event.data.expectedRevision)
+        const pending = yield* db
+          .select({ id: SessionInputTable.id })
+          .from(SessionInputTable)
+          .where(
+            and(
+              eq(SessionInputTable.session_id, event.data.sessionID),
+              eq(SessionInputTable.delivery, "queue"),
+              isNull(SessionInputTable.promoted_seq),
+            ),
+          )
+          .orderBy(asc(SessionInputTable.queue_position))
+          .all()
+          .pipe(Effect.orDie)
+        if (
+          pending.length !== event.data.messageIDs.length ||
+          pending.some((row) => !event.data.messageIDs.includes(row.id))
+        )
+          return yield* Effect.die("Queued input order does not match pending inputs")
+        yield* Effect.forEach(event.data.messageIDs.map((id, queue_position) => ({ id, queue_position })), (input) =>
+          db
+            .update(SessionInputTable)
+            .set({ queue_position: input.queue_position })
+            .where(and(eq(SessionInputTable.session_id, event.data.sessionID), eq(SessionInputTable.id, input.id)))
+            .run()
+            .pipe(Effect.orDie),
+        )
+        yield* incrementQueueRevision(db, event.data.sessionID)
       }),
     )
     yield* events.project(SessionEvent.ContextUpdated, (event) => run(db, event))
@@ -456,3 +510,24 @@ const layer = Layer.effectDiscard(
 )
 
 export const node = makeGlobalNode({ name: "session-projector", layer, deps: [EventV2.node, Database.node] })
+
+function incrementQueueRevision(db: DatabaseService, sessionID: SessionSchema.ID) {
+  return db
+    .update(SessionTable)
+    .set({ queue_revision: sql`${SessionTable.queue_revision} + 1` })
+    .where(eq(SessionTable.id, sessionID))
+    .run()
+    .pipe(Effect.orDie)
+}
+
+function requireQueueRevision(db: DatabaseService, sessionID: SessionSchema.ID, expected: number) {
+  return db
+    .select({ revision: SessionTable.queue_revision })
+    .from(SessionTable)
+    .where(eq(SessionTable.id, sessionID))
+    .get()
+    .pipe(
+      Effect.orDie,
+      Effect.flatMap((row) => row?.revision === expected ? Effect.void : Effect.die("Queue revision conflict")),
+    )
+}

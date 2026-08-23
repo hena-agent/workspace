@@ -3,8 +3,17 @@ export * as SessionTodo from "./session-todo"
 import { Schema } from "effect"
 import { define, inventory } from "./event"
 import { SessionID } from "./session-id"
+import { ascending } from "./identifier"
+import { optional, statics } from "./schema"
+
+export const ID = Schema.String.check(Schema.isStartsWith("todo_")).pipe(
+  Schema.brand("SessionTodo.ID"),
+  statics((schema) => ({ create: () => schema.make(`todo_${ascending()}`) })),
+)
+export type ID = typeof ID.Type
 
 export const Info = Schema.Struct({
+  id: ID.pipe(optional),
   content: Schema.String.annotate({ description: "Brief description of the task" }),
   status: Schema.String.annotate({
     description: "Current status of the task: pending, in_progress, completed, cancelled",

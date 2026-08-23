@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { DateTime, Effect, Fiber, Layer, Stream } from "effect"
-import { eq } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import { Database } from "@hena/core/database/database"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
@@ -99,6 +99,43 @@ const eventCount = (type: string) =>
   )
 
 describe("SessionV2.prompt", () => {
+  it.effect("reorders and cancels pending queue inputs with revisions", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const first = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "first" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const second = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "second" }),
+        delivery: "queue",
+        resume: false,
+      })
+
+      expect((yield* session.get(sessionID)).queueRevision).toBe(2)
+      expect(yield* session.reorderInputs({
+        sessionID,
+        messageIDs: [second.id, first.id],
+        expectedRevision: 2,
+      })).toBe(3)
+      const { db } = yield* Database.Service
+      expect(
+        (yield* db
+          .select({ id: SessionInputTable.id })
+          .from(SessionInputTable)
+          .orderBy(asc(SessionInputTable.queue_position))
+          .all()
+          .pipe(Effect.orDie)).map((row) => row.id),
+      ).toEqual([second.id, first.id])
+      expect(yield* session.cancelInput({ sessionID, messageID: first.id, expectedRevision: 3 })).toBe(4)
+      expect(yield* admitted(first.id)).toBeUndefined()
+    }),
+  )
+
   it.effect("exposes the execution registry", () =>
     Effect.gen(function* () {
       activeSessions.add(sessionID)

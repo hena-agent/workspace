@@ -104,6 +104,7 @@ export const projectAdmitted = Effect.fn("SessionInput.projectAdmitted")(functio
       id: input.id,
       session_id: input.sessionID,
       admitted_seq: input.admittedSeq,
+      queue_position: input.admittedSeq,
       prompt: encodePrompt(input.prompt),
       delivery: input.delivery,
       time_created: DateTime.toEpochMillis(input.timeCreated),
@@ -160,6 +161,7 @@ export const projectPrompted = Effect.fn("SessionInput.projectPrompted")(functio
       prompt: encodePrompt(input.prompt),
       delivery: input.delivery,
       admitted_seq: input.promotedSeq,
+      queue_position: input.promotedSeq,
       promoted_seq: input.promotedSeq,
       time_created: DateTime.toEpochMillis(input.timeCreated),
     })
@@ -259,7 +261,7 @@ export const promoteSteers = Effect.fn("SessionInput.promoteSteers")(function* (
         lte(SessionInputTable.admitted_seq, cutoff),
       ),
     )
-    .orderBy(asc(SessionInputTable.admitted_seq))
+    .orderBy(asc(SessionInputTable.queue_position))
     .all()
     .pipe(Effect.orDie)
   return yield* publish(db, events, sessionID, rows)
@@ -280,7 +282,7 @@ export const promoteNextQueued = Effect.fn("SessionInput.promoteNextQueued")(fun
         eq(SessionInputTable.delivery, "queue"),
       ),
     )
-    .orderBy(asc(SessionInputTable.admitted_seq))
+    .orderBy(asc(SessionInputTable.queue_position))
     .limit(1)
     .get()
     .pipe(Effect.orDie)

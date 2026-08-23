@@ -11,13 +11,14 @@ import { TodoTable } from "./sql"
 
 export const Info = SessionTodo.Info
 export type Info = typeof Info.Type
+type UpdateInfo = Omit<Info, "id"> & { readonly id?: string }
 export const Event = SessionTodo.Event
 
 export interface Interface {
   readonly update: (input: {
     readonly sessionID: SessionSchema.ID
-    readonly todos: ReadonlyArray<Info>
-  }) => Effect.Effect<void>
+    readonly todos: ReadonlyArray<UpdateInfo>
+  }) => Effect.Effect<ReadonlyArray<Info>>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ReadonlyArray<Info>>
 }
 
@@ -31,17 +32,22 @@ const layer = Layer.effect(
 
     const update = Effect.fn("SessionTodo.update")(function* (input: {
       readonly sessionID: SessionSchema.ID
-      readonly todos: ReadonlyArray<Info>
+      readonly todos: ReadonlyArray<UpdateInfo>
     }) {
+      const normalized = input.todos.map((todo) => ({
+        ...todo,
+        id: todo.id ? SessionTodo.ID.make(todo.id) : SessionTodo.ID.create(),
+      }))
       yield* db
         .transaction((tx) =>
           Effect.gen(function* () {
             yield* tx.delete(TodoTable).where(eq(TodoTable.session_id, input.sessionID)).run()
-            if (input.todos.length === 0) return
+            if (normalized.length === 0) return
             yield* tx
               .insert(TodoTable)
               .values(
-                input.todos.map((todo, position) => ({
+                normalized.map((todo, position) => ({
+                  id: todo.id,
                   session_id: input.sessionID,
                   content: todo.content,
                   status: todo.status,
@@ -53,7 +59,8 @@ const layer = Layer.effect(
           }),
         )
         .pipe(Effect.orDie)
-      yield* events.publish(Event.Updated, input)
+      yield* events.publish(Event.Updated, { ...input, todos: normalized })
+      return normalized
     })
 
     const get = Effect.fn("SessionTodo.get")(function* (sessionID: SessionSchema.ID) {
@@ -65,6 +72,7 @@ const layer = Layer.effect(
         .all()
         .pipe(Effect.orDie)
       return rows.map((row) => ({
+        id: row.id,
         content: row.content,
         status: row.status,
         priority: row.priority,

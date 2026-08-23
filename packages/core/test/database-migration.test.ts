@@ -24,6 +24,7 @@ import { AbsolutePath } from "@hena/core/schema"
 import { SessionSchema } from "@hena/core/session/schema"
 import { SessionTable } from "@hena/core/session/sql"
 import sessionMetadataMigration from "@hena/core/database/migration/20260511173437_session-metadata"
+import serverV3SyncMigration from "@hena/core/database/migration/20260823094804_server-v3-sync"
 import type { SqlClient as SqlClientService } from "effect/unstable/sql/SqlClient"
 import { Database } from "@hena/core/database/database"
 import { SessionProjector } from "@hena/core/session/projector"
@@ -95,6 +96,40 @@ describe("DatabaseMigration", () => {
           { name: "session_message_session_time_created_id_idx" },
           { name: "session_message_session_type_seq_idx" },
         ])
+      }),
+    )
+  })
+
+  test("backfills queue positions and stable todo IDs", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* DatabaseMigration.applyOnly(db, migrations.slice(0, -1))
+        yield* db.run(sql`
+          INSERT INTO project (id, worktree, time_created, time_updated, sandboxes)
+          VALUES ('global', '/repo', 1, 1, '[]')
+        `)
+        yield* db.run(sql`
+          INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
+          VALUES ('ses_1', 'global', 'session', '/repo', 'Session', '1', 1, 1)
+        `)
+        yield* db.run(sql`
+          INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, time_created)
+          VALUES ('msg_1', 'ses_1', '{}', 'queue', 42, 1)
+        `)
+        yield* db.run(sql`
+          INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated)
+          VALUES ('ses_1', 'Task', 'pending', 'high', 0, 1, 1)
+        `)
+
+        yield* DatabaseMigration.applyOnly(db, [serverV3SyncMigration])
+
+        expect(yield* db.get<{ queue_position: number }>(sql`SELECT queue_position FROM session_input`)).toEqual({
+          queue_position: 42,
+        })
+        expect((yield* db.get<{ id: string }>(sql`SELECT id FROM todo`))?.id).toStartWith("todo_")
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'collection_change'`))
+          .toEqual({ name: "collection_change" })
       }),
     )
   })
@@ -258,7 +293,7 @@ describe("DatabaseMigration", () => {
           sql`INSERT INTO event (id, aggregate_id, seq, type, data) VALUES ('event', 'session', 9, 'session.updated.1', '{}')`,
         )
         yield* db.run(
-          sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, time_created) VALUES ('input', 'session', '{}', 'steer', 9, 1)`,
+          sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, queue_position, time_created) VALUES ('input', 'session', '{}', 'steer', 9, 9, 1)`,
         )
         yield* db.run(
           sql`INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data) VALUES ('projected', 'session', 'user', 9, 1, 1, '{}')`,

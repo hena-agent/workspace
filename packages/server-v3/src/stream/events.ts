@@ -247,24 +247,25 @@ export function events(
       writes = writes
         .then(async () => {
           while (!ending && pendingRecoveries.size > 0) {
-            const recovery = pendingRecoveries.values().next().value
-            if (!recovery) return
-            pendingRecoveries.delete(scopeKey(recovery.scope))
+            const recoveries = Array.from(pendingRecoveries.values())
+            pendingRecoveries.clear()
             await stream.writeSSE({
               event: "rows",
               data: JSON.stringify(
                 frame({
                   type: "rows",
-                  affectedScopes: [recovery.scope],
-                  fromSeq: recovery.fromSeq,
-                  throughSeq: recovery.throughSeq,
-                  changes: [recovery.change],
+                  affectedScopes: recoveries.map((recovery) => recovery.scope),
+                  fromSeq: Math.min(...recoveries.map((recovery) => recovery.fromSeq)),
+                  throughSeq: Math.max(...recoveries.map((recovery) => recovery.throughSeq)),
+                  changes: recoveries.map((recovery) => recovery.change),
                 }),
               ),
             })
-            for (const item of snapshotFrames(recovery.scope)) {
-              if (ending) return
-              await stream.writeSSE({ event: item.event, data: JSON.stringify(frame(item.value)) })
+            for (const recovery of recoveries) {
+              for (const item of snapshotFrames(recovery.scope)) {
+                if (ending) return
+                await stream.writeSSE({ event: item.event, data: JSON.stringify(frame(item.value)) })
+              }
             }
           }
         })

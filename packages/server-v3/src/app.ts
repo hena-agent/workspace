@@ -14,7 +14,7 @@ import { createContentRoutes } from "./routes/content"
 import { createDeltaHub, type DeltaHub } from "./stream/delta"
 import { createOnlineRequestStore, type OnlineRequestStore } from "./core/online-requests"
 import { createOnlineRoutes } from "./routes/online"
-import { coreError } from "./http/error"
+import { coreError, type ErrorCode } from "./http/error"
 
 export function createApp(input: {
   database: SyncDatabase
@@ -71,7 +71,7 @@ export function createApp(input: {
   return api.route("/", createStaticRoutes(input.publicDir))
 }
 
-type ErrorResponse = { error: { code: string; message: string; details?: Record<string, unknown> } }
+type ErrorResponse = { error: { code: ErrorCode; message: string; details?: Record<string, unknown> } }
 
 export type AppType = ApplyGlobalResponse<
   ReturnType<typeof createApp>,

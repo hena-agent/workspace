@@ -28,7 +28,9 @@ export async function start(input?: { port?: number; publicDir?: string; corsOri
   const database = createSyncDatabase(new sqlite.Database(databasePath, { create: true }))
   persisted.publish = database.changes.publishPersisted
   database.compact()
-  if (bootstrapCollections(database)) database.feed.replace()
+  database.raw.transaction(() => {
+    if (bootstrapCollections(database)) database.feed.replace()
+  })()
   const catalog = createLocationCollectionRefresh(database, domain, online, (cause) =>
     console.error(
       JSON.stringify({ type: "catalog_refresh_error", name: cause instanceof Error ? cause.name : "Unknown" }),

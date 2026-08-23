@@ -1,3 +1,6 @@
+import { preview } from "../storage/content"
+import { fitsPage } from "../stream/pages"
+
 type Kind = "permission" | "question"
 export type VolatileCollection = "permissions" | "questions" | "agents" | "models" | "providers"
 type Row = { id: string; sessionID: string; nonce: string } & Record<string, unknown>
@@ -98,7 +101,15 @@ export function createOnlineRequestStore() {
       scopeKey: string,
       incoming: readonly { key: string; row: Record<string, unknown> }[],
     ) {
-      rows.set(sourceKey(target, scopeKey), new Map(incoming.map((row) => [row.key, row.row])))
+      rows.set(
+        sourceKey(target, scopeKey),
+        new Map(
+          incoming.flatMap((item) => {
+            const row = boundCatalogRow(item.key, item.row)
+            return row ? [[item.key, row] as const] : []
+          }),
+        ),
+      )
       changed(target, scopeKey)
     },
     remove(target: VolatileCollection, scopeKey: string) {
@@ -184,6 +195,23 @@ function boundRequest(data: { id: string; sessionID: string } & Record<string, u
   return { id: data.id, sessionID: data.sessionID, nonce, truncated: true }
 }
 
+function boundCatalogRow(key: string, row: Record<string, unknown>) {
+  if (fitsPage([{ key, row, revision: "0" }])) return row
+  const projected = Object.fromEntries(
+    Object.entries(row)
+      .map(([field, value]) => {
+        if (typeof value === "string") return [field, preview(value).text] as const
+        if (typeof value === "number" || typeof value === "boolean") return [field, value] as const
+        return undefined
+      })
+      .filter((entry) => entry !== undefined),
+  )
+  const candidate = { ...projected, truncated: true }
+  if (fitsPage([{ key, row: candidate, revision: "0" }])) return candidate
+  const minimal = { id: typeof row.id === "string" ? preview(row.id).text : key, truncated: true }
+  return fitsPage([{ key, row: minimal, revision: "0" }]) ? minimal : undefined
+}
+
 function isRequestEvent(data: unknown): data is { id: string; sessionID: string } & Record<string, unknown> {
   return (
     typeof data === "object" &&
@@ -202,4 +230,3 @@ function isPendingRow(data: unknown): data is Row {
 function isResolutionEvent(data: unknown): data is { requestID: string } & Record<string, unknown> {
   return typeof data === "object" && data !== null && "requestID" in data && typeof data.requestID === "string"
 }
-import { fitsPage } from "../stream/pages"

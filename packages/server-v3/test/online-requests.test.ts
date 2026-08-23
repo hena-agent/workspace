@@ -145,6 +145,21 @@ describe("online requests", () => {
       metadata: { truncated: true },
     })
   })
+
+  test("bounds catalog rows before publishing snapshots", () => {
+    const online = createOnlineRequestStore()
+
+    online.replace("agents", '{"directory":"/repo"}', [
+      {
+        key: "build",
+        row: { id: "build", name: "Build", description: "x".repeat(2 * 1024 * 1024), permissions: [] },
+      },
+    ])
+
+    const snapshot = online.snapshot("agents", '{"directory":"/repo"}')
+    expect(JSON.stringify(snapshot).length).toBeLessThan(1024 * 1024)
+    expect(snapshot.rows[0]?.row).toMatchObject({ id: "build", name: "Build", truncated: true })
+  })
 })
 
 function requireNonce(row: Record<string, unknown>) {

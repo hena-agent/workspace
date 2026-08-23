@@ -38,6 +38,26 @@ const setup = Effect.gen(function* () {
 })
 
 describe("SessionTodo", () => {
+  it.effect("repairs rollback-created todos before returning them", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      yield* db
+        .run(
+          sql`
+        INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated)
+        VALUES (${sessionID}, 'rollback todo', 'pending', 'high', 0, 1, 1)
+      `,
+        )
+        .pipe(Effect.orDie)
+
+      const listed = yield* (yield* SessionTodo.Service).get(sessionID)
+
+      expect(listed[0]?.id).toMatch(/^todo_/)
+      expect(yield* db.get(sql`SELECT id FROM todo WHERE session_id = ${sessionID}`)).toEqual({ id: listed[0]?.id })
+    }),
+  )
+
   it.effect("replaces persisted todos in order and publishes updates", () =>
     Effect.gen(function* () {
       yield* setup
@@ -107,28 +127,37 @@ describe("SessionTodo", () => {
       const { db } = yield* Database.Service
       const events = yield* EventV2.Service
       const todos = yield* SessionTodo.Service
-      yield* db.run(sql`
+      yield* db
+        .run(
+          sql`
         INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
         VALUES (1, 'feed', 0, 'runtime')
-      `).pipe(Effect.orDie)
+      `,
+        )
+        .pipe(Effect.orDie)
       yield* events.project(SessionTodo.Event.Updated, () =>
         Effect.gen(function* () {
-          yield* db.run(sql`
+          yield* db
+            .run(
+              sql`
             INSERT INTO collection_row (collection, scope_key, row_key, row, row_revision)
             VALUES ('todos', ${sessionID}, 'todo_projected', '{}', '1')
-          `).pipe(Effect.orDie)
+          `,
+            )
+            .pipe(Effect.orDie)
           yield* Effect.die("projection failed")
         }),
       )
 
-      yield* Effect.exit(todos.update({
-        sessionID,
-        todos: [{ content: "not committed", status: "pending", priority: "high" }],
-      }))
+      yield* Effect.exit(
+        todos.update({
+          sessionID,
+          todos: [{ content: "not committed", status: "pending", priority: "high" }],
+        }),
+      )
 
       expect(yield* db.select().from(TodoTable).all().pipe(Effect.orDie)).toEqual([])
       expect(yield* db.all(sql`SELECT row_key FROM collection_row WHERE collection = 'todos'`)).toEqual([])
     }),
   )
-
 })

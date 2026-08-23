@@ -4,7 +4,7 @@ import { createApp } from "./app"
 import { createCoreDomain } from "./core/runtime"
 import { createSyncDatabase } from "./storage/database"
 import { createDeltaHub } from "./stream/delta"
-import { bootstrapCollections, bootstrapLocationCollections } from "./core/bootstrap"
+import { bootstrapCollections, createLocationCollectionRefresh } from "./core/bootstrap"
 import { createOnlineRequestStore } from "./core/online-requests"
 import { Flag } from "@hena/core/flag/flag"
 
@@ -17,27 +17,29 @@ export async function start(input?: { port?: number; publicDir?: string }) {
   const deltas = createDeltaHub()
   const online = createOnlineRequestStore()
   const persisted = { publish: () => {} }
-  const domain = createCoreDomain(deltas, online, () => persisted.publish())
+  const configuredDatabasePath = Database.path()
+  const databasePath =
+    configuredDatabasePath === ":memory:"
+      ? `file:hena-server-v3-${crypto.randomUUID()}?mode=memory&cache=shared`
+      : configuredDatabasePath
+  const domain = createCoreDomain(deltas, online, () => persisted.publish(), databasePath)
   await domain.ready()
   const sqlite = await import("bun:sqlite")
-  const database = createSyncDatabase(new sqlite.Database(Database.path(), { create: true }))
+  const database = createSyncDatabase(new sqlite.Database(databasePath, { create: true }))
   persisted.publish = database.changes.publishPersisted
   database.compact()
   if (bootstrapCollections(database)) database.feed.replace()
-  await bootstrapLocationCollections(database, domain, online)
+  const catalog = createLocationCollectionRefresh(database, domain, online, (cause) =>
+    console.error(
+      JSON.stringify({ type: "catalog_refresh_error", name: cause instanceof Error ? cause.name : "Unknown" }),
+    ),
+  )
+  await catalog.run()
   const unsubscribeCatalog = online.subscribeCatalog(() => {
-    bootstrapLocationCollections(database, domain, online).catch((cause) =>
-      console.error(
-        JSON.stringify({ type: "catalog_refresh_error", name: cause instanceof Error ? cause.name : "Unknown" }),
-      ),
-    )
+    void catalog.run()
   })
   const unsubscribeLocations = database.changes.subscribe("locations", "", () => {
-    bootstrapLocationCollections(database, domain, online).catch((cause) =>
-      console.error(
-        JSON.stringify({ type: "catalog_refresh_error", name: cause instanceof Error ? cause.name : "Unknown" }),
-      ),
-    )
+    void catalog.run()
   })
   const app = createApp({
     database,
@@ -58,6 +60,7 @@ export async function start(input?: { port?: number; publicDir?: string }) {
     clearInterval(compaction)
     unsubscribeCatalog()
     unsubscribeLocations()
+    await catalog.idle()
     await domain.dispose()
     database.close()
     await server.stop()

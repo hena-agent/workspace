@@ -261,7 +261,7 @@ export const promoteSteers = Effect.fn("SessionInput.promoteSteers")(function* (
         lte(SessionInputTable.admitted_seq, cutoff),
       ),
     )
-    .orderBy(asc(SessionInputTable.queue_position))
+    .orderBy(asc(SessionInputTable.queue_position), asc(SessionInputTable.admitted_seq))
     .all()
     .pipe(Effect.orDie)
   return yield* publish(db, events, sessionID, rows)
@@ -282,7 +282,7 @@ export const promoteNextQueued = Effect.fn("SessionInput.promoteNextQueued")(fun
         eq(SessionInputTable.delivery, "queue"),
       ),
     )
-    .orderBy(asc(SessionInputTable.queue_position))
+    .orderBy(asc(SessionInputTable.queue_position), asc(SessionInputTable.admitted_seq))
     .limit(1)
     .get()
     .pipe(Effect.orDie)

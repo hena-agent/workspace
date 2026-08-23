@@ -33,6 +33,18 @@ describe("online requests", () => {
     expect(online.snapshot("questions").rows).toHaveLength(1)
   })
 
+  test("removes requests when their session is interrupted", () => {
+    const online = createOnlineRequestStore()
+    online.project({ type: "permission.v2.asked", data: { id: "per_1", sessionID: "ses_1" } })
+    online.project({ type: "question.v2.asked", data: { id: "que_1", sessionID: "ses_1" } })
+
+    online.interrupt("ses_1")
+
+    expect(online.snapshot("permissions").rows).toEqual([])
+    expect(online.snapshot("questions").rows).toEqual([])
+    expect(online.authoritative("permission", "per_1")).toEqual({ status: "missing" })
+  })
+
   test("invalidates location catalogs without durable changes", () => {
     const online = createOnlineRequestStore()
     let invalidations = 0

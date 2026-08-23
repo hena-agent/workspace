@@ -99,6 +99,42 @@ const eventCount = (type: string) =>
   )
 
 describe("SessionV2.prompt", () => {
+  it.effect("uses admission order when rollback-created queue positions tie", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const events = yield* EventV2.Service
+      const first = SessionMessage.ID.make("msg_rollback_first")
+      const second = SessionMessage.ID.make("msg_rollback_second")
+      yield* db
+        .insert(SessionInputTable)
+        .values([
+          {
+            id: second,
+            session_id: sessionID,
+            prompt: Prompt.make({ text: "second" }),
+            delivery: "queue",
+            admitted_seq: 2,
+            queue_position: 0,
+          },
+          {
+            id: first,
+            session_id: sessionID,
+            prompt: Prompt.make({ text: "first" }),
+            delivery: "queue",
+            admitted_seq: 1,
+            queue_position: 0,
+          },
+        ])
+        .run()
+        .pipe(Effect.orDie)
+
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
+      expect(yield* admitted(first)).toMatchObject({ id: first, promotedSeq: 0 })
+      expect((yield* admitted(second))?.promotedSeq).toBeUndefined()
+    }),
+  )
+
   it.effect("reorders and cancels pending queue inputs with revisions", () =>
     Effect.gen(function* () {
       yield* setup
@@ -117,11 +153,13 @@ describe("SessionV2.prompt", () => {
       })
 
       expect((yield* session.get(sessionID)).queueRevision).toBe(2)
-      expect(yield* session.reorderInputs({
-        sessionID,
-        messageIDs: [second.id, first.id],
-        expectedRevision: 2,
-      })).toBe(3)
+      expect(
+        yield* session.reorderInputs({
+          sessionID,
+          messageIDs: [second.id, first.id],
+          expectedRevision: 2,
+        }),
+      ).toBe(3)
       const { db } = yield* Database.Service
       expect(
         (yield* db

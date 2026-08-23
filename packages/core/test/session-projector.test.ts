@@ -67,6 +67,28 @@ describe("SessionProjector", () => {
         .insert(SessionMessageTable)
         .values([assistantRow(boundary, 1), assistantRow(SessionMessage.ID.make("msg_later"), 2)])
         .run()
+      yield* db
+        .insert(SessionInputTable)
+        .values([
+          {
+            id: SessionMessage.ID.make("msg_input_before"),
+            session_id: sessionID,
+            prompt: Prompt.make({ text: "before" }),
+            delivery: "queue",
+            admitted_seq: 1,
+            queue_position: 1,
+          },
+          {
+            id: SessionMessage.ID.make("msg_input_after"),
+            session_id: sessionID,
+            prompt: Prompt.make({ text: "after" }),
+            delivery: "queue",
+            admitted_seq: 3,
+            queue_position: 3,
+          },
+        ])
+        .run()
+      yield* db.update(SessionTable).set({ queue_revision: 2 }).where(eq(SessionTable.id, sessionID)).run()
       const events = yield* EventV2.Service
       yield* events.publish(SessionEvent.RevertEvent.Staged, {
         sessionID,
@@ -93,6 +115,15 @@ describe("SessionProjector", () => {
       expect(
         (yield* db.select({ id: SessionMessageTable.id }).from(SessionMessageTable).all()).map((row) => row.id),
       ).toEqual([boundary])
+      expect(
+        yield* db
+          .select({
+            revision: SessionTable.queue_revision,
+          })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get(),
+      ).toEqual({ revision: 3 })
     }),
   )
 

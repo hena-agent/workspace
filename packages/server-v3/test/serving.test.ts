@@ -88,6 +88,10 @@ describe("serving", () => {
     await runServer(path)
     await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
   }, 30_000)
+
+  test("starts with an in-memory database", async () => {
+    await runServer(":memory:")
+  }, 30_000)
 })
 
 async function runServer(database: string) {

@@ -1,6 +1,6 @@
 export * as SessionTodo from "./todo"
 
-import { asc, eq } from "drizzle-orm"
+import { asc, eq, sql } from "drizzle-orm"
 import { Context, Effect, Layer } from "effect"
 import { SessionTodo } from "@hena/schema/session-todo"
 import { Database } from "../database/database"
@@ -36,6 +36,7 @@ const layer = Layer.effect(
       readonly sessionID: SessionSchema.ID
       readonly todos: ReadonlyArray<UpdateInfo>
     }) {
+      yield* repairMissingIDs(db, input.sessionID)
       const existing = yield* db
         .select({ id: TodoTable.id })
         .from(TodoTable)
@@ -45,9 +46,9 @@ const layer = Layer.effect(
         .pipe(Effect.orDie)
       const normalized = input.todos.map((todo, index) => ({
         ...todo,
-        id:
-          todo.id ? SessionTodo.ID.make(todo.id) :
-          existing[index]?.id && !input.todos.some((item) => item.id === existing[index].id)
+        id: todo.id
+          ? SessionTodo.ID.make(todo.id)
+          : existing[index]?.id && !input.todos.some((item) => item.id === existing[index].id)
             ? existing[index].id
             : SessionTodo.ID.create(),
       }))
@@ -56,6 +57,7 @@ const layer = Layer.effect(
     })
 
     const get = Effect.fn("SessionTodo.get")(function* (sessionID: SessionSchema.ID) {
+      yield* repairMissingIDs(db, sessionID)
       const rows = yield* db
         .select()
         .from(TodoTable)
@@ -75,4 +77,19 @@ const layer = Layer.effect(
   }),
 )
 
-export const node = makeLocationNode({ service: Service, layer, deps: [EventV2.node, Database.node, SessionProjector.node] })
+export const node = makeLocationNode({
+  service: Service,
+  layer,
+  deps: [EventV2.node, Database.node, SessionProjector.node],
+})
+
+function repairMissingIDs(db: Database.Interface["db"], sessionID: SessionSchema.ID) {
+  return db
+    .run(
+      sql`
+    UPDATE todo SET id = 'todo_' || lower(hex(randomblob(16)))
+    WHERE session_id = ${sessionID} AND id IS NULL
+  `,
+    )
+    .pipe(Effect.orDie)
+}

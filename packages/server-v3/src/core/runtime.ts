@@ -3,7 +3,7 @@ import { SessionV2 } from "@hena/core/session"
 import { SessionExecution } from "@hena/core/session/execution"
 import { SessionExecutionLocal } from "@hena/core/session/execution/local"
 import { SessionMessage } from "@hena/core/session/message"
-import { Effect, ManagedRuntime, Schema, Stream } from "effect"
+import { Effect, ManagedRuntime, Schema } from "effect"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { LocationServiceMap } from "@hena/core/location-service-map"
 import { FileSystem } from "@hena/core/filesystem"
@@ -28,27 +28,31 @@ export function createCoreDomain(
   deltaHub?: DeltaHub,
   online?: OnlineRequestStore,
   publishPersisted?: () => void,
+  databasePath = Database.path(),
 ): CoreDomain {
   const runtime = ManagedRuntime.make(
     AppNodeBuilder.build(
       LayerNode.group([SessionV2.node, LocationServiceMap.node, EventV2.node, Database.node, CollectionProjector]),
-      [[SessionExecution.node, SessionExecutionLocal.node]],
+      [
+        [SessionExecution.node, SessionExecutionLocal.node],
+        [Database.node, Database.layerFromPath(databasePath)],
+      ],
     ),
   )
-  if (deltaHub || online || publishPersisted)
-    runtime.runFork(
-      EventV2.Service.use((events) =>
-        events.all().pipe(
-          Stream.runForEach((event) =>
-            Effect.sync(() => {
-              if (deltaHub) publishDelta(deltaHub, event)
-              online?.project(event)
-              publishPersisted?.()
-            }),
+  const observer =
+    deltaHub || online || publishPersisted
+      ? runtime.runPromise(
+          EventV2.Service.use((events) =>
+            events.listen((event) =>
+              Effect.sync(() => {
+                if (deltaHub) publishDelta(deltaHub, event)
+                online?.project(event)
+                publishPersisted?.()
+              }),
+            ),
           ),
-        ),
-      ),
-    )
+        )
+      : runtime.runPromise(EventV2.Service.use(() => Effect.void))
 
   const mutation = <
     Value,
@@ -98,25 +102,26 @@ export function createCoreDomain(
           const applied = changes.length > 0
           const receipt = {
             txid,
-            outcome: applied ? "applied" as const : "noop" as const,
+            outcome: applied ? ("applied" as const) : ("noop" as const),
             through: {
               feedId: feed.feed_id,
               seq:
                 latest?.seq ??
                 Math.max(
-                  (yield* tx.get<{ seq: number }>(sql`SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change`))!.seq,
+                  (yield* tx.get<{ seq: number }>(sql`SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change`))!
+                    .seq,
                   feed.retained_floor,
                 ),
             },
             affectedScopes: applied
               ? changes
-                .map((change) => ({ collection: change.collection, scopeKey: change.scope_key }))
-                .filter(
-                  (scope, index, scopes) =>
-                    scopes.findIndex(
-                      (item) => item.collection === scope.collection && item.scopeKey === scope.scopeKey,
-                    ) === index,
-                )
+                  .map((change) => ({ collection: change.collection, scopeKey: change.scope_key }))
+                  .filter(
+                    (scope, index, scopes) =>
+                      scopes.findIndex(
+                        (item) => item.collection === scope.collection && item.scopeKey === scope.scopeKey,
+                      ) === index,
+                  )
               : [],
           }
           const response = input.response(value, receipt)
@@ -130,7 +135,7 @@ export function createCoreDomain(
     ).pipe(Effect.tap(() => Effect.sync(() => publishPersisted?.())))
 
   return {
-    ready: () => runtime.runPromise(EventV2.Service.use(() => Effect.void)),
+    ready: () => observer.then(() => {}),
     createSession: (input) =>
       runtime.runPromise(
         mutation({
@@ -173,12 +178,12 @@ export function createCoreDomain(
             }),
           ),
           response: (admitted, receipt) => ({ admitted, receipt }),
-        }).pipe(
-          Effect.tap(() => SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(sessionID)))),
-        ),
+        }).pipe(Effect.tap(() => SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(sessionID))))),
       ),
-    interrupt: (sessionID) =>
-      runtime.runPromise(SessionV2.Service.use((service) => service.interrupt(SessionV2.ID.make(sessionID)))),
+    interrupt: async (sessionID) => {
+      await runtime.runPromise(SessionV2.Service.use((service) => service.interrupt(SessionV2.ID.make(sessionID))))
+      online?.interrupt(sessionID)
+    },
     cancelInput: (sessionID, messageID, input) =>
       runtime.runPromise(
         mutation({
@@ -308,7 +313,11 @@ export function createCoreDomain(
           }
         }).pipe(Effect.provide(LocationServiceMap.Service.get(location(input)))),
       ),
-    dispose: () => runtime.dispose(),
+    dispose: async () => {
+      const unsubscribe = await observer
+      if (unsubscribe) await Effect.runPromise(unsubscribe)
+      await runtime.dispose()
+    },
   }
 }
 

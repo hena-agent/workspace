@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import { bootstrapCollections, bootstrapLocationCollections } from "../src/core/bootstrap"
+import {
+  bootstrapCollections,
+  bootstrapLocationCollections,
+  createLocationCollectionRefresh,
+} from "../src/core/bootstrap"
 import { unavailableCoreDomain } from "../src/core/domain"
 import { createOnlineRequestStore } from "../src/core/online-requests"
 import { createTestDatabase } from "./fixture"
@@ -48,21 +52,26 @@ describe("collection bootstrap", () => {
       INSERT INTO todo VALUES (NULL, 'ses_1', 'Ship it', 'pending', 'high', 0, 8, 9);
     `)
     const uri = `data:text/plain;base64,${"A".repeat(40 * 1024)}`
-    database.raw.query("UPDATE session_input SET prompt = ? WHERE id = 'msg_2'").run(JSON.stringify({
-      text: "queued",
-      files: [{ uri }],
-    }))
-    database.collections.hydrate("parts", "ses_deleted", [{
-      key: "part-deleted",
-      row: { content: { id: "content-deleted", revision: "r1", bytes: 7 } },
-      revision: "r1",
-    }])
+    database.raw.query("UPDATE session_input SET prompt = ? WHERE id = 'msg_2'").run(
+      JSON.stringify({
+        text: "queued",
+        files: [{ uri }],
+      }),
+    )
+    database.collections.hydrate("parts", "ses_deleted", [
+      {
+        key: "part-deleted",
+        row: { content: { id: "content-deleted", revision: "r1", bytes: 7 } },
+        revision: "r1",
+      },
+    ])
     database.content.put({ id: "content-deleted", sessionID: "ses_deleted", revision: "r1", text: "deleted" })
 
     expect(bootstrapCollections(database)).toBe(true)
 
     expect(database.collections.snapshot("projects", "").rows[0]?.row).toMatchObject({ id: "global", name: "Repo" })
     expect(database.collections.snapshot("sessions", "").rows[0]?.row).toMatchObject({ id: "ses_1", queueRevision: 2 })
+    const sessionRevision = database.collections.snapshot("sessions", "").rows[0]?.revision
     expect(database.collections.snapshot("locations", "").rows[0]?.row).toEqual({ directory: "/repo" })
     expect(database.collections.snapshot("messages", "ses_1").rows[0]?.row).toMatchObject({
       id: "msg_1",
@@ -81,26 +90,34 @@ describe("collection bootstrap", () => {
     const projected = database.collections.snapshot("sessionInputs", "ses_1").rows[0]!.row as {
       prompt: { files: Array<{ content: { id: string; revision: string } }> }
     }
-    expect(database.content.page({
-      ...projected.prompt.files[0]!.content,
-      sessionID: "ses_1",
-      offset: 0,
-      limit: 256 * 1024,
-    })?.text).toBe(uri)
+    expect(
+      database.content.page({
+        ...projected.prompt.files[0]!.content,
+        sessionID: "ses_1",
+        offset: 0,
+        limit: 256 * 1024,
+      })?.text,
+    ).toBe(uri)
     expect(database.collections.snapshot("todos", "ses_1").rows[0]?.row).toMatchObject({
       id: expect.stringMatching(/^todo_/),
       content: "Ship it",
     })
     expect(database.collections.snapshot("parts", "ses_deleted").rows).toEqual([])
-    expect(database.content.page({
-      id: "content-deleted",
-      sessionID: "ses_deleted",
-      revision: "r1",
-      offset: 0,
-      limit: 10,
-    })).toBeUndefined()
+    expect(
+      database.content.page({
+        id: "content-deleted",
+        sessionID: "ses_deleted",
+        revision: "r1",
+        offset: 0,
+        limit: 10,
+      }),
+    ).toBeUndefined()
     expect(database.changes.after("projects", "", 0)).toEqual([])
     expect(bootstrapCollections(database)).toBe(false)
+    database.raw.exec("UPDATE session SET queue_revision = 3 WHERE id = 'ses_1'")
+    expect(bootstrapCollections(database)).toBe(true)
+    expect(database.collections.snapshot("sessions", "").rows[0]?.revision).not.toBe(sessionRevision)
+    expect(database.collections.snapshot("sessions", "").rows[0]?.row).toMatchObject({ queueRevision: 3 })
   })
 
   test("hydrates redacted location catalogs without request secrets", async () => {
@@ -162,5 +179,36 @@ describe("collection bootstrap", () => {
     expect(rows).toHaveLength(3)
     expect(JSON.stringify(rows)).not.toContain("secret")
     expect(database.changes.current()).toBe(0)
+  })
+
+  test("serializes catalog refreshes so older results cannot win", async () => {
+    database = createTestDatabase().database
+    database.collections.hydrate("locations", "", [
+      {
+        key: '{"directory":"/repo"}',
+        row: { directory: "/repo" },
+        revision: "1",
+      },
+    ])
+    const first = Promise.withResolvers<void>()
+    let calls = 0
+    const domain = {
+      ...unavailableCoreDomain(),
+      catalog: async () => {
+        calls++
+        if (calls === 1) await first.promise
+        return { agents: [{ id: `build-${calls}` } as never], models: [], providers: [] }
+      },
+    }
+    const online = createOnlineRequestStore()
+    const refresh = createLocationCollectionRefresh(database, domain, online)
+
+    const older = refresh.run()
+    await Promise.resolve()
+    const newer = refresh.run()
+    first.resolve()
+    await Promise.all([older, newer])
+
+    expect(online.snapshot("agents", '{"directory":"/repo"}').rows[0]?.row).toMatchObject({ id: "build-2" })
   })
 })

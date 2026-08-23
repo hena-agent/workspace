@@ -36,11 +36,16 @@ describe("legacy session todos", () => {
         })
         .run()
         .pipe(Effect.orDie)
-      yield* db.run(sql`
+      yield* db
+        .run(
+          sql`
         INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated)
         VALUES (${sessionID}, 'rollback todo', 'pending', 'high', 0, 1, 1)
-      `).pipe(Effect.orDie)
+      `,
+        )
+        .pipe(Effect.orDie)
       const todos = yield* Todo.Service
+      const rollback = yield* todos.get(sessionID)
 
       const initial = yield* todos.update({
         sessionID,
@@ -55,6 +60,7 @@ describe("legacy session todos", () => {
         todos: [...listed].reverse(),
       })
 
+      expect(rollback[0]?.id).toMatch(/^todo_/)
       expect(initial.map((todo) => todo.id)).toEqual(initial.map(() => expect.stringMatching(/^todo_/)))
       expect(listed.map((todo) => todo.id)).toEqual(initial.map((todo) => todo.id))
       expect(updated.map((todo) => todo.id)).toEqual([initial[1]?.id, initial[0]?.id])

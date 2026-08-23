@@ -2,7 +2,7 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 import { SessionID } from "./schema"
 import { Effect, Layer, Context } from "effect"
 import { Database } from "@hena/core/database/database"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { asc } from "drizzle-orm"
 import { TodoTable } from "@hena/core/session/sql"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -28,6 +28,7 @@ const layer = Layer.effect(
     const { db } = yield* Database.Service
 
     const update = Effect.fn("Todo.update")(function* (input: { sessionID: SessionID; todos: ReadonlyArray<Info> }) {
+      yield* repairMissingIDs(db, input.sessionID)
       const existing = yield* db
         .select({ id: TodoTable.id })
         .from(TodoTable)
@@ -48,6 +49,7 @@ const layer = Layer.effect(
     })
 
     const get = Effect.fn("Todo.get")(function* (sessionID: SessionID) {
+      yield* repairMissingIDs(db, sessionID)
       const rows = yield* db
         .select()
         .from(TodoTable)
@@ -67,6 +69,21 @@ const layer = Layer.effect(
   }),
 )
 
-export const node = LayerNode.make({ service: Service, layer: layer, deps: [EventV2Bridge.node, Database.node, SessionProjector.node] })
+export const node = LayerNode.make({
+  service: Service,
+  layer: layer,
+  deps: [EventV2Bridge.node, Database.node, SessionProjector.node],
+})
+
+function repairMissingIDs(db: Database.Interface["db"], sessionID: SessionID) {
+  return db
+    .run(
+      sql`
+    UPDATE todo SET id = 'todo_' || lower(hex(randomblob(16)))
+    WHERE session_id = ${sessionID} AND id IS NULL
+  `,
+    )
+    .pipe(Effect.orDie)
+}
 
 export * as Todo from "./todo"

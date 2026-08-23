@@ -51,6 +51,15 @@ export function createOnlineRequestStore() {
     authoritative(kind: Kind, id: string) {
       return resolutions.get(`${kind}:${id}`) ?? scoped(collection(kind), "").get(id) ?? { status: "missing" }
     },
+    interrupt(sessionID: string) {
+      const targets = ["permissions", "questions"] as const
+      targets.forEach((target) => {
+        const scopedRows = scoped(target, "")
+        const removed = Array.from(scopedRows).filter(([, row]) => row.sessionID === sessionID)
+        removed.forEach(([id]) => scopedRows.delete(id))
+        if (removed.length > 0) changed(target, "")
+      })
+    },
     serialize<T>(kind: Kind, id: string, reply: () => Promise<T>) {
       const key = `${kind}:${id}`
       const result = (replies.get(key) ?? Promise.resolve()).then(reply, reply)
@@ -59,7 +68,11 @@ export function createOnlineRequestStore() {
         if (replies.get(key) === result) replies.delete(key)
       })
     },
-    replace(target: VolatileCollection, scopeKey: string, incoming: readonly { key: string; row: Record<string, unknown> }[]) {
+    replace(
+      target: VolatileCollection,
+      scopeKey: string,
+      incoming: readonly { key: string; row: Record<string, unknown> }[],
+    ) {
       rows.set(sourceKey(target, scopeKey), new Map(incoming.map((row) => [row.key, row.row])))
       changed(target, scopeKey)
     },
@@ -104,8 +117,14 @@ function sourceKey(collection: VolatileCollection, scopeKey: string) {
 }
 
 function isRequestEvent(data: unknown): data is { id: string; sessionID: string } & Record<string, unknown> {
-  return typeof data === "object" && data !== null && "id" in data && typeof data.id === "string" &&
-    "sessionID" in data && typeof data.sessionID === "string"
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    "id" in data &&
+    typeof data.id === "string" &&
+    "sessionID" in data &&
+    typeof data.sessionID === "string"
+  )
 }
 
 function isResolutionEvent(data: unknown): data is { requestID: string } & Record<string, unknown> {

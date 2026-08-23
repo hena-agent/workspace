@@ -113,11 +113,10 @@ export function bootstrapCollections(database: SyncDatabase) {
   const sessionsChanged = database.collections.hydrate(
     "sessions",
     "",
-    sessions.map((session) => ({
-      key: session.id,
-      revision: String(session.time_updated),
-      row: sessionRow(session),
-    })),
+    sessions.map((session) => {
+      const row = sessionRow(session)
+      return { key: session.id, revision: fingerprint(row), row }
+    }),
   )
   const messages = database.raw
     .query<MessageRow, []>("SELECT id, session_id, type, data FROM session_message ORDER BY seq")
@@ -140,11 +139,17 @@ export function bootstrapCollections(database: SyncDatabase) {
     ),
   )
   const sessionIDs = new Set(sessions.map((session) => session.id))
-  const staleSessionIDs = database.raw.query<{ session_id: string }, []>(`
+  const staleSessionIDs = database.raw
+    .query<{ session_id: string }, []>(
+      `
     SELECT scope_key AS session_id FROM collection_row
     WHERE collection IN ('messages', 'parts', 'sessionInputs', 'todos')
     UNION SELECT session_id FROM full_content
-  `).all().map((row) => row.session_id).filter((sessionID) => !sessionIDs.has(sessionID))
+  `,
+    )
+    .all()
+    .map((row) => row.session_id)
+    .filter((sessionID) => !sessionIDs.has(sessionID))
   const staleSessionCollectionsChanged = staleSessionIDs.flatMap((sessionID) => {
     database.raw.query("DELETE FROM full_content WHERE session_id = ?").run(sessionID)
     return SessionCollections.map((collection) => database.collections.hydrate(collection, sessionID, []))
@@ -164,8 +169,13 @@ export function bootstrapCollections(database: SyncDatabase) {
     "",
     Array.from(locations, ([key, row]) => ({ key, row, revision: "1" })),
   )
-  return projectsChanged || sessionsChanged || locationsChanged ||
-    sessionCollectionsChanged.some(Boolean) || staleSessionCollectionsChanged.some(Boolean)
+  return (
+    projectsChanged ||
+    sessionsChanged ||
+    locationsChanged ||
+    sessionCollectionsChanged.some(Boolean) ||
+    staleSessionCollectionsChanged.some(Boolean)
+  )
 }
 
 function hydrateSessionCollections(
@@ -236,12 +246,7 @@ function hydrateSessionCollections(
   return messagesChanged || partsChanged || inputsChanged || todosChanged
 }
 
-function projectPrompt(
-  database: SyncDatabase,
-  sessionID: string,
-  inputID: string,
-  prompt: PromptInput.Prompt,
-) {
+function projectPrompt(database: SyncDatabase, sessionID: string, inputID: string, prompt: PromptInput.Prompt) {
   if (!prompt.files) return prompt
   const revision = fingerprint(prompt)
   return {
@@ -359,6 +364,23 @@ export async function bootstrapLocationCollections(
       )
     }),
   )
+}
+
+export function createLocationCollectionRefresh(
+  database: SyncDatabase,
+  domain: CoreDomain,
+  online: OnlineRequestStore,
+  onError: (cause: unknown) => void = () => {},
+) {
+  let pending = Promise.resolve()
+  return {
+    run() {
+      const current = pending.then(() => bootstrapLocationCollections(database, domain, online))
+      pending = current.catch(onError)
+      return current
+    },
+    idle: () => pending,
+  }
 }
 
 function sessionRow(session: SessionRow) {

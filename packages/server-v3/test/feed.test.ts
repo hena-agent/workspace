@@ -32,4 +32,10 @@ describe("feed", () => {
     expect(database.feed.get()).toMatchObject({ feedId, retainedFloor: 0 })
     expect(database.changes.current()).toBe(0)
   })
+
+  test("configures a busy timeout for concurrent SQLite writers", () => {
+    database = createTestDatabase().database
+
+    expect(database.raw.query<{ timeout: number }, []>("PRAGMA busy_timeout").get()).toEqual({ timeout: 5000 })
+  })
 })

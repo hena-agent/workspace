@@ -217,18 +217,26 @@ const layer = Layer.effectDiscard(
     const { db } = yield* Database.Service
     yield* events.project(SessionTodo.Event.Updated, (event) =>
       Effect.gen(function* () {
-        const todos = event.data.todos.filter((todo): todo is typeof todo & { id: SessionTodo.ID } => todo.id !== undefined)
+        const todos = event.data.todos.filter(
+          (todo): todo is typeof todo & { id: SessionTodo.ID } => todo.id !== undefined,
+        )
         if (todos.length !== event.data.todos.length) return yield* Effect.die("Projected todos require IDs")
         yield* db.delete(TodoTable).where(eq(TodoTable.session_id, event.data.sessionID)).run().pipe(Effect.orDie)
         if (todos.length > 0)
-          yield* db.insert(TodoTable).values(todos.map((todo, position) => ({
-            id: todo.id,
-            session_id: event.data.sessionID,
-            content: todo.content,
-            status: todo.status,
-            priority: todo.priority,
-            position,
-          }))).run().pipe(Effect.orDie)
+          yield* db
+            .insert(TodoTable)
+            .values(
+              todos.map((todo, position) => ({
+                id: todo.id,
+                session_id: event.data.sessionID,
+                content: todo.content,
+                status: todo.status,
+                priority: todo.priority,
+                position,
+              })),
+            )
+            .run()
+            .pipe(Effect.orDie)
       }),
     )
     yield* events.project(SessionV1.Event.Created, (event) =>
@@ -435,13 +443,15 @@ const layer = Layer.effectDiscard(
           pending.some((row) => !event.data.messageIDs.includes(row.id))
         )
           return yield* Effect.die("Queued input order does not match pending inputs")
-        yield* Effect.forEach(event.data.messageIDs.map((id, queue_position) => ({ id, queue_position })), (input) =>
-          db
-            .update(SessionInputTable)
-            .set({ queue_position: input.queue_position })
-            .where(and(eq(SessionInputTable.session_id, event.data.sessionID), eq(SessionInputTable.id, input.id)))
-            .run()
-            .pipe(Effect.orDie),
+        yield* Effect.forEach(
+          event.data.messageIDs.map((id, queue_position) => ({ id, queue_position })),
+          (input) =>
+            db
+              .update(SessionInputTable)
+              .set({ queue_position: input.queue_position })
+              .where(and(eq(SessionInputTable.session_id, event.data.sessionID), eq(SessionInputTable.id, input.id)))
+              .run()
+              .pipe(Effect.orDie),
         )
         yield* incrementQueueRevision(db, event.data.sessionID)
       }),
@@ -505,7 +515,7 @@ const layer = Layer.effectDiscard(
           )
           .run()
           .pipe(Effect.orDie)
-        yield* db
+        const deleted = yield* db
           .delete(SessionInputTable)
           .where(
             and(
@@ -513,7 +523,8 @@ const layer = Layer.effectDiscard(
               or(gt(SessionInputTable.admitted_seq, boundary.seq), gt(SessionInputTable.promoted_seq, boundary.seq)),
             ),
           )
-          .run()
+          .returning({ id: SessionInputTable.id })
+          .all()
           .pipe(Effect.orDie)
         yield* db
           .update(SessionTable)
@@ -522,6 +533,7 @@ const layer = Layer.effectDiscard(
           .run()
           .pipe(Effect.orDie)
         yield* SessionContextEpoch.reset(db, event.data.sessionID)
+        if (deleted.length > 0) yield* incrementQueueRevision(db, event.data.sessionID)
       }),
     )
   }),

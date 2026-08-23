@@ -64,6 +64,14 @@ export default {
       yield* tx.run(`ALTER TABLE \`session_input\` ADD \`queue_position\` integer DEFAULT 0 NOT NULL;`)
       yield* tx.run(`UPDATE \`session_input\` SET \`queue_position\` = \`admitted_seq\`;`)
       yield* tx.run(`ALTER TABLE \`session\` ADD \`queue_revision\` integer DEFAULT 0 NOT NULL;`)
+      yield* tx.run(`
+        UPDATE \`session\`
+        SET \`queue_revision\` = (
+          SELECT COUNT(*) FROM \`event\`
+          WHERE \`event\`.\`aggregate_id\` = \`session\`.\`id\`
+            AND \`event\`.\`type\` IN ('session.next.prompt.admitted.1', 'session.next.prompted.1')
+        );
+      `)
       yield* tx.run(`ALTER TABLE \`todo\` ADD \`id\` text;`)
       yield* tx.run(`UPDATE \`todo\` SET \`id\` = 'todo_' || lower(hex(randomblob(16)));`)
       yield* tx.run(`PRAGMA foreign_keys=OFF;`)

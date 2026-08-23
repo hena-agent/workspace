@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import { Database } from "@hena/core/database/database"
-import { Effect } from "effect"
+import { DateTime, Effect } from "effect"
 import { sql } from "drizzle-orm"
-import { reconcileLocations } from "../src/core/collection-projector"
+import { projectCompactionStart, reconcileLocations } from "../src/core/collection-projector"
+import { SessionMessage } from "@hena/schema/session-message"
+import { Session } from "@hena/schema/session"
 
 describe("collection projector", () => {
   test("removes an unused location after a session moves", async () => {
@@ -28,15 +30,46 @@ describe("collection projector", () => {
 
         yield* reconcileLocations(database, "tx_1")
 
-        expect(yield* database.all<{ row_key: string }>(sql`
+        expect(
+          yield* database.all<{ row_key: string }>(sql`
           SELECT row_key FROM collection_row WHERE collection = 'locations' ORDER BY row_key
-        `)).toEqual([
-          { row_key: '{"directory":"/new"}' },
-          { row_key: '{"directory":"/project"}' },
-        ])
-        expect(yield* database.get(sql`
+        `),
+        ).toEqual([{ row_key: '{"directory":"/new"}' }, { row_key: '{"directory":"/project"}' }])
+        expect(
+          yield* database.get(sql`
           SELECT op, row_key FROM collection_change WHERE txid = 'tx_1' AND op = 'delete'
-        `)).toEqual({ op: "delete", row_key: '{"directory":"/old"}' })
+        `),
+        ).toEqual({ op: "delete", row_key: '{"directory":"/old"}' })
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
+  test("projects a provisional compaction row for live deltas", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(sql`
+          INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
+          VALUES (1, 'feed', 0, 'runtime')
+        `)
+
+        yield* projectCompactionStart(
+          database,
+          {
+            sessionID: Session.ID.make("ses_1"),
+            messageID: SessionMessage.ID.make("msg_compaction"),
+            timestamp: DateTime.makeUnsafe(1),
+            reason: "auto",
+          },
+          "tx_1",
+        )
+
+        expect(
+          yield* database.get<{ row: string }>(sql`
+          SELECT row FROM collection_row
+          WHERE collection = 'messages' AND scope_key = 'ses_1' AND row_key = 'msg_compaction'
+        `),
+        ).toMatchObject({ row: expect.stringContaining('"type":"compaction"') })
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
     )
   })

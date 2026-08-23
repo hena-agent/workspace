@@ -21,11 +21,15 @@ const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const events = yield* EventV2.Service
     const database = yield* Database.Service
-    for (const definition of SessionEvent.DurableDefinitions)
+    for (const definition of SessionEvent.DurableDefinitions) {
+      if (definition.type === SessionEvent.Compaction.Started.type) continue
       yield* events.project(definition, (event) => {
         const sessionID = sessionId(event.data)
-        return sessionID ? refresh(database.db, sessionID, event.type === SessionEvent.Moved.type) : Effect.void
+        if (!sessionID) return Effect.void
+        return refresh(database.db, sessionID, event.type === SessionEvent.Moved.type)
       })
+    }
+    yield* events.project(SessionEvent.Compaction.Started, (event) => refreshCompactionStart(database.db, event))
     yield* events.project(SessionTodo.Event.Updated, (event) =>
       refreshTodos(database.db, decodeTodoUpdate(event.data).sessionID, crypto.randomUUID()).pipe(Effect.orDie),
     )
@@ -47,23 +51,18 @@ const decodeMessage = Schema.decodeUnknownSync(SessionMessage.Message)
 const encodeMessage = Schema.encodeSync(SessionMessage.Message)
 const decodeTodoUpdate = Schema.decodeUnknownSync(SessionTodo.Event.Updated.data)
 
-function refresh(database: DatabaseService, sessionID: string, moved: boolean) {
+function refresh(database: DatabaseService, sessionID: string, moved: boolean, mutationTxid?: string) {
   return Effect.gen(function* () {
-    const txid = (yield* MutationTxid) ?? crypto.randomUUID()
+    const txid = mutationTxid ?? (yield* MutationTxid) ?? crypto.randomUUID()
     const session = yield* database
       .select()
       .from(SessionTable)
       .where(eq(SessionTable.id, Session.ID.make(sessionID)))
       .get()
-    if (session)
-      yield* replaceScope(
-        database,
-        "sessions",
-        "",
-        [{ key: session.id, row: encodeSession(fromRow(session)), revision: String(session.time_updated) }],
-        txid,
-        false,
-      )
+    if (session) {
+      const row = encodeSession(fromRow(session))
+      yield* replaceScope(database, "sessions", "", [{ key: session.id, row, revision: fingerprint(row) }], txid, false)
+    }
     if (!session) yield* removeScopeRow(database, "sessions", "", sessionID, txid)
     if (session) {
       const project = yield* database.select().from(ProjectTable).where(eq(ProjectTable.id, session.project_id)).get()
@@ -72,40 +71,46 @@ function refresh(database: DatabaseService, sessionID: string, moved: boolean) {
           database,
           "projects",
           "",
-          [{
-            key: project.id,
-            revision: String(project.time_updated),
-            row: {
-              id: project.id,
-              worktree: project.worktree,
-              vcs: project.vcs ?? undefined,
-              name: project.name ?? undefined,
-              icon:
-                project.icon_url || project.icon_url_override || project.icon_color
-                  ? {
-                      url: project.icon_url ?? undefined,
-                      override: project.icon_url_override ?? undefined,
-                      color: project.icon_color ?? undefined,
-                    }
-                  : undefined,
-              commands: project.commands ?? undefined,
-              sandboxes: project.sandboxes,
-              time: {
-                created: project.time_created,
-                updated: project.time_updated,
-                initialized: project.time_initialized ?? undefined,
+          [
+            {
+              key: project.id,
+              revision: String(project.time_updated),
+              row: {
+                id: project.id,
+                worktree: project.worktree,
+                vcs: project.vcs ?? undefined,
+                name: project.name ?? undefined,
+                icon:
+                  project.icon_url || project.icon_url_override || project.icon_color
+                    ? {
+                        url: project.icon_url ?? undefined,
+                        override: project.icon_url_override ?? undefined,
+                        color: project.icon_color ?? undefined,
+                      }
+                    : undefined,
+                commands: project.commands ?? undefined,
+                sandboxes: project.sandboxes,
+                time: {
+                  created: project.time_created,
+                  updated: project.time_updated,
+                  initialized: project.time_initialized ?? undefined,
+                },
               },
             },
-          }],
+          ],
           txid,
           false,
         )
     }
-    const locationKey = session && JSON.stringify({
-      directory: session.directory,
-      ...(session.workspace_id ? { workspaceID: session.workspace_id } : {}),
-    })
-    const location = locationKey && (yield* database.get(sql`
+    const locationKey =
+      session &&
+      JSON.stringify({
+        directory: session.directory,
+        ...(session.workspace_id ? { workspaceID: session.workspace_id } : {}),
+      })
+    const location =
+      locationKey &&
+      (yield* database.get(sql`
       SELECT 1 FROM collection_row WHERE collection = 'locations' AND scope_key = '' AND row_key = ${locationKey}
     `))
     if (!session || moved || !location) yield* reconcileLocations(database, txid)
@@ -173,16 +178,51 @@ function refresh(database: DatabaseService, sessionID: string, moved: boolean) {
         }
       }),
     )
-    yield* replaceScope(
-      database,
-      "sessionInputs",
-      sessionID,
-      projectedInputs,
-      txid,
-    )
+    yield* replaceScope(database, "sessionInputs", sessionID, projectedInputs, txid)
     yield* refreshTodos(database, sessionID, txid)
     if (!session) yield* database.run(sql`DELETE FROM full_content WHERE session_id = ${sessionID}`)
   }).pipe(Effect.orDie)
+}
+
+function refreshCompactionStart(database: DatabaseService, event: typeof SessionEvent.Compaction.Started.Type) {
+  return Effect.gen(function* () {
+    const txid = (yield* MutationTxid) ?? crypto.randomUUID()
+    yield* refresh(database, event.data.sessionID, false, txid)
+    yield* projectCompactionStart(
+      database,
+      {
+        ...event.data,
+        metadata: event.metadata,
+      },
+      txid,
+    )
+  }).pipe(Effect.orDie)
+}
+
+export function projectCompactionStart(
+  database: DatabaseService,
+  input: (typeof SessionEvent.Compaction.Started.Type)["data"] & { metadata?: Record<string, unknown> },
+  txid: string,
+) {
+  const row = encodeMessage(
+    SessionMessage.Compaction.make({
+      id: input.messageID,
+      type: "compaction",
+      metadata: input.metadata,
+      reason: input.reason,
+      summary: "",
+      recent: "",
+      time: { created: input.timestamp },
+    }),
+  )
+  return replaceScope(
+    database,
+    "messages",
+    input.sessionID,
+    [{ key: input.messageID, row, revision: fingerprint(row) }],
+    txid,
+    false,
+  )
 }
 
 function refreshTodos(database: DatabaseService, sessionID: string, txid: string) {
@@ -213,13 +253,15 @@ export function reconcileLocations(database: DatabaseService, txid: string) {
       .select({ directory: SessionTable.directory, workspaceID: SessionTable.workspace_id })
       .from(SessionTable)
       .all()
-    const locations = new Map([
-      ...projects.map((project) => ({ directory: project.directory })),
-      ...sessions.map((session) => ({
-        directory: session.directory,
-        ...(session.workspaceID ? { workspaceID: session.workspaceID } : {}),
-      })),
-    ].map((location) => [JSON.stringify(location), location]))
+    const locations = new Map(
+      [
+        ...projects.map((project) => ({ directory: project.directory })),
+        ...sessions.map((session) => ({
+          directory: session.directory,
+          ...(session.workspaceID ? { workspaceID: session.workspaceID } : {}),
+        })),
+      ].map((location) => [JSON.stringify(location), location]),
+    )
     yield* replaceScope(
       database,
       "locations",

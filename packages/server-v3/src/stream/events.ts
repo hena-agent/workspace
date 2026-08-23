@@ -5,7 +5,7 @@ import { error } from "../http/error"
 import type { SyncDatabase } from "../storage/database"
 import { createFrameFactory } from "./frame"
 import type { StreamRegistry } from "../routes/streams"
-import type { DeltaHub } from "./delta"
+import type { Delta, DeltaHub } from "./delta"
 import type { OnlineRequestStore, VolatileCollection } from "../core/online-requests"
 import { fitsPage, pages } from "./pages"
 import type { Change } from "../storage/changes"
@@ -39,7 +39,9 @@ export function events(
     const replay = new Map<number, Change>()
     let live = false
     let volatileLive = false
+    let deltaLive = false
     const pendingVolatile = new Set<string>()
+    const pendingDeltas: Delta[] = []
     let writes = Promise.resolve()
     let queuedBytes = 0
     let ending = false
@@ -77,6 +79,10 @@ export function events(
     }
     const unsubscribeDeltas = Array.from(new Set(subscription.sessions), (sessionID) =>
       deltas.subscribe(sessionID, (delta) => {
+        if (!deltaLive) {
+          pendingDeltas.push(delta)
+          return
+        }
         enqueue("delta", { type: "delta", ...delta })
       }),
     )
@@ -288,7 +294,10 @@ export function events(
       await writeFrames(snapshotFrames(item.scope, item.snapshot))
     }
 
-    groupTransactions(Array.from(replay.values()).sort((left, right) => left.seq - right.seq)).forEach(enqueueChanges)
+    for (const changes of groupTransactions(Array.from(replay.values()).sort((left, right) => left.seq - right.seq))) {
+      enqueueChanges(changes)
+      await writes
+    }
 
     live = true
     volatileLive = true
@@ -296,6 +305,8 @@ export function events(
       .filter((changes) => changes.some((change) => change.seq > (through.get(scopeKey(change)) ?? 0)))
       .sort((left, right) => left[0].seq - right[0].seq)
       .forEach(enqueueChanges)
+    pendingDeltas.forEach((delta) => enqueue("delta", { type: "delta", ...delta }))
+    deltaLive = true
     pendingVolatile.forEach((key) => {
       const [collection, scopeKey] = key.split("\u0000") as [VolatileCollection, string]
       enqueueVolatile({ collection, scopeKey })

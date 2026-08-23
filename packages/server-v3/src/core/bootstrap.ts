@@ -307,7 +307,7 @@ export async function bootstrapLocationCollections(
   domain: CoreDomain,
   online: OnlineRequestStore,
 ) {
-  await Promise.all(
+  const results = await Promise.allSettled(
     database.collections.snapshot("locations", "").rows.map(async (location) => {
       const ref = location.row as { directory: string; workspaceID?: string }
       const catalog = await domain.catalog(ref)
@@ -363,6 +363,8 @@ export async function bootstrapLocationCollections(
       )
     }),
   )
+  const rejected = results.find((result) => result.status === "rejected")
+  if (rejected) throw rejected.reason
 }
 
 export function createLocationCollectionRefresh(

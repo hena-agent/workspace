@@ -265,4 +265,32 @@ describe("collection bootstrap", () => {
 
     expect(online.snapshot("agents", '{"directory":"/repo"}').rows[0]?.row).toMatchObject({ id: "build-2" })
   })
+
+  test("waits for every location when a catalog refresh fails", async () => {
+    database = createTestDatabase().database
+    database.collections.hydrate("locations", "", [
+      { key: '{"directory":"/fail"}', row: { directory: "/fail" }, revision: "1" },
+      { key: '{"directory":"/slow"}', row: { directory: "/slow" }, revision: "1" },
+    ])
+    const slow = Promise.withResolvers<void>()
+    const domain = {
+      ...unavailableCoreDomain(),
+      catalog: async (location: { directory: string }) => {
+        if (location.directory === "/fail") throw new Error("failed")
+        await slow.promise
+        return { agents: [], models: [], providers: [] }
+      },
+    }
+    let settled = false
+
+    const refresh = bootstrapLocationCollections(database, domain, createOnlineRequestStore()).catch(() => {
+      settled = true
+    })
+    await Bun.sleep(10)
+
+    expect(settled).toBe(false)
+    slow.resolve()
+    await refresh
+    expect(settled).toBe(true)
+  })
 })

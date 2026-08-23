@@ -77,10 +77,10 @@ export const AdmitPrompt = Schema.Struct({
 export interface FileListQuery extends Schema.Schema.Type<typeof FileListQuery> {}
 export const FileListQuery = Schema.Struct({
   directory: AbsolutePath.check(Schema.isPattern(/^(?:\/|[A-Za-z]:[\\/]|\\\\)/)),
-  workspaceID: Schema.String.pipe(optional),
-  path: RelativePath.check(
-    Schema.isPattern(/^(?![\\/]|[A-Za-z]:[\\/])(?!(?:.*[\\/])?\.\.(?:[\\/]|$)).*$/),
-  ).pipe(optional),
+  workspaceID: Location.Ref.fields.workspaceID,
+  path: RelativePath.check(Schema.isPattern(/^(?![\\/]|[A-Za-z]:[\\/])(?!(?:.*[\\/])?\.\.(?:[\\/]|$)).*$/)).pipe(
+    optional,
+  ),
   limit: Schema.NumberFromString.check(
     Schema.isInt(),
     Schema.isGreaterThanOrEqualTo(1),
@@ -91,7 +91,7 @@ export const FileListQuery = Schema.Struct({
 export interface FileFindQuery extends Schema.Schema.Type<typeof FileFindQuery> {}
 export const FileFindQuery = Schema.Struct({
   directory: AbsolutePath.check(Schema.isPattern(/^(?:\/|[A-Za-z]:[\\/]|\\\\)/)),
-  workspaceID: Schema.String.pipe(optional),
+  workspaceID: Location.Ref.fields.workspaceID,
   query: Schema.String,
   type: Schema.Literals(["file", "directory"]).pipe(optional),
   limit: Schema.NumberFromString.check(
@@ -134,7 +134,8 @@ export const QuestionReply = Schema.Struct({
 export function canonicalJson(value: unknown): string {
   if (value === undefined) throw new TypeError("Cannot canonicalize undefined")
   if (value === null || typeof value !== "object") return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map((entry) => entry === undefined ? "null" : canonicalJson(entry)).join(",")}]`
+  if (Array.isArray(value))
+    return `[${value.map((entry) => (entry === undefined ? "null" : canonicalJson(entry))).join(",")}]`
   return `{${Object.entries(value)
     .filter(([, entry]) => entry !== undefined)
     .sort(([left], [right]) => left.localeCompare(right))

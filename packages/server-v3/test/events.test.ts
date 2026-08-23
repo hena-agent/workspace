@@ -126,6 +126,62 @@ describe("collection events", () => {
     expect(output).not.toContain("slow_consumer")
   })
 
+  test("paces cursor replay beyond the live backpressure limit", async () => {
+    database = createTestDatabase().database
+    Array.from({ length: 5 }, (_, index) =>
+      database!.collections.write({
+        collection: "messages",
+        scopeKey: "session-1",
+        rowKey: `message-${index}`,
+        row: { id: `message-${index}`, text: "x".repeat(900 * 1024) },
+        revision: "1",
+      }),
+    )
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app, {
+      "messages:session-1": { feedId: database.feed.get().feedId, seq: 0 },
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+
+    while (!output.includes("message-4") && !output.includes("slow_consumer")) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      output += decoder.decode(chunk.value)
+    }
+    await reader.cancel()
+
+    expect(output).toContain("message-4")
+    expect(output).not.toContain("slow_consumer")
+  })
+
+  test("buffers deltas until initial snapshots finish", async () => {
+    database = createTestDatabase().database
+    const deltas = createDeltaHub()
+    const app = createApp({ database, deltas })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 1)
+      output += decoder.decode((await reader.read()).value)
+
+    deltas.publish({
+      sessionId: "session-1",
+      messageId: "message-1",
+      partId: "part-1",
+      partKind: "text",
+      text: "hello",
+    })
+    while (!output.includes("event: delta")) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output.slice(0, output.indexOf("event: delta")).match(/event: snapshot.end/g)).toHaveLength(4)
+  })
+
   test("subscribes once per distinct delta session", async () => {
     database = createTestDatabase().database
     const deltas = createDeltaHub()

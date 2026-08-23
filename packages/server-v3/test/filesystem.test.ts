@@ -15,7 +15,7 @@ describe("filesystem reads", () => {
     const response = await createApp({ database, domain }).request("/api/fs/find?directory=%2Ftmp%2Fproject&query=src&type=file&limit=20")
 
     expect(response.status).toBe(200)
-    expect(domain.finds).toEqual([{ directory: "/tmp/project", query: "src", type: "file", limit: "20" }])
+    expect(domain.finds).toEqual([{ directory: "/tmp/project", query: "src", type: "file", limit: 20 }])
     expect(await response.json()).toEqual({ data: [{ path: "src/main.ts", type: "file" }] })
   })
 
@@ -24,6 +24,19 @@ describe("filesystem reads", () => {
     const response = await createApp({ database, domain: fileDomain() }).request("/api/fs/list")
 
     expect(response.status).toBe(400)
+  })
+
+  test("rejects invalid paths and limits before calling the domain", async () => {
+    database = createTestDatabase().database
+    const domain = fileDomain()
+    const responses = await Promise.all([
+      createApp({ database, domain }).request("/api/fs/list?directory=%2Ftmp%2Fproject&path=..%2Fsecret"),
+      createApp({ database, domain }).request("/api/fs/find?directory=%2Ftmp%2Fproject&query=src&limit=0"),
+      createApp({ database, domain }).request("/api/fs/find?directory=relative&query=src&limit=20"),
+    ])
+
+    expect(responses.map((response) => response.status)).toEqual([400, 400, 400])
+    expect(domain.finds).toEqual([])
   })
 })
 

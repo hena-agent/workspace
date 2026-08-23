@@ -15,7 +15,7 @@ export type Info = SessionTodo.Info
 export const Event = SessionTodo.Event
 
 export interface Interface {
-  readonly update: (input: { sessionID: SessionID; todos: ReadonlyArray<Info> }) => Effect.Effect<void>
+  readonly update: (input: { sessionID: SessionID; todos: ReadonlyArray<Info> }) => Effect.Effect<Info[]>
   readonly get: (sessionID: SessionID) => Effect.Effect<Info[]>
 }
 
@@ -28,8 +28,23 @@ const layer = Layer.effect(
     const { db } = yield* Database.Service
 
     const update = Effect.fn("Todo.update")(function* (input: { sessionID: SessionID; todos: ReadonlyArray<Info> }) {
-      const todos = input.todos.map((todo) => ({ ...todo, id: todo.id ?? SessionTodo.ID.create() }))
+      const existing = yield* db
+        .select({ id: TodoTable.id })
+        .from(TodoTable)
+        .where(eq(TodoTable.session_id, input.sessionID))
+        .orderBy(asc(TodoTable.position))
+        .all()
+        .pipe(Effect.orDie)
+      const todos = input.todos.map((todo, index) => ({
+        ...todo,
+        id:
+          todo.id ??
+          (existing[index] && !input.todos.some((item) => item.id === existing[index]!.id)
+            ? existing[index].id
+            : SessionTodo.ID.create()),
+      }))
       yield* events.publish(Event.Updated, { ...input, todos })
+      return todos
     })
 
     const get = Effect.fn("Todo.get")(function* (sessionID: SessionID) {

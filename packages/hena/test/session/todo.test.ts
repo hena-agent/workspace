@@ -1,0 +1,53 @@
+import { describe, expect } from "bun:test"
+import { Database } from "@hena/core/database/database"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { Project } from "@hena/core/project"
+import { ProjectTable } from "@hena/core/project/sql"
+import { AbsolutePath } from "@hena/core/schema"
+import { SessionTable } from "@hena/core/session/sql"
+import { Effect } from "effect"
+import { Todo } from "@/session/todo"
+import { SessionID } from "@/session/schema"
+import { testEffect } from "../lib/effect"
+
+const it = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, Todo.node])))
+const sessionID = SessionID.make("ses_legacy_todo")
+
+describe("legacy session todos", () => {
+  it.effect("reuses persisted IDs for updates that omit them", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          project_id: Project.ID.global,
+          slug: "todo",
+          directory: "/project",
+          title: "todo",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+      const todos = yield* Todo.Service
+
+      const initial = yield* todos.update({
+        sessionID,
+        todos: [{ content: "first", status: "pending", priority: "high" }],
+      })
+      const updated = yield* todos.update({
+        sessionID,
+        todos: [{ content: "changed", status: "in_progress", priority: "medium" }],
+      })
+
+      expect(updated[0]?.id).toBe(initial[0]?.id)
+      expect(updated[0]?.content).toBe("changed")
+    }),
+  )
+})

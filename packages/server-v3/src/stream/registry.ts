@@ -51,6 +51,7 @@ export function createStreamRegistry(config: { graceMs: number; now?: () => numb
       if (!resource) return undefined
       if (resource.subscription && subscription.revision <= resource.subscription.revision) throw new StreamRevisionConflict()
       resource.subscription = subscription
+      resource.disconnect?.()
       return subscription
     },
     attach(principal: string, id: string) {

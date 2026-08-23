@@ -1,4 +1,4 @@
-import { isAbsolute, normalize, resolve } from "node:path"
+import { isAbsolute, normalize, resolve, sep } from "node:path"
 import { Hono } from "hono"
 
 export function createStaticRoutes(publicDir: string) {
@@ -15,8 +15,10 @@ export function createStaticRoutes(publicDir: string) {
 
 function safePath(root: string, pathname: string) {
   const relative = normalize(decodeURIComponent(pathname)).replace(/^[/\\]+/, "")
-  const target = resolve(root, relative)
-  if (isAbsolute(relative) || !target.startsWith(`${resolve(root)}/`)) return undefined
+  const base = resolve(root)
+  const target = resolve(base, relative)
+  if (isAbsolute(relative) || target === base || !target.startsWith(base.endsWith(sep) ? base : `${base}${sep}`))
+    return undefined
   return target
 }
 

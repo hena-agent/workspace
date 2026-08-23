@@ -8,7 +8,6 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 import { LocationServiceMap } from "@hena/core/location-service-map"
 import { FileSystem } from "@hena/core/filesystem"
 import { Location } from "@hena/core/location"
-import { RelativePath } from "@hena/core/schema"
 import { EventV2 } from "@hena/core/event"
 import { PermissionV2 } from "@hena/core/permission"
 import { QuestionV2 } from "@hena/core/question"
@@ -183,7 +182,10 @@ export function createCoreDomain(
               resume: false,
             }),
           ),
-          targets: (admitted) => [{ collection: "sessionInputs", scopeKey: admitted.sessionID, rowKey: admitted.id }],
+          targets: (admitted) => [
+            { collection: "sessions", scopeKey: "", rowKey: admitted.sessionID },
+            { collection: "sessionInputs", scopeKey: admitted.sessionID, rowKey: admitted.id },
+          ],
           response: (admitted, receipt) => ({ admitted, receipt }),
         }).pipe(
           Effect.tap(() => SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(sessionID)))),
@@ -233,7 +235,7 @@ export function createCoreDomain(
       ),
     listFiles: (input) =>
       runtime.runPromise(
-        FileSystem.Service.use((fs) => fs.list({ path: input.path ? RelativePath.make(input.path) : undefined })).pipe(
+        FileSystem.Service.use((fs) => fs.list({ path: input.path })).pipe(
           Effect.provide(LocationServiceMap.Service.get(location(input))),
         ),
       ),
@@ -243,7 +245,7 @@ export function createCoreDomain(
           fs.find({
             query: input.query,
             type: input.type,
-            limit: input.limit ? parseLimit(input.limit) : undefined,
+            limit: input.limit,
           }),
         ).pipe(Effect.provide(LocationServiceMap.Service.get(location(input)))),
       ),
@@ -330,10 +332,4 @@ export function createCoreDomain(
 
 function location(input: { directory: string; workspaceID?: string }) {
   return Schema.decodeUnknownSync(Location.Ref)(input)
-}
-
-function parseLimit(input: string) {
-  const limit = Number(input)
-  if (!Number.isInteger(limit) || limit < 1 || limit > 1_000) throw new Error("limit must be between 1 and 1000")
-  return limit
 }

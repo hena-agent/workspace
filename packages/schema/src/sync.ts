@@ -1,7 +1,7 @@
 export * as Sync from "./sync"
 
 import { Schema } from "effect"
-import { NonNegativeInt, PositiveInt } from "./schema"
+import { AbsolutePath, NonNegativeInt, PositiveInt, RelativePath } from "./schema"
 import { optional } from "./schema"
 import { Location } from "./location"
 import { PromptInput } from "./prompt-input"
@@ -74,18 +74,24 @@ export const AdmitPrompt = Schema.Struct({
 
 export interface FileListQuery extends Schema.Schema.Type<typeof FileListQuery> {}
 export const FileListQuery = Schema.Struct({
-  directory: Schema.String,
+  directory: AbsolutePath.check(Schema.isPattern(/^(?:\/|[A-Za-z]:[\\/]|\\\\)/)),
   workspaceID: Schema.String.pipe(optional),
-  path: Schema.String.pipe(optional),
+  path: RelativePath.check(
+    Schema.isPattern(/^(?![\\/]|[A-Za-z]:[\\/])(?!(?:.*[\\/])?\.\.(?:[\\/]|$)).*$/),
+  ).pipe(optional),
 }).annotate({ identifier: "Sync.FileListQuery" })
 
 export interface FileFindQuery extends Schema.Schema.Type<typeof FileFindQuery> {}
 export const FileFindQuery = Schema.Struct({
-  directory: Schema.String,
+  directory: AbsolutePath.check(Schema.isPattern(/^(?:\/|[A-Za-z]:[\\/]|\\\\)/)),
   workspaceID: Schema.String.pipe(optional),
   query: Schema.String,
   type: Schema.Literals(["file", "directory"]).pipe(optional),
-  limit: Schema.String.pipe(optional),
+  limit: Schema.NumberFromString.check(
+    Schema.isInt(),
+    Schema.isGreaterThanOrEqualTo(1),
+    Schema.isLessThanOrEqualTo(1_000),
+  ).pipe(optional),
 }).annotate({ identifier: "Sync.FileFindQuery" })
 
 export interface CancelInput extends Schema.Schema.Type<typeof CancelInput> {}

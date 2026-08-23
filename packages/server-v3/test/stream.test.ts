@@ -59,4 +59,20 @@ describe("stream registry", () => {
     expect(disconnected).toBe(true)
     expect(streams.get("local", stream.id)).toBeUndefined()
   })
+
+  test("disconnects an active attachment when its subscription changes", () => {
+    const streams = createStreamRegistry({ graceMs: 1_000 })
+    const stream = streams.create("local")
+    streams.subscribe("local", stream.id, { revision: 1, lists: false, sessions: ["one"], cursors: {} })
+    const attached = streams.attach("local", stream.id)!
+    let disconnected = false
+    streams.bind("local", stream.id, attached.generation, () => {
+      disconnected = true
+    })
+
+    streams.subscribe("local", stream.id, { revision: 2, lists: false, sessions: ["two"], cursors: {} })
+
+    expect(disconnected).toBe(true)
+    expect(streams.get("local", stream.id)?.subscription?.sessions).toEqual(["two"])
+  })
 })

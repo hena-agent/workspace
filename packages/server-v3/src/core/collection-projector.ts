@@ -5,6 +5,7 @@ import { SessionEvent } from "@hena/core/session/event"
 import { fromRow } from "@hena/core/session/info"
 import { SessionProjector } from "@hena/core/session/projector"
 import { SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "@hena/core/session/sql"
+import { ProjectTable } from "@hena/core/project/sql"
 import { eq, sql } from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Session } from "@hena/schema/session"
@@ -65,6 +66,40 @@ function refresh(database: DatabaseService, sessionID: string) {
       )
     if (!session) yield* removeScopeRow(database, "sessions", "", sessionID, txid)
     if (session) {
+      const project = yield* database.select().from(ProjectTable).where(eq(ProjectTable.id, session.project_id)).get()
+      if (project)
+        yield* replaceScope(
+          database,
+          "projects",
+          "",
+          [{
+            key: project.id,
+            revision: String(project.time_updated),
+            row: {
+              id: project.id,
+              worktree: project.worktree,
+              vcs: project.vcs ?? undefined,
+              name: project.name ?? undefined,
+              icon:
+                project.icon_url || project.icon_url_override || project.icon_color
+                  ? {
+                      url: project.icon_url ?? undefined,
+                      override: project.icon_url_override ?? undefined,
+                      color: project.icon_color ?? undefined,
+                    }
+                  : undefined,
+              commands: project.commands ?? undefined,
+              sandboxes: project.sandboxes,
+              time: {
+                created: project.time_created,
+                updated: project.time_updated,
+                initialized: project.time_initialized ?? undefined,
+              },
+            },
+          }],
+          txid,
+          false,
+        )
       const location = {
         directory: session.directory,
         ...(session.workspace_id ? { workspaceID: session.workspace_id } : {}),

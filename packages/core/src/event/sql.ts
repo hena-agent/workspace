@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core"
+import { sql } from "drizzle-orm"
 import type { EventV2 } from "../event"
 
 export const EventSequenceTable = sqliteTable("event_sequence", {
@@ -21,5 +22,6 @@ export const EventTable = sqliteTable(
   (table) => [
     uniqueIndex("event_aggregate_seq_idx").on(table.aggregate_id, table.seq),
     index("event_aggregate_type_seq_idx").on(table.aggregate_id, table.type, table.seq),
+    index("event_type_message_id_idx").on(table.type, sql`json_extract(${table.data}, '$.messageID')`),
   ],
 )

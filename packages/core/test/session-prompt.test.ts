@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { DateTime, Effect, Fiber, Layer, Stream } from "effect"
-import { asc, eq } from "drizzle-orm"
+import { asc, eq, sql } from "drizzle-orm"
 import { Database } from "@hena/core/database/database"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
@@ -489,6 +489,13 @@ describe("SessionV2.prompt", () => {
       expect(conflict._tag).toBe("Session.PromptConflictError")
       expect(yield* admitted(messageID)).toBeUndefined()
       expect(yield* eventCount(EventV2.versionedType(SessionEvent.PromptAdmitted.type, 1))).toBe(1)
+      const { db } = yield* Database.Service
+      const plan = yield* db.all<{ detail: string }>(sql`
+        EXPLAIN QUERY PLAN SELECT seq, data FROM event
+        WHERE type = ${EventV2.versionedType(SessionEvent.PromptAdmitted.type, 1)}
+          AND json_extract(data, '$.messageID') = ${messageID}
+      `)
+      expect(plan.some((row) => row.detail.includes("event_type_message_id_idx"))).toBe(true)
     }),
   )
 

@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "9894264a-39e7-411f-bfe4-0c205a0c0403",
+  "id": "746d53e6-c0d5-4baf-8722-0f0fc2094720",
   "prevIds": [
-    "f14a9b18-8207-487e-a3d3-227e629ba9ad"
+    "9894264a-39e7-411f-bfe4-0c205a0c0403"
   ],
   "ddl": [
     {
@@ -2298,6 +2298,24 @@
       "where": null,
       "origin": "manual",
       "name": "event_aggregate_type_seq_idx",
+      "entityType": "indexes",
+      "table": "event"
+    },
+    {
+      "columns": [
+        {
+          "value": "type",
+          "isExpression": false
+        },
+        {
+          "value": "json_extract(\"data\", '$.messageID')",
+          "isExpression": true
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "event_type_message_id_idx",
       "entityType": "indexes",
       "table": "event"
     },

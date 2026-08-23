@@ -106,6 +106,23 @@ describe("session mutations", () => {
     expect(domain.calls).toEqual([])
   })
 
+  test("rejects data URI media types that cannot fit in a stream frame", async () => {
+    database = createTestDatabase().database
+    const domain = recordingDomain()
+    const response = await createApp({ database, domain }).request(`/api/session/${Session.ID.create()}/prompt`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        idempotencyKey: "large-media-type",
+        prompt: { text: "", files: [{ uri: `data:${"x".repeat(1024 * 1024)};base64,QQ==` }] },
+      }),
+    })
+
+    expect(response.status).toBe(413)
+    expect(await response.json()).toMatchObject({ error: { code: "payload_too_large" } })
+    expect(domain.calls).toEqual([])
+  })
+
   test("maps queue revision failures to the RPC error envelope", async () => {
     database = createTestDatabase().database
     const domain = recordingDomain()

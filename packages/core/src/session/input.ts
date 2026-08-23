@@ -1,10 +1,11 @@
 export * as SessionInput from "./input"
 
-import { and, asc, eq, isNull, lte } from "drizzle-orm"
+import { and, asc, eq, isNull, lte, sql } from "drizzle-orm"
 import { DateTime, Effect, Schema } from "effect"
 import { Admitted, Delivery } from "@hena/schema/session-input"
 import type { Database } from "../database/database"
-import type { EventV2 } from "../event"
+import { EventV2 } from "../event"
+import { EventTable } from "../event/sql"
 import { SessionEvent } from "./event"
 import { SessionMessage } from "./message"
 import { Prompt } from "./prompt"
@@ -34,6 +35,30 @@ export const find = Effect.fn("SessionInput.find")(function* (db: DatabaseServic
   return row === undefined ? undefined : fromRow(row)
 })
 
+const findHistorical = Effect.fn("SessionInput.findHistorical")(function* (db: DatabaseService, id: SessionMessage.ID) {
+  const row = yield* db
+    .select({ seq: EventTable.seq, data: EventTable.data })
+    .from(EventTable)
+    .where(
+      and(
+        eq(EventTable.type, EventV2.versionedType(SessionEvent.PromptAdmitted.type, 1)),
+        eq(sql<string>`json_extract(${EventTable.data}, '$.messageID')`, id),
+      ),
+    )
+    .get()
+    .pipe(Effect.orDie)
+  if (!row) return
+  const data = Schema.decodeUnknownSync(SessionEvent.PromptAdmitted.data)(row.data)
+  return Admitted.make({
+    admittedSeq: row.seq,
+    id: data.messageID,
+    sessionID: data.sessionID,
+    prompt: data.prompt,
+    delivery: data.delivery,
+    timeCreated: data.timestamp,
+  })
+})
+
 export class LifecycleConflict extends Schema.TaggedErrorClass<LifecycleConflict>()("SessionInput.LifecycleConflict", {
   id: SessionMessage.ID,
 }) {}
@@ -48,7 +73,7 @@ export const admit = Effect.fn("SessionInput.admit")(function* (
     readonly delivery: Delivery
   },
 ) {
-  const existing = yield* find(db, input.id)
+  const existing = (yield* find(db, input.id)) ?? (yield* findHistorical(db, input.id))
   if (existing !== undefined) return existing
   const timestamp = yield* DateTime.now
   return yield* events

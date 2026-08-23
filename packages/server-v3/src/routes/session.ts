@@ -71,9 +71,11 @@ function oversizedPrompt(prompt: PromptInput.Prompt) {
     ...prompt,
     files: prompt.files?.map((file) => {
       const uri = preview(file.uri)
-      if (!uri.truncated) return file
+      const dataMime = file.uri.match(/^data:([^;,]+)[;,]/i)?.[1]
+      const normalized = dataMime ? { ...file, mime: dataMime } : file
+      if (!uri.truncated) return normalized
       return {
-        ...file,
+        ...normalized,
         uri: uri.text,
         truncated: true,
         content: { id: "x".repeat(64), revision: "x".repeat(64), bytes: uri.totalBytes },

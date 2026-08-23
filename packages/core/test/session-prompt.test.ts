@@ -454,6 +454,44 @@ describe("SessionV2.prompt", () => {
     }),
   )
 
+  it.effect("reconciles canceled prompt IDs only for exact retries", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const original = yield* session.prompt({
+        id: messageID,
+        sessionID,
+        prompt: Prompt.make({ text: "Original" }),
+        delivery: "queue",
+        resume: false,
+      })
+      yield* session.cancelInput({ sessionID, messageID, expectedRevision: 1 })
+
+      expect(
+        yield* session.prompt({
+          id: messageID,
+          sessionID,
+          prompt: Prompt.make({ text: "Original" }),
+          delivery: "queue",
+          resume: false,
+        }),
+      ).toEqual(original)
+      const conflict = yield* session
+        .prompt({
+          id: messageID,
+          sessionID,
+          prompt: Prompt.make({ text: "Different" }),
+          delivery: "queue",
+          resume: false,
+        })
+        .pipe(Effect.flip)
+
+      expect(conflict._tag).toBe("Session.PromptConflictError")
+      expect(yield* admitted(messageID)).toBeUndefined()
+      expect(yield* eventCount(EventV2.versionedType(SessionEvent.PromptAdmitted.type, 1))).toBe(1)
+    }),
+  )
+
   it.effect("returns one recorded message to concurrent exact retries", () =>
     Effect.gen(function* () {
       yield* setup

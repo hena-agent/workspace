@@ -196,7 +196,10 @@ export function createCoreDomain(
               expectedRevision: input.expectedRevision,
             }),
           ),
-          targets: () => [{ collection: "sessions", scopeKey: "", rowKey: sessionID }],
+          targets: () => [
+            { collection: "sessions", scopeKey: "", rowKey: sessionID },
+            { collection: "sessionInputs", scopeKey: sessionID, rowKey: messageID },
+          ],
           response: (revision, receipt) => ({ revision, receipt }),
         }),
       ),
@@ -213,7 +216,10 @@ export function createCoreDomain(
               expectedRevision: input.expectedRevision,
             }),
           ),
-          targets: () => [{ collection: "sessions", scopeKey: "", rowKey: sessionID }],
+          targets: () => [
+            { collection: "sessions", scopeKey: "", rowKey: sessionID },
+            { collection: "sessionInputs", scopeKey: sessionID },
+          ],
           response: (revision, receipt) => ({ revision, receipt }),
         }),
       ),

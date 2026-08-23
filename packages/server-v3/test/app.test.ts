@@ -109,4 +109,21 @@ describe("app", () => {
     expect(response.status).toBe(409)
     expect(await response.json()).toEqual({ error: { code: "subscription_revision_conflict", message: "Subscription revisions must increase" } })
   })
+
+  test("does not attach a stream before it has a subscription", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const created = await app.request("/api/collection/streams", { method: "POST" })
+    const stream = await created.json() as { streamId: string }
+
+    const events = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const subscribed = await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revision: 1, lists: false, sessions: [], cursors: {} }),
+    })
+
+    expect(events.status).toBe(409)
+    expect(await subscribed.json()).toMatchObject({ generation: 0 })
+  })
 })

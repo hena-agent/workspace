@@ -16,10 +16,12 @@ export function events(
   deltas: DeltaHub,
   online: OnlineRequestStore,
 ) {
-  const resource = streams.attach("local", c.req.param("streamId"))
+  const existing = streams.get("local", c.req.param("streamId"))
+  if (!existing) return error(c, 404, "not_found", "Stream not found")
+  if (!existing.subscription) return error(c, 409, "conflict", "Subscribe before attaching")
+  const resource = streams.attach("local", existing.id)
   if (!resource) return error(c, 404, "not_found", "Stream not found")
-  if (!resource.subscription) return error(c, 409, "conflict", "Subscribe before attaching")
-  const subscription = resource.subscription
+  const subscription = existing.subscription
   const frame = createFrameFactory({ database, streamId: resource.id, generation: resource.generation, subscription })
 
   c.header("Cache-Control", "no-store")

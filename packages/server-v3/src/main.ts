@@ -12,7 +12,7 @@ if (import.meta.main) await start()
 
 export const Hostname = "127.0.0.1"
 
-export async function start(input?: { port?: number; publicDir?: string }) {
+export async function start(input?: { port?: number; publicDir?: string; corsOrigins?: readonly string[] }) {
   assertNoPassword()
   const deltas = createDeltaHub()
   const online = createOnlineRequestStore()
@@ -46,6 +46,7 @@ export async function start(input?: { port?: number; publicDir?: string }) {
     domain,
     deltas,
     online,
+    corsOrigins: input?.corsOrigins,
     logger: (record) => console.error(JSON.stringify(record)),
     publicDir: input?.publicDir ?? path.resolve(import.meta.dir, "../../app-v3/dist"),
   })

@@ -203,11 +203,19 @@ export const make = (dependencies: Dependencies) => {
           }),
         )
         .pipe(
-          Stream.runForEach((event) => {
-            if (LLMEvent.is.providerError(event)) failed = true
-            if (LLMEvent.is.textDelta(event)) chunks.push(event.text)
-            return Effect.void
-          }),
+          Stream.runForEach((event) =>
+            Effect.gen(function* () {
+              if (LLMEvent.is.providerError(event)) failed = true
+              if (!LLMEvent.is.textDelta(event)) return
+              chunks.push(event.text)
+              yield* dependencies.events.publish(SessionEvent.Compaction.Delta, {
+                sessionID: input.sessionID,
+                messageID,
+                timestamp: yield* DateTime.now,
+                text: event.text,
+              })
+            }),
+          ),
           Effect.as(true),
           Effect.catchTag("LLM.Error", () => Effect.succeed(false)),
         )

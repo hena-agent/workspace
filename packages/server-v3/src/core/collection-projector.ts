@@ -183,17 +183,13 @@ function refreshMessages(database: DatabaseService, sessionID: string, txid: str
       const row = encodeMessage(decodeMessage({ ...message.data, id: message.id, type: message.type }))
       return { row, revision: fingerprint(row) }
     })
-    yield* replaceScope(
-      database,
-      "messages",
-      sessionID,
-      encoded.map((message) => ({
-        key: message.row.id,
-        row: message.row.type === "assistant" ? { ...message.row, content: undefined } : message.row,
-        revision: message.revision,
-      })),
-      txid,
+    const projected = yield* Effect.forEach(encoded, (message) =>
+      Effect.gen(function* () {
+        const row = yield* projectMessageRow(database, sessionID, message.row)
+        return { key: message.row.id, row, revision: message.revision }
+      }),
     )
+    yield* replaceScope(database, "messages", sessionID, projected, txid)
     const parts = yield* Effect.forEach(encoded, (message) => projectMessageParts(database, sessionID, message.row))
     yield* replaceScope(database, "parts", sessionID, parts.flat(), txid)
   })
@@ -221,7 +217,7 @@ function refreshMessage(database: DatabaseService, sessionID: string, messageID:
       sessionID,
       {
         key: message.id,
-        row: row.type === "assistant" ? { ...row, content: undefined } : row,
+        row: yield* projectMessageRow(database, sessionID, row),
         revision,
       },
       txid,
@@ -234,6 +230,23 @@ function refreshMessage(database: DatabaseService, sessionID: string, messageID:
       txid,
     )
   })
+}
+
+function projectMessageRow(
+  database: DatabaseService,
+  sessionID: string,
+  message: (typeof SessionMessage.Message)["Encoded"],
+) {
+  if (message.type === "assistant") return Effect.succeed({ ...message, content: undefined })
+  if (message.type !== "user") return Effect.succeed(message)
+  return Effect.map(
+    projectPrompt(database, sessionID, message.id, {
+      text: message.text,
+      files: message.files,
+      agents: message.agents,
+    }),
+    (prompt) => ({ ...message, ...prompt }),
+  )
 }
 
 function projectMessageParts(

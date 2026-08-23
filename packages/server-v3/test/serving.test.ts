@@ -92,14 +92,26 @@ describe("serving", () => {
   test("starts with an in-memory database", async () => {
     await runServer(":memory:")
   }, 30_000)
+
+  test("passes configured CORS origins through standalone startup", async () => {
+    const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
+    await runServer(
+      path,
+      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing", corsOrigins: ["https://custom.example"] }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "https://custom.example" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "https://custom.example") throw new Error("configured origin was rejected")',
+    )
+    await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
+  }, 30_000)
 })
 
-async function runServer(database: string) {
+async function runServer(
+  database: string,
+  source = 'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); await instance.stop()',
+) {
   const child = Bun.spawn({
     cmd: [
       process.execPath,
       "-e",
-      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); await instance.stop()',
+      source,
     ],
     cwd: resolve(import.meta.dir, ".."),
     env: { ...process.env, HENA_DB: database },

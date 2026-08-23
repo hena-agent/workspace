@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Database } from "@hena/core/database/database"
-import { DateTime, Effect } from "effect"
+import { DateTime, Effect, Schema } from "effect"
 import { sql } from "drizzle-orm"
 import {
   projectCompactionStart,
@@ -143,6 +143,50 @@ describe("collection projector", () => {
             WHERE collection = 'messages' AND scope_key = 'ses_1'
           `),
         ).toEqual({ row_key: "msg_target" })
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
+  test("stores promoted user attachments outside the stream row", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(sql`
+          INSERT INTO project (id, worktree, time_created, time_updated, sandboxes)
+          VALUES ('global', '/project', 1, 1, '[]')
+        `)
+        yield* database.run(sql`
+          INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
+          VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1)
+        `)
+        yield* database.run(sql`
+          INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
+          VALUES (1, 'feed', 0, 'runtime')
+        `)
+        yield* database.run(sql`
+          INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data)
+          VALUES ('msg_user', 'ses_1', 'user', 1, 1, 1, ${JSON.stringify({
+            text: "",
+            files: [{ uri: `data:text/plain;base64,${"A".repeat(2 * 1024 * 1024)}`, mime: "text/plain" }],
+            time: { created: 1 },
+          })})
+        `)
+
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.Prompted.type,
+          data: { sessionID: "ses_1", messageID: "msg_user" },
+        })
+
+        const projected = yield* database.get<{ row: string }>(sql`
+          SELECT row FROM collection_row
+          WHERE collection = 'messages' AND scope_key = 'ses_1' AND row_key = 'msg_user'
+        `)
+        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+          files: [{ truncated: true, content: { bytes: expect.any(Number) } }],
+        })
+        expect(yield* database.get<{ bytes: number }>(sql`
+          SELECT length(content) AS bytes FROM full_content WHERE id = 'msg_user_attachment_0'
+        `)).toMatchObject({ bytes: expect.any(Number) })
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
     )
   })

@@ -26,5 +26,13 @@ export function createFeedStore(database: Database) {
     advanceRetainedFloor(retainedFloor: number) {
       database.query("UPDATE collection_feed SET retained_floor = MAX(retained_floor, ?) WHERE id = 1").run(retainedFloor)
     },
+    replace() {
+      const feedId = crypto.randomUUID()
+      database.transaction(() => {
+        database.query("DELETE FROM collection_change").run()
+        database.query("UPDATE collection_feed SET feed_id = ?, retained_floor = 0 WHERE id = 1").run(feedId)
+      })()
+      return feedId
+    },
   }
 }

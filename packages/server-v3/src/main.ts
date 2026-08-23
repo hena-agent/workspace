@@ -21,7 +21,7 @@ export async function start(input?: { port?: number; publicDir?: string }) {
   const domain = createCoreDomain(deltas, online, database.changes.publishPersisted)
   await domain.ready()
   database.compact()
-  bootstrapCollections(database)
+  if (bootstrapCollections(database)) database.feed.replace()
   await bootstrapLocationCollections(database, domain, online)
   const unsubscribeCatalog = online.subscribeCatalog(() => {
     bootstrapLocationCollections(database, domain, online).catch((cause) =>

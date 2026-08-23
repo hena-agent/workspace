@@ -31,7 +31,7 @@ type ChangeRow = {
   created_at: number
 }
 
-export function createChangeStore(database: Database, feed: { get(): { runtimeId: string } }) {
+export function createChangeStore(database: Database, feed: { get(): { runtimeId: string; retainedFloor: number } }) {
   const listeners = new Map<string, Set<(changes: readonly Change[]) => void>>()
   const select = database.query<ChangeRow, [string, string, number]>(`
     SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
@@ -57,7 +57,7 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
     ORDER BY seq DESC LIMIT 1
   `)
 
-  let publishedSeq = current.get()!.seq
+  let publishedSeq = Math.max(current.get()!.seq, feed.get().retainedFloor)
   let batchDepth = 0
   const publish = (changes: readonly Change[]) => {
     const scopes = changes.reduce((grouped, change) => {
@@ -112,7 +112,7 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
       return select.all(collection, scopeKey, seq).map(fromRow)
     },
     current() {
-      return current.get()!.seq
+      return Math.max(current.get()!.seq, feed.get().retainedFloor)
     },
     latest(scopes: ReadonlyArray<{ collection: string; scopeKey: string; rowKey?: string }>) {
       return scopes

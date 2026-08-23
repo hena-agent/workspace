@@ -81,6 +81,7 @@ export function createStreamRegistry(config: { graceMs: number; now?: () => numb
     delete(principal: string, id: string) {
       const resource = owned(principal, id)
       if (!resource) return false
+      resource.disconnect?.()
       return resources.delete(id)
     },
   }

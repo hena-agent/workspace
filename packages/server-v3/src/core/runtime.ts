@@ -152,6 +152,7 @@ export function createCoreDomain(
                 sessionID: session.id,
                 prompt: input.prompt,
                 delivery: input.delivery,
+                resume: false,
               })
               return { session, admitted }
             }),
@@ -161,7 +162,11 @@ export function createCoreDomain(
             { collection: "sessionInputs", scopeKey: result.session.id, rowKey: result.admitted.id },
           ],
           response: (result, receipt) => ({ ...result, receipt }),
-        }),
+        }).pipe(
+          Effect.tap((response) =>
+            SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(response.session.id))),
+          ),
+        ),
       ),
     admitPrompt: (sessionID, input) =>
       runtime.runPromise(
@@ -175,11 +180,14 @@ export function createCoreDomain(
               sessionID: SessionV2.ID.make(sessionID),
               prompt: input.prompt,
               delivery: input.delivery,
+              resume: false,
             }),
           ),
           targets: (admitted) => [{ collection: "sessionInputs", scopeKey: admitted.sessionID, rowKey: admitted.id }],
           response: (admitted, receipt) => ({ admitted, receipt }),
-        }),
+        }).pipe(
+          Effect.tap(() => SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(sessionID)))),
+        ),
       ),
     interrupt: (sessionID) =>
       runtime.runPromise(SessionV2.Service.use((service) => service.interrupt(SessionV2.ID.make(sessionID)))),

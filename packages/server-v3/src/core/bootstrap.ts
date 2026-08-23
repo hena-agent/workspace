@@ -77,7 +77,7 @@ const encodeMessage = Schema.encodeSync(SessionMessage.Message)
 
 export function bootstrapCollections(database: SyncDatabase) {
   const projects = database.raw.query<ProjectRow, []>("SELECT * FROM project ORDER BY id").all()
-  database.collections.hydrate(
+  const projectsChanged = database.collections.hydrate(
     "projects",
     "",
     projects.map((project) => ({
@@ -108,7 +108,7 @@ export function bootstrapCollections(database: SyncDatabase) {
   )
 
   const sessions = database.raw.query<SessionRow, []>("SELECT * FROM session ORDER BY id").all()
-  database.collections.hydrate(
+  const sessionsChanged = database.collections.hydrate(
     "sessions",
     "",
     sessions.map((session) => ({
@@ -124,10 +124,11 @@ export function bootstrapCollections(database: SyncDatabase) {
   const todos = database.raw
     .query<TodoRow, []>("SELECT id, session_id, content, status, priority, time_updated FROM todo ORDER BY position")
     .all()
-  sessions.forEach((session) =>
+  const sessionCollectionsChanged = sessions.map((session) =>
     hydrateSessionCollections(
       database,
       session.id,
+      session.queue_revision,
       messages.filter((message) => message.session_id === session.id),
       inputs.filter((input) => input.session_id === session.id),
       todos.filter((todo) => todo.session_id === session.id),
@@ -143,16 +144,18 @@ export function bootstrapCollections(database: SyncDatabase) {
     const ref = { directory: session.directory, ...(session.workspace_id ? { workspaceID: session.workspace_id } : {}) }
     locations.set(JSON.stringify(ref), ref)
   })
-  database.collections.hydrate(
+  const locationsChanged = database.collections.hydrate(
     "locations",
     "",
     Array.from(locations, ([key, row]) => ({ key, row, revision: "1" })),
   )
+  return projectsChanged || sessionsChanged || locationsChanged || sessionCollectionsChanged.some(Boolean)
 }
 
 function hydrateSessionCollections(
   database: SyncDatabase,
   sessionID: string,
+  queueRevision: number,
   storedMessages: ReadonlyArray<MessageRow>,
   inputs: ReadonlyArray<InputRow>,
   todos: ReadonlyArray<TodoRow>,
@@ -176,17 +179,17 @@ function hydrateSessionCollections(
           : [],
     }
   })
-  database.collections.hydrate(
+  const messagesChanged = database.collections.hydrate(
     "messages",
     sessionID,
     projected.map((item) => item.message),
   )
-  database.collections.hydrate(
+  const partsChanged = database.collections.hydrate(
     "parts",
     sessionID,
     projected.flatMap((item) => item.parts),
   )
-  database.collections.hydrate(
+  const inputsChanged = database.collections.hydrate(
     "sessionInputs",
     sessionID,
     inputs.map((input) => {
@@ -199,12 +202,13 @@ function hydrateSessionCollections(
         admittedSeq: input.admitted_seq,
         promotedSeq: input.promoted_seq ?? undefined,
         queuePosition: input.queue_position,
+        queueRevision,
         timeCreated: input.time_created,
       }
       return { key: input.id, row, revision: fingerprint(row) }
     }),
   )
-  database.collections.hydrate(
+  const todosChanged = database.collections.hydrate(
     "todos",
     sessionID,
     todos.map((todo) => ({
@@ -213,6 +217,7 @@ function hydrateSessionCollections(
       revision: String(todo.time_updated),
     })),
   )
+  return messagesChanged || partsChanged || inputsChanged || todosChanged
 }
 
 function projectPrompt(

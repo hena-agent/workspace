@@ -45,4 +45,18 @@ describe("stream registry", () => {
     expect(second.generation).toBe(first.generation + 1)
     expect(streams.bind("local", stream.id, first.generation, () => {})).toBe(false)
   })
+
+  test("disconnects an active attachment when deleting its resource", () => {
+    const streams = createStreamRegistry({ graceMs: 1_000 })
+    const stream = streams.create("local")
+    const attached = streams.attach("local", stream.id)!
+    let disconnected = false
+    streams.bind("local", stream.id, attached.generation, () => {
+      disconnected = true
+    })
+
+    expect(streams.delete("local", stream.id)).toBe(true)
+    expect(disconnected).toBe(true)
+    expect(streams.get("local", stream.id)).toBeUndefined()
+  })
 })

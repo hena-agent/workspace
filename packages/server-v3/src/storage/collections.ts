@@ -22,7 +22,6 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
     WHERE collection = ? AND scope_key = ?
     ORDER BY row_key
   `)
-  const watermark = database.query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
 
   return {
     write(input: {
@@ -82,11 +81,16 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
     },
     hydrate(collection: string, scopeKey: string, rows: ReadonlyArray<{ key: string; row: unknown; revision: string }>) {
       return database.transaction(() => {
+        const current = list.all(collection, scopeKey)
         const incoming = new Set(rows.map((row) => row.key))
         rows.forEach((row) => upsert.run(collection, scopeKey, row.key, encodeRow(row.row), row.revision))
-        list.all(collection, scopeKey)
+        current
           .filter((row) => !incoming.has(row.row_key))
           .forEach((row) => remove.run(collection, scopeKey, row.row_key))
+        return current.length !== rows.length || rows.some((row) => {
+          const stored = current.find((entry) => entry.row_key === row.key)
+          return stored?.row !== encodeRow(row.row) || stored.row_revision !== row.revision
+        })
       })()
     },
     snapshot(collection: string, scopeKey: string) {
@@ -96,7 +100,7 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
           row: JSON.parse(row.row),
           revision: row.row_revision,
         })),
-        throughSeq: watermark.get()!.seq,
+        throughSeq: changes.current(),
       }))()
     },
   }

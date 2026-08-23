@@ -124,19 +124,21 @@ function refresh(database: DatabaseService, sessionID: string) {
     const projectedInputs = yield* Effect.forEach(inputs, (input) =>
       Effect.gen(function* () {
         const prompt = yield* projectPrompt(database, sessionID, input.id, input.prompt)
+        const row = {
+          id: input.id,
+          sessionID: input.session_id,
+          prompt,
+          delivery: input.delivery,
+          admittedSeq: input.admitted_seq,
+          promotedSeq: input.promoted_seq ?? undefined,
+          queuePosition: input.queue_position,
+          queueRevision: session?.queue_revision ?? 0,
+          timeCreated: input.time_created,
+        }
         return {
           key: input.id,
-          row: {
-            id: input.id,
-            sessionID: input.session_id,
-            prompt,
-            delivery: input.delivery,
-            admittedSeq: input.admitted_seq,
-            promotedSeq: input.promoted_seq ?? undefined,
-            queuePosition: input.queue_position,
-            timeCreated: input.time_created,
-          },
-          revision: String(input.promoted_seq ?? input.admitted_seq),
+          row,
+          revision: fingerprint(row),
         }
       }),
     )

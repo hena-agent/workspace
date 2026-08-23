@@ -56,6 +56,16 @@ describe("collection changes", () => {
     expect(database.changes.after("messages", "session-1", 0).map((row) => row.rowKey)).toEqual(["two"])
   })
 
+  test("keeps the retained watermark after compacting every change", () => {
+    database = createTestDatabase().database
+    database.collections.write({ collection: "messages", scopeKey: "session-1", rowKey: "one", row: {}, revision: "1" })
+
+    const floor = database.compact({ now: Date.now(), changeMaxAgeMs: Number.MAX_SAFE_INTEGER, changeMaxRows: 0 })
+
+    expect(database.changes.current()).toBe(floor)
+    expect(database.collections.snapshot("messages", "session-1").throughSeq).toBe(floor)
+  })
+
   test("finds the latest projected transaction for a specific row", () => {
     database = createTestDatabase().database
     database.changes.append({

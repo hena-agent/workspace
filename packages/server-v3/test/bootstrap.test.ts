@@ -53,7 +53,7 @@ describe("collection bootstrap", () => {
       files: [{ uri }],
     }))
 
-    bootstrapCollections(database)
+    expect(bootstrapCollections(database)).toBe(true)
 
     expect(database.collections.snapshot("projects", "").rows[0]?.row).toMatchObject({ id: "global", name: "Repo" })
     expect(database.collections.snapshot("sessions", "").rows[0]?.row).toMatchObject({ id: "ses_1", queueRevision: 2 })
@@ -69,6 +69,7 @@ describe("collection bootstrap", () => {
     expect(database.collections.snapshot("sessionInputs", "ses_1").rows[0]?.row).toMatchObject({
       id: "msg_2",
       delivery: "queue",
+      queueRevision: 2,
       prompt: { files: [{ truncated: true, content: { bytes: uri.length } }] },
     })
     const projected = database.collections.snapshot("sessionInputs", "ses_1").rows[0]!.row as {
@@ -85,6 +86,7 @@ describe("collection bootstrap", () => {
       content: "Ship it",
     })
     expect(database.changes.after("projects", "", 0)).toEqual([])
+    expect(bootstrapCollections(database)).toBe(false)
   })
 
   test("hydrates redacted location catalogs without request secrets", async () => {

@@ -3,6 +3,7 @@ export type VolatileCollection = "permissions" | "questions" | "agents" | "model
 type Row = { id: string; sessionID: string; nonce: string } & Record<string, unknown>
 type Resolution = Record<string, unknown>
 type Placement = { directory: string; workspaceID?: string }
+const ResolutionLimit = 1_024
 
 export class OnlineRequestConflict extends Error {
   readonly code = "online_request_conflict"
@@ -59,7 +60,7 @@ export function createOnlineRequestStore() {
     complete(kind: Kind, id: string, resolution: Resolution) {
       const key = `${kind}:${id}`
       const authoritative = resolutions.get(key) ?? resolution
-      resolutions.set(key, authoritative)
+      rememberResolution(key, authoritative)
       placements.delete(key)
       if (scoped(collection(kind), "").delete(id)) changed(collection(kind), "")
       return authoritative
@@ -133,8 +134,16 @@ export function createOnlineRequestStore() {
     if (!scoped(target, "").delete(id)) return
     const key = `${target === "permissions" ? "permission" : "question"}:${id}`
     placements.delete(key)
-    resolutions.set(key, resolution)
+    rememberResolution(key, resolution)
     changed(target, "")
+  }
+
+  function rememberResolution(key: string, resolution: Resolution) {
+    resolutions.delete(key)
+    resolutions.set(key, resolution)
+    if (resolutions.size <= ResolutionLimit) return
+    const oldest = resolutions.keys().next().value
+    if (oldest) resolutions.delete(oldest)
   }
 
   function rememberPlacement(kind: Kind, id: string, placement?: Placement) {

@@ -34,7 +34,8 @@ export async function start(input?: { port?: number; publicDir?: string; corsOri
       JSON.stringify({ type: "catalog_refresh_error", name: cause instanceof Error ? cause.name : "Unknown" }),
     ),
   )
-  await catalog.run()
+  void catalog.run()
+  await catalog.idle()
   const unsubscribeCatalog = online.subscribeCatalog(() => {
     void catalog.run()
   })

@@ -31,6 +31,19 @@ describe("serving", () => {
     expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable")
   })
 
+  test("does not serve the SPA shell for missing assets", async () => {
+    database = createTestDatabase().database
+    const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
+    await Bun.write(`${directory}/index.html`, "<main>app-v3</main>")
+
+    const asset = await createApp({ database, publicDir: directory }).request("/assets/missing-a1b2c3.js")
+    const file = await createApp({ database, publicDir: directory }).request("/missing.png")
+
+    expect(asset.status).toBe(404)
+    expect(asset.headers.get("cache-control")).toBeNull()
+    expect(file.status).toBe(404)
+  })
+
   test("compresses large static responses", async () => {
     database = createTestDatabase().database
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`

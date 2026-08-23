@@ -94,6 +94,24 @@ describe("online requests", () => {
     expect(await Promise.all([first, second])).toEqual(["first", "second"])
     expect(calls).toEqual(["first", "second"])
   })
+
+  test("bounds retained request resolutions", () => {
+    const online = createOnlineRequestStore()
+
+    Array.from({ length: 1_025 }, (_, index) => index).forEach((index) => {
+      online.project({
+        type: "permission.v2.asked",
+        data: { id: `per_${index}`, sessionID: "ses_1" },
+      })
+      online.project({
+        type: "permission.v2.replied",
+        data: { requestID: `per_${index}`, sessionID: "ses_1", reply: "once" },
+      })
+    })
+
+    expect(online.resolution("permission", "per_0")).toBeUndefined()
+    expect(online.resolution("permission", "per_1024")).toMatchObject({ requestID: "per_1024" })
+  })
 })
 
 function requireNonce(row: Record<string, unknown>) {

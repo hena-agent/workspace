@@ -6,11 +6,17 @@ export function createStaticRoutes(publicDir: string) {
     if (c.req.path.startsWith("/api")) return c.notFound()
     const index = Bun.file(resolve(publicDir, "index.html"))
     const requested = safePath(publicDir, c.req.path)
-    const file = requested && await Bun.file(requested).exists() ? Bun.file(requested) : await index.exists() ? index : undefined
+    const requestedFile = requested && await Bun.file(requested).exists() ? Bun.file(requested) : undefined
+    if (!requestedFile && isAssetPath(c.req.path)) return c.notFound()
+    const file = requestedFile ?? ((await index.exists()) ? index : undefined)
     if (!file) return c.text("app-v3 is not built; run `bun run build` from packages/app-v3", 503)
     c.header("Cache-Control", cacheControl(c.req.path, file === index))
     return new Response(file, { headers: c.res.headers })
   })
+}
+
+function isAssetPath(pathname: string) {
+  return pathname.startsWith("/assets/") || pathname.split("/").at(-1)?.includes(".") === true
 }
 
 function safePath(root: string, pathname: string) {

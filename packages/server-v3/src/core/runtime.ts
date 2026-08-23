@@ -3,6 +3,7 @@ import { SessionV2 } from "@hena/core/session"
 import { SessionExecution } from "@hena/core/session/execution"
 import { SessionExecutionLocal } from "@hena/core/session/execution/local"
 import { SessionMessage } from "@hena/core/session/message"
+import { SessionInput } from "@hena/core/session/input"
 import { Effect, ManagedRuntime, Schema } from "effect"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { LocationServiceMap } from "@hena/core/location-service-map"
@@ -23,6 +24,9 @@ import { Database } from "@hena/core/database/database"
 import { sql } from "drizzle-orm"
 import { fingerprint } from "../storage/fingerprint"
 import { IdempotencyConflict } from "../storage/idempotency"
+
+const encodeSession = Schema.encodeSync(SessionV2.Info)
+const encodeAdmitted = Schema.encodeSync(SessionInput.Admitted)
 
 export function createCoreDomain(
   deltaHub?: DeltaHub,
@@ -155,7 +159,11 @@ export function createCoreDomain(
               return { session, admitted }
             }),
           ),
-          response: (result, receipt) => ({ ...result, receipt }),
+          response: (result, receipt) => ({
+            session: encodeSession(result.session),
+            admitted: encodeAdmitted(result.admitted),
+            receipt,
+          }),
         }).pipe(
           Effect.tap((response) =>
             SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(response.session.id))),
@@ -177,7 +185,7 @@ export function createCoreDomain(
               resume: false,
             }),
           ),
-          response: (admitted, receipt) => ({ admitted, receipt }),
+          response: (admitted, receipt) => ({ admitted: encodeAdmitted(admitted), receipt }),
         }).pipe(Effect.tap(() => SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(sessionID))))),
       ),
     interrupt: async (sessionID) => {

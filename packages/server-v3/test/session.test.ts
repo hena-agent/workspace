@@ -132,6 +132,32 @@ describe("session mutations", () => {
     })
   })
 
+  test("maps invalid queue mutations to the current queue state", async () => {
+    database = createTestDatabase().database
+    const domain = recordingDomain()
+    domain.reorderInputs = async () => {
+      throw Object.assign(new Error("conflict"), {
+        _tag: "Session.QueueStateConflictError",
+        revision: 4,
+        messageIDs: ["msg_pending"],
+      })
+    }
+    const response = await createApp({ database, domain }).request("/api/session/ses_1/input-order", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idempotencyKey: "reorder-conflict", expectedRevision: 4, messageIDs: [] }),
+    })
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({
+      error: {
+        code: "queue_conflict",
+        message: "Pending inputs changed",
+        details: { revision: 4, messageIDs: ["msg_pending"] },
+      },
+    })
+  })
+
   test("rejects malformed session and input route IDs", async () => {
     database = createTestDatabase().database
     const domain = recordingDomain()

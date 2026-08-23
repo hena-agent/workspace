@@ -29,7 +29,7 @@ import { SessionStore } from "./session/store"
 import { SessionExecution } from "./session/execution"
 import { makeGlobalNode } from "./effect/app-node"
 import { LocationServiceMap } from "./location-service-map"
-import { MessageDecodeError, QueueRevisionConflictError } from "./session/error"
+import { MessageDecodeError, QueueRevisionConflictError, QueueStateConflictError } from "./session/error"
 import { SessionEvent } from "./session/event"
 import { SessionInput } from "./session/input"
 import { Snapshot } from "./snapshot"
@@ -99,7 +99,7 @@ export class OperationUnavailableError extends Schema.TaggedErrorClass<Operation
   },
 ) {}
 
-export { ContextSnapshotDecodeError, MessageDecodeError, QueueRevisionConflictError } from "./session/error"
+export { ContextSnapshotDecodeError, MessageDecodeError, QueueRevisionConflictError, QueueStateConflictError } from "./session/error"
 
 export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictError>()("Session.PromptConflictError", {
   sessionID: SessionSchema.ID,
@@ -108,7 +108,13 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
 export const MessageNotFoundError = SessionRevert.MessageNotFoundError
 export type MessageNotFoundError = SessionRevert.MessageNotFoundError
 
-export type Error = NotFoundError | MessageDecodeError | OperationUnavailableError | PromptConflictError | QueueRevisionConflictError
+export type Error =
+  | NotFoundError
+  | MessageDecodeError
+  | OperationUnavailableError
+  | PromptConflictError
+  | QueueRevisionConflictError
+  | QueueStateConflictError
 
 export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
@@ -155,12 +161,12 @@ export interface Interface {
     sessionID: SessionSchema.ID
     messageID: SessionMessage.ID
     expectedRevision: number
-  }) => Effect.Effect<number, NotFoundError | QueueRevisionConflictError>
+  }) => Effect.Effect<number, NotFoundError | QueueRevisionConflictError | QueueStateConflictError>
   readonly reorderInputs: (input: {
     sessionID: SessionSchema.ID
     messageIDs: ReadonlyArray<SessionMessage.ID>
     expectedRevision: number
-  }) => Effect.Effect<number, NotFoundError | QueueRevisionConflictError>
+  }) => Effect.Effect<number, NotFoundError | QueueRevisionConflictError | QueueStateConflictError>
   readonly shell: (input: {
     id?: EventV2.ID
     sessionID: SessionSchema.ID
@@ -404,7 +410,9 @@ const layer = Layer.effect(
           })
           .pipe(
             Effect.catchDefect((defect) =>
-              defect instanceof QueueRevisionConflictError ? Effect.fail(defect) : Effect.die(defect),
+              defect instanceof QueueRevisionConflictError || defect instanceof QueueStateConflictError
+                ? Effect.fail(defect)
+                : Effect.die(defect),
             ),
           )
         return input.expectedRevision + 1
@@ -418,7 +426,9 @@ const layer = Layer.effect(
           })
           .pipe(
             Effect.catchDefect((defect) =>
-              defect instanceof QueueRevisionConflictError ? Effect.fail(defect) : Effect.die(defect),
+              defect instanceof QueueRevisionConflictError || defect instanceof QueueStateConflictError
+                ? Effect.fail(defect)
+                : Effect.die(defect),
             ),
           )
         return input.expectedRevision + 1

@@ -6,9 +6,11 @@ import {
   projectCompactionStart,
   reconcileLocations,
   refreshCompactionDiscarded,
+  refreshDurableEvent,
 } from "../src/core/collection-projector"
 import { SessionMessage } from "@hena/schema/session-message"
 import { Session } from "@hena/schema/session"
+import { SessionEvent } from "@hena/schema/session-event"
 
 describe("collection projector", () => {
   test("removes an unused location after a session moves", async () => {
@@ -102,6 +104,45 @@ describe("collection projector", () => {
             WHERE collection = 'messages' AND scope_key = 'ses_1' AND row_key = 'msg_compaction'
           `),
         ).toBeUndefined()
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
+  test("refreshes only the message affected by a provider event", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(sql`
+          INSERT INTO project (id, worktree, time_created, time_updated, sandboxes)
+          VALUES ('global', '/project', 1, 1, '[]')
+        `)
+        yield* database.run(sql`
+          INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
+          VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1)
+        `)
+        yield* database.run(sql`
+          INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
+          VALUES (1, 'feed', 0, 'runtime')
+        `)
+        yield* database.run(sql`
+          INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data)
+          VALUES
+            ('msg_target', 'ses_1', 'assistant', 1, 1, 1,
+              '{"agent":"build","model":{"id":"model","providerID":"provider"},"content":[],"time":{"created":1}}'),
+            ('msg_unrelated', 'ses_1', 'assistant', 2, 1, 1, '{}')
+        `)
+
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.Step.Ended.type,
+          data: { sessionID: "ses_1", assistantMessageID: "msg_target" },
+        })
+
+        expect(
+          yield* database.get<{ row_key: string }>(sql`
+            SELECT row_key FROM collection_row
+            WHERE collection = 'messages' AND scope_key = 'ses_1'
+          `),
+        ).toEqual({ row_key: "msg_target" })
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
     )
   })

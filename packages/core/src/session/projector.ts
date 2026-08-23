@@ -17,7 +17,7 @@ import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, Sessio
 import type { DeepMutable } from "../schema"
 import { SessionSchema } from "./schema"
 import { SessionTodo } from "@hena/schema/session-todo"
-import { QueueRevisionConflictError } from "./error"
+import { QueueRevisionConflictError, QueueStateConflictError } from "./error"
 
 type DatabaseService = Database.Interface["db"]
 
@@ -405,7 +405,7 @@ const layer = Layer.effectDiscard(
     )
     yield* events.project(SessionEvent.InputCanceled, (event) =>
       Effect.gen(function* () {
-        yield* requireQueueRevision(db, event.data.sessionID, event.data.expectedRevision)
+        const revision = yield* requireQueueRevision(db, event.data.sessionID, event.data.expectedRevision)
         const deleted = yield* db
           .delete(SessionInputTable)
           .where(
@@ -418,13 +418,13 @@ const layer = Layer.effectDiscard(
           .returning({ id: SessionInputTable.id })
           .get()
           .pipe(Effect.orDie)
-        if (!deleted) return yield* Effect.die("Queued input is no longer pending")
+        if (!deleted) yield* queueStateConflict(db, event.data.sessionID, revision)
         yield* incrementQueueRevision(db, event.data.sessionID)
       }),
     )
     yield* events.project(SessionEvent.InputReordered, (event) =>
       Effect.gen(function* () {
-        yield* requireQueueRevision(db, event.data.sessionID, event.data.expectedRevision)
+        const revision = yield* requireQueueRevision(db, event.data.sessionID, event.data.expectedRevision)
         const pending = yield* db
           .select({ id: SessionInputTable.id })
           .from(SessionInputTable)
@@ -442,7 +442,13 @@ const layer = Layer.effectDiscard(
           pending.length !== event.data.messageIDs.length ||
           pending.some((row) => !event.data.messageIDs.includes(row.id))
         )
-          return yield* Effect.die("Queued input order does not match pending inputs")
+          yield* Effect.die(
+            new QueueStateConflictError({
+              sessionID: event.data.sessionID,
+              revision,
+              messageIDs: pending.map((row) => row.id),
+            }),
+          )
         yield* Effect.forEach(
           event.data.messageIDs.map((id, queue_position) => ({ id, queue_position })),
           (input) =>
@@ -560,8 +566,29 @@ function requireQueueRevision(db: DatabaseService, sessionID: SessionSchema.ID, 
       Effect.orDie,
       Effect.flatMap((row) =>
         row?.revision === expected
-          ? Effect.void
+          ? Effect.succeed(row.revision)
           : Effect.die(new QueueRevisionConflictError({ sessionID, expected, actual: row?.revision ?? 0 })),
+      ),
+    )
+}
+
+function queueStateConflict(db: DatabaseService, sessionID: SessionSchema.ID, revision: number) {
+  return db
+    .select({ id: SessionInputTable.id })
+    .from(SessionInputTable)
+    .where(
+      and(
+        eq(SessionInputTable.session_id, sessionID),
+        eq(SessionInputTable.delivery, "queue"),
+        isNull(SessionInputTable.promoted_seq),
+      ),
+    )
+    .orderBy(asc(SessionInputTable.queue_position))
+    .all()
+    .pipe(
+      Effect.orDie,
+      Effect.flatMap((pending) =>
+        Effect.die(new QueueStateConflictError({ sessionID, revision, messageIDs: pending.map((row) => row.id) })),
       ),
     )
 }

@@ -193,6 +193,24 @@ describe("SessionV2.prompt", () => {
         .pipe(Effect.flip)
       expect(conflict).toBeInstanceOf(SessionV2.QueueRevisionConflictError)
       expect(conflict).toMatchObject({ expected: 3, actual: 4 })
+
+      const canceled = yield* session
+        .cancelInput({ sessionID, messageID: first.id, expectedRevision: 4 })
+        .pipe(Effect.flip)
+      expect(canceled).toMatchObject({
+        _tag: "Session.QueueStateConflictError",
+        revision: 4,
+        messageIDs: [second.id],
+      })
+
+      const reordered = yield* session
+        .reorderInputs({ sessionID, messageIDs: [], expectedRevision: 4 })
+        .pipe(Effect.flip)
+      expect(reordered).toMatchObject({
+        _tag: "Session.QueueStateConflictError",
+        revision: 4,
+        messageIDs: [second.id],
+      })
     }),
   )
 

@@ -27,7 +27,13 @@ const layer = Layer.effectDiscard(
       yield* events.project(definition, (event) => {
         const sessionID = sessionId(event.data)
         if (!sessionID) return Effect.void
-        return refresh(database.db, sessionID, event.type === SessionEvent.Moved.type)
+        return refreshDurableEvent(database.db, {
+          type: event.type,
+          data: {
+            ...event.data,
+            sessionID,
+          },
+        })
       })
     }
     yield* events.project(SessionEvent.Compaction.Started, (event) => refreshCompactionStart(database.db, event))
@@ -55,9 +61,57 @@ const decodeMessage = Schema.decodeUnknownSync(SessionMessage.Message)
 const encodeMessage = Schema.encodeSync(SessionMessage.Message)
 const decodeTodoUpdate = Schema.decodeUnknownSync(SessionTodo.Event.Updated.data)
 
-function refresh(database: DatabaseService, sessionID: string, moved: boolean, mutationTxid?: string) {
+export function refreshDurableEvent(
+  database: DatabaseService,
+  event: {
+    type: string
+    data: { sessionID: string; messageID?: string; assistantMessageID?: string; callID?: string }
+  },
+) {
   return Effect.gen(function* () {
-    const txid = mutationTxid ?? (yield* MutationTxid) ?? crypto.randomUUID()
+    if (event.type === SessionEvent.Retried.type) return
+    const txid = (yield* MutationTxid) ?? crypto.randomUUID()
+    if (event.type === SessionEvent.RevertEvent.Committed.type) {
+      yield* refreshSession(database, event.data.sessionID, false, txid)
+      yield* refreshMessages(database, event.data.sessionID, txid)
+      yield* refreshInputs(database, event.data.sessionID, txid)
+      return
+    }
+
+    yield* refreshSession(database, event.data.sessionID, event.type === SessionEvent.Moved.type, txid)
+    if (
+      event.type === SessionEvent.Prompted.type ||
+      event.type === SessionEvent.PromptAdmitted.type ||
+      event.type === SessionEvent.InputCanceled.type ||
+      event.type === SessionEvent.InputReordered.type
+    )
+      yield* refreshInputs(database, event.data.sessionID, txid)
+    if (event.type === SessionEvent.Shell.Ended.type) {
+      const shell = yield* database.get<{ id: string }>(sql`
+        SELECT id FROM session_message
+        WHERE session_id = ${event.data.sessionID} AND type = 'shell'
+          AND json_extract(data, '$.callID') = ${event.data.callID}
+      `)
+      if (shell) yield* refreshMessage(database, event.data.sessionID, shell.id, txid)
+      return
+    }
+
+    const messageID =
+      event.type === SessionEvent.AgentSwitched.type ||
+      event.type === SessionEvent.ModelSwitched.type ||
+      event.type === SessionEvent.Prompted.type ||
+      event.type === SessionEvent.ContextUpdated.type ||
+      event.type === SessionEvent.Synthetic.type ||
+      event.type === SessionEvent.Shell.Started.type ||
+      event.type === SessionEvent.Compaction.Ended.type
+        ? event.data.messageID
+        : event.data.assistantMessageID
+    if (messageID) yield* refreshMessage(database, event.data.sessionID, messageID, txid)
+  }).pipe(Effect.orDie)
+}
+
+function refreshSession(database: DatabaseService, sessionID: string, moved: boolean, txid: string) {
+  return Effect.gen(function* () {
     const session = yield* database
       .select()
       .from(SessionTable)
@@ -65,45 +119,42 @@ function refresh(database: DatabaseService, sessionID: string, moved: boolean, m
       .get()
     if (session) {
       const row = encodeSession(fromRow(session))
-      yield* replaceScope(database, "sessions", "", [{ key: session.id, row, revision: fingerprint(row) }], txid, false)
+      yield* replaceScopeRow(database, "sessions", "", { key: session.id, row, revision: fingerprint(row) }, txid)
     }
     if (!session) yield* removeScopeRow(database, "sessions", "", sessionID, txid)
     if (session) {
       const project = yield* database.select().from(ProjectTable).where(eq(ProjectTable.id, session.project_id)).get()
       if (project)
-        yield* replaceScope(
+        yield* replaceScopeRow(
           database,
           "projects",
           "",
-          [
-            {
-              key: project.id,
-              revision: String(project.time_updated),
-              row: {
-                id: project.id,
-                worktree: project.worktree,
-                vcs: project.vcs ?? undefined,
-                name: project.name ?? undefined,
-                icon:
-                  project.icon_url || project.icon_url_override || project.icon_color
-                    ? {
-                        url: project.icon_url ?? undefined,
-                        override: project.icon_url_override ?? undefined,
-                        color: project.icon_color ?? undefined,
-                      }
-                    : undefined,
-                commands: project.commands ?? undefined,
-                sandboxes: project.sandboxes,
-                time: {
-                  created: project.time_created,
-                  updated: project.time_updated,
-                  initialized: project.time_initialized ?? undefined,
-                },
+          {
+            key: project.id,
+            revision: String(project.time_updated),
+            row: {
+              id: project.id,
+              worktree: project.worktree,
+              vcs: project.vcs ?? undefined,
+              name: project.name ?? undefined,
+              icon:
+                project.icon_url || project.icon_url_override || project.icon_color
+                  ? {
+                      url: project.icon_url ?? undefined,
+                      override: project.icon_url_override ?? undefined,
+                      color: project.icon_color ?? undefined,
+                    }
+                  : undefined,
+              commands: project.commands ?? undefined,
+              sandboxes: project.sandboxes,
+              time: {
+                created: project.time_created,
+                updated: project.time_updated,
+                initialized: project.time_initialized ?? undefined,
               },
             },
-          ],
+          },
           txid,
-          false,
         )
     }
     const locationKey =
@@ -118,7 +169,11 @@ function refresh(database: DatabaseService, sessionID: string, moved: boolean, m
       SELECT 1 FROM collection_row WHERE collection = 'locations' AND scope_key = '' AND row_key = ${locationKey}
     `))
     if (!session || moved || !location) yield* reconcileLocations(database, txid)
+  })
+}
 
+function refreshMessages(database: DatabaseService, sessionID: string, txid: string) {
+  return Effect.gen(function* () {
     const messages = yield* database
       .select()
       .from(SessionMessageTable)
@@ -139,24 +194,74 @@ function refresh(database: DatabaseService, sessionID: string, moved: boolean, m
       })),
       txid,
     )
-    const parts = yield* Effect.forEach(encoded, (message) =>
-      Effect.gen(function* () {
-        if (message.row.type !== "assistant") return []
-        return yield* Effect.forEach(message.row.content, (part) =>
-          Effect.gen(function* () {
-            const revision = fingerprint(part)
-            const row = yield* projectPart(database, sessionID, message.row.id, revision, part)
-            return {
-              key: JSON.stringify([message.row.id, part.type, part.id]),
-              row: { ...row, messageID: message.row.id },
-              revision,
-            }
-          }),
-        )
-      }),
-    )
+    const parts = yield* Effect.forEach(encoded, (message) => projectMessageParts(database, sessionID, message.row))
     yield* replaceScope(database, "parts", sessionID, parts.flat(), txid)
+  })
+}
 
+function refreshMessage(database: DatabaseService, sessionID: string, messageID: string, txid: string) {
+  return Effect.gen(function* () {
+    const message = yield* database
+      .select()
+      .from(SessionMessageTable)
+      .where(
+        sql`${SessionMessageTable.session_id} = ${Session.ID.make(sessionID)} AND ${SessionMessageTable.id} = ${SessionMessage.ID.make(messageID)}`,
+      )
+      .get()
+    if (!message) {
+      yield* removeScopeRow(database, "messages", sessionID, messageID, txid)
+      yield* replaceMessageParts(database, sessionID, messageID, [], txid)
+      return
+    }
+    const row = encodeMessage(decodeMessage({ ...message.data, id: message.id, type: message.type }))
+    const revision = fingerprint(row)
+    yield* replaceScopeRow(
+      database,
+      "messages",
+      sessionID,
+      {
+        key: message.id,
+        row: row.type === "assistant" ? { ...row, content: undefined } : row,
+        revision,
+      },
+      txid,
+    )
+    yield* replaceMessageParts(
+      database,
+      sessionID,
+      messageID,
+      yield* projectMessageParts(database, sessionID, row),
+      txid,
+    )
+  })
+}
+
+function projectMessageParts(
+  database: DatabaseService,
+  sessionID: string,
+  message: (typeof SessionMessage.Message)["Encoded"],
+) {
+  if (message.type !== "assistant") return Effect.succeed([])
+  return Effect.forEach(message.content, (part) =>
+    Effect.gen(function* () {
+      const revision = fingerprint(part)
+      const row = yield* projectPart(database, sessionID, message.id, revision, part)
+      return {
+        key: JSON.stringify([message.id, part.type, part.id]),
+        row: { ...row, messageID: message.id },
+        revision,
+      }
+    }),
+  )
+}
+
+function refreshInputs(database: DatabaseService, sessionID: string, txid: string) {
+  return Effect.gen(function* () {
+    const session = yield* database
+      .select({ queueRevision: SessionTable.queue_revision })
+      .from(SessionTable)
+      .where(eq(SessionTable.id, Session.ID.make(sessionID)))
+      .get()
     const inputs = yield* database
       .select()
       .from(SessionInputTable)
@@ -173,7 +278,7 @@ function refresh(database: DatabaseService, sessionID: string, moved: boolean, m
           admittedSeq: input.admitted_seq,
           promotedSeq: input.promoted_seq ?? undefined,
           queuePosition: input.queue_position,
-          queueRevision: session?.queue_revision ?? 0,
+          queueRevision: session?.queueRevision ?? 0,
           timeCreated: input.time_created,
         }
         return {
@@ -184,15 +289,13 @@ function refresh(database: DatabaseService, sessionID: string, moved: boolean, m
       }),
     )
     yield* replaceScope(database, "sessionInputs", sessionID, projectedInputs, txid)
-    yield* refreshTodos(database, sessionID, txid)
-    if (!session) yield* database.run(sql`DELETE FROM full_content WHERE session_id = ${sessionID}`)
-  }).pipe(Effect.orDie)
+  })
 }
 
 function refreshCompactionStart(database: DatabaseService, event: typeof SessionEvent.Compaction.Started.Type) {
   return Effect.gen(function* () {
     const txid = (yield* MutationTxid) ?? crypto.randomUUID()
-    yield* refresh(database, event.data.sessionID, false, txid)
+    yield* refreshSession(database, event.data.sessionID, false, txid)
     yield* projectCompactionStart(
       database,
       {
@@ -234,7 +337,11 @@ export function refreshCompactionDiscarded(
   database: DatabaseService,
   input: (typeof SessionEvent.Compaction.Discarded.Type)["data"],
 ) {
-  return refresh(database, input.sessionID, false)
+  return Effect.gen(function* () {
+    const txid = (yield* MutationTxid) ?? crypto.randomUUID()
+    yield* removeScopeRow(database, "messages", input.sessionID, input.messageID, txid)
+    yield* replaceMessageParts(database, input.sessionID, input.messageID, [], txid)
+  }).pipe(Effect.orDie)
 }
 
 function refreshTodos(database: DatabaseService, sessionID: string, txid: string) {
@@ -364,12 +471,61 @@ function replaceScope(
   deleteOmitted = true,
 ) {
   return Effect.gen(function* () {
-    const feed = yield* database.get<{ runtime_id: string }>(sql`SELECT runtime_id FROM collection_feed WHERE id = 1`)
-    if (!feed) return yield* Effect.die("collection_feed is missing")
     const existing = yield* database.all<{ row_key: string; row: string; row_revision: string }>(sql`
       SELECT row_key, row, row_revision FROM collection_row
       WHERE collection = ${collection} AND scope_key = ${scopeKey}
     `)
+    yield* replaceRows(database, collection, scopeKey, rows, existing, txid, deleteOmitted)
+  })
+}
+
+function replaceScopeRow(
+  database: DatabaseService,
+  collection: string,
+  scopeKey: string,
+  row: { key: string; row: unknown; revision: string },
+  txid: string,
+) {
+  return Effect.gen(function* () {
+    const existing = yield* database.all<{ row_key: string; row: string; row_revision: string }>(sql`
+      SELECT row_key, row, row_revision FROM collection_row
+      WHERE collection = ${collection} AND scope_key = ${scopeKey} AND row_key = ${row.key}
+    `)
+    yield* replaceRows(database, collection, scopeKey, [row], existing, txid, false)
+  })
+}
+
+function replaceMessageParts(
+  database: DatabaseService,
+  sessionID: string,
+  messageID: string,
+  rows: ReadonlyArray<{ key: string; row: unknown; revision: string }>,
+  txid: string,
+) {
+  return Effect.gen(function* () {
+    const prefix = `${JSON.stringify([messageID]).slice(0, -1)},`
+    const existing = yield* database.all<{ row_key: string; row: string; row_revision: string }>(sql`
+      SELECT row_key, row, row_revision FROM collection_row
+      WHERE collection = 'parts' AND scope_key = ${sessionID}
+        AND row_key >= ${prefix} AND row_key < ${`${prefix}\uffff`}
+    `)
+    yield* replaceRows(database, "parts", sessionID, rows, existing, txid, true)
+  })
+}
+
+function replaceRows(
+  database: DatabaseService,
+  collection: string,
+  scopeKey: string,
+  rows: ReadonlyArray<{ key: string; row: unknown; revision: string }>,
+  existing: ReadonlyArray<{ row_key: string; row: string; row_revision: string }>,
+  txid: string,
+  deleteOmitted: boolean,
+) {
+  return Effect.gen(function* () {
+    const runtimeID =
+      (yield* database.get<{ runtime_id: string }>(sql`SELECT runtime_id FROM collection_feed WHERE id = 1`))
+        ?.runtime_id ?? (yield* Effect.die("collection_feed is missing"))
     const existingByKey = new Map(existing.map((row) => [row.row_key, row]))
     const incoming = new Set(rows.map((row) => row.key))
     for (const row of rows) {
@@ -383,7 +539,7 @@ function replaceScope(
         ON CONFLICT (collection, scope_key, row_key)
         DO UPDATE SET row = excluded.row, row_revision = excluded.row_revision
       `)
-      yield* appendChange(database, feed.runtime_id, {
+      yield* appendChange(database, runtimeID, {
         collection,
         scopeKey,
         rowKey: row.key,
@@ -399,7 +555,7 @@ function replaceScope(
           DELETE FROM collection_row
           WHERE collection = ${collection} AND scope_key = ${scopeKey} AND row_key = ${stale.row_key}
         `)
-        yield* appendChange(database, feed.runtime_id, {
+        yield* appendChange(database, runtimeID, {
           collection,
           scopeKey,
           rowKey: stale.row_key,
@@ -419,13 +575,14 @@ function removeScopeRow(database: DatabaseService, collection: string, scopeKey:
       WHERE collection = ${collection} AND scope_key = ${scopeKey} AND row_key = ${rowKey}
     `)
     if (!existing) return
-    const feed = yield* database.get<{ runtime_id: string }>(sql`SELECT runtime_id FROM collection_feed WHERE id = 1`)
-    if (!feed) return yield* Effect.die("collection_feed is missing")
+    const runtimeID =
+      (yield* database.get<{ runtime_id: string }>(sql`SELECT runtime_id FROM collection_feed WHERE id = 1`))
+        ?.runtime_id ?? (yield* Effect.die("collection_feed is missing"))
     yield* database.run(sql`
       DELETE FROM collection_row
       WHERE collection = ${collection} AND scope_key = ${scopeKey} AND row_key = ${rowKey}
     `)
-    return yield* appendChange(database, feed.runtime_id, {
+    yield* appendChange(database, runtimeID, {
       collection,
       scopeKey,
       rowKey,

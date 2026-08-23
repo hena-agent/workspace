@@ -32,3 +32,12 @@ export class QueueRevisionConflictError extends Schema.TaggedErrorClass<QueueRev
     actual: NonNegativeInt,
   },
 ) {}
+
+export class QueueStateConflictError extends Schema.TaggedErrorClass<QueueStateConflictError>()(
+  "Session.QueueStateConflictError",
+  {
+    sessionID: SessionSchema.ID,
+    revision: NonNegativeInt,
+    messageIDs: Schema.Array(SessionMessage.ID),
+  },
+) {}

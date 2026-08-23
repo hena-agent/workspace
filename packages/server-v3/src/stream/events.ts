@@ -75,31 +75,52 @@ export function events(
       }),
     )
     const publish = (scope: (typeof scopes)[number], changes: readonly ReturnType<typeof database.changes.after>[number][]) => {
-      if (scope.collection === "locations")
+      if (scope.collection === "locations") {
         changes.filter((change) => change.op === "insert" || change.op === "update").forEach((change) => addLocation(change.rowKey))
+        changes.filter((change) => change.op === "delete").forEach((change) => removeLocation(change.rowKey))
+      }
       if (!live) {
         buffered.push({ scope, changes })
         return
       }
       enqueueChanges(scope, changes)
     }
-    const unsubscribe = scopes.filter((scope) => !isVolatile(scope.collection)).map((scope) =>
-      database.changes.subscribe(scope.collection, scope.scopeKey, (changes) => publish(scope, changes)),
+    const unsubscribe = new Map<string, () => void>()
+    scopes.filter((scope) => !isVolatile(scope.collection)).forEach((scope) =>
+      unsubscribe.set(scopeKey(scope), database.changes.subscribe(scope.collection, scope.scopeKey, (changes) => publish(scope, changes)))
     )
-    function addLocation(scopeKey: string) {
+    function addLocation(locationKey: string) {
       if (!subscription.lists) return
-      const settings = { collection: "settings" as const, scopeKey }
-      if (!scopes.some((scope) => scope.collection === settings.collection && scope.scopeKey === scopeKey)) {
+      const settings = { collection: "settings" as const, scopeKey: locationKey }
+      if (!scopes.some((scope) => scope.collection === settings.collection && scope.scopeKey === locationKey)) {
         scopes.push(settings)
-        unsubscribe.push(database.changes.subscribe(settings.collection, scopeKey, (changes) => publish(settings, changes)))
+        unsubscribe.set(
+          scopeKey(settings),
+          database.changes.subscribe(settings.collection, locationKey, (changes) => publish(settings, changes)),
+        )
         enqueueSnapshot(settings)
       }
       for (const collection of ["agents", "models", "providers"] as const) {
-        if (scopes.some((scope) => scope.collection === collection && scope.scopeKey === scopeKey)) continue
-        const scope = { collection, scopeKey }
+        if (scopes.some((scope) => scope.collection === collection && scope.scopeKey === locationKey)) continue
+        const scope = { collection, scopeKey: locationKey }
         scopes.push(scope)
         if (volatileLive) enqueueVolatile(scope)
-        else pendingVolatile.add(`${collection}\u0000${scopeKey}`)
+        else pendingVolatile.add(`${collection}\u0000${locationKey}`)
+      }
+    }
+    function removeLocation(locationKey: string) {
+      if (!subscription.lists) return
+      for (const collection of ["settings", "agents", "models", "providers"] as const) {
+        const index = scopes.findIndex((scope) => scope.collection === collection && scope.scopeKey === locationKey)
+        if (index === -1) continue
+        const scope = scopes[index]
+        scopes.splice(index, 1)
+        unsubscribe.get(scopeKey(scope))?.()
+        unsubscribe.delete(scopeKey(scope))
+        pendingVolatile.delete(`${collection}\u0000${locationKey}`)
+        through.delete(scopeKey(scope))
+        buffered.splice(0, buffered.length, ...buffered.filter((item) => scopeKey(item.scope) !== scopeKey(scope)))
+        enqueueEmptySnapshot(scope)
       }
     }
     const enqueueVolatile = (scope: { collection: VolatileCollection; scopeKey: string }) => {
@@ -139,6 +160,12 @@ export function events(
       enqueue("snapshot.begin", { type: "snapshot.begin", scope, snapshotId, baseSeq: snapshot.throughSeq, replace: true })
       pages(snapshot.rows).forEach((rows) => enqueue("snapshot.page", { type: "snapshot.page", scope, snapshotId, rows }))
       enqueue("snapshot.end", { type: "snapshot.end", scope, snapshotId, keyCount: snapshot.rows.length, throughSeq: snapshot.throughSeq })
+    }
+    const enqueueEmptySnapshot = (scope: (typeof scopes)[number]) => {
+      const snapshotId = crypto.randomUUID()
+      const throughSeq = database.changes.current()
+      enqueue("snapshot.begin", { type: "snapshot.begin", scope, snapshotId, baseSeq: throughSeq, replace: true })
+      enqueue("snapshot.end", { type: "snapshot.end", scope, snapshotId, keyCount: 0, throughSeq })
     }
     const enqueueChanges = (scope: (typeof scopes)[number], changes: readonly ReturnType<typeof database.changes.after>[number][]) => {
       if (changes.length === 0) return

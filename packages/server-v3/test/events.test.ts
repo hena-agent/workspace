@@ -157,6 +157,47 @@ describe("collection events", () => {
     expect(output).not.toContain("slow_consumer")
   })
 
+  test("paces snapshots used to recover oversized transactions", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 4)
+      output += decoder.decode((await reader.read()).value)
+
+    database.collections.write({
+      collection: "todos",
+      scopeKey: "session-1",
+      rowKey: "ready",
+      row: { id: "ready" },
+      revision: "1",
+    })
+    while (!output.includes('"id":"ready"')) output += decoder.decode((await reader.read()).value)
+    output = ""
+    database.collections.replace(
+      "messages",
+      "session-1",
+      Array.from({ length: 5 }, (_, index) => ({
+        key: `message-${index}`,
+        row: { id: `message-${index}`, text: "x".repeat(900 * 1024) },
+        revision: "1",
+      })),
+      "tx-large",
+    )
+    while (!output.includes("message-4") && !output.includes("slow_consumer")) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      output += decoder.decode(chunk.value)
+    }
+    await reader.cancel()
+
+    expect(output).toContain("message-4")
+    expect(output).not.toContain("slow_consumer")
+  })
+
   test("buffers deltas until initial snapshots finish", async () => {
     database = createTestDatabase().database
     const deltas = createDeltaHub()

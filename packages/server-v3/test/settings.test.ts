@@ -37,16 +37,18 @@ describe("settings mutation", () => {
 
   test("rejects an idempotency key reused for a different setting target", async () => {
     database = createTestDatabase().database
+    const location = JSON.stringify({ directory: "/repo" })
+    database.collections.hydrate("locations", "", [{ key: location, row: { directory: "/repo" }, revision: "1" }])
     const app = createApp({ database })
     await replace(app, { idempotencyKey: "key-1", value: "dark" })
-    const response = await app.request("/api/settings/workspace/theme", {
+    const response = await app.request(`/api/settings/${encodeURIComponent(location)}/theme`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ idempotencyKey: "key-1", value: "dark" }),
     })
 
     expect(response.status).toBe(409)
-    expect(database.settings.get("workspace", "theme")).toBeUndefined()
+    expect(database.settings.get(location, "theme")).toBeUndefined()
   })
 
   test("rejects a stale expected revision", async () => {
@@ -57,6 +59,18 @@ describe("settings mutation", () => {
 
     expect(response.status).toBe(409)
     expect(await response.json()).toMatchObject({ error: { code: "revision_conflict" } })
+  })
+
+  test("rejects scopes clients cannot subscribe to", async () => {
+    database = createTestDatabase().database
+    const response = await createApp({ database }).request("/api/settings/workspace/theme", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idempotencyKey: "unsupported-scope", value: "dark" }),
+    })
+
+    expect(response.status).toBe(400)
+    expect(database.settings.get("workspace", "theme")).toBeUndefined()
   })
 
   test("rejects setting values larger than 16 KiB", async () => {

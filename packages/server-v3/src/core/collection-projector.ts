@@ -416,7 +416,24 @@ function projectPart(
       const text = yield* projectText(database, sessionID, revision, `${messageID}_${part.id}_text`, part.text)
       return { ...part, ...text }
     }
-    if (part.state.status === "pending") return part
+    if (part.state.status === "pending") {
+      const input = preview(part.state.input)
+      return { ...part, state: { ...part.state, input: input.text } }
+    }
+    const input = yield* projectJson(
+      database,
+      sessionID,
+      revision,
+      `${messageID}_${part.id}_tool_input`,
+      part.state.input,
+    )
+    const structured = yield* projectJson(
+      database,
+      sessionID,
+      revision,
+      `${messageID}_${part.id}_tool_structured`,
+      part.state.structured,
+    )
     const content = yield* Effect.forEach(part.state.content, (item, index) =>
       Effect.gen(function* () {
         if (item.type === "file") return item
@@ -430,7 +447,20 @@ function projectPart(
         return { ...item, ...text }
       }),
     )
-    return { ...part, state: { ...part.state, content } }
+    return { ...part, state: { ...part.state, input, structured, content } }
+  })
+}
+
+function projectJson(database: DatabaseService, sessionID: string, revision: string, id: string, value: unknown) {
+  return Effect.gen(function* () {
+    const text = JSON.stringify(value)
+    const projected = preview(text)
+    if (!projected.truncated) return value
+    yield* database.run(sql`
+      INSERT OR REPLACE INTO full_content (id, session_id, revision, content, created_at)
+      VALUES (${id}, ${sessionID}, ${revision}, ${text}, ${Date.now()})
+    `)
+    return { truncated: true, content: { id, revision, bytes: projected.totalBytes } }
   })
 }
 

@@ -227,6 +227,16 @@ export function events(
         await writes
       }
     }
+    const scheduleFrames = (frames: ReadonlyArray<{ event: string; value: Record<string, unknown> }>) => {
+      writes = writes
+        .then(async () => {
+          for (const item of frames) {
+            if (ending) return
+            await stream.writeSSE({ event: item.event, data: JSON.stringify(frame(item.value)) })
+          }
+        })
+        .catch(disconnected.resolve)
+    }
     const enqueueEmptySnapshot = (scope: (typeof scopes)[number]) => {
       const snapshotId = crypto.randomUUID()
       const throughSeq = database.changes.current()
@@ -259,7 +269,7 @@ export function events(
             return { ...last, rowKey: "", op: "reset", row: null, rowRevision: undefined }
           }),
         })
-        affectedScopes.forEach(enqueueSnapshot)
+        scheduleFrames(affectedScopes.flatMap((scope) => snapshotFrames(scope)))
         return
       }
       enqueue("rows", {

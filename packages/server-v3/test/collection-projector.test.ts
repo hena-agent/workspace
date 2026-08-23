@@ -84,14 +84,26 @@ describe("collection projector", () => {
     await Effect.runPromise(
       Effect.gen(function* () {
         const { db: database } = yield* Database.Service
-        yield* database.run(sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`)
-        yield* database.run(sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated, queue_revision) VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1, 101)`)
-        yield* database.run(sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`)
-        yield* Effect.forEach(Array.from({ length: 100 }), (_, index) =>
-          database.run(sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, queue_position, promoted_seq, time_created) VALUES (${`msg_history_${index}`}, 'ses_1', '{"text":"old"}', 'steer', ${index + 1}, 0, ${index + 1}, 1)`),
+        yield* database.run(
+          sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`,
+        )
+        yield* database.run(
+          sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated, queue_revision) VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1, 101)`,
+        )
+        yield* database.run(
+          sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`,
+        )
+        yield* Effect.forEach(
+          Array.from({ length: 100 }),
+          (_, index) =>
+            database.run(
+              sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, queue_position, promoted_seq, time_created) VALUES (${`msg_history_${index}`}, 'ses_1', '{"text":"old"}', 'steer', ${index + 1}, 0, ${index + 1}, 1)`,
+            ),
           { discard: true },
         )
-        yield* database.run(sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, queue_position, promoted_seq, time_created) VALUES ('msg_pending', 'ses_1', '{"text":"pending"}', 'queue', 101, 0, NULL, 1)`)
+        yield* database.run(
+          sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, queue_position, promoted_seq, time_created) VALUES ('msg_pending', 'ses_1', '{"text":"pending"}', 'queue', 101, 0, NULL, 1)`,
+        )
 
         yield* refreshDurableEvent(database, {
           type: SessionEvent.PromptAdmitted.type,
@@ -99,7 +111,9 @@ describe("collection projector", () => {
         })
 
         expect(
-          yield* database.get<{ count: number }>(sql`SELECT COUNT(*) AS count FROM collection_change WHERE collection = 'sessionInputs'`),
+          yield* database.get<{ count: number }>(
+            sql`SELECT COUNT(*) AS count FROM collection_change WHERE collection = 'sessionInputs'`,
+          ),
         ).toEqual({ count: 1 })
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
     )
@@ -209,9 +223,59 @@ describe("collection projector", () => {
         expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
           files: [{ truncated: true, content: { bytes: expect.any(Number) } }],
         })
-        expect(yield* database.get<{ bytes: number }>(sql`
+        expect(
+          yield* database.get<{ bytes: number }>(sql`
           SELECT length(content) AS bytes FROM full_content WHERE id = 'msg_user_attachment_0'
-        `)).toMatchObject({ bytes: expect.any(Number) })
+        `),
+        ).toMatchObject({ bytes: expect.any(Number) })
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
+  test("bounds pending tool input before writing stream rows", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(sql`
+          INSERT INTO project (id, worktree, time_created, time_updated, sandboxes)
+          VALUES ('global', '/project', 1, 1, '[]')
+        `)
+        yield* database.run(sql`
+          INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
+          VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1)
+        `)
+        yield* database.run(sql`
+          INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
+          VALUES (1, 'feed', 0, 'runtime')
+        `)
+        yield* database.run(sql`
+          INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data)
+          VALUES ('msg_tool', 'ses_1', 'assistant', 1, 1, 1, ${JSON.stringify({
+            agent: "build",
+            model: { id: "model", providerID: "provider" },
+            content: [
+              {
+                type: "tool",
+                id: "tool_1",
+                name: "bash",
+                state: { status: "pending", input: "x".repeat(2 * 1024 * 1024) },
+                time: { created: 1 },
+              },
+            ],
+            time: { created: 1 },
+          })})
+        `)
+
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.Step.Ended.type,
+          data: { sessionID: "ses_1", assistantMessageID: "msg_tool" },
+        })
+
+        const projected = yield* database.get<{ row: string }>(sql`
+          SELECT row FROM collection_row
+          WHERE collection = 'parts' AND scope_key = 'ses_1'
+        `)
+        expect(projected?.row.length).toBeLessThan(1024 * 1024)
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
     )
   })

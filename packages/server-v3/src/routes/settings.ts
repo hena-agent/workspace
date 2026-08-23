@@ -15,7 +15,7 @@ export function createSettingRoutes(database: SyncDatabase) {
       const body = c.req.valid("json")
       const scope = c.req.param("scope")
       const key = c.req.param("key")
-      if (!scope || !key || !validSetting(key, body.value))
+      if (!scope || !key || !validScope(database, scope) || !validSetting(key, body.value))
         return error(c, 400, "validation", "Setting key or value is not allowed")
       try {
         const result = database.idempotency.run(
@@ -66,6 +66,10 @@ export function createSettingRoutes(database: SyncDatabase) {
       }
     },
   )
+}
+
+function validScope(database: SyncDatabase, scope: string) {
+  return scope === "profile" || database.collections.snapshot("locations", "").rows.some((row) => row.key === scope)
 }
 
 function validSetting(key: string, value: unknown) {

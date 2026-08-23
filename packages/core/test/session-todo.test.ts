@@ -91,39 +91,4 @@ describe("SessionTodo", () => {
     }),
   )
 
-  it.effect("rolls back todo rows when a transactional projector fails", () =>
-    Effect.gen(function* () {
-      yield* setup
-      const { db } = yield* Database.Service
-      const events = yield* EventV2.Service
-      const todos = yield* SessionTodo.Service
-      yield* events.project(SessionTodo.Event.Updated, () => Effect.die("projection failed"))
-
-      yield* Effect.exit(todos.update({
-        sessionID,
-        todos: [{ content: "not committed", status: "pending", priority: "high" }],
-      }))
-
-      expect(yield* db.select().from(TodoTable).all().pipe(Effect.orDie)).toEqual([])
-    }),
-  )
-
-  it.effect("rebuilds todo rows from a durable event", () =>
-    Effect.gen(function* () {
-      yield* setup
-      const events = yield* EventV2.Service
-      const todos = yield* SessionTodo.Service
-      const todo = { id: SessionTodo.ID.create(), content: "replayed", status: "pending", priority: "high" }
-
-      yield* events.replay({
-        id: EventV2.ID.create(),
-        type: EventV2.versionedType(SessionTodo.Event.Updated.type, 1),
-        seq: 0,
-        aggregateID: sessionID,
-        data: { sessionID, todos: [todo] },
-      })
-
-      expect(yield* todos.get(sessionID)).toEqual([todo])
-    }),
-  )
 })

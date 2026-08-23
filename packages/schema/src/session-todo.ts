@@ -26,7 +26,6 @@ export interface Info extends Schema.Schema.Type<typeof Info> {}
 
 const Updated = define({
   type: "todo.updated",
-  durable: { aggregate: "sessionID", version: 1 },
   schema: {
     sessionID: SessionID,
     todos: Schema.Array(Info),

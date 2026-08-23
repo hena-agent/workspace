@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { StreamRevisionConflict, createStreamRegistry } from "../src/stream/registry"
+import { StreamLimitExceeded, StreamRevisionConflict, createStreamRegistry } from "../src/stream/registry"
 
 describe("stream registry", () => {
   test("accepts only increasing subscription revisions", () => {
@@ -28,6 +28,16 @@ describe("stream registry", () => {
     streams.detach("local", stream.id)
     time += 101
     expect(streams.get("local", stream.id)).toBeUndefined()
+  })
+
+  test("bounds resources per principal and prunes expired streams during creation", () => {
+    let time = 0
+    const streams = createStreamRegistry({ graceMs: 100, maxResourcesPerPrincipal: 1, now: () => time })
+    streams.create("local")
+
+    expect(() => streams.create("local")).toThrow(StreamLimitExceeded)
+    time = 101
+    expect(streams.create("local").principal).toBe("local")
   })
 
   test("supersedes the previous attachment generation", () => {

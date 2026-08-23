@@ -6,6 +6,7 @@ import { Project } from "@hena/core/project"
 import { ProjectTable } from "@hena/core/project/sql"
 import { AbsolutePath } from "@hena/core/schema"
 import { SessionTable } from "@hena/core/session/sql"
+import { sql } from "drizzle-orm"
 import { Effect } from "effect"
 import { Todo } from "@/session/todo"
 import { SessionID } from "@/session/schema"
@@ -35,6 +36,10 @@ describe("legacy session todos", () => {
         })
         .run()
         .pipe(Effect.orDie)
+      yield* db.run(sql`
+        INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated)
+        VALUES (${sessionID}, 'rollback todo', 'pending', 'high', 0, 1, 1)
+      `).pipe(Effect.orDie)
       const todos = yield* Todo.Service
 
       const initial = yield* todos.update({
@@ -50,6 +55,7 @@ describe("legacy session todos", () => {
         todos: [...listed].reverse(),
       })
 
+      expect(initial.map((todo) => todo.id)).toEqual(initial.map(() => expect.stringMatching(/^todo_/)))
       expect(listed.map((todo) => todo.id)).toEqual(initial.map((todo) => todo.id))
       expect(updated.map((todo) => todo.id)).toEqual([initial[1]?.id, initial[0]?.id])
     }),

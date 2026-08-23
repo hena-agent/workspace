@@ -13,10 +13,9 @@ import { SessionMessageUpdater } from "./message-updater"
 import { SessionInput } from "./input"
 import { WorkspaceV2 } from "../workspace"
 import { SessionContextEpoch } from "./context-epoch"
-import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "./sql"
+import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, SessionTable } from "./sql"
 import type { DeepMutable } from "../schema"
 import { SessionSchema } from "./schema"
-import { SessionTodo } from "@hena/schema/session-todo"
 import { QueueRevisionConflictError } from "./error"
 
 type DatabaseService = Database.Interface["db"]
@@ -215,22 +214,6 @@ const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const events = yield* EventV2.Service
     const { db } = yield* Database.Service
-    yield* events.project(SessionTodo.Event.Updated, (event) =>
-      Effect.gen(function* () {
-        const todos = event.data.todos.filter((todo): todo is typeof todo & { id: SessionTodo.ID } => todo.id !== undefined)
-        if (todos.length !== event.data.todos.length) return yield* Effect.die("Durable todos require IDs")
-        yield* db.delete(TodoTable).where(eq(TodoTable.session_id, event.data.sessionID)).run().pipe(Effect.orDie)
-        if (todos.length === 0) return
-        yield* db.insert(TodoTable).values(todos.map((todo, position) => ({
-          id: todo.id,
-          session_id: event.data.sessionID,
-          content: todo.content,
-          status: todo.status,
-          priority: todo.priority,
-          position,
-        }))).run().pipe(Effect.orDie)
-      }),
-    )
     yield* events.project(SessionV1.Event.Created, (event) =>
       Effect.gen(function* () {
         const stored = yield* db

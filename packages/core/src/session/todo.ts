@@ -8,7 +8,6 @@ import { makeLocationNode } from "../effect/app-node"
 import { EventV2 } from "../event"
 import { SessionSchema } from "./schema"
 import { TodoTable } from "./sql"
-import { SessionProjector } from "./projector"
 
 export const Info = SessionTodo.Info
 export type Info = typeof Info.Type
@@ -40,6 +39,27 @@ const layer = Layer.effect(
         ...todo,
         id: todo.id ? SessionTodo.ID.make(todo.id) : SessionTodo.ID.create(),
       }))
+      yield* db
+        .transaction((tx) =>
+          Effect.gen(function* () {
+            yield* tx.delete(TodoTable).where(eq(TodoTable.session_id, input.sessionID)).run()
+            if (normalized.length === 0) return
+            yield* tx
+              .insert(TodoTable)
+              .values(
+                normalized.map((todo, position) => ({
+                  id: todo.id,
+                  session_id: input.sessionID,
+                  content: todo.content,
+                  status: todo.status,
+                  priority: todo.priority,
+                  position,
+                })),
+              )
+              .run()
+          }),
+        )
+        .pipe(Effect.orDie)
       yield* events.publish(Event.Updated, { ...input, todos: normalized })
       return normalized
     })
@@ -64,4 +84,4 @@ const layer = Layer.effect(
   }),
 )
 
-export const node = makeLocationNode({ service: Service, layer, deps: [EventV2.node, Database.node, SessionProjector.node] })
+export const node = makeLocationNode({ service: Service, layer, deps: [EventV2.node, Database.node] })

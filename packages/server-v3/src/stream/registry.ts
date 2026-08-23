@@ -18,22 +18,32 @@ type StreamResource = {
 export class StreamRevisionConflict extends Error {
   readonly code = "subscription_revision_conflict"
 }
+export class StreamLimitExceeded extends Error {
+  readonly code = "stream_limit_exceeded"
+}
 
-export function createStreamRegistry(config: { graceMs: number; now?: () => number }) {
+export function createStreamRegistry(config: { graceMs: number; maxResourcesPerPrincipal?: number; now?: () => number }) {
   const resources = new Map<string, StreamResource>()
   const now = config.now ?? Date.now
+  const maxResourcesPerPrincipal = config.maxResourcesPerPrincipal ?? 128
+
+  const prune = () => resources.forEach((resource, id) => {
+    if (resource.expiresAt >= now()) return
+    resource.disconnect?.()
+    resources.delete(id)
+  })
 
   const owned = (principal: string, id: string) => {
+    prune()
     const resource = resources.get(id)
-    if (resource && resource.expiresAt < now()) {
-      resources.delete(id)
-      return undefined
-    }
     return resource?.principal === principal ? resource : undefined
   }
 
   return {
     create(principal: string) {
+      prune()
+      if (Array.from(resources.values()).filter((resource) => resource.principal === principal).length >= maxResourcesPerPrincipal)
+        throw new StreamLimitExceeded()
       const resource: StreamResource = {
         id: toBase64Url(crypto.getRandomValues(new Uint8Array(16))),
         principal,

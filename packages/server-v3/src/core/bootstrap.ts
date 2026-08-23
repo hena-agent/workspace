@@ -77,6 +77,7 @@ const decodeMessage = Schema.decodeUnknownSync(SessionMessage.Message)
 const encodeMessage = Schema.encodeSync(SessionMessage.Message)
 
 export function bootstrapCollections(database: SyncDatabase) {
+  database.raw.exec(`UPDATE todo SET id = 'todo_' || lower(hex(randomblob(16))) WHERE id IS NULL`)
   const projects = database.raw.query<ProjectRow, []>("SELECT * FROM project ORDER BY id").all()
   const projectsChanged = database.collections.hydrate(
     "projects",
@@ -125,14 +126,17 @@ export function bootstrapCollections(database: SyncDatabase) {
   const todos = database.raw
     .query<TodoRow, []>("SELECT id, session_id, content, status, priority, time_updated FROM todo ORDER BY position")
     .all()
+  const messagesBySession = Map.groupBy(messages, (message) => message.session_id)
+  const inputsBySession = Map.groupBy(inputs, (input) => input.session_id)
+  const todosBySession = Map.groupBy(todos, (todo) => todo.session_id)
   const sessionCollectionsChanged = sessions.map((session) =>
     hydrateSessionCollections(
       database,
       session.id,
       session.queue_revision,
-      messages.filter((message) => message.session_id === session.id),
-      inputs.filter((input) => input.session_id === session.id),
-      todos.filter((todo) => todo.session_id === session.id),
+      messagesBySession.get(session.id) ?? [],
+      inputsBySession.get(session.id) ?? [],
+      todosBySession.get(session.id) ?? [],
     ),
   )
   const sessionIDs = new Set(sessions.map((session) => session.id))

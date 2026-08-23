@@ -26,9 +26,12 @@ const layer = Layer.effectDiscard(
         const sessionID = sessionId(event.data)
         return sessionID ? refresh(database.db, sessionID) : Effect.void
       })
-    yield* events.project(SessionTodo.Event.Updated, (event) =>
-      refreshTodos(database.db, decodeTodoUpdate(event.data).sessionID, crypto.randomUUID()).pipe(Effect.orDie),
+    const unsubscribeTodos = yield* events.listen((event) =>
+      event.type === SessionTodo.Event.Updated.type
+        ? refreshTodos(database.db, decodeTodoUpdate(event.data).sessionID, crypto.randomUUID()).pipe(Effect.orDie)
+        : Effect.void
     )
+    yield* Effect.addFinalizer(() => unsubscribeTodos)
   }),
 )
 

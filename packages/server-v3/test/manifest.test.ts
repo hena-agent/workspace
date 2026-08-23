@@ -15,4 +15,10 @@ describe("collection manifest", () => {
     expect(scopes).toContainEqual({ collection: "settings", scopeKey: '{"directory":"/repo"}' })
     expect(scopes).not.toContainEqual({ collection: "settings", scopeKey: "" })
   })
+
+  test("deduplicates repeated session IDs", () => {
+    const scopes = requestedScopes({ lists: false, sessions: ["ses_1", "ses_1"] })
+
+    expect(scopes.filter((scope) => scope.collection === "messages" && scope.scopeKey === "ses_1")).toHaveLength(1)
+  })
 })

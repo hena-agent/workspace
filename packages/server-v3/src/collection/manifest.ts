@@ -12,7 +12,7 @@ export function requestedScopes(
       [...LocationCollections.map((collection) => ({ collection, scopeKey })), { collection: "settings", scopeKey }]
     ) : []),
     ...(subscription.lists ? [{ collection: "settings", scopeKey: "profile" }] : []),
-    ...subscription.sessions.flatMap((scopeKey) =>
+    ...Array.from(new Set(subscription.sessions)).flatMap((scopeKey) =>
       SessionCollections.map((collection) => ({ collection, scopeKey })),
     ),
   ]

@@ -128,6 +128,11 @@ describe("DatabaseMigration", () => {
           queue_position: 42,
         })
         expect((yield* db.get<{ id: string }>(sql`SELECT id FROM todo`))?.id).toStartWith("todo_")
+        yield* db.run(sql`
+          INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated)
+          VALUES ('ses_1', 'After rollback', 'pending', 'high', 1, 2, 2)
+        `)
+        expect(yield* db.get(sql`SELECT content FROM todo WHERE position = 1`)).toEqual({ content: "After rollback" })
         expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'collection_change'`))
           .toEqual({ name: "collection_change" })
       }),

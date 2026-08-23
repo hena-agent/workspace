@@ -59,11 +59,19 @@ describe("serving", () => {
       headers: { origin: "http://localhost", "content-type": "application/json" },
       body: JSON.stringify({ idempotencyKey: "same-origin", value: "dark" }),
     })
+    const devOrigin = await app.request("http://127.0.0.1:4106/api/collection/capabilities", {
+      headers: { origin: "http://localhost:5173" },
+    })
+    const rebound = await app.request("http://attacker.example/api/collection/capabilities", {
+      headers: { origin: "http://attacker.example" },
+    })
     const rejected = await app.request("/api/collection/capabilities", { headers: { origin: "https://evil.example" } })
 
     expect(allowed.headers.get("access-control-allow-origin")).toBe("https://app.hena.dev")
     expect(sameOrigin.status).toBe(200)
     expect(sameOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost")
+    expect(devOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost:5173")
+    expect(rebound.status).toBe(401)
     expect(rejected.status).toBe(401)
     expect(rejected.headers.get("access-control-allow-origin")).toBeNull()
     expect(await rejected.json()).toMatchObject({ error: { code: "unauthorized" } })

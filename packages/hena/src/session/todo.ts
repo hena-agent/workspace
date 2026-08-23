@@ -7,7 +7,6 @@ import { asc } from "drizzle-orm"
 import { TodoTable } from "@hena/core/session/sql"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { SessionTodo } from "@hena/schema/session-todo"
-import { SessionProjector } from "@hena/core/session/projector"
 
 export const Info = SessionTodo.Info
 export type Info = SessionTodo.Info
@@ -39,10 +38,31 @@ const layer = Layer.effect(
         ...todo,
         id:
           todo.id ??
-          (existing[index] && !input.todos.some((item) => item.id === existing[index]!.id)
+          (existing[index]?.id && !input.todos.some((item) => item.id === existing[index].id)
             ? existing[index].id
             : SessionTodo.ID.create()),
       }))
+      yield* db
+        .transaction((tx) =>
+          Effect.gen(function* () {
+            yield* tx.delete(TodoTable).where(eq(TodoTable.session_id, input.sessionID)).run()
+            if (todos.length === 0) return
+            yield* tx
+              .insert(TodoTable)
+              .values(
+                todos.map((todo, position) => ({
+                  id: todo.id,
+                  session_id: input.sessionID,
+                  content: todo.content,
+                  status: todo.status,
+                  priority: todo.priority,
+                  position,
+                })),
+              )
+              .run()
+          }),
+        )
+        .pipe(Effect.orDie)
       yield* events.publish(Event.Updated, { ...input, todos })
       return todos
     })
@@ -67,6 +87,6 @@ const layer = Layer.effect(
   }),
 )
 
-export const node = LayerNode.make({ service: Service, layer: layer, deps: [EventV2Bridge.node, Database.node, SessionProjector.node] })
+export const node = LayerNode.make({ service: Service, layer: layer, deps: [EventV2Bridge.node, Database.node] })
 
 export * as Todo from "./todo"

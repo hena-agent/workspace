@@ -45,7 +45,7 @@ describe("collection bootstrap", () => {
       INSERT INTO session_input VALUES (
         'msg_2', 'ses_1', '{"text":"queued","files":[],"agents":[]}', 'queue', 2, 0, NULL, 7
       );
-      INSERT INTO todo VALUES ('todo_1', 'ses_1', 'Ship it', 'pending', 'high', 0, 8, 9);
+      INSERT INTO todo VALUES (NULL, 'ses_1', 'Ship it', 'pending', 'high', 0, 8, 9);
     `)
     const uri = `data:text/plain;base64,${"A".repeat(40 * 1024)}`
     database.raw.query("UPDATE session_input SET prompt = ? WHERE id = 'msg_2'").run(JSON.stringify({
@@ -88,7 +88,7 @@ describe("collection bootstrap", () => {
       limit: 256 * 1024,
     })?.text).toBe(uri)
     expect(database.collections.snapshot("todos", "ses_1").rows[0]?.row).toMatchObject({
-      id: "todo_1",
+      id: expect.stringMatching(/^todo_/),
       content: "Ship it",
     })
     expect(database.collections.snapshot("parts", "ses_deleted").rows).toEqual([])

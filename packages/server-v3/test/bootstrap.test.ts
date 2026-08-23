@@ -52,6 +52,12 @@ describe("collection bootstrap", () => {
       text: "queued",
       files: [{ uri }],
     }))
+    database.collections.hydrate("parts", "ses_deleted", [{
+      key: "part-deleted",
+      row: { content: { id: "content-deleted", revision: "r1", bytes: 7 } },
+      revision: "r1",
+    }])
+    database.content.put({ id: "content-deleted", sessionID: "ses_deleted", revision: "r1", text: "deleted" })
 
     expect(bootstrapCollections(database)).toBe(true)
 
@@ -85,6 +91,14 @@ describe("collection bootstrap", () => {
       id: "todo_1",
       content: "Ship it",
     })
+    expect(database.collections.snapshot("parts", "ses_deleted").rows).toEqual([])
+    expect(database.content.page({
+      id: "content-deleted",
+      sessionID: "ses_deleted",
+      revision: "r1",
+      offset: 0,
+      limit: 10,
+    })).toBeUndefined()
     expect(database.changes.after("projects", "", 0)).toEqual([])
     expect(bootstrapCollections(database)).toBe(false)
   })

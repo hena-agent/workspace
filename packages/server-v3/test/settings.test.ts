@@ -16,6 +16,7 @@ describe("settings mutation", () => {
     expect(response.status).toBe(200)
     expect(database.settings.get("profile", "theme")).toEqual({ value: "dark", revision: body.revision })
     expect(body.receipt.through.seq).toBeGreaterThan(0)
+    expect(database.changes.after("settings", "profile", 0)[0]?.op).toBe("insert")
   })
 
   test("replays the exact result without writing twice", async () => {

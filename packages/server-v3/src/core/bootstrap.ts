@@ -4,6 +4,7 @@ import { Schema } from "effect"
 import { preview } from "../storage/content"
 import { fingerprint } from "../storage/fingerprint"
 import type { SyncDatabase } from "../storage/database"
+import { SessionCollections } from "../collection/manifest"
 import type { CoreDomain } from "./domain"
 import type { OnlineRequestStore } from "./online-requests"
 
@@ -134,6 +135,16 @@ export function bootstrapCollections(database: SyncDatabase) {
       todos.filter((todo) => todo.session_id === session.id),
     ),
   )
+  const sessionIDs = new Set(sessions.map((session) => session.id))
+  const staleSessionIDs = database.raw.query<{ session_id: string }, []>(`
+    SELECT scope_key AS session_id FROM collection_row
+    WHERE collection IN ('messages', 'parts', 'sessionInputs', 'todos')
+    UNION SELECT session_id FROM full_content
+  `).all().map((row) => row.session_id).filter((sessionID) => !sessionIDs.has(sessionID))
+  const staleSessionCollectionsChanged = staleSessionIDs.flatMap((sessionID) => {
+    database.raw.query("DELETE FROM full_content WHERE session_id = ?").run(sessionID)
+    return SessionCollections.map((collection) => database.collections.hydrate(collection, sessionID, []))
+  })
   const locations = new Map(
     projects.map((project) => {
       const ref = { directory: project.worktree }
@@ -149,7 +160,8 @@ export function bootstrapCollections(database: SyncDatabase) {
     "",
     Array.from(locations, ([key, row]) => ({ key, row, revision: "1" })),
   )
-  return projectsChanged || sessionsChanged || locationsChanged || sessionCollectionsChanged.some(Boolean)
+  return projectsChanged || sessionsChanged || locationsChanged ||
+    sessionCollectionsChanged.some(Boolean) || staleSessionCollectionsChanged.some(Boolean)
 }
 
 function hydrateSessionCollections(

@@ -133,6 +133,28 @@ describe("SessionV2.prompt", () => {
       ).toEqual([second.id, first.id])
       expect(yield* session.cancelInput({ sessionID, messageID: first.id, expectedRevision: 3 })).toBe(4)
       expect(yield* admitted(first.id)).toBeUndefined()
+
+      const events = yield* EventV2.Service
+      const defect = yield* events
+        .publish(SessionEvent.InputCanceled, {
+          sessionID,
+          messageID: second.id,
+          expectedRevision: 3,
+          timestamp: yield* DateTime.now,
+        })
+        .pipe(Effect.catchDefect(Effect.succeed))
+      expect(defect).toBeInstanceOf(SessionV2.QueueRevisionConflictError)
+      expect(defect).toMatchObject({ expected: 3, actual: 4 })
+
+      const conflict = yield* session
+        .cancelInput({
+          sessionID,
+          messageID: second.id,
+          expectedRevision: 3,
+        })
+        .pipe(Effect.flip)
+      expect(conflict).toBeInstanceOf(SessionV2.QueueRevisionConflictError)
+      expect(conflict).toMatchObject({ expected: 3, actual: 4 })
     }),
   )
 

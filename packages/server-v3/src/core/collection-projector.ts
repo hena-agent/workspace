@@ -185,6 +185,7 @@ function refresh(database: DatabaseService, sessionID: string) {
       txid,
     )
     yield* refreshTodos(database, sessionID, txid)
+    if (!session) yield* database.run(sql`DELETE FROM full_content WHERE session_id = ${sessionID}`)
   }).pipe(Effect.orDie)
 }
 

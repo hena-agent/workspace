@@ -52,4 +52,33 @@ describe("full content", () => {
     expect(result.totalLines).toBe(501)
     expect(result.text).not.toContain("😀")
   })
+
+  test("removes content after its collection revision leaves retention", () => {
+    database = createTestDatabase().database
+    database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "old" })
+    database.collections.write({
+      collection: "parts",
+      scopeKey: "session-1",
+      rowKey: "part-1",
+      row: { content: { id: "content-1", revision: "r1", bytes: 3 } },
+      revision: "row-1",
+    })
+    database.content.put({ id: "content-1", sessionID: "session-1", revision: "r2", text: "current" })
+    database.collections.write({
+      collection: "parts",
+      scopeKey: "session-1",
+      rowKey: "part-1",
+      row: { content: { id: "content-1", revision: "r2", bytes: 7 } },
+      revision: "row-2",
+    })
+
+    database.compact({ changeMaxRows: 1, changeMaxAgeMs: Number.MAX_SAFE_INTEGER })
+
+    expect(
+      database.content.page({ id: "content-1", sessionID: "session-1", revision: "r1", offset: 0, limit: 10 }),
+    ).toBeUndefined()
+    expect(
+      database.content.page({ id: "content-1", sessionID: "session-1", revision: "r2", offset: 0, limit: 10 })?.text,
+    ).toBe("current")
+  })
 })

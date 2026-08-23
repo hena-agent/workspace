@@ -1,4 +1,5 @@
 import { Schema } from "effect"
+import { NonNegativeInt } from "../schema"
 import { SessionMessage } from "./message"
 import { SessionSchema } from "./schema"
 
@@ -22,3 +23,12 @@ export class ContextSnapshotDecodeError extends Schema.TaggedErrorClass<ContextS
     return `Failed to decode context snapshot for session ${this.sessionID}: ${this.details}`
   }
 }
+
+export class QueueRevisionConflictError extends Schema.TaggedErrorClass<QueueRevisionConflictError>()(
+  "Session.QueueRevisionConflictError",
+  {
+    sessionID: SessionSchema.ID,
+    expected: NonNegativeInt,
+    actual: NonNegativeInt,
+  },
+) {}

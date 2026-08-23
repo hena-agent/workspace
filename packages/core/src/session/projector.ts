@@ -17,6 +17,7 @@ import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, Sessio
 import type { DeepMutable } from "../schema"
 import { SessionSchema } from "./schema"
 import { SessionTodo } from "@hena/schema/session-todo"
+import { QueueRevisionConflictError } from "./error"
 
 type DatabaseService = Database.Interface["db"]
 
@@ -545,6 +546,10 @@ function requireQueueRevision(db: DatabaseService, sessionID: SessionSchema.ID, 
     .get()
     .pipe(
       Effect.orDie,
-      Effect.flatMap((row) => row?.revision === expected ? Effect.void : Effect.die("Queue revision conflict")),
+      Effect.flatMap((row) =>
+        row?.revision === expected
+          ? Effect.void
+          : Effect.die(new QueueRevisionConflictError({ sessionID, expected, actual: row?.revision ?? 0 })),
+      ),
     )
 }

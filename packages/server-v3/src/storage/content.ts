@@ -12,6 +12,30 @@ export function createContentStore(database: Database) {
   const get = database.query<ContentRow, [string, string, string]>(`
     SELECT content FROM full_content WHERE id = ? AND session_id = ? AND revision = ?
   `)
+  const compact = database.query(`
+    WITH referenced AS (
+      SELECT collection_row.scope_key AS session_id,
+        json_extract(content.value, '$.id') AS id,
+        json_extract(content.value, '$.revision') AS revision
+      FROM collection_row, json_tree(collection_row.row) AS content
+      WHERE collection_row.collection IN ('parts', 'sessionInputs')
+        AND content.key = 'content' AND content.type = 'object'
+      UNION
+      SELECT collection_change.scope_key AS session_id,
+        json_extract(content.value, '$.id') AS id,
+        json_extract(content.value, '$.revision') AS revision
+      FROM collection_change, json_tree(collection_change.row) AS content
+      WHERE collection_change.collection IN ('parts', 'sessionInputs')
+        AND content.key = 'content' AND content.type = 'object'
+    )
+    DELETE FROM full_content
+    WHERE NOT EXISTS (
+      SELECT 1 FROM referenced
+      WHERE referenced.id = full_content.id
+        AND referenced.session_id = full_content.session_id
+        AND referenced.revision = full_content.revision
+    )
+  `)
 
   return {
     put(input: { id: string; sessionID: string; revision: string; text: string }) {
@@ -33,6 +57,9 @@ export function createContentStore(database: Database) {
         totalBytes: bytes.length,
         revision: input.revision,
       }
+    },
+    compact() {
+      compact.run()
     },
   }
 }

@@ -16,7 +16,7 @@ import { Database } from "./database/database"
 import { SessionProjector } from "./session/projector"
 import { SessionMessageTable, SessionTable } from "./session/sql"
 import { SessionSchema } from "./session/schema"
-import { AbsolutePath, NonNegativeInt, PositiveInt, RelativePath } from "./schema"
+import { AbsolutePath, PositiveInt, RelativePath } from "./schema"
 import { AgentV2 } from "./agent"
 import { SessionV1 } from "./v1/session"
 import { InstallationVersion } from "./installation/version"
@@ -29,7 +29,7 @@ import { SessionStore } from "./session/store"
 import { SessionExecution } from "./session/execution"
 import { makeGlobalNode } from "./effect/app-node"
 import { LocationServiceMap } from "./location-service-map"
-import { MessageDecodeError } from "./session/error"
+import { MessageDecodeError, QueueRevisionConflictError } from "./session/error"
 import { SessionEvent } from "./session/event"
 import { SessionInput } from "./session/input"
 import { Snapshot } from "./snapshot"
@@ -99,20 +99,12 @@ export class OperationUnavailableError extends Schema.TaggedErrorClass<Operation
   },
 ) {}
 
-export { ContextSnapshotDecodeError, MessageDecodeError } from "./session/error"
+export { ContextSnapshotDecodeError, MessageDecodeError, QueueRevisionConflictError } from "./session/error"
 
 export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictError>()("Session.PromptConflictError", {
   sessionID: SessionSchema.ID,
   messageID: SessionMessage.ID,
 }) {}
-export class QueueRevisionConflictError extends Schema.TaggedErrorClass<QueueRevisionConflictError>()(
-  "Session.QueueRevisionConflictError",
-  {
-    sessionID: SessionSchema.ID,
-    expected: NonNegativeInt,
-    actual: NonNegativeInt,
-  },
-) {}
 export const MessageNotFoundError = SessionRevert.MessageNotFoundError
 export type MessageNotFoundError = SessionRevert.MessageNotFoundError
 
@@ -404,33 +396,31 @@ const layer = Layer.effect(
         ),
       ),
       cancelInput: Effect.fn("V2Session.cancelInput")(function* (input) {
-        const session = yield* result.get(input.sessionID)
-        const actual = session.queueRevision ?? 0
-        if (actual !== input.expectedRevision)
-          return yield* new QueueRevisionConflictError({
-            sessionID: input.sessionID,
-            expected: input.expectedRevision,
-            actual,
+        yield* result.get(input.sessionID)
+        yield* events
+          .publish(SessionEvent.InputCanceled, {
+            ...input,
+            timestamp: yield* DateTime.now,
           })
-        yield* events.publish(SessionEvent.InputCanceled, {
-          ...input,
-          timestamp: yield* DateTime.now,
-        })
+          .pipe(
+            Effect.catchDefect((defect) =>
+              defect instanceof QueueRevisionConflictError ? Effect.fail(defect) : Effect.die(defect),
+            ),
+          )
         return input.expectedRevision + 1
       }),
       reorderInputs: Effect.fn("V2Session.reorderInputs")(function* (input) {
-        const session = yield* result.get(input.sessionID)
-        const actual = session.queueRevision ?? 0
-        if (actual !== input.expectedRevision)
-          return yield* new QueueRevisionConflictError({
-            sessionID: input.sessionID,
-            expected: input.expectedRevision,
-            actual,
+        yield* result.get(input.sessionID)
+        yield* events
+          .publish(SessionEvent.InputReordered, {
+            ...input,
+            timestamp: yield* DateTime.now,
           })
-        yield* events.publish(SessionEvent.InputReordered, {
-          ...input,
-          timestamp: yield* DateTime.now,
-        })
+          .pipe(
+            Effect.catchDefect((defect) =>
+              defect instanceof QueueRevisionConflictError ? Effect.fail(defect) : Effect.die(defect),
+            ),
+          )
         return input.expectedRevision + 1
       }),
       shell: Effect.fn("V2Session.shell")(function* () {

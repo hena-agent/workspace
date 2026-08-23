@@ -17,6 +17,10 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
     DO UPDATE SET row = excluded.row, row_revision = excluded.row_revision
   `)
   const remove = database.query("DELETE FROM collection_row WHERE collection = ? AND scope_key = ? AND row_key = ?")
+  const exists = database.query<{ present: number }, [string, string, string]>(`
+    SELECT 1 AS present FROM collection_row
+    WHERE collection = ? AND scope_key = ? AND row_key = ?
+  `)
   const list = database.query<CollectionRow, [string, string]>(`
     SELECT row_key, row, row_revision FROM collection_row
     WHERE collection = ? AND scope_key = ?
@@ -33,12 +37,13 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
       txid?: string
     }) {
       return changes.batch(() => database.transaction(() => {
+        const stored = exists.get(input.collection, input.scopeKey, input.rowKey)
         upsert.run(input.collection, input.scopeKey, input.rowKey, encodeRow(input.row), input.revision)
         return changes.append({
           collection: input.collection,
           scopeKey: input.scopeKey,
           rowKey: input.rowKey,
-          op: "update",
+          op: stored ? "update" : "insert",
           row: input.row,
           rowRevision: input.revision,
           txid: input.txid,

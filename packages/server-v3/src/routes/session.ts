@@ -100,7 +100,7 @@ function oversizedPrompt(prompt: PromptInput.Prompt) {
 }
 
 function inlinedBytes(uri: string) {
-  if (!uri.startsWith("data:")) return 0
+  if (!/^data:/i.test(uri)) return 0
   const separator = uri.indexOf(",")
   if (separator === -1) return 0
   const data = uri.slice(separator + 1)

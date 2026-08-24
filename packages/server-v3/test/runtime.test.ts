@@ -55,7 +55,7 @@ describe("core runtime", () => {
     createSyncDatabase(new Database(filename, { create: true })).close()
     const domain = createCoreDomain(undefined, undefined, undefined, filename)
     await domain.ready()
-    const uri = `data:text/plain;base64,${"x".repeat(1024 * 1024)}`
+    const uri = `DATA:text/plain;base64,${"x".repeat(1024 * 1024)}`
     const sessionID = Session.ID.create()
     const messageID = SessionMessage.ID.create()
     const location = Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() })

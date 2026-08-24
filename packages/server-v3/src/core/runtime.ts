@@ -359,7 +359,7 @@ function compactAdmissionResponse(response: unknown) {
         ...prompt,
         files: prompt.files.map((file) =>
           typeof file === "object" && file !== null && "uri" in file && typeof file.uri === "string"
-            ? { ...file, uri: file.uri.startsWith("data:") ? "" : file.uri }
+            ? { ...file, uri: /^data:/i.test(file.uri) ? "" : file.uri }
             : file,
         ),
       },

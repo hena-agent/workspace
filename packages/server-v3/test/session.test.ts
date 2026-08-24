@@ -96,7 +96,7 @@ describe("session mutations", () => {
         idempotencyKey: "large-attachment",
         prompt: {
           text: "",
-          files: [{ uri: `data:text/plain;base64,${"A".repeat(Math.ceil((5 * 1024 * 1024 + 1) * 4 / 3))}`, mime: "text/plain" }],
+          files: [{ uri: `DATA:text/plain;base64,${"A".repeat(Math.ceil((5 * 1024 * 1024 + 1) * 4 / 3))}`, mime: "text/plain" }],
         },
       }),
     })

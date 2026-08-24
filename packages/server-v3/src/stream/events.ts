@@ -75,6 +75,7 @@ export function events(
     const scopes = requestedScopes(subscription, Array.from(new Set([...currentLocations, ...cursorLocations])))
     const deletedLocations = new Set(cursorLocations.filter((location) => !currentLocations.includes(location)))
     const through = new Map<string, number>()
+    const recoveredThrough = new Map<string, number>()
     const buffered: Array<readonly Change[]> = []
     const replayCursors = new Map<string, number>()
     let live = false
@@ -127,6 +128,44 @@ export function events(
       queuedBytes += size
       writes = writes
         .then(() => (ending ? undefined : stream.writeSSE({ event, data })))
+        .catch(disconnected.resolve)
+        .finally(() => {
+          queuedBytes -= size
+        })
+    }
+    const rowsValue = (changes: readonly Change[]) => ({
+      type: "rows",
+      affectedScopes: Array.from(
+        new Map(
+          changes.map((change) => {
+            const scope = { collection: change.collection, scopeKey: change.scopeKey }
+            return [scopeKey(scope), scope]
+          }),
+        ).values(),
+      ),
+      fromSeq: changes[0].seq,
+      throughSeq: changes.at(-1)!.seq,
+      changes: changes.map((change) => ({ ...change, rowKey: wireKey(change.collection, change.rowKey) })),
+    })
+    const enqueueRows = (changes: readonly Change[]) => {
+      if (ending) return
+      const initial = JSON.stringify(frame(rowsValue(changes)))
+      const size = new TextEncoder().encode(initial).byteLength
+      if (queuedBytes + bufferedBytes + size > 4 * 1024 * 1024) {
+        slowConsumer()
+        return
+      }
+      queuedBytes += size
+      writes = writes
+        .then(async () => {
+          if (ending) return
+          const pending = changes.filter((change) => change.seq > (recoveredThrough.get(scopeKey(change)) ?? 0))
+          if (pending.length === 0) return
+          await stream.writeSSE({
+            event: "rows",
+            data: pending.length === changes.length ? initial : JSON.stringify(frame(rowsValue(pending))),
+          })
+        })
         .catch(disconnected.resolve)
         .finally(() => {
           queuedBytes -= size
@@ -385,6 +424,10 @@ export function events(
               .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
               .get()!.seq
             await writeRecoveries(batch, source, throughSeq)
+            batch.forEach((recovery) => {
+              const key = scopeKey(recovery.scope)
+              recoveredThrough.set(key, Math.max(recoveredThrough.get(key) ?? 0, throughSeq))
+            })
           } finally {
             source.exec("COMMIT")
             source.close()
@@ -430,13 +473,7 @@ export function events(
         )
         return
       }
-      enqueue("rows", {
-        type: "rows",
-        affectedScopes,
-        fromSeq,
-        throughSeq,
-        changes: changes.map((change) => ({ ...change, rowKey: wireKey(change.collection, change.rowKey) })),
-      })
+      enqueueRows(changes)
     }
     enqueue("stream.ready", { type: "stream.ready" })
     await writes

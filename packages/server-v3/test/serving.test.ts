@@ -136,6 +136,13 @@ describe("serving", () => {
     await runServer(":memory:")
   }, 30_000)
 
+  test("removes signal handlers during manual shutdown", async () => {
+    await runServer(
+      ":memory:",
+      'import { start } from "./src/main.ts"; const signals = ["SIGINT", "SIGTERM"]; const before = signals.map((signal) => process.listenerCount(signal)); for (const _ of [0, 1]) { const instance = await start({ port: 0, publicDir: "/missing" }); await Promise.all([instance.stop(), instance.stop()]); } if (signals.some((signal, index) => process.listenerCount(signal) !== before[index])) throw new Error("signal handlers leaked");',
+    )
+  }, 30_000)
+
   test("passes configured CORS origins through standalone startup", async () => {
     const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
     await runServer(

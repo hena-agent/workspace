@@ -65,14 +65,21 @@ export async function start(input?: { port?: number; publicDir?: string; corsOri
   })
   const compaction = setInterval(() => database.compact(), 60 * 60_000)
   compaction.unref()
-  const stop = async () => {
-    clearInterval(compaction)
-    await server.stop(true)
-    unsubscribeCatalog()
-    unsubscribeLocations()
-    await catalog.idle()
-    await domain.dispose()
-    database.close()
+  let shutdown: Promise<void> | undefined
+  const stop = () => {
+    if (shutdown) return shutdown
+    shutdown = (async () => {
+      process.off("SIGINT", stop)
+      process.off("SIGTERM", stop)
+      clearInterval(compaction)
+      await server.stop(true)
+      unsubscribeCatalog()
+      unsubscribeLocations()
+      await catalog.idle()
+      await domain.dispose()
+      database.close()
+    })()
+    return shutdown
   }
   process.once("SIGINT", stop)
   process.once("SIGTERM", stop)

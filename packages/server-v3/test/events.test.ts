@@ -405,11 +405,51 @@ describe("collection events", () => {
       txid: "tx-middle",
     })
     database.collections.replace("messages", "session-1", rows("final"), "tx-final")
-    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 2 || !output.includes('"marker":"middle"'))
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 2)
       output += decoder.decode((await reader.read()).value)
     await reader.cancel()
 
-    expect(output.lastIndexOf('"marker":"final"')).toBeGreaterThan(output.lastIndexOf('"marker":"middle"'))
+    expect(output).toContain('"marker":"final"')
+    expect(output).not.toContain('"marker":"middle"')
+  })
+
+  test("does not replay rows already covered by a recovery snapshot", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 4)
+      output += decoder.decode((await reader.read()).value)
+    output = ""
+
+    database.collections.replace(
+      "messages",
+      "session-1",
+      Array.from({ length: 5 }, (_, index) => ({
+        key: `message-${index}`,
+        row: { id: `message-${index}`, text: "x".repeat(900 * 1024) },
+        revision: "1",
+      })),
+      "tx-large",
+    )
+    database.collections.write({
+      collection: "messages",
+      scopeKey: "session-1",
+      rowKey: "after",
+      row: { id: "after" },
+      revision: "1",
+      txid: "tx-after",
+    })
+    while (!output.includes('"id":"after"') || !output.includes("event: snapshot.end"))
+      output += decoder.decode((await reader.read()).value)
+    const trailing = await Promise.race([reader.read(), Bun.sleep(20).then(() => undefined)])
+    if (trailing && !trailing.done) output += decoder.decode(trailing.value)
+    await reader.cancel()
+
+    expect(output.match(/"id":"after"/g)).toHaveLength(1)
   })
 
   test("drains pending recoveries before newer row frames", async () => {

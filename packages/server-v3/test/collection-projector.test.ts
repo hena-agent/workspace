@@ -7,12 +7,58 @@ import {
   reconcileLocations,
   refreshCompactionDiscarded,
   refreshDurableEvent,
+  refreshTodos,
 } from "../src/core/collection-projector"
 import { SessionMessage } from "@hena/schema/session-message"
 import { Session } from "@hena/schema/session"
 import { SessionEvent } from "@hena/schema/session-event"
 
 describe("collection projector", () => {
+  test("projects ID-preserving todo reordering", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(
+          sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`,
+        )
+        yield* database.run(
+          sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1)`,
+        )
+        yield* database.run(
+          sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`,
+        )
+        yield* database.run(sql`
+          INSERT INTO todo (id, session_id, content, status, priority, position, time_created, time_updated)
+          VALUES
+            ('todo_1', 'ses_1', 'First', 'pending', 'high', 0, 1, 1),
+            ('todo_2', 'ses_1', 'Second', 'pending', 'low', 1, 1, 1)
+        `)
+        yield* refreshTodos(database, "ses_1", "tx_initial")
+        yield* database.run(sql`UPDATE todo SET position = -1 WHERE id = 'todo_1'`)
+        yield* database.run(sql`UPDATE todo SET position = 0 WHERE id = 'todo_2'`)
+        yield* database.run(sql`UPDATE todo SET position = 1 WHERE id = 'todo_1'`)
+
+        yield* refreshTodos(database, "ses_1", "tx_reordered")
+
+        const rows = yield* database.all<{ row: string }>(sql`
+          SELECT row FROM collection_row
+          WHERE collection = 'todos' AND scope_key = 'ses_1'
+          ORDER BY row_key
+        `)
+        expect(rows.map((row) => Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(row.row))).toEqual([
+          { id: "todo_1", content: "First", status: "pending", priority: "high", position: 1 },
+          { id: "todo_2", content: "Second", status: "pending", priority: "low", position: 0 },
+        ])
+        expect(
+          yield* database.get<{ count: number }>(sql`
+            SELECT COUNT(*) AS count FROM collection_change
+            WHERE collection = 'todos' AND txid = 'tx_reordered'
+          `),
+        ).toEqual({ count: 2 })
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
   test("removes an unused location after a session moves", async () => {
     await Effect.runPromise(
       Effect.gen(function* () {

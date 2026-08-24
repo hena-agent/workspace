@@ -173,6 +173,7 @@ describe("collection bootstrap", () => {
     expect(database.collections.snapshot("todos", "ses_1").rows[0]?.row).toMatchObject({
       id: expect.stringMatching(/^todo_/),
       content: "Ship it",
+      position: 0,
     })
     expect(database.collections.snapshot("parts", "ses_deleted").rows).toEqual([])
     expect(

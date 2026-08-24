@@ -51,6 +51,7 @@ type TodoRow = {
   content: string
   status: string
   priority: string
+  position: number
   time_updated: number
 }
 
@@ -107,7 +108,9 @@ export function bootstrapCollections(database: SyncDatabase) {
     .query<InputRow, []>("SELECT * FROM session_input WHERE promoted_seq IS NULL ORDER BY admitted_seq")
     .all()
   const todos = database.raw
-    .query<TodoRow, []>("SELECT id, session_id, content, status, priority, time_updated FROM todo ORDER BY position")
+    .query<TodoRow, []>(
+      "SELECT id, session_id, content, status, priority, position, time_updated FROM todo ORDER BY position",
+    )
     .all()
   const messagesBySession = Map.groupBy(messages, (message) => message.session_id)
   const inputsBySession = Map.groupBy(inputs, (input) => input.session_id)
@@ -230,7 +233,13 @@ function hydrateSessionCollections(
     sessionID,
     todos.map((todo) => ({
       key: todo.id,
-      row: { id: todo.id, content: todo.content, status: todo.status, priority: todo.priority },
+      row: {
+        id: todo.id,
+        content: todo.content,
+        status: todo.status,
+        priority: todo.priority,
+        position: todo.position,
+      },
       revision: String(todo.time_updated),
     })),
   )

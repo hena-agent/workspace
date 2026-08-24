@@ -388,7 +388,7 @@ export function refreshCompactionDiscarded(
   }).pipe(Effect.orDie)
 }
 
-function refreshTodos(database: DatabaseService, sessionID: string, txid: string) {
+export function refreshTodos(database: DatabaseService, sessionID: string, txid: string) {
   return Effect.gen(function* () {
     const todos = yield* database
       .select()
@@ -401,7 +401,13 @@ function refreshTodos(database: DatabaseService, sessionID: string, txid: string
       sessionID,
       todos.map((todo) => ({
         key: todo.id,
-        row: { id: todo.id, content: todo.content, status: todo.status, priority: todo.priority },
+        row: {
+          id: todo.id,
+          content: todo.content,
+          status: todo.status,
+          priority: todo.priority,
+          position: todo.position,
+        },
         revision: String(todo.time_updated),
       })),
       txid,

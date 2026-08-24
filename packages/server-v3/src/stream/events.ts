@@ -81,13 +81,15 @@ export function events(
     const deletedLocations = new Set(cursorLocations.filter((location) => !currentLocations.includes(location)))
     const through = new Map<string, number>()
     const recoveredThrough = new Map<string, number>()
-    const buffered: Array<readonly Change[]> = []
+    type BufferedEvent =
+      | { readonly type: "changes"; readonly changes: readonly Change[] }
+      | { readonly type: "delta"; readonly delta: Delta }
+    const bufferedEvents = new Array<BufferedEvent>()
     const replayCursors = new Map<string, number>()
     let live = false
     let volatileLive = false
     let deltaLive = false
     const pendingVolatile = new Set<string>()
-    const pendingDeltas: Delta[] = []
     type Recovery = { scope: (typeof scopes)[number]; fromSeq: number; throughSeq: number; changes: Change[] }
     type RecoveryJob = { started: boolean; recoveries: Map<string, Recovery>; promise?: Promise<void> }
     let recoveryJob: RecoveryJob | undefined
@@ -203,10 +205,10 @@ export function events(
       deltas.subscribe(sessionID, (delta) => {
         if (!deltaLive) {
           if (!reserveBuffer(delta)) return
-          pendingDeltas.push(delta)
+          bufferedEvents.push({ type: "delta", delta })
           return
         }
-        splitDelta(delta).forEach((item) => enqueue("delta", { type: "delta", ...item }))
+        splitDelta(delta, frame).forEach((item) => enqueue("delta", { type: "delta", ...item }))
       }),
     )
     const updateLocations = (changes: readonly Change[], removeOnline: boolean) => {
@@ -227,7 +229,7 @@ export function events(
       if (visible.length === 0) return
       if (!live) {
         if (!reserveBuffer(visible)) return
-        buffered.push(visible)
+        bufferedEvents.push({ type: "changes", changes: visible })
         return
       }
       enqueueChanges(visible)
@@ -267,12 +269,14 @@ export function events(
         pendingVolatile.delete(`${collection}\u0000${locationKey}`)
         recoveryJob?.recoveries.delete(scopeKey(scope))
         through.delete(scopeKey(scope))
-        buffered.splice(
+        bufferedEvents.splice(
           0,
-          buffered.length,
-          ...buffered
-            .map((changes) => changes.filter((change) => scopeKey(change) !== scopeKey(scope)))
-            .filter((changes) => changes.length > 0),
+          bufferedEvents.length,
+          ...bufferedEvents.flatMap<BufferedEvent>((event) => {
+            if (event.type === "delta") return [event]
+            const changes = event.changes.filter((change) => scopeKey(change) !== scopeKey(scope))
+            return changes.length > 0 ? [{ type: "changes" as const, changes }] : []
+          }),
         )
         enqueueEmptySnapshot(scope)
       }
@@ -298,7 +302,10 @@ export function events(
             sourceRevision: snapshot.revision,
           },
         },
-        ...pages(snapshot.rows.map((row) => ({ ...row, key: wireKey(scope.collection, row.key) }))).map((rows) => ({
+        ...pages(
+          snapshot.rows.map((row) => ({ ...row, key: wireKey(scope.collection, row.key) })),
+          (rows) => frame({ type: "snapshot.page", scope, snapshotId, rows }),
+        ).map((rows) => ({
           event: "snapshot.page",
           value: { type: "snapshot.page", scope, snapshotId, rows },
         })),
@@ -327,7 +334,10 @@ export function events(
           event: "snapshot.begin",
           value: { type: "snapshot.begin", scope, snapshotId, baseSeq: snapshot.throughSeq, replace: true },
         },
-        ...pages(snapshot.rows.map((row) => ({ ...row, key: wireKey(scope.collection, row.key) }))).map((rows) => ({
+        ...pages(
+          snapshot.rows.map((row) => ({ ...row, key: wireKey(scope.collection, row.key) })),
+          (rows) => frame({ type: "snapshot.page", scope, snapshotId, rows }),
+        ).map((rows) => ({
           event: "snapshot.page",
           value: { type: "snapshot.page", scope, snapshotId, rows },
         })),
@@ -377,7 +387,7 @@ export function events(
           revision: row.row_revision,
         }))
         keyCount += projected.length
-        for (const page of pages(projected))
+        for (const page of pages(projected, (rows) => frame({ type: "snapshot.page", scope, snapshotId, rows })))
           await writeEvent({
             event: "snapshot.page",
             data: JSON.stringify(frame({ type: "snapshot.page", scope, snapshotId, rows: page })),
@@ -490,7 +500,7 @@ export function events(
       const fromSeq = changes[0].seq
       const throughSeq = changes.at(-1)!.seq
       affectedScopes.forEach((scope) => through.set(scopeKey(scope), throughSeq))
-      if (!fitsPage(changes) || changes.some((change) => change.op === "reset")) {
+      if (!fitsPage(changes, (items) => frame(rowsValue(items))) || changes.some((change) => change.op === "reset")) {
         scheduleRecoveries(
           affectedScopes.map((scope) => {
             const last = changes.findLast(
@@ -631,7 +641,7 @@ export function events(
             keyCount += projected.length
             after = rows.at(-1)!.row_key
             await writeFrames(
-              pages(projected).map((page) => ({
+              pages(projected, (rows) => frame({ type: "snapshot.page", scope, snapshotId, rows })).map((page) => ({
                 event: "snapshot.page",
                 value: { type: "snapshot.page", scope, snapshotId, rows: page },
               })),
@@ -672,7 +682,11 @@ export function events(
           replayAfter = throughSeq
           if (pending.length === 0) continue
           updateLocations(pending, false)
-          if (oversized || !fitsPage(pending) || pending.some((change) => change.op === "reset")) {
+          if (
+            oversized ||
+            !fitsPage(pending, (items) => frame(rowsValue(items))) ||
+            pending.some((change) => change.op === "reset")
+          ) {
             const affectedScopes = Array.from(
               new Map(
                 pending.map((change) => {
@@ -720,15 +734,17 @@ export function events(
     if (ending) return
     live = true
     volatileLive = true
-    bufferedBytes = 0
-    buffered
-      .filter((changes) => changes.some((change) => change.seq > (through.get(scopeKey(change)) ?? 0)))
-      .sort((left, right) => left[0].seq - right[0].seq)
-      .forEach(enqueueChanges)
-    buffered.length = 0
-    pendingDeltas.forEach((delta) => splitDelta(delta).forEach((item) => enqueue("delta", { type: "delta", ...item })))
-    pendingDeltas.length = 0
     deltaLive = true
+    bufferedBytes = 0
+    bufferedEvents.forEach((event) => {
+      if (event.type === "delta") {
+        splitDelta(event.delta, frame).forEach((item) => enqueue("delta", { type: "delta", ...item }))
+        return
+      }
+      const changes = event.changes.filter((change) => change.seq > (through.get(scopeKey(change)) ?? 0))
+      if (changes.length > 0) enqueueChanges(changes)
+    })
+    bufferedEvents.length = 0
     pendingVolatile.forEach((key) => {
       const [collection, scopeKey] = key.split("\u0000") as [VolatileCollection, string]
       enqueueVolatile({ collection, scopeKey })
@@ -770,8 +786,8 @@ function storedChange(row: StoredChange): Change {
   }
 }
 
-function splitDelta(delta: Delta) {
-  if (fitsPage([delta])) return [delta]
+function splitDelta(delta: Delta, frame: (value: Record<string, unknown>) => Record<string, unknown>) {
+  if (fitsPage([delta], ([item]) => frame({ type: "delta", ...item }))) return [delta]
   const bytes = new TextEncoder().encode(delta.text)
   const decoder = new TextDecoder()
   const chunks: Delta[] = []

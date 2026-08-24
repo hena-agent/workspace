@@ -14,7 +14,7 @@ import { SessionTodo } from "@hena/schema/session-todo"
 import { PromptInput } from "@hena/schema/prompt-input"
 import { preview } from "../storage/content"
 import { fingerprint } from "../storage/fingerprint"
-import { fitsPage } from "../stream/pages"
+import { fitsCollectionRow } from "../stream/pages"
 
 type DatabaseService = Database.Interface["db"]
 
@@ -644,7 +644,8 @@ function replaceRows(
     const incoming = new Set(rows.map((row) => row.key))
     for (const row of rows) {
       const encoded = JSON.stringify(row.row)
-      if (!fitsPage([row])) yield* Effect.die("Collection row exceeds stream frame limit")
+      if (!fitsCollectionRow(collection, scopeKey, row))
+        yield* Effect.die("Collection row exceeds stream frame limit")
       const stored = existingByKey.get(row.key)
       if (stored?.row === encoded && stored.row_revision === row.revision) continue
       yield* database.run(sql`

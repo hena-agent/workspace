@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite"
 import type { createChangeStore } from "./changes"
-import { fitsPage } from "../stream/pages"
+import { fitsCollectionRow } from "../stream/pages"
 
 type ChangeStore = ReturnType<typeof createChangeStore>
 
@@ -37,7 +37,7 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
       revision: string
       txid?: string
     }) {
-      assertRowsFit([{ key: input.rowKey, row: input.row, revision: input.revision }])
+      assertRowsFit(input.collection, input.scopeKey, [{ key: input.rowKey, row: input.row, revision: input.revision }])
       return changes.batch(() =>
         database.transaction(() => {
           const stored = exists.get(input.collection, input.scopeKey, input.rowKey)
@@ -68,7 +68,7 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
       rows: ReadonlyArray<{ key: string; row: unknown; revision: string }>,
       txid?: string,
     ) {
-      assertRowsFit(rows)
+      assertRowsFit(collection, scopeKey, rows)
       return changes.batch(() =>
         database.transaction(() => {
           const incoming = new Set(rows.map((row) => row.key))
@@ -98,7 +98,7 @@ export function createCollectionStore(database: Database, changes: ChangeStore) 
       scopeKey: string,
       rows: ReadonlyArray<{ key: string; row: unknown; revision: string }>,
     ) {
-      assertRowsFit(rows)
+      assertRowsFit(collection, scopeKey, rows)
       return database.transaction(() => {
         const current = list.all(collection, scopeKey)
         const incoming = new Set(rows.map((row) => row.key))
@@ -132,6 +132,11 @@ function encodeRow(row: unknown) {
   return JSON.stringify(row)
 }
 
-function assertRowsFit(rows: ReadonlyArray<{ key: string; row: unknown; revision: string }>) {
-  if (rows.some((row) => !fitsPage([row]))) throw new Error("Collection row exceeds stream frame limit")
+function assertRowsFit(
+  collection: string,
+  scopeKey: string,
+  rows: ReadonlyArray<{ key: string; row: unknown; revision: string }>,
+) {
+  if (rows.some((row) => !fitsCollectionRow(collection, scopeKey, row)))
+    throw new Error("Collection row exceeds stream frame limit")
 }

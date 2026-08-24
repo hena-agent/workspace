@@ -121,7 +121,7 @@ export function createOnlineRequestStore(config: { nonceTTL?: number; now?: () =
         sourceKey(target, scopeKey),
         new Map(
           incoming.flatMap((item) => {
-            const row = boundCatalogRow(item.key, item.row)
+            const row = boundCatalogRow(target, scopeKey, item.key, item.row)
             return row ? [[item.key, row] as const] : []
           }),
         ),
@@ -241,8 +241,10 @@ function boundRequest(data: { id: string; sessionID: string } & Record<string, u
   return { id: data.id, sessionID: data.sessionID, nonce, truncated: true }
 }
 
-function boundCatalogRow(key: string, row: Record<string, unknown>) {
-  if (fitsPage([{ key, row, revision: "0" }])) return row
+function boundCatalogRow(collection: VolatileCollection, scopeKey: string, key: string, row: Record<string, unknown>) {
+  const fits = (value: Record<string, unknown>) =>
+    fitsPage([{ key, row: value, revision: "0" }], (rows) => ({ scope: { collection, scopeKey }, rows }))
+  if (fits(row)) return row
   const projected = Object.fromEntries(
     Object.entries(row)
       .map(([field, value]) => {
@@ -253,9 +255,9 @@ function boundCatalogRow(key: string, row: Record<string, unknown>) {
       .filter((entry) => entry !== undefined),
   )
   const candidate = { ...projected, truncated: true }
-  if (fitsPage([{ key, row: candidate, revision: "0" }])) return candidate
+  if (fits(candidate)) return candidate
   const minimal = { id: typeof row.id === "string" ? preview(row.id).text : key, truncated: true }
-  return fitsPage([{ key, row: minimal, revision: "0" }]) ? minimal : undefined
+  return fits(minimal) ? minimal : undefined
 }
 
 function isRequestEvent(data: unknown): data is { id: string; sessionID: string } & Record<string, unknown> {

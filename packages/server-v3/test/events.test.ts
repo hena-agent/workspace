@@ -610,6 +610,40 @@ describe("collection events", () => {
     expect(output.slice(0, output.indexOf("event: delta")).match(/event: snapshot.end/g)).toHaveLength(4)
   })
 
+  test("preserves delta and finalized row order during initialization", async () => {
+    database = createTestDatabase().database
+    const deltas = createDeltaHub()
+    const app = createApp({ database, deltas })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 1)
+      output += decoder.decode((await reader.read()).value)
+
+    const identity = {
+      sessionId: "session-1",
+      messageId: "message-1",
+      partId: "part-1",
+      partKind: "text" as const,
+    }
+    deltas.publish({ ...identity, text: "streaming" })
+    deltas.finalize(identity)
+    database.collections.write({
+      collection: "parts",
+      scopeKey: "session-1",
+      rowKey: JSON.stringify(["message-1", "text", "part-1"]),
+      row: { id: "part-1", type: "text", text: "final" },
+      revision: "1",
+    })
+    while (!output.includes("event: delta") || !output.includes('"text":"final"'))
+      output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output.indexOf("event: delta")).toBeLessThan(output.indexOf('"text":"final"'))
+  })
+
   test("splits large delta frames on UTF-8 boundaries", async () => {
     database = createTestDatabase().database
     const deltas = createDeltaHub()

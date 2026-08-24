@@ -8,7 +8,7 @@ import { Hono } from "hono"
 import type { CoreDomain } from "../core/domain"
 import { error, validationHook } from "../http/error"
 import { preview } from "../storage/content"
-import { fitsPage } from "../stream/pages"
+import { fitsCollectionRow } from "../stream/pages"
 
 const SessionParams = Schema.Struct({ sessionId: Session.ID })
 const InputParams = Schema.Struct({ sessionId: Session.ID, inputId: SessionMessage.ID })
@@ -90,20 +90,24 @@ function oversizedPrompt(prompt: PromptInput.Prompt, sessionID = "x".repeat(64),
       }
     }),
   }
-  return !fitsPage([{
-    key: messageID,
-    revision: "x".repeat(64),
-    row: {
-      id: messageID,
-      sessionID,
-      prompt: projected,
-      delivery: "queue",
-      admittedSeq: Number.MAX_SAFE_INTEGER,
-      promotedSeq: Number.MAX_SAFE_INTEGER,
-      queuePosition: Number.MAX_SAFE_INTEGER,
-      timeCreated: Number.MAX_SAFE_INTEGER,
+  return !fitsCollectionRow(
+    "sessionInputs",
+    sessionID,
+    {
+      key: messageID,
+      revision: "x".repeat(64),
+      row: {
+        id: messageID,
+        sessionID,
+        prompt: projected,
+        delivery: "queue",
+        admittedSeq: Number.MAX_SAFE_INTEGER,
+        promotedSeq: Number.MAX_SAFE_INTEGER,
+        queuePosition: Number.MAX_SAFE_INTEGER,
+        timeCreated: Number.MAX_SAFE_INTEGER,
+      },
     },
-  }])
+  )
 }
 
 function inlinedBytes(uri: string) {

@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test"
+import { Hono } from "hono"
 import { createApp } from "../src/app"
 import type { SyncDatabase } from "../src/storage/database"
 import { createTestDatabase } from "./fixture"
 import { createOnlineRequestStore } from "../src/core/online-requests"
 import { createDeltaHub } from "../src/stream/delta"
+import { createStreamRegistry } from "../src/stream/registry"
+import { createStreamRoutes } from "../src/routes/streams"
 
 describe("collection events", () => {
   let database: SyncDatabase | undefined
@@ -35,6 +38,39 @@ describe("collection events", () => {
     expect(output).toContain('"replace":true')
     expect(output).toContain('"id":"message-1"')
     expect(output).toContain("event: snapshot.end")
+  })
+
+  test("detaches streams when initialization fails", async () => {
+    database = createTestDatabase().database
+    database.collections.write({
+      collection: "messages",
+      scopeKey: "session-1",
+      rowKey: "message-1",
+      row: { id: "message-1" },
+      revision: "1",
+    })
+    database.raw
+      .query("UPDATE collection_row SET row = ? WHERE collection = ? AND scope_key = ? AND row_key = ?")
+      .run("{", "messages", "session-1", "message-1")
+    let now = 0
+    const streams = createStreamRegistry({ graceMs: 1, maxResourcesPerPrincipal: 1, now: () => now })
+    const app = new Hono().route(
+      "/api/collection",
+      createStreamRoutes(database, streams, createDeltaHub(), createOnlineRequestStore()),
+    )
+    const created = await app.request("/api/collection/streams", { method: "POST" })
+    const stream = (await created.json()) as { streamId: string }
+    await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revision: 1, lists: false, sessions: ["session-1"], cursors: {} }),
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    while (!(await reader.read()).done) {}
+    now = 2
+
+    expect(streams.get("local", stream.streamId)).toBeUndefined()
   })
 
   test("decodes composite part keys in snapshots and deletes", async () => {

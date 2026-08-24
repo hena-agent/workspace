@@ -71,6 +71,22 @@ describe("FileSystem", () => {
     ),
   )
 
+  it.live("lists every direct child when no limit is supplied", () =>
+    withTmp((directory) =>
+      Effect.gen(function* () {
+        yield* Effect.forEach(
+          Array.from({ length: 1_001 }, (_, index) => index),
+          (index) => Effect.promise(() => fs.writeFile(path.join(directory, `file-${index}`), "file")),
+          { concurrency: 16, discard: true },
+        )
+
+        const entries = yield* (yield* FileSystem.Service).list()
+
+        expect(entries).toHaveLength(1_001)
+      }).pipe(provide(directory)),
+    ),
+  )
+
   it.live("rejects lexical escapes", () =>
     withTmp((directory) =>
       Effect.gen(function* () {

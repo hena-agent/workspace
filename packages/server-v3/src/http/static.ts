@@ -30,6 +30,7 @@ function safePath(root: string, pathname: string) {
 
 function cacheControl(pathname: string, index: boolean) {
   if (index || pathname === "/manifest.webmanifest" || pathname.endsWith("/sw.js")) return "no-cache"
-  if (pathname.startsWith("/assets/")) return "public, max-age=31536000, immutable"
+  if (pathname.startsWith("/assets/") && /-[A-Za-z0-9_-]{6,}\.[^/]+$/.test(pathname))
+    return "public, max-age=31536000, immutable"
   return "no-cache"
 }

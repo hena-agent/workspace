@@ -31,6 +31,15 @@ describe("serving", () => {
     expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable")
   })
 
+  test("revalidates unhashed assets", async () => {
+    database = createTestDatabase().database
+    const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
+    await Bun.write(`${directory}/assets/logo.svg`, "<svg />")
+    const response = await createApp({ database, publicDir: directory }).request("/assets/logo.svg")
+
+    expect(response.headers.get("cache-control")).toBe("no-cache")
+  })
+
   test("does not serve the SPA shell for missing assets", async () => {
     database = createTestDatabase().database
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`

@@ -106,7 +106,7 @@ const baseLayer = Layer.effect(
                 })
               })
               .sort((a, b) => (a.type === b.type ? a.path.localeCompare(b.path) : a.type === "directory" ? -1 : 1))
-              .slice(0, input.limit ?? 1_000),
+              .slice(0, input.limit ?? Number.POSITIVE_INFINITY),
           ),
         )
       }),

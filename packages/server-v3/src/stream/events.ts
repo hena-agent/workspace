@@ -31,6 +31,23 @@ export function events(
   c.header("Cache-Control", "no-store")
   c.header("X-Accel-Buffering", "no")
   return streamSSE(c, async (stream) => {
+    let writes = Promise.resolve()
+    let unsubscribe = () => {}
+    let unsubscribeOnline = () => {}
+    let unsubscribeDeltas: Array<() => void> = []
+    let heartbeat: ReturnType<typeof setInterval> | undefined
+    let disposed = false
+    const dispose = async () => {
+      if (disposed) return
+      disposed = true
+      if (heartbeat) clearInterval(heartbeat)
+      streams.detach("local", resource.id, resource.generation)
+      unsubscribe()
+      unsubscribeOnline()
+      unsubscribeDeltas.forEach((remove) => remove())
+      await writes
+    }
+    await using _ = { [Symbol.asyncDispose]: dispose }
     const scopes = requestedScopes(
       subscription,
       database.collections.snapshot("locations", "").rows.map((row) => row.key),
@@ -45,7 +62,6 @@ export function events(
     const pendingDeltas: Delta[] = []
     type Recovery = { scope: (typeof scopes)[number]; fromSeq: number; throughSeq: number; change: Change }
     const pendingRecoveries = new Map<string, Recovery>()
-    let writes = Promise.resolve()
     let snapshotsScheduled = false
     let queuedBytes = 0
     let bufferedBytes = 0
@@ -92,7 +108,7 @@ export function events(
           queuedBytes -= size
         })
     }
-    const unsubscribeDeltas = Array.from(new Set(subscription.sessions), (sessionID) =>
+    unsubscribeDeltas = Array.from(new Set(subscription.sessions), (sessionID) =>
       deltas.subscribe(sessionID, (delta) => {
         if (!deltaLive) {
           if (!reserveBuffer(delta)) return
@@ -123,7 +139,7 @@ export function events(
       }
       enqueueChanges(visible)
     }
-    const unsubscribe = database.changes.subscribeTransactions(publish)
+    unsubscribe = database.changes.subscribeTransactions(publish)
     function addLocation(locationKey: string) {
       if (!subscription.lists) return
       const settings = { collection: "settings" as const, scopeKey: locationKey }
@@ -189,7 +205,7 @@ export function events(
         },
       ]
     }
-    const unsubscribeOnline = online.subscribe((collection, scopeKey) => {
+    unsubscribeOnline = online.subscribe((collection, scopeKey) => {
       if (!scopes.some((scope) => scope.collection === collection && scope.scopeKey === scopeKey)) return
       if (!volatileLive) {
         pendingVolatile.add(`${collection}\u0000${scopeKey}`)
@@ -555,16 +571,10 @@ export function events(
       enqueueVolatile({ collection, scopeKey })
     })
     pendingVolatile.clear()
-    const heartbeat = setInterval(() => {
+    heartbeat = setInterval(() => {
       enqueue("heartbeat", { type: "heartbeat", time: Date.now() })
     }, 15_000)
     await disconnected.promise
-    clearInterval(heartbeat)
-    streams.detach("local", resource.id, resource.generation)
-    unsubscribe()
-    unsubscribeOnline()
-    unsubscribeDeltas.forEach((remove) => remove())
-    await writes
   })
 }
 

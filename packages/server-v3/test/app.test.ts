@@ -137,9 +137,35 @@ describe("app", () => {
     expect(cursors.status).toBe(400)
   })
 
+  test("accepts a subscription with 1,000 realistic cursors", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const created = await app.request("/api/collection/streams", { method: "POST" })
+    const stream = (await created.json()) as { streamId: string }
+    const feedId = database.feed.get().feedId
+    const body = JSON.stringify({
+      revision: 1,
+      lists: false,
+      sessions: [],
+      cursors: Object.fromEntries(
+        Array.from({ length: 1_000 }, (_, index) => [
+          `messages:ses_${index.toString().padStart(26, "0")}`,
+          { feedId, seq: index },
+        ]),
+      ),
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", "content-length": String(body.length) },
+      body,
+    })
+
+    expect(response.status).toBe(200)
+  })
+
   test("rejects control request bodies larger than 64 KiB", async () => {
     database = createTestDatabase().database
-    const response = await createApp({ database }).request("/api/collection/streams/missing/subscription", {
+    const response = await createApp({ database }).request("/api/missing", {
       method: "PUT",
       headers: { "content-type": "application/json", "content-length": String(70 * 1024) },
       body: JSON.stringify({ value: "x".repeat(70 * 1024) }),

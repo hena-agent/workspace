@@ -350,7 +350,8 @@ runs:
         fi
 
         if [ "$PLUGINS" != "[]" ]; then
-          export OPENCODE_CONFIG_CONTENT=$(jq -cn --argjson plugins "$PLUGINS" '{plugin: $plugins}')
+          OPENCODE_CONFIG_CONTENT=$(jq -cn --argjson plugins "$PLUGINS" '{plugin: $plugins}')
+          export OPENCODE_CONFIG_CONTENT
         fi
 
         export OPENCODE_REVIEW_PR="$COMMAND_ARGUMENTS"
@@ -360,18 +361,45 @@ runs:
         git config --local --unset-all http.https://github.com/.extraheader 2>/dev/null || true
         unset GH_TOKEN
 
+        COMMAND_STATUS=0
         opencode run \
           --command "$COMMAND" \
           --model "$MODEL" \
           --variant "$VARIANT" \
           --format json \
           "$COMMAND_ARGUMENTS" \
-          | tee "$RUNNER_TEMP/opencode-command.ndjson"
+          | tee "$RUNNER_TEMP/opencode-command.ndjson" \
+          || COMMAND_STATUS=$?
 
-        jq -jrs '
-          [.[] | select(.type == "text") | .part.text] | last
-          | if type == "string" and test("\\S") then . else error("OpenCode command returned no final text") end
-        ' "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"
+        if [ "$COMMAND_STATUS" -eq 0 ]; then
+          jq -jrs '
+            [.[] | select(.type == "text") | .part.text] | last
+            | if type == "string" and test("\\S") then . else error("OpenCode command returned no final text") end
+          ' "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"
+          exit 0
+        fi
+
+        # The review command delegates to a review task, then asks the parent
+        # model to present that result. Preserve the completed review when only
+        # that final turn fails with a retryable provider error.
+        if jq -ers '
+          [.[] | select(.type == "error") | .error.data.isRetryable] | last == true
+        ' "$RUNNER_TEMP/opencode-command.ndjson" >/dev/null && jq -jrs '
+          [
+            .[]
+            | select(.type == "tool_use" and .part.tool == "task" and .part.state.status == "completed")
+            | .part.state.output
+            | select(type == "string" and contains("<task_result>\n") and contains("\n</task_result>"))
+            | split("<task_result>\n")[1]
+            | split("\n</task_result>")[0]
+          ] | last
+          | if type == "string" and test("\\S") then . else error("OpenCode command returned no completed review task") end
+        ' "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"; then
+          echo "::notice::Publishing the completed review task after a retryable final provider error."
+          exit 0
+        fi
+
+        exit "$COMMAND_STATUS"
 
     - name: Publish OpenCode review
       if: inputs.command != ''

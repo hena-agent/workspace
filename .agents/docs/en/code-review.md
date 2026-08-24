@@ -86,7 +86,7 @@ gh variable set REVIEWER_OPENCODE_VERSION --body '1.18.22'
 gh variable delete REVIEWER_OPENCODE_VERSION
 ```
 
-The composite action validates the override and checks that every selected model and variant exists before invoking the provider.
+The composite action validates the override and checks that every selected model and variant exists before invoking the provider. If the built-in review command completes its delegated review task but the final presentation turn ends on a retryable provider error, the action publishes the completed task result. Other provider and command failures remain hard failures.
 
 ## Security
 

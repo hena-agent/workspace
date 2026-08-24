@@ -1,8 +1,9 @@
 name: pr-review
 
+# Runs once when a PR is opened; adding the `pr-review` label re-runs it on demand.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, edited]
+    types: [opened, labeled]
 
 # A called (reusable) workflow cannot exceed the caller's token scopes, and this
 # repo's default workflow permission is read-only. The reusable workflow needs
@@ -12,14 +13,12 @@ permissions:
   pull-requests: write
   issues: write
 
-# A new push to a PR supersedes the previous commit, so cancel the in-flight
-# run for that PR. github.ref is refs/pull/<n>/merge here, so this is scoped
-# per-PR and never cancels another PR.
+# A new review request supersedes an in-flight review for the same PR.
 concurrency:
-  group: pr-review-${{ github.ref }}
+  group: pr-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-# The resolver owns reviewer-global eligibility (off, fork, and [skip ci]) and
+# The resolver owns reviewer-global eligibility (off, fork, and Dependabot) and
 # maps REVIEWER_MODEL to the provider-specific auth and GitHub App identity.
 jobs:
   resolve:
@@ -27,7 +26,12 @@ jobs:
 
   review:
     needs: resolve
-    if: needs.resolve.outputs.enabled == 'true'
+    if: >-
+      needs.resolve.outputs.enabled == 'true' &&
+      (
+        github.event.action == 'opened' ||
+        (github.event.action == 'labeled' && github.event.label.name == 'pr-review')
+      )
     name: review (${{ needs.resolve.outputs.label }})
     uses: ./.github/workflows/_opencode.yml
     with:

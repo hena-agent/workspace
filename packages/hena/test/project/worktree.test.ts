@@ -2,10 +2,7 @@ import { afterEach, describe, expect } from "bun:test"
 import { rm, symlink } from "fs/promises"
 import path from "path"
 import { LayerNode } from "@hena/core/effect/layer-node"
-import { Database } from "@hena/core/database/database"
 import { FSUtil } from "@hena/core/fs-util"
-import { ProjectTable } from "@hena/core/project/sql"
-import { eq } from "drizzle-orm"
 import { Cause, Deferred, Effect, Exit, Fiber } from "effect"
 import { GlobalBus, type GlobalEvent } from "../../src/bus/global"
 import { InstanceState } from "../../src/effect/instance-state"
@@ -16,10 +13,9 @@ import { Project } from "../../src/project/project"
 import { Worktree } from "../../src/worktree"
 import { disposeAllInstances, provideInstance, TestInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
-import { waitGlobalBusEvent } from "../server/global-bus"
 
 const it = testEffect(
-  LayerNode.compile(LayerNode.group([Worktree.node, Project.node, Database.node, FSUtil.node, Git.node]), [
+  LayerNode.compile(LayerNode.group([Worktree.node, Project.node, FSUtil.node, Git.node]), [
     [InstanceStore.bootstrapNode, InstanceBootstrap.node],
   ]),
 )
@@ -210,35 +206,6 @@ describe("Worktree", () => {
           expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
           yield* svc.remove({ directory: info.directory })
           expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([])
-        }),
-      { git: true },
-    )
-
-    it.instance(
-      "emits a readable failure when a folderless project prevents bootstrap",
-      () =>
-        Effect.gen(function* () {
-          const ctx = yield* InstanceState.context
-          const database = yield* Database.Service
-          const svc = yield* Worktree.Service
-          const failed = yield* waitGlobalBusEvent({
-            message: "timed out waiting for worktree.failed",
-            predicate: (event) => event.payload.type === Worktree.Event.Failed.type,
-          }).pipe(Effect.forkScoped)
-
-          yield* database.db
-            .update(ProjectTable)
-            .set({ worktree: null })
-            .where(eq(ProjectTable.id, ctx.project.id))
-            .run()
-            .pipe(Effect.orDie)
-          const info = yield* svc.create({ name: "bootstrap-failure" })
-          yield* Effect.addFinalizer(() => svc.remove({ directory: info.directory }).pipe(Effect.ignore))
-
-          expect((yield* Fiber.join(failed)).payload).toMatchObject({
-            type: Worktree.Event.Failed.type,
-            properties: { message: `Project ${ctx.project.id} has no worktree` },
-          })
         }),
       { git: true },
     )

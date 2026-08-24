@@ -63,6 +63,41 @@ describe("Project directory persistence", () => {
     }),
   )
 
+  it.live("replaces an exact directory mapping owned by another project", () =>
+    Effect.gen(function* () {
+      const tmp = yield* tmpdirScoped({ git: true })
+      const staleID = ProjectV2.ID.make("stale-directory-owner")
+      const { db } = yield* Database.Service
+      yield* db
+        .insert(ProjectTable)
+        .values({
+          id: staleID,
+          worktree: AbsolutePath.make(tmp + "-stale"),
+          vcs: "git",
+          time_created: Date.now(),
+          time_updated: Date.now(),
+          sandboxes: [],
+        })
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(ProjectDirectoryTable)
+        .values({ project_id: staleID, directory: AbsolutePath.make(tmp) })
+        .run()
+        .pipe(Effect.orDie)
+
+      const result = yield* (yield* Project.Service).fromDirectory(tmp)
+      const rows = yield* db
+        .select()
+        .from(ProjectDirectoryTable)
+        .where(eq(ProjectDirectoryTable.directory, AbsolutePath.make(tmp)))
+        .all()
+        .pipe(Effect.orDie)
+
+      expect(rows.map((row) => row.project_id)).toEqual([result.project.id])
+    }),
+  )
+
   it.live("stores an opened linked worktree directory", () =>
     Effect.gen(function* () {
       const tmp = yield* tmpdirScoped({ git: true })
@@ -82,6 +117,51 @@ describe("Project directory persistence", () => {
           { directory: AbsolutePath.make(worktree), strategy: undefined },
         ].toSorted((a, b) => a.directory.localeCompare(b.directory)),
       )
+    }),
+  )
+
+  it.live("removes a linked worktree directory mapping with its sandbox", () =>
+    Effect.gen(function* () {
+      const tmp = yield* tmpdirScoped({ git: true })
+      const project = yield* Project.Service
+      const main = yield* project.fromDirectory(tmp)
+      const worktree = path.join(tmp, "..", path.basename(tmp) + "-project-directory-remove")
+      yield* Effect.addFinalizer(() =>
+        Effect.promise(() => $`git worktree remove ${worktree}`.cwd(tmp).quiet().nothrow()).pipe(Effect.ignore),
+      )
+      yield* Effect.promise(() => $`git worktree add --detach ${worktree} HEAD`.cwd(tmp).quiet())
+      yield* project.fromDirectory(worktree)
+
+      yield* project.removeSandbox(main.project.id, AbsolutePath.make(tmp))
+      expect(yield* directories(main.project.id)).toContainEqual({
+        directory: AbsolutePath.make(tmp),
+        strategy: undefined,
+      })
+      yield* project.removeSandbox(main.project.id, AbsolutePath.make(worktree))
+
+      expect(yield* directories(main.project.id)).toEqual([{ directory: AbsolutePath.make(tmp), strategy: undefined }])
+    }),
+  )
+
+  it.live("removes directory mappings for pruned missing sandboxes", () =>
+    Effect.gen(function* () {
+      const tmp = yield* tmpdirScoped({ git: true })
+      const project = yield* Project.Service
+      const main = yield* project.fromDirectory(tmp)
+      const worktree = path.join(tmp, "..", path.basename(tmp) + "-project-directory-pruned")
+      yield* Effect.addFinalizer(() =>
+        Effect.promise(() => $`rm -rf ${worktree}`.quiet().nothrow()).pipe(Effect.ignore),
+      )
+      yield* Effect.promise(() => $`git worktree add --detach ${worktree} HEAD`.cwd(tmp).quiet())
+      yield* project.fromDirectory(worktree)
+      yield* Effect.promise(() => $`git worktree remove --force ${worktree}`.cwd(tmp).quiet())
+
+      yield* project.fromDirectory(tmp)
+      yield* Effect.promise(() => $`mkdir -p ${worktree}`.quiet())
+      const reused = yield* project.fromDirectory(worktree)
+
+      expect(reused.project.id).toBe(ProjectV2.ID.global)
+      expect(yield* directories(main.project.id)).toEqual([{ directory: AbsolutePath.make(tmp), strategy: undefined }])
     }),
   )
 

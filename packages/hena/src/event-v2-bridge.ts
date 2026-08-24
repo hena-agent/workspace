@@ -35,17 +35,18 @@ const layer = Layer.effect(
     const unsubscribe = yield* events.listen((event) =>
       Effect.gen(function* () {
         const ctx = yield* InstanceRef
-        const workspaceID = (yield* WorkspaceRef) ?? event.location?.workspaceID
+        const workspaceID = event.location?.workspaceID ?? (yield* WorkspaceRef)
+        const project = event.location instanceof Location.Info ? event.location.project.id : ctx?.project.id
         GlobalBus.emit("event", {
           directory: event.location?.directory ?? ctx?.directory,
-          project: ctx?.project.id,
+          project,
           workspace: workspaceID,
           payload: { id: event.id, type: event.type, properties: event.data },
         })
         if (event.durable === undefined) return
         GlobalBus.emit("event", {
           directory: event.location?.directory ?? ctx?.directory,
-          project: ctx?.project.id,
+          project,
           workspace: workspaceID,
           payload: {
             type: "sync",

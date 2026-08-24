@@ -32,7 +32,10 @@ export function createApp(input: {
       ? error(context, 404, "not_found", "API route not found")
       : context.text("404 Not Found", 404),
   )
-  app.use("/api/*", exactOriginCors(Array.from(new Set(["https://app.hena.dev", ...(input.corsOrigins ?? [])]))))
+  app.use(
+    "/api/*",
+    exactOriginCors(Array.from(new Set(["https://app.hena.dev", "http://localhost:5173", ...(input.corsOrigins ?? [])]))),
+  )
   app.use("/api/*", (context, next) =>
     bodyLimit({
       maxSize: requestLimit(context.req.path),

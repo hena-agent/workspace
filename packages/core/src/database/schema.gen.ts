@@ -161,7 +161,7 @@ export default {
           \`prompt\` text NOT NULL,
           \`delivery\` text NOT NULL,
           \`admitted_seq\` integer NOT NULL,
-          \`queue_position\` integer DEFAULT 0 NOT NULL,
+          \`queue_position\` integer DEFAULT 9007199254740991 NOT NULL,
           \`promoted_seq\` integer,
           \`time_created\` integer NOT NULL,
           CONSTRAINT \`fk_session_input_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE

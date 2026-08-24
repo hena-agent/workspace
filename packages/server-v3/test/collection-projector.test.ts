@@ -402,7 +402,13 @@ describe("collection projector", () => {
               type: "tool",
               id: "tool_1",
               name: "bash",
-              state: { status: "completed", input: {}, structured: {}, content: [], result: { value: "x".repeat(2 * 1024 * 1024) } },
+              state: {
+                status: "completed",
+                input: {},
+                structured: {},
+                content: [{ type: "file", mime: "image/png", uri: `data:image/png;base64,${"A".repeat(2 * 1024 * 1024)}` }],
+                result: { value: "x".repeat(2 * 1024 * 1024) },
+              },
               time: { created: 1, completed: 2 },
             }],
             time: { created: 1 },
@@ -417,7 +423,10 @@ describe("collection projector", () => {
         const projected = yield* database.get<{ row: string }>(sql`SELECT row FROM collection_row WHERE collection = 'parts' AND scope_key = 'ses_1'`)
         expect(projected?.row.length).toBeLessThan(1024 * 1024)
         expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
-          state: { result: { truncated: true, content: { bytes: expect.any(Number) } } },
+          state: {
+            content: [{ type: "file", truncated: true, content: { bytes: expect.any(Number) } }],
+            result: { truncated: true, content: { bytes: expect.any(Number) } },
+          },
         })
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
     )

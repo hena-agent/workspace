@@ -475,6 +475,50 @@ describe("collection events", () => {
     expect(output.slice(0, output.indexOf("event: delta")).match(/event: snapshot.end/g)).toHaveLength(4)
   })
 
+  test("splits large delta frames on UTF-8 boundaries", async () => {
+    database = createTestDatabase().database
+    const deltas = createDeltaHub()
+    const app = createApp({ database, deltas })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 4)
+      output += decoder.decode((await reader.read()).value)
+    output = ""
+    const text = "é".repeat(600 * 1024)
+
+    deltas.publish({
+      sessionId: "session-1",
+      messageId: "message-1",
+      partId: "part-1",
+      partKind: "text",
+      text,
+    })
+    while ((output.match(/event: delta/g)?.length ?? 0) < 3)
+      output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    const frames = output
+      .match(/^data: .+$/gm)!
+      .map((line): unknown => JSON.parse(line.slice(6)))
+      .filter(
+        (value): value is { type: "delta"; offset: number; text: string } =>
+          typeof value === "object" &&
+          value !== null &&
+          "type" in value &&
+          value.type === "delta" &&
+          "offset" in value &&
+          typeof value.offset === "number" &&
+          "text" in value &&
+          typeof value.text === "string",
+      )
+    expect(frames.map((value) => value.offset)).toEqual([0, 512 * 1024, 1024 * 1024])
+    expect(frames.map((value) => value.text).join("")).toBe(text)
+    expect(frames.every((value) => new TextEncoder().encode(JSON.stringify(value)).byteLength < 1024 * 1024)).toBe(true)
+  })
+
   test("bounds deltas buffered during initial snapshots", async () => {
     database = createTestDatabase().database
     const deltas = createDeltaHub()
@@ -790,6 +834,67 @@ describe("collection events", () => {
 
     expect(output).not.toContain('"value":"stale"')
     expect(output).not.toContain('"id":"stale-agent"')
+  })
+
+  test("clears cursor scopes for locations deleted before reconnect", async () => {
+    database = createTestDatabase().database
+    const online = createOnlineRequestStore()
+    const location = JSON.stringify({ directory: "/deleted" })
+    database.collections.write({
+      collection: "locations",
+      scopeKey: "",
+      rowKey: location,
+      row: { directory: "/deleted" },
+      revision: "1",
+    })
+    database.collections.write({
+      collection: "settings",
+      scopeKey: location,
+      rowKey: "theme",
+      row: { value: "stale" },
+      revision: "1",
+    })
+    online.replace("agents", location, [{ key: "stale", row: { id: "stale-agent" } }])
+    database.collections.delete("locations", "", location)
+    const cursor = { feedId: database.feed.get().feedId, seq: database.changes.current() }
+    const app = createApp({ database, online })
+    const created = await app.request("/api/collection/streams", { method: "POST" })
+    const stream = (await created.json()) as { streamId: string }
+    await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        revision: 1,
+        lists: true,
+        sessions: [],
+        cursors: { [`settings:${location}`]: cursor, [`agents:${location}`]: cursor },
+      }),
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 10)
+      output += decoder.decode((await reader.read()).value)
+
+    expect(output).not.toContain('"value":"stale"')
+    expect(output).not.toContain('"id":"stale-agent"')
+    expect(output).toContain('"keyCount":0')
+
+    output = ""
+    database.collections.write({
+      collection: "locations",
+      scopeKey: "",
+      rowKey: location,
+      row: { directory: "/deleted" },
+      revision: "2",
+    })
+    while (!output.includes('"collection":"settings"'))
+      output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output).toContain('"collection":"settings"')
+    expect(output).toContain(`"scopeKey":${JSON.stringify(location)}`)
   })
 })
 

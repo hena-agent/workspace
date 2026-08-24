@@ -78,8 +78,9 @@ export function createCoreDomain(
       },
     ) => Response
     persist?: (response: Response) => unknown
-  }) =>
-    Database.Service.use((database) =>
+  }) => {
+    const notifications: Effect.Effect<void>[] = []
+    return Database.Service.use((database) =>
       database.db.transaction((tx) =>
         Effect.gen(function* () {
           const requestFingerprint = fingerprint(input.payload)
@@ -95,7 +96,10 @@ export function createCoreDomain(
           }
 
           const txid = crypto.randomUUID()
-          const value = yield* input.execute.pipe(Effect.provideService(MutationTxid, txid))
+          const value = yield* input.execute.pipe(
+            Effect.provideService(MutationTxid, txid),
+            Effect.provideService(EventV2.DeferredNotifications, (notification) => notifications.push(notification)),
+          )
           const changes = yield* tx.all<{ seq: number; collection: string; scope_key: string }>(sql`
             SELECT seq, collection, scope_key FROM collection_change WHERE txid = ${txid} ORDER BY seq
           `)
@@ -139,7 +143,11 @@ export function createCoreDomain(
         }),
         { behavior: "immediate" },
       ),
-    ).pipe(Effect.tap(() => Effect.sync(() => publishPersisted?.())))
+    ).pipe(
+      Effect.tap(() => Effect.forEach(notifications, (notification) => notification, { discard: true })),
+      Effect.tap(() => Effect.sync(() => publishPersisted?.())),
+    )
+  }
 
   return {
     ready: () => observer.then(() => {}),

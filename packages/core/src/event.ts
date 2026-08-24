@@ -17,6 +17,9 @@ export type { Data, Definition, Payload } from "@hena/schema/event"
 
 export type Subscriber<D extends Definition = Definition> = (event: Payload<D>) => Effect.Effect<void>
 export type Unsubscribe = Effect.Effect<void>
+export const DeferredNotifications = Context.Reference<
+  ((notification: Effect.Effect<void>) => void) | undefined
+>("@hena/Event/DeferredNotifications", { defaultValue: () => undefined })
 
 export const latestSequence = Effect.fn("EventV2.latestSequence")(function* (
   db: Database.Interface["db"],
@@ -351,13 +354,14 @@ export const layerWith = (options?: LayerOptions) =>
                       { behavior: "immediate" },
                     )
                     .pipe(Effect.orDie)
-                  if (committed) {
-                    yield* Effect.forEach(
-                      pubsub.durable.get(committed.aggregateID) ?? [],
-                      (wake) => PubSub.publish(wake, undefined),
-                      { discard: true },
+                  if (committed)
+                    yield* dispatch(
+                      Effect.forEach(
+                        pubsub.durable.get(committed.aggregateID) ?? [],
+                        (wake) => PubSub.publish(wake, undefined),
+                        { discard: true },
+                      ),
                     )
-                  }
                   return committed
                 }),
               )
@@ -386,7 +390,7 @@ export const layerWith = (options?: LayerOptions) =>
                   version: definition.durable.version,
                 },
               }
-              yield* notify(event as Payload, true)
+              yield* dispatch(notify(event as Payload, true))
               return event
             }
           }
@@ -397,7 +401,7 @@ export const layerWith = (options?: LayerOptions) =>
                 behavior: "immediate",
               })
               .pipe(Effect.orDie)
-          yield* notify(event as Payload, false)
+          yield* dispatch(notify(event as Payload, false))
           return event
         })
       }
@@ -420,6 +424,14 @@ export const layerWith = (options?: LayerOptions) =>
           const typed = pubsub.typed.get(event.type)
           if (typed) yield* PubSub.publish(typed, event)
           yield* PubSub.publish(pubsub.all, event)
+        })
+      }
+
+      function dispatch(notification: Effect.Effect<void>) {
+        return Effect.gen(function* () {
+          const defer = yield* DeferredNotifications
+          if (defer) return defer(notification)
+          return yield* notification
         })
       }
 
@@ -468,16 +480,18 @@ export const layerWith = (options?: LayerOptions) =>
               strictOwner: options?.strictOwner,
             })
             if (committed && options?.publish) {
-              yield* notify(
-                {
-                  ...payload,
-                  durable: {
-                    aggregateID: committed.aggregateID,
-                    seq: committed.seq,
-                    version: definition.durable.version,
+              yield* dispatch(
+                notify(
+                  {
+                    ...payload,
+                    durable: {
+                      aggregateID: committed.aggregateID,
+                      seq: committed.seq,
+                      version: definition.durable.version,
+                    },
                   },
-                },
-                true,
+                  true,
+                ),
               )
             }
           }

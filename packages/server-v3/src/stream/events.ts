@@ -61,10 +61,19 @@ export function events(
       await writes
     }
     await using _ = { [Symbol.asyncDispose]: dispose }
-    const scopes = requestedScopes(
-      subscription,
-      database.collections.snapshot("locations", "").rows.map((row) => row.key),
-    )
+    const currentLocations = database.collections.snapshot("locations", "").rows.map((row) => row.key)
+    const cursorLocations = Object.keys(subscription.cursors).flatMap((cursor) => {
+      const separator = cursor.indexOf(":")
+      const collection = cursor.slice(0, separator)
+      const scopeKey = cursor.slice(separator + 1)
+      return separator !== -1 &&
+        scopeKey !== "profile" &&
+        (collection === "settings" || collection === "agents" || collection === "models" || collection === "providers")
+        ? [scopeKey]
+        : []
+    })
+    const scopes = requestedScopes(subscription, Array.from(new Set([...currentLocations, ...cursorLocations])))
+    const deletedLocations = new Set(cursorLocations.filter((location) => !currentLocations.includes(location)))
     const through = new Map<string, number>()
     const buffered: Array<readonly Change[]> = []
     const replayCursors = new Map<string, number>()
@@ -128,7 +137,7 @@ export function events(
           pendingDeltas.push(delta)
           return
         }
-        enqueue("delta", { type: "delta", ...delta })
+        splitDelta(delta).forEach((item) => enqueue("delta", { type: "delta", ...item }))
       }),
     )
     const updateLocations = (changes: readonly Change[]) => {
@@ -155,13 +164,22 @@ export function events(
     unsubscribe = database.changes.subscribeTransactions(publish)
     function addLocation(locationKey: string) {
       if (!subscription.lists) return
+      const restoring = deletedLocations.delete(locationKey)
       const settings = { collection: "settings" as const, scopeKey: locationKey }
       if (!scopes.some((scope) => scope.collection === settings.collection && scope.scopeKey === locationKey)) {
         scopes.push(settings)
         enqueueSnapshot(settings)
+      } else if (restoring) {
+        enqueueSnapshot(settings)
       }
       for (const collection of ["agents", "models", "providers"] as const) {
-        if (scopes.some((scope) => scope.collection === collection && scope.scopeKey === locationKey)) continue
+        if (scopes.some((scope) => scope.collection === collection && scope.scopeKey === locationKey)) {
+          if (restoring) {
+            if (volatileLive) enqueueVolatile({ collection, scopeKey: locationKey })
+            else pendingVolatile.add(`${collection}\u0000${locationKey}`)
+          }
+          continue
+        }
         const scope = { collection, scopeKey: locationKey }
         scopes.push(scope)
         if (volatileLive) enqueueVolatile(scope)
@@ -344,25 +362,20 @@ export function events(
       snapshotsScheduled = true
       writes = writes
         .then(async () => {
+          const recoveries = Array.from(pendingRecoveries.values())
+          pendingRecoveries.clear()
+          snapshotsScheduled = false
+          const { Database } = await import("bun:sqlite")
+          const source = new Database(database.raw.filename, { readonly: true })
+          source.exec("BEGIN")
           try {
-            while (!ending && pendingRecoveries.size > 0) {
-              const recoveries = Array.from(pendingRecoveries.values())
-              pendingRecoveries.clear()
-              const { Database } = await import("bun:sqlite")
-              const source = new Database(database.raw.filename, { readonly: true })
-              source.exec("BEGIN")
-              try {
-                const throughSeq = source
-                  .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
-                  .get()!.seq
-                await writeRecoveries(recoveries, source, throughSeq)
-              } finally {
-                source.exec("COMMIT")
-                source.close()
-              }
-            }
+            const throughSeq = source
+              .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
+              .get()!.seq
+            await writeRecoveries(recoveries, source, throughSeq)
           } finally {
-            snapshotsScheduled = false
+            source.exec("COMMIT")
+            source.close()
           }
         })
         .catch(disconnected.resolve)
@@ -474,12 +487,31 @@ export function events(
 
       for (const scope of scopes) {
         if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) continue
+        if (deletedLocations.has(scope.scopeKey)) {
+          const snapshotId = crypto.randomUUID()
+          await writeFrames([
+            {
+              event: "snapshot.begin",
+              value: { type: "snapshot.begin", scope, snapshotId, baseSeq, replace: true },
+            },
+            {
+              event: "snapshot.end",
+              value: { type: "snapshot.end", scope, snapshotId, keyCount: 0, throughSeq: baseSeq },
+            },
+          ])
+          continue
+        }
         if (isVolatile(scope.collection)) {
           await writeFrames(volatileFrames({ collection: scope.collection, scopeKey: scope.scopeKey }))
           continue
         }
         const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]
-        if (cursor?.feedId === feed.feed_id && cursor.seq >= feed.retained_floor && cursor.seq <= baseSeq) {
+        if (
+          !deletedLocations.has(scope.scopeKey) &&
+          cursor?.feedId === feed.feed_id &&
+          cursor.seq >= feed.retained_floor &&
+          cursor.seq <= baseSeq
+        ) {
           through.set(scopeKey(scope), cursor.seq)
           replayCursors.set(scopeKey(scope), cursor.seq)
           continue
@@ -521,6 +553,7 @@ export function events(
           },
         ])
       }
+      scopes.splice(0, scopes.length, ...scopes.filter((scope) => !deletedLocations.has(scope.scopeKey)))
 
       const replayFrom = Math.min(...replayCursors.values(), baseSeq)
       let replayAfter = replayFrom
@@ -592,7 +625,7 @@ export function events(
       .sort((left, right) => left[0].seq - right[0].seq)
       .forEach(enqueueChanges)
     buffered.length = 0
-    pendingDeltas.forEach((delta) => enqueue("delta", { type: "delta", ...delta }))
+    pendingDeltas.forEach((delta) => splitDelta(delta).forEach((item) => enqueue("delta", { type: "delta", ...item })))
     pendingDeltas.length = 0
     deltaLive = true
     pendingVolatile.forEach((key) => {
@@ -605,15 +638,6 @@ export function events(
     }, 15_000)
     await disconnected.promise
   })
-}
-
-function groupTransactions<Change extends { txid?: string }>(changes: readonly Change[]) {
-  return changes.reduce<Change[][]>((transactions, change) => {
-    const current = transactions.at(-1)
-    if (current && change.txid !== undefined && current[0]!.txid === change.txid) current.push(change)
-    else transactions.push([change])
-    return transactions
-  }, [])
 }
 
 function isVolatile(collection: string): collection is VolatileCollection {
@@ -643,6 +667,20 @@ function storedChange(row: StoredChange): Change {
     runtimeId: row.runtime_id,
     createdAt: row.created_at,
   }
+}
+
+function splitDelta(delta: Delta) {
+  if (fitsPage([delta])) return [delta]
+  const bytes = new TextEncoder().encode(delta.text)
+  const decoder = new TextDecoder()
+  const chunks: Delta[] = []
+  for (let start = 0; start < bytes.length;) {
+    let end = Math.min(start + 512 * 1024, bytes.length)
+    while (end < bytes.length && (bytes[end] & 0xc0) === 0x80) end--
+    chunks.push({ ...delta, offset: delta.offset + start, text: decoder.decode(bytes.subarray(start, end)) })
+    start = end
+  }
+  return chunks
 }
 
 function wireKey(collection: string, key: string) {

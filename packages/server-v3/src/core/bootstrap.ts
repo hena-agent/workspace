@@ -336,7 +336,16 @@ function projectPart(
           }),
       content: part.state.content.map((item, index) =>
         item.type === "file"
-          ? item
+          ? {
+              ...item,
+              ...projectFile(
+                database,
+                sessionID,
+                revision,
+                `${messageID}_${part.id}_tool_${index}_file`,
+                item.uri,
+              ),
+            }
           : {
               ...item,
               ...projectText(database, sessionID, revision, `${messageID}_${part.id}_tool_${index}`, item.text),
@@ -363,6 +372,13 @@ function projectText(database: SyncDatabase, sessionID: string, revision: string
     truncated: true as const,
     content: { id, revision, bytes: projected.totalBytes, lines: projected.totalLines },
   }
+}
+
+function projectFile(database: SyncDatabase, sessionID: string, revision: string, id: string, uri: string) {
+  const projected = projectText(database, sessionID, revision, id, uri)
+  return "truncated" in projected
+    ? { uri: projected.text, truncated: true as const, content: projected.content }
+    : { uri: projected.text }
 }
 
 export async function bootstrapLocationCollections(

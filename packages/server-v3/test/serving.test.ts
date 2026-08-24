@@ -85,6 +85,9 @@ describe("serving", () => {
     const devOrigin = await app.request("http://127.0.0.1:4106/api/collection/capabilities", {
       headers: { origin: "http://localhost:5173" },
     })
+    const otherLoopback = await app.request("http://127.0.0.1:4106/api/collection/capabilities", {
+      headers: { origin: "http://localhost:5174" },
+    })
     const rebound = await app.request("http://attacker.example/api/collection/capabilities", {
       headers: { origin: "http://attacker.example" },
     })
@@ -94,8 +97,9 @@ describe("serving", () => {
     expect(custom.headers.get("access-control-allow-origin")).toBe("https://custom.example")
     expect(sameOrigin.status).toBe(200)
     expect(sameOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost")
-    expect(devOrigin.status).toBe(401)
-    expect(devOrigin.headers.get("access-control-allow-origin")).toBeNull()
+    expect(devOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost:5173")
+    expect(otherLoopback.status).toBe(401)
+    expect(otherLoopback.headers.get("access-control-allow-origin")).toBeNull()
     expect(rebound.status).toBe(401)
     expect(rejected.status).toBe(401)
     expect(rejected.headers.get("access-control-allow-origin")).toBeNull()

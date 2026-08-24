@@ -36,6 +36,11 @@ const layer = Layer.effectDiscard(
         })
       })
     }
+    for (const definition of [SessionEvent.InputCanceled, SessionEvent.InputReordered]) {
+      yield* events.project(definition, (event) =>
+        refreshDurableEvent(database.db, { type: event.type, data: event.data }).pipe(Effect.orDie),
+      )
+    }
     yield* events.project(SessionEvent.Compaction.Started, (event) => refreshCompactionStart(database.db, event))
     yield* events.project(SessionEvent.Compaction.Discarded, (event) =>
       refreshCompactionDiscarded(database.db, event.data),
@@ -496,7 +501,20 @@ function projectPart(
           )
     const content = yield* Effect.forEach(part.state.content, (item, index) =>
       Effect.gen(function* () {
-        if (item.type === "file") return item
+        if (item.type === "file") {
+          const uri = yield* projectText(
+            database,
+            sessionID,
+            revision,
+            `${messageID}_${part.id}_tool_${index}_file`,
+            item.uri,
+          )
+          return {
+            ...item,
+            uri: uri.text,
+            ...("truncated" in uri ? { truncated: true, content: uri.content } : {}),
+          }
+        }
         const text = yield* projectText(
           database,
           sessionID,

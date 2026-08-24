@@ -78,7 +78,7 @@ describe("DatabaseMigration", () => {
         ).toEqual({ name: "session_context_epoch" })
         expect(
           yield* db.get(sql`SELECT dflt_value FROM pragma_table_info('session_input') WHERE name = 'queue_position'`),
-        ).toEqual({ dflt_value: "0" })
+        ).toEqual({ dflt_value: String(Number.MAX_SAFE_INTEGER) })
         expect(
           yield* db.get(
             sql`SELECT name FROM pragma_table_info('session_context_epoch') WHERE name IN ('agent', 'replacement_seq', 'revision')`,

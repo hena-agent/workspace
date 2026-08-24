@@ -140,6 +140,22 @@ describe("session mutations", () => {
     expect(domain.calls).toEqual([])
   })
 
+  test("rejects malformed data URI attachments", async () => {
+    database = createTestDatabase().database
+    const domain = recordingDomain()
+    const response = await createApp({ database, domain }).request(`/api/session/${Session.ID.create()}/prompt`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        idempotencyKey: crypto.randomUUID(),
+        prompt: { text: "", files: [{ uri: `data:text/plain;base64${"A".repeat(1024 * 1024)}` }] },
+      }),
+    })
+
+    expect(response.status).toBe(413)
+    expect(domain.calls).toEqual([])
+  })
+
   test("maps queue revision failures to the RPC error envelope", async () => {
     database = createTestDatabase().database
     const domain = recordingDomain()

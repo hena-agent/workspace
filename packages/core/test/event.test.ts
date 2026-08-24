@@ -84,6 +84,28 @@ const it = testEffect(
 const itWithoutLocation = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, EventV2.node])))
 
 describe("EventV2", () => {
+  it.effect("defers durable notifications until the surrounding transaction commits", () =>
+    Effect.gen(function* () {
+      const events = yield* EventV2.Service
+      const deferred: Effect.Effect<void>[] = []
+      const received: string[] = []
+      const unsubscribe = yield* events.listen((event) =>
+        Effect.sync(() => {
+          received.push(event.type)
+        }),
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
+
+      yield* events.publish(SyncMessage, { id: "aggregate", text: "message" }).pipe(
+        Effect.provideService(EventV2.DeferredNotifications, (notification) => deferred.push(notification)),
+      )
+
+      expect(received).toEqual([])
+      yield* Effect.forEach(deferred, (notification) => notification, { discard: true })
+      expect(received).toEqual([SyncMessage.type])
+    }),
+  )
+
   it.effect("publishes events with the current location", () =>
     Effect.gen(function* () {
       const events = yield* EventV2.Service

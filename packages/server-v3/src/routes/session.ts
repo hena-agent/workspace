@@ -104,7 +104,7 @@ function oversizedPrompt(prompt: PromptInput.Prompt, sessionID = "x".repeat(64),
 function inlinedBytes(uri: string) {
   if (!/^data:/i.test(uri)) return 0
   const separator = uri.indexOf(",")
-  if (separator === -1) return 0
+  if (separator === -1) return Number.POSITIVE_INFINITY
   const data = uri.slice(separator + 1)
   if (!uri.slice(0, separator).endsWith(";base64")) return new TextEncoder().encode(data).byteLength
   const padding = data.endsWith("==") ? 2 : data.endsWith("=") ? 1 : 0

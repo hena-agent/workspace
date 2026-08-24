@@ -24,6 +24,7 @@ export default defineConfig({
   },
   server: {
     // Server-v3 maps exact entries to http://<host>:5173 CORS origins.
+    strictPort: true,
     allowedHosts: process.env.HENA_VITE_ALLOWED_HOSTS?.split(",")
       .map((host) => host.trim())
       .filter(Boolean),

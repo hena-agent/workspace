@@ -22,6 +22,7 @@ const paths = {
   bin: path.join(cache, "bin"),
   log: path.join(data, "log"),
   repos: path.join(data, "repos"),
+  projects: path.join(data, "projects"),
   cache,
   config,
   state,
@@ -54,6 +55,7 @@ export interface Interface {
   readonly bin: string
   readonly log: string
   readonly repos: string
+  readonly projects: string
 }
 
 export function make(input: Partial<Interface> = {}): Interface {
@@ -67,6 +69,7 @@ export function make(input: Partial<Interface> = {}): Interface {
     bin: Path.bin,
     log: Path.log,
     repos: Path.repos,
+    projects: Path.projects,
     ...input,
   }
 }

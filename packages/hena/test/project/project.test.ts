@@ -12,10 +12,11 @@ import { eq } from "drizzle-orm"
 import { Hash } from "@hena/core/util/hash"
 import { SessionID } from "@/session/schema"
 import { WorkspaceV2 } from "@hena/core/workspace"
-import { Cause, Effect, Exit, Layer, Stream } from "effect"
+import { Cause, Deferred, Effect, Exit, Fiber, Layer, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { ProjectV2 } from "@hena/core/project"
 import { AbsolutePath } from "@hena/core/schema"
+import { FSUtil } from "@hena/core/fs-util"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
 import { testEffect } from "../lib/effect"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -24,7 +25,13 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 
 const encoder = new TextEncoder()
 
-const projectTestNode = LayerNode.group([Project.node, Database.node, CrossSpawnSpawner.node])
+const projectTestNode = LayerNode.group([
+  Project.node,
+  ProjectV2.node,
+  Database.node,
+  FSUtil.node,
+  CrossSpawnSpawner.node,
+])
 const it = testEffect(AppNodeBuilder.build(projectTestNode))
 
 function remoteProjectID(remote: string) {
@@ -74,19 +81,14 @@ function projectLayerWithFailure(failArg: string) {
 }
 
 function projectV2FailureLayer() {
-  return Layer.succeed(
-    ProjectV2.Service,
-    ProjectV2.Service.of({
-      directories: () => Effect.succeed([]),
-      resolve: (input) =>
-        Effect.succeed({
-          id: ProjectV2.ID.global,
-          directory: input,
-          vcs: { type: "git" as const, store: input },
-        }),
-      commit: () => Effect.void,
-    }),
-  )
+  return Layer.mock(ProjectV2.Service, {
+    resolve: (input) =>
+      Effect.succeed({
+        id: ProjectV2.ID.global,
+        directory: input,
+        vcs: { type: "git" as const, store: input },
+      }),
+  })
 }
 
 const failureIt = (failArg: string) =>
@@ -94,6 +96,53 @@ const failureIt = (failArg: string) =>
 
 const iconDiscoveryIt = testEffect(
   AppNodeBuilder.build(projectTestNode, [[RuntimeFlags.node, RuntimeFlags.layer({ experimentalIconDiscovery: true })]]),
+)
+
+const sandboxRaceID = ProjectV2.ID.make("sandbox-probe-race")
+const sandboxRace = {
+  worktree: AbsolutePath.make(FSUtil.resolve("/tmp/hena-sandbox-probe-worktree")),
+  current: AbsolutePath.make(FSUtil.resolve("/tmp/hena-sandbox-probe-current")),
+  missing: AbsolutePath.make(FSUtil.resolve("/tmp/hena-sandbox-probe-missing")),
+  removed: AbsolutePath.make(FSUtil.resolve("/tmp/hena-sandbox-probe-removed")),
+  added: AbsolutePath.make(FSUtil.resolve("/tmp/hena-sandbox-probe-added")),
+  started: Effect.runSync(Deferred.make<void>()),
+  release: Effect.runSync(Deferred.make<void>()),
+}
+const sandboxRaceFs = Layer.effect(
+  FSUtil.Service,
+  Effect.gen(function* () {
+    const fs = yield* FSUtil.Service
+    return FSUtil.Service.of({
+      ...fs,
+      exists: (input) =>
+        input === sandboxRace.missing
+          ? Deferred.succeed(sandboxRace.started, undefined).pipe(
+              Effect.andThen(Deferred.await(sandboxRace.release)),
+              Effect.as(false),
+            )
+          : Effect.succeed(true),
+    })
+  }),
+).pipe(Layer.provide(LayerNode.compile(FSUtil.node)))
+const sandboxRaceIt = testEffect(
+  AppNodeBuilder.build(projectTestNode, [
+    [
+      Project.node,
+      AppNodeBuilder.build(Project.node, [
+        [FSUtil.node, sandboxRaceFs],
+        [
+          ProjectV2.node,
+          Layer.mock(ProjectV2.Service, {
+            resolve: () =>
+              Effect.succeed({
+                id: sandboxRaceID,
+                directory: sandboxRace.current,
+              }),
+          }),
+        ],
+      ]),
+    ],
+  ]),
 )
 
 function waitForProjectIcon(id: ProjectV2.ID, attempts = 50): Effect.Effect<Project.Info, never, Project.Service> {
@@ -146,6 +195,24 @@ describe("Project.fromDirectory", () => {
       const tmp = yield* tmpdirScoped()
       const result = yield* project.fromDirectory(tmp)
       expect(result.project.id).toBe(ProjectV2.ID.global)
+    }),
+  )
+
+  it.live("opens a managed project directory", () =>
+    Effect.gen(function* () {
+      const fs = yield* FSUtil.Service
+      const project = yield* Project.Service
+      const projectV2 = yield* ProjectV2.Service
+      const managed = yield* projectV2.create()
+      yield* Effect.addFinalizer(() =>
+        fs.remove(managed.directory, { recursive: true, force: true }).pipe(Effect.ignore),
+      )
+
+      const result = yield* project.fromDirectory(managed.directory)
+
+      expect(result.project.id).toBe(managed.id)
+      expect(result.project.worktree).toBe(managed.directory)
+      expect(result.project.vcs).toBeUndefined()
     }),
   )
 
@@ -679,6 +746,38 @@ describe("Project.setInitialized", () => {
 })
 
 describe("Project.addSandbox and Project.removeSandbox", () => {
+  sandboxRaceIt.live("ignores stale probes when the sandbox set changes concurrently", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      yield* db
+        .insert(ProjectTable)
+        .values({
+          id: sandboxRaceID,
+          worktree: sandboxRace.worktree,
+          vcs: null,
+          time_created: Date.now(),
+          time_updated: Date.now(),
+          sandboxes: [sandboxRace.missing, sandboxRace.removed],
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      const project = yield* Project.Service
+      const opening = yield* project.fromDirectory(sandboxRace.current).pipe(Effect.forkChild)
+      yield* Deferred.await(sandboxRace.started)
+      yield* db
+        .update(ProjectTable)
+        .set({ sandboxes: [sandboxRace.missing, sandboxRace.added] })
+        .where(eq(ProjectTable.id, sandboxRaceID))
+        .run()
+        .pipe(Effect.orDie)
+      yield* Deferred.succeed(sandboxRace.release, undefined)
+      const result = yield* Fiber.join(opening)
+
+      expect(result.project.sandboxes).toEqual([sandboxRace.missing, sandboxRace.added, sandboxRace.current])
+    }),
+  )
+
   it.live("adds, removes, and prunes sandboxes without reordering", () =>
     Effect.gen(function* () {
       const project = yield* Project.Service
@@ -741,23 +840,23 @@ describe("Project.addSandbox and Project.removeSandbox", () => {
 })
 
 describe("Project folderless rows", () => {
-  it.live("are hidden from reads and refused by writes", () =>
+  it.live("are hidden from reads and refused by writes until reopened", () =>
     Effect.gen(function* () {
       const project = yield* Project.Service
       const { db } = yield* Database.Service
       const tmp = yield* tmpdirScoped({ git: true })
       const result = yield* project.fromDirectory(tmp)
+      const created = result.project.time.created
       const sandbox = AbsolutePath.make(path.join(tmp, "sandbox"))
       yield* Effect.promise(() => $`mkdir -p ${sandbox}`.quiet())
+      yield* project.update({ projectID: result.project.id, name: "preserved" })
       yield* project.addSandbox(result.project.id, sandbox)
       yield* db
         .update(ProjectTable)
-        .set({ worktree: null })
+        .set({ worktree: null, sandboxes: [sandbox, AbsolutePath.make(result.project.worktree)] })
         .where(eq(ProjectTable.id, result.project.id))
         .run()
         .pipe(Effect.orDie)
-      const before = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()
-
       expect(yield* project.list()).toEqual([])
       expect(yield* project.get(result.project.id)).toBeUndefined()
       expect(yield* project.sandboxes(result.project.id)).toEqual([])
@@ -769,8 +868,49 @@ describe("Project folderless rows", () => {
         "Project.NotFoundError",
       )
       expect((yield* Effect.flip(project.removeSandbox(result.project.id, sandbox)))._tag).toBe("Project.NotFoundError")
-      expect(yield* Effect.exit(project.fromDirectory(tmp))).toEqual(expect.objectContaining({ _tag: "Failure" }))
-      expect(yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()).toEqual(before)
+      const reopened = (yield* project.fromDirectory(tmp)).project
+      expect(reopened).toMatchObject({
+        id: result.project.id,
+        worktree: result.project.worktree,
+        name: "preserved",
+        time: { created },
+      })
+      expect(reopened.sandboxes).toContain(sandbox)
+      expect(reopened.sandboxes).not.toContain(result.project.worktree)
+      const stored = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, result.project.id)).get()
+      expect(stored).toMatchObject({
+        worktree: result.project.worktree,
+        name: "preserved",
+        time_created: created,
+      })
+      expect(stored?.sandboxes).toContain(sandbox)
+    }),
+  )
+
+  it.live("serializes concurrent reopening across worktrees", () =>
+    Effect.gen(function* () {
+      const project = yield* Project.Service
+      const { db } = yield* Database.Service
+      const tmp = yield* tmpdirScoped({ git: true })
+      const result = yield* project.fromDirectory(tmp)
+      const first = `${tmp}-folderless-1`
+      const second = `${tmp}-folderless-2`
+      yield* Effect.addFinalizer(() => Effect.promise(() => $`rm -rf ${first} ${second}`.quiet()).pipe(Effect.ignore))
+      yield* Effect.promise(() => $`git worktree add ${first} -b folderless-1-${Date.now()}`.cwd(tmp).quiet())
+      yield* Effect.promise(() => $`git worktree add ${second} -b folderless-2-${Date.now()}`.cwd(tmp).quiet())
+      yield* db
+        .update(ProjectTable)
+        .set({ worktree: null })
+        .where(eq(ProjectTable.id, result.project.id))
+        .run()
+        .pipe(Effect.orDie)
+
+      yield* Effect.all([project.fromDirectory(first), project.fromDirectory(second)], { concurrency: "unbounded" })
+
+      const reopened = yield* project.get(result.project.id)
+      expect(new Set([reopened?.worktree, ...(reopened?.sandboxes ?? [])])).toEqual(
+        new Set([FSUtil.resolve(first), FSUtil.resolve(second)]),
+      )
     }),
   )
 })

@@ -27,7 +27,7 @@ export const projectHandlers = HttpApiBuilder.group(InstanceHttpApi, "project", 
         return next
       yield* markInstanceForReload(ctx, {
         directory: ctx.directory,
-        worktree: ctx.directory,
+        worktree: next.worktree,
         project: next,
       })
       return next

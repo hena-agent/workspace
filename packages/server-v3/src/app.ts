@@ -34,7 +34,16 @@ export function createApp(input: {
   )
   app.use(
     "/api/*",
-    exactOriginCors(Array.from(new Set(["https://app.hena.dev", "http://localhost:5173", ...(input.corsOrigins ?? [])]))),
+    exactOriginCors(
+      Array.from(
+        new Set([
+          "https://app.hena.dev",
+          "http://localhost:5173",
+          "http://127.0.0.1:5173",
+          ...(input.corsOrigins ?? []),
+        ]),
+      ),
+    ),
   )
   app.use("/api/*", (context, next) =>
     bodyLimit({

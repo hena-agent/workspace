@@ -23,11 +23,10 @@ export default defineConfig({
     },
   },
   server: {
-    // Set this for non-loopback development hosts such as Tailscale MagicDNS names.
-    allowedHosts: [
-      ".ts.net",
-      ...(process.env.HENA_VITE_ALLOWED_HOSTS?.split(",").map((host) => host.trim()).filter(Boolean) ?? []),
-    ],
+    // Server-v3 maps exact entries to http://<host>:5173 CORS origins.
+    allowedHosts: process.env.HENA_VITE_ALLOWED_HOSTS?.split(",")
+      .map((host) => host.trim())
+      .filter(Boolean),
     proxy: {
       "/api": viteApiProxy(process.env.HENA_SERVER_V3_URL ?? "http://127.0.0.1:4106"),
     },

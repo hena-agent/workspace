@@ -47,7 +47,7 @@ describe("core runtime", () => {
     }
   })
 
-  test("does not persist inline attachment contents in idempotency responses", async () => {
+  test("does not persist attachment URIs in idempotency responses", async () => {
     const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
     const bootstrap = createCoreDomain(undefined, undefined, undefined, filename)
     await bootstrap.ready()
@@ -55,7 +55,8 @@ describe("core runtime", () => {
     createSyncDatabase(new Database(filename, { create: true })).close()
     const domain = createCoreDomain(undefined, undefined, undefined, filename)
     await domain.ready()
-    const uri = `DATA:text/plain;base64,${"x".repeat(1024 * 1024)}`
+    const dataURI = `DATA:text/plain;base64,${"x".repeat(1024 * 1024)}`
+    const remoteURI = `https://attachments.example/${"x".repeat(1024 * 1024)}`
     const sessionID = Session.ID.create()
     const messageID = SessionMessage.ID.create()
     const location = Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() })
@@ -66,7 +67,7 @@ describe("core runtime", () => {
         sessionID,
         messageID,
         location,
-        prompt: { text: "attachment", files: [{ uri }] },
+        prompt: { text: "attachment", files: [{ uri: dataURI }, { uri: remoteURI }] },
         delivery: "queue",
       })
       const retried = await domain.createSession({
@@ -74,12 +75,12 @@ describe("core runtime", () => {
         sessionID,
         messageID,
         location,
-        prompt: { text: "attachment", files: [{ uri }] },
+        prompt: { text: "attachment", files: [{ uri: dataURI }, { uri: remoteURI }] },
         delivery: "queue",
       })
       expect(created.admitted.id).toBeDefined()
-      expect(created.admitted).toMatchObject({ prompt: { files: [{ uri: "" }] } })
-      expect(retried.admitted).toMatchObject({ prompt: { files: [{ uri: "" }] } })
+      expect(created.admitted).toMatchObject({ prompt: { files: [{ uri: "" }, { uri: "" }] } })
+      expect(retried.admitted).toMatchObject({ prompt: { files: [{ uri: "" }, { uri: "" }] } })
     } finally {
       await domain.dispose()
     }
@@ -89,7 +90,8 @@ describe("core runtime", () => {
     database.close()
     await Bun.file(filename).delete()
 
-    expect(stored).not.toContain(uri)
+    expect(stored).not.toContain(dataURI)
+    expect(stored).not.toContain(remoteURI)
     expect(stored.length).toBeLessThan(10_000)
   })
 

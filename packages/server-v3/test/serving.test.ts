@@ -85,6 +85,9 @@ describe("serving", () => {
     const devOrigin = await app.request("http://127.0.0.1:4106/api/collection/capabilities", {
       headers: { origin: "http://localhost:5173" },
     })
+    const devIPOrigin = await app.request("http://127.0.0.1:4106/api/collection/capabilities", {
+      headers: { origin: "http://127.0.0.1:5173" },
+    })
     const otherLoopback = await app.request("http://127.0.0.1:4106/api/collection/capabilities", {
       headers: { origin: "http://localhost:5174" },
     })
@@ -98,6 +101,7 @@ describe("serving", () => {
     expect(sameOrigin.status).toBe(200)
     expect(sameOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost")
     expect(devOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost:5173")
+    expect(devIPOrigin.headers.get("access-control-allow-origin")).toBe("http://127.0.0.1:5173")
     expect(otherLoopback.status).toBe(401)
     expect(otherLoopback.headers.get("access-control-allow-origin")).toBeNull()
     expect(rebound.status).toBe(401)
@@ -144,6 +148,16 @@ describe("serving", () => {
       rm(directory, { force: true, recursive: true }),
       ...[path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })),
     ])
+  }, 30_000)
+
+  test("allows exact Vite development hosts", async () => {
+    const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
+    await runServer(
+      path,
+      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "http://hena.tailnet.test:5173" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "http://hena.tailnet.test:5173") throw new Error("Vite development origin was rejected")',
+      { HENA_VITE_ALLOWED_HOSTS: "hena.tailnet.test" },
+    )
+    await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
   }, 30_000)
 
   test("keeps idle event streams alive and closes them during shutdown", async () => {

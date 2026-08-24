@@ -17,7 +17,7 @@ export const Hostname = "127.0.0.1"
 
 export async function start(input?: { port?: number; publicDir?: string; corsOrigins?: readonly string[] }) {
   assertNoPassword()
-  const corsOrigins = [...(await configuredCorsOrigins()), ...(input?.corsOrigins ?? [])]
+  const corsOrigins = [...(await configuredCorsOrigins()), ...viteCorsOrigins(), ...(input?.corsOrigins ?? [])]
   const deltas = createDeltaHub()
   const online = createOnlineRequestStore()
   const persisted = { publish: () => {} }
@@ -113,4 +113,12 @@ async function configuredCorsOrigins() {
     }),
   )
   return configs.findLast((config) => config?.server?.cors !== undefined)?.server?.cors ?? []
+}
+
+function viteCorsOrigins(hosts = process.env.HENA_VITE_ALLOWED_HOSTS) {
+  return (hosts ?? "")
+    .split(",")
+    .map((host) => host.trim())
+    .filter((host) => /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(host))
+    .map((host) => `http://${host}:5173`)
 }

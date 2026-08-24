@@ -71,7 +71,7 @@ function oversizedPrompt(prompt: PromptInput.Prompt, sessionID = "x".repeat(64),
     return true
   const projected = {
     ...prompt,
-    files: prompt.files?.map((file) => {
+    files: prompt.files?.map((file, index) => {
       const uri = preview(file.uri)
       const dataMime = file.uri.match(/^data:([^;,]+)[;,]/i)?.[1]
       const normalized = dataMime ? { ...file, mime: dataMime } : file
@@ -80,7 +80,7 @@ function oversizedPrompt(prompt: PromptInput.Prompt, sessionID = "x".repeat(64),
         ...normalized,
         uri: uri.text,
         truncated: true,
-        content: { id: "x".repeat(64), revision: "x".repeat(64), bytes: uri.totalBytes },
+        content: { id: `${messageID}_attachment_${index}`, revision: "x".repeat(64), bytes: uri.totalBytes },
       }
     }),
   }
@@ -95,7 +95,6 @@ function oversizedPrompt(prompt: PromptInput.Prompt, sessionID = "x".repeat(64),
       admittedSeq: Number.MAX_SAFE_INTEGER,
       promotedSeq: Number.MAX_SAFE_INTEGER,
       queuePosition: Number.MAX_SAFE_INTEGER,
-      queueRevision: Number.MAX_SAFE_INTEGER,
       timeCreated: Number.MAX_SAFE_INTEGER,
     },
   }])

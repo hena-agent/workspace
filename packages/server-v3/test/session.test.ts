@@ -103,6 +103,23 @@ describe("session mutations", () => {
     expect(domain.calls).toEqual([])
   })
 
+  test("accounts for prompt IDs in truncated attachment references", async () => {
+    database = createTestDatabase().database
+    const domain = recordingDomain()
+    const response = await createApp({ database, domain }).request(`/api/session/${Session.ID.create()}/prompt`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        idempotencyKey: crypto.randomUUID(),
+        messageID: `msg_${"x".repeat(360 * 1024)}`,
+        prompt: { text: "", files: [{ uri: "x".repeat(300 * 1024) }] },
+      }),
+    })
+
+    expect(response.status).toBe(413)
+    expect(domain.calls).toEqual([])
+  })
+
   test("rejects individual attachments larger than five MiB", async () => {
     database = createTestDatabase().database
     const domain = recordingDomain()

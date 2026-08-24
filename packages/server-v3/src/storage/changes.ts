@@ -41,10 +41,40 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
     ORDER BY seq
   `)
   const current = database.query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
-  const persisted = database.query<ChangeRow, [number]>(`
+  const nextPersisted = database.query<ChangeRow, [number]>(`
     SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
     FROM collection_change
     WHERE seq > ?
+    ORDER BY seq LIMIT 1
+  `)
+  const persistedTransaction = database.query<ChangeRow, [number, number]>(`
+    SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
+    FROM collection_change
+    WHERE seq >= ? AND seq <= ?
+    ORDER BY seq
+  `)
+  const transactionEnd = database.query<{ seq: number }, [number, string]>(`
+    SELECT COALESCE(
+      (SELECT seq - 1 FROM collection_change WHERE seq > ? AND txid IS NOT ? ORDER BY seq LIMIT 1),
+      (SELECT MAX(seq) FROM collection_change)
+    ) AS seq
+  `)
+  const transactionSize = database.query<{ bytes: number }, [number, number]>(`
+    SELECT COALESCE(SUM(LENGTH(CAST(collection AS BLOB)) + LENGTH(CAST(scope_key AS BLOB)) +
+      LENGTH(CAST(row_key AS BLOB)) + COALESCE(LENGTH(CAST(row AS BLOB)), 0) + 128), 0) AS bytes
+    FROM collection_change
+    WHERE seq >= ? AND seq <= ?
+  `)
+  const transactionScopes = database.query<ChangeRow, [number, number, number, number]>(`
+    SELECT seq, collection, scope_key, '' AS row_key, 'reset' AS op, NULL AS row, NULL AS row_revision,
+      txid, runtime_id, created_at
+    FROM collection_change
+    WHERE seq >= ? AND seq <= ? AND (collection || char(0) || scope_key || char(0) || seq) IN (
+      SELECT collection || char(0) || scope_key || char(0) || MAX(seq)
+      FROM collection_change
+      WHERE seq >= ? AND seq <= ?
+      GROUP BY collection, scope_key
+    )
     ORDER BY seq
   `)
   const latest = database.query<{ seq: number; txid: string | null }, [string, string]>(`
@@ -64,21 +94,32 @@ export function createChangeStore(database: Database, feed: { get(): { runtimeId
     transactionListeners.forEach((listener) => listener(changes))
     const scopes = changes.reduce((grouped, change) => {
       const key = scopeKey(change.collection, change.scopeKey)
-      grouped.set(key, [...(grouped.get(key) ?? []), change])
+      const scoped = grouped.get(key) ?? []
+      scoped.push(change)
+      grouped.set(key, scoped)
       return grouped
     }, new Map<string, Change[]>())
     scopes.forEach((scoped, key) => listeners.get(key)?.forEach((listener) => listener(scoped)))
   }
   const publishPersisted = () => {
-    const changes = persisted.all(publishedSeq).map(fromRow)
-    if (changes.length === 0) return
-    publishedSeq = changes.at(-1)!.seq
-    changes.reduce<Change[][]>((transactions, change) => {
-      const current = transactions.at(-1)
-      if (current && change.txid !== undefined && current[0]!.txid === change.txid) current.push(change)
-      else transactions.push([change])
-      return transactions
-    }, []).forEach(publish)
+    while (true) {
+      const next = nextPersisted.get(publishedSeq)
+      if (!next) return
+      if (next.txid === null) {
+        publishedSeq = next.seq
+        publish([fromRow(next)])
+        continue
+      }
+      const throughSeq = transactionEnd.get(next.seq, next.txid)!.seq
+      const size = transactionSize.get(next.seq, throughSeq)!
+      const changes = (
+        size.bytes > 4 * 1024 * 1024
+          ? transactionScopes.all(next.seq, throughSeq, next.seq, throughSeq)
+          : persistedTransaction.all(next.seq, throughSeq)
+      ).map(fromRow)
+      publishedSeq = throughSeq
+      publish(changes)
+    }
   }
 
   const store = {

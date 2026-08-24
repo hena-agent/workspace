@@ -249,7 +249,7 @@ export function createCoreDomain(
       if (!online) throw new Error("Online request store is unavailable")
       return online.serialize("permission", requestID, async () => {
         const request = online.request("permission", requestID, input.sessionID, input.nonce)
-        if (!request) return resolvedReply(online, "permission", requestID)
+        if (!request) return resolvedReply(online, "permission", requestID, input.sessionID, input.nonce)
         const result = await runtime.runPromise(
           PermissionV2.Service.use((service) =>
             service.reply({
@@ -267,7 +267,7 @@ export function createCoreDomain(
         )
         if (!result.success) {
           if (result.error instanceof PermissionV2.NotFoundError)
-            return resolvedReply(online, "permission", requestID)
+            return resolvedReply(online, "permission", requestID, input.sessionID, input.nonce)
           throw result.error
         }
         return {
@@ -284,7 +284,7 @@ export function createCoreDomain(
       if (!online) throw new Error("Online request store is unavailable")
       return online.serialize("question", requestID, async () => {
         const request = online.request("question", requestID, input.sessionID, input.nonce)
-        if (!request) return resolvedReply(online, "question", requestID)
+        if (!request) return resolvedReply(online, "question", requestID, input.sessionID, input.nonce)
         const result = await runtime.runPromise(
           QuestionV2.Service.use((service) =>
             service.reply({
@@ -301,7 +301,7 @@ export function createCoreDomain(
         )
         if (!result.success) {
           if (result.error instanceof QuestionV2.NotFoundError)
-            return resolvedReply(online, "question", requestID)
+            return resolvedReply(online, "question", requestID, input.sessionID, input.nonce)
           throw result.error
         }
         return {
@@ -334,8 +334,14 @@ export function createCoreDomain(
   }
 }
 
-function resolvedReply(online: OnlineRequestStore, kind: "permission" | "question", requestID: string) {
-  const resolution = online.resolution(kind, requestID)
+function resolvedReply(
+  online: OnlineRequestStore,
+  kind: "permission" | "question",
+  requestID: string,
+  sessionID: string,
+  nonce: string,
+) {
+  const resolution = online.resolution(kind, requestID, sessionID, nonce)
   if (!resolution) throw new OnlineRequestConflict(`${kind} request does not match a resolved request`)
   return { outcome: "already_resolved" as const, resolution }
 }

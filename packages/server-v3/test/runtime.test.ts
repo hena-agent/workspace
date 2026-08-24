@@ -177,6 +177,24 @@ self.onmessage = (event) => {
           answers: [],
         }),
       ).rejects.toThrow("does not match")
+      online.complete("permission", "per_1", { requestID: "per_1", sessionID: "ses_1", reply: "once" })
+      online.complete("question", "que_1", { requestID: "que_1", sessionID: "ses_1", answers: [] })
+      await expect(
+        domain.replyPermission("per_1", {
+          location,
+          sessionID: Session.ID.make("ses_wrong"),
+          nonce: "wrong",
+          reply: "once",
+        }),
+      ).rejects.toThrow("does not match")
+      await expect(
+        domain.replyQuestion("que_1", {
+          location,
+          sessionID,
+          nonce: "wrong",
+          answers: [],
+        }),
+      ).rejects.toThrow("does not match")
     } finally {
       await domain.dispose()
       await Bun.file(filename).delete()

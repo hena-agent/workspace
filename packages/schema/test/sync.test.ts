@@ -9,6 +9,27 @@ describe("Sync.canonicalJson", () => {
     )
     expect(() => Sync.canonicalJson(undefined)).toThrow(TypeError)
   })
+
+  test("sorts object keys independently of the machine locale", () => {
+    expect(Sync.canonicalJson({ "ä": 1, z: 2 })).toBe('{"z":2,"ä":1}')
+  })
+})
+
+describe("Sync idempotency keys", () => {
+  test("accepts UUIDs and rejects arbitrary or oversized keys", () => {
+    expect(
+      Schema.decodeUnknownSync(Sync.CancelInput)({
+        idempotencyKey: "123e4567-e89b-42d3-a456-426614174000",
+        expectedRevision: 0,
+      }).idempotencyKey,
+    ).toBe("123e4567-e89b-42d3-a456-426614174000")
+    expect(() =>
+      Schema.decodeUnknownSync(Sync.CancelInput)({ idempotencyKey: "arbitrary", expectedRevision: 0 }),
+    ).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(Sync.CancelInput)({ idempotencyKey: "x".repeat(1024 * 1024), expectedRevision: 0 }),
+    ).toThrow()
+  })
 })
 
 describe("Sync filesystem queries", () => {

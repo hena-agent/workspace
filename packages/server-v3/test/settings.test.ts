@@ -5,12 +5,14 @@ import { createTestDatabase } from "./fixture"
 
 describe("settings mutation", () => {
   let database: SyncDatabase | undefined
+  const key1 = "00000000-0000-4000-8000-000000000001"
+  const key2 = "00000000-0000-4000-8000-000000000002"
 
   afterEach(() => database?.close())
 
   test("writes a revisioned row and returns its receipt", async () => {
     database = createTestDatabase().database
-    const response = await replace(createApp({ database }), { idempotencyKey: "key-1", value: "dark" })
+    const response = await replace(createApp({ database }), { idempotencyKey: key1, value: "dark" })
     const body = (await response.json()) as { revision: string; receipt: { through: { seq: number } } }
 
     expect(response.status).toBe(200)
@@ -22,10 +24,10 @@ describe("settings mutation", () => {
   test("replays the exact result without writing twice", async () => {
     database = createTestDatabase().database
     const app = createApp({ database })
-    const first = (await (await replace(app, { idempotencyKey: "key-1", value: "dark" })).json()) as {
+    const first = (await (await replace(app, { idempotencyKey: key1, value: "dark" })).json()) as {
       revision: string
     }
-    const retry = (await (await replace(app, { idempotencyKey: "key-1", value: "dark" })).json()) as {
+    const retry = (await (await replace(app, { idempotencyKey: key1, value: "dark" })).json()) as {
       revision: string
       receipt: { outcome: string }
     }
@@ -35,16 +37,36 @@ describe("settings mutation", () => {
     expect(database.changes.after("settings", "profile", 0)).toHaveLength(1)
   })
 
+  test("replays an exact location result after the location is removed", async () => {
+    database = createTestDatabase().database
+    const location = JSON.stringify({ directory: "/repo" })
+    database.collections.hydrate("locations", "", [{ key: location, row: { directory: "/repo" }, revision: "1" }])
+    const app = createApp({ database })
+    const idempotencyKey = crypto.randomUUID()
+    const request = () => app.request(`/api/settings/${encodeURIComponent(location)}/theme`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idempotencyKey, value: "dark" }),
+    })
+    const first = await request()
+    database.collections.hydrate("locations", "", [])
+    const retry = await request()
+
+    expect(first.status).toBe(200)
+    expect(retry.status).toBe(200)
+    expect(await retry.json()).toMatchObject({ receipt: { outcome: "exact_retry" } })
+  })
+
   test("rejects an idempotency key reused for a different setting target", async () => {
     database = createTestDatabase().database
     const location = JSON.stringify({ directory: "/repo" })
     database.collections.hydrate("locations", "", [{ key: location, row: { directory: "/repo" }, revision: "1" }])
     const app = createApp({ database })
-    await replace(app, { idempotencyKey: "key-1", value: "dark" })
+    await replace(app, { idempotencyKey: key1, value: "dark" })
     const response = await app.request(`/api/settings/${encodeURIComponent(location)}/theme`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "key-1", value: "dark" }),
+      body: JSON.stringify({ idempotencyKey: key1, value: "dark" }),
     })
 
     expect(response.status).toBe(409)
@@ -54,8 +76,8 @@ describe("settings mutation", () => {
   test("rejects a stale expected revision", async () => {
     database = createTestDatabase().database
     const app = createApp({ database })
-    await replace(app, { idempotencyKey: "key-1", value: "dark" })
-    const response = await replace(app, { idempotencyKey: "key-2", expectedRevision: "stale", value: "light" })
+    await replace(app, { idempotencyKey: key1, value: "dark" })
+    const response = await replace(app, { idempotencyKey: key2, expectedRevision: "stale", value: "light" })
 
     expect(response.status).toBe(409)
     expect(await response.json()).toMatchObject({ error: { code: "revision_conflict" } })
@@ -66,7 +88,7 @@ describe("settings mutation", () => {
     const response = await createApp({ database }).request("/api/settings/workspace/theme", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "unsupported-scope", value: "dark" }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), value: "dark" }),
     })
 
     expect(response.status).toBe(400)
@@ -79,7 +101,7 @@ describe("settings mutation", () => {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        idempotencyKey: "large-setting",
+        idempotencyKey: crypto.randomUUID(),
         value: { id: "x".repeat(16 * 1024 + 1), providerID: "provider" },
       }),
     })
@@ -93,7 +115,7 @@ describe("settings mutation", () => {
     const response = await createApp({ database }).request("/api/settings/profile/apiKey", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "secret-setting", value: "secret-canary" }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), value: "secret-canary" }),
     })
 
     expect(response.status).toBe(400)

@@ -15,7 +15,7 @@ export function createSettingRoutes(database: SyncDatabase) {
       const body = c.req.valid("json")
       const scope = c.req.param("scope")
       const key = c.req.param("key")
-      if (!scope || !key || !validScope(database, scope) || !validSetting(key, body.value))
+      if (!scope || !key || !validSetting(key, body.value))
         return error(c, 400, "validation", "Setting key or value is not allowed")
       try {
         const result = database.idempotency.run(
@@ -26,6 +26,7 @@ export function createSettingRoutes(database: SyncDatabase) {
             payload: { scope, key, body },
           },
           () => {
+            if (!validScope(database, scope)) throw new InvalidSettingScope()
             const txid = crypto.randomUUID()
             const replaced = database.settings.replace({
               scope,
@@ -53,6 +54,8 @@ export function createSettingRoutes(database: SyncDatabase) {
           })
         return c.json(result.response)
       } catch (cause) {
+        if (cause instanceof InvalidSettingScope)
+          return error(c, 400, "validation", "Setting key or value is not allowed")
         if (cause instanceof IdempotencyConflict)
           return error(c, 409, cause.code, "Idempotency key was reused with different input")
         if (cause instanceof RevisionConflict)
@@ -67,6 +70,8 @@ export function createSettingRoutes(database: SyncDatabase) {
     },
   )
 }
+
+class InvalidSettingScope extends Error {}
 
 function validScope(database: SyncDatabase, scope: string) {
   return scope === "profile" || database.collections.snapshot("locations", "").rows.some((row) => row.key === scope)

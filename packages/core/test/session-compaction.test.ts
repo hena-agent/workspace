@@ -133,3 +133,52 @@ it.effect("does not discard a compaction interrupted after completion commits", 
     expect(observed).not.toContain(SessionEvent.Compaction.Discarded.type)
   }),
 )
+
+it.effect("discards a compaction interrupted while publishing its start", () =>
+  Effect.gen(function* () {
+    const events = yield* EventV2.Service
+    const started = yield* Deferred.make<void>()
+    const release = yield* Deferred.make<void>()
+    const observed: string[] = []
+    const unsubscribe = yield* events.listen((event) =>
+      Effect.gen(function* () {
+        observed.push(event.type)
+        if (event.type !== SessionEvent.Compaction.Started.type) return
+        yield* Deferred.succeed(started, undefined)
+        yield* Deferred.await(release)
+      }),
+    )
+    const model = Model.make({
+      id: "compact",
+      provider: "test",
+      route: route.with({ limits: { context: 100_000, output: 4_096 } }),
+    })
+    const compact = SessionCompaction.make({
+      events,
+      llm: { stream: () => Stream.never },
+      config: [],
+    })
+    const fiber = yield* compact.compactAfterOverflow({
+      sessionID: SessionV2.ID.make("ses_compaction_start_interrupt"),
+      entries: [{
+        seq: 0,
+        message: SessionMessage.User.make({
+          id: SessionMessage.ID.make("msg_user"),
+          type: "user",
+          text: "x".repeat(40_000),
+          time: { created: DateTime.makeUnsafe(1) },
+        }),
+      }],
+      model,
+      request: LLM.request({ model, messages: [], tools: [] }),
+    }).pipe(Effect.forkChild)
+
+    yield* Deferred.await(started)
+    const interrupted = yield* Fiber.interrupt(fiber).pipe(Effect.forkChild)
+    yield* Deferred.succeed(release, undefined)
+    yield* Fiber.join(interrupted)
+    yield* unsubscribe
+
+    expect(observed).toContain(SessionEvent.Compaction.Discarded.type)
+  }),
+)

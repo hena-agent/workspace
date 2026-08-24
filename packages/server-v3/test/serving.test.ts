@@ -71,7 +71,7 @@ describe("serving", () => {
     const sameOrigin = await app.request("http://localhost/api/settings/profile/theme", {
       method: "PUT",
       headers: { origin: "http://localhost", "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "same-origin", value: "dark" }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), value: "dark" }),
     })
     const devOrigin = await app.request("http://127.0.0.1:4106/api/collection/capabilities", {
       headers: { origin: "http://localhost:5173" },
@@ -115,6 +115,13 @@ describe("serving", () => {
       'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing", corsOrigins: ["https://custom.example"] }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "https://custom.example" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "https://custom.example") throw new Error("configured origin was rejected")',
     )
     await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
+  }, 30_000)
+
+  test("keeps idle event streams alive and closes them during shutdown", async () => {
+    await runServer(
+      ":memory:",
+      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); const created = await fetch(new URL("/api/collection/streams", instance.server.url), { method: "POST" }).then((response) => response.json()); await fetch(new URL(`/api/collection/streams/${created.streamId}/subscription`, instance.server.url), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ revision: 1, lists: false, sessions: [], cursors: {} }) }); const response = await fetch(new URL(`/api/collection/streams/${created.streamId}/events`, instance.server.url)); const reader = response.body.getReader(); await reader.read(); await Bun.sleep(11_000); if ((await reader.read()).done) throw new Error("idle stream disconnected"); await instance.stop();',
+    )
   }, 30_000)
 })
 

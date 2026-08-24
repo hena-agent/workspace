@@ -42,5 +42,6 @@ export const migrations = (
     import("./migration/20260622202450_simplify_session_input"),
     import("./migration/20260823094804_server-v3-sync"),
     import("./migration/20260823211539_event-message-id-index"),
+    import("./migration/20260824024558_dapper_sasquatch"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

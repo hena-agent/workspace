@@ -20,7 +20,7 @@ describe("session mutations", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        idempotencyKey: "request-1",
+        idempotencyKey: crypto.randomUUID(),
         sessionID,
         messageID,
         location: { directory: "/tmp/project" },
@@ -44,12 +44,12 @@ describe("session mutations", () => {
     const cancel = await app.request(`/api/session/${sessionID}/input/${first}/cancel`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "cancel-1", expectedRevision: 2 }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), expectedRevision: 2 }),
     })
     const reorder = await app.request(`/api/session/${sessionID}/input-order`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "reorder-1", expectedRevision: 3, messageIDs: [second] }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), expectedRevision: 3, messageIDs: [second] }),
     })
 
     expect(cancel.status).toBe(200)
@@ -67,7 +67,7 @@ describe("session mutations", () => {
     const response = await createApp({ database, domain }).request(`/api/session/${sessionID}/prompt`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "large-prompt", prompt: { text: "x".repeat(70 * 1024) } }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), prompt: { text: "x".repeat(70 * 1024) } }),
     })
 
     expect(response.status).toBe(200)
@@ -79,7 +79,7 @@ describe("session mutations", () => {
     const response = await createApp({ database, domain }).request(`/api/session/${Session.ID.create()}/prompt`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "oversized-text", prompt: { text: "x".repeat(1024 * 1024 - 8 * 1024) } }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), prompt: { text: "x".repeat(1024 * 1024 - 8 * 1024) } }),
     })
 
     expect(response.status).toBe(413)
@@ -93,7 +93,7 @@ describe("session mutations", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        idempotencyKey: "oversized-message-id",
+        idempotencyKey: crypto.randomUUID(),
         messageID: `msg_${"x".repeat(1024 * 1024)}`,
         prompt: { text: "small" },
       }),
@@ -110,7 +110,7 @@ describe("session mutations", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        idempotencyKey: "large-attachment",
+        idempotencyKey: crypto.randomUUID(),
         prompt: {
           text: "",
           files: [{ uri: `DATA:text/plain;base64,${"A".repeat(Math.ceil((5 * 1024 * 1024 + 1) * 4 / 3))}`, mime: "text/plain" }],
@@ -130,7 +130,7 @@ describe("session mutations", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        idempotencyKey: "large-media-type",
+        idempotencyKey: crypto.randomUUID(),
         prompt: { text: "", files: [{ uri: `data:${"x".repeat(1024 * 1024)};base64,QQ==` }] },
       }),
     })
@@ -153,7 +153,7 @@ describe("session mutations", () => {
     const response = await createApp({ database, domain }).request("/api/session/ses_1/input/msg_1/cancel", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "cancel-conflict", expectedRevision: 2 }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), expectedRevision: 2 }),
     })
 
     expect(response.status).toBe(409)
@@ -179,7 +179,7 @@ describe("session mutations", () => {
     const response = await createApp({ database, domain }).request("/api/session/ses_1/input-order", {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "reorder-conflict", expectedRevision: 4, messageIDs: [] }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), expectedRevision: 4, messageIDs: [] }),
     })
 
     expect(response.status).toBe(409)
@@ -199,12 +199,12 @@ describe("session mutations", () => {
     const prompt = await app.request("/api/session/invalid/prompt", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "invalid-session", prompt: { text: "hello" } }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), prompt: { text: "hello" } }),
     })
     const cancel = await app.request("/api/session/ses_1/input/invalid/cancel", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ idempotencyKey: "invalid-input", expectedRevision: 0 }),
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), expectedRevision: 0 }),
     })
 
     expect(prompt.status).toBe(400)
@@ -222,7 +222,7 @@ describe("session mutations", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        idempotencyKey: "conflict",
+        idempotencyKey: crypto.randomUUID(),
         location: { directory: "/repo" },
         prompt: { text: "hello" },
       }),

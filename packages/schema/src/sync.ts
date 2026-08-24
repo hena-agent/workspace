@@ -41,6 +41,10 @@ export const ChangeOperation = Schema.Literals(["insert", "update", "delete", "r
 })
 export type ChangeOperation = typeof ChangeOperation.Type
 
+const IdempotencyKey = Schema.String.check(
+  Schema.isPattern(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i),
+)
+
 export interface TransactionReceipt extends Schema.Schema.Type<typeof TransactionReceipt> {}
 export const TransactionReceipt = Schema.Struct({
   txid: Schema.String,
@@ -51,14 +55,14 @@ export const TransactionReceipt = Schema.Struct({
 
 export interface SettingReplace extends Schema.Schema.Type<typeof SettingReplace> {}
 export const SettingReplace = Schema.Struct({
-  idempotencyKey: Schema.String,
+  idempotencyKey: IdempotencyKey,
   expectedRevision: Schema.String.pipe(optional),
   value: Schema.Json,
 }).annotate({ identifier: "Sync.SettingReplace" })
 
 export interface CreateSession extends Schema.Schema.Type<typeof CreateSession> {}
 export const CreateSession = Schema.Struct({
-  idempotencyKey: Schema.String,
+  idempotencyKey: IdempotencyKey,
   sessionID: Session.ID.pipe(optional),
   messageID: SessionMessage.ID.pipe(optional),
   location: Location.Ref,
@@ -68,7 +72,7 @@ export const CreateSession = Schema.Struct({
 
 export interface AdmitPrompt extends Schema.Schema.Type<typeof AdmitPrompt> {}
 export const AdmitPrompt = Schema.Struct({
-  idempotencyKey: Schema.String,
+  idempotencyKey: IdempotencyKey,
   messageID: SessionMessage.ID.pipe(optional),
   prompt: PromptInput.Prompt,
   delivery: Schema.Literals(["steer", "queue"]).pipe(optional),
@@ -103,13 +107,13 @@ export const FileFindQuery = Schema.Struct({
 
 export interface CancelInput extends Schema.Schema.Type<typeof CancelInput> {}
 export const CancelInput = Schema.Struct({
-  idempotencyKey: Schema.String,
+  idempotencyKey: IdempotencyKey,
   expectedRevision: NonNegativeInt,
 }).annotate({ identifier: "Sync.CancelInput" })
 
 export interface ReorderInputs extends Schema.Schema.Type<typeof ReorderInputs> {}
 export const ReorderInputs = Schema.Struct({
-  idempotencyKey: Schema.String,
+  idempotencyKey: IdempotencyKey,
   expectedRevision: NonNegativeInt,
   messageIDs: Schema.Array(SessionMessage.ID),
 }).annotate({ identifier: "Sync.ReorderInputs" })
@@ -138,7 +142,7 @@ export function canonicalJson(value: unknown): string {
     return `[${value.map((entry) => (entry === undefined ? "null" : canonicalJson(entry))).join(",")}]`
   return `{${Object.entries(value)
     .filter(([, entry]) => entry !== undefined)
-    .sort(([left], [right]) => left.localeCompare(right))
+    .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
     .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)
     .join(",")}}`
 }

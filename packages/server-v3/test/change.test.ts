@@ -138,6 +138,41 @@ describe("collection changes", () => {
     expect(received).toEqual([["msg_1", "msg_2"]])
   })
 
+  test("publishes bounded resets for oversized transactions", () => {
+    database = createTestDatabase().database
+    const received = new Array<readonly string[]>()
+    database.changes.subscribe("messages", "ses_1", (changes) =>
+      received.push(changes.map((change) => change.op)),
+    )
+
+    database.collections.replace(
+      "messages",
+      "ses_1",
+      Array.from({ length: 5 }, (_, index) => ({
+        key: `msg_${index}`,
+        row: { id: `msg_${index}`, text: "x".repeat(900 * 1024) },
+        revision: "1",
+      })),
+      "tx-large",
+    )
+
+    expect(received).toEqual([["reset"]])
+  })
+
+  test("keeps noncontiguous reused transaction IDs separate", () => {
+    database = createTestDatabase().database
+    const received = new Array<readonly string[]>()
+    database.changes.subscribeTransactions((changes) => received.push(changes.map((change) => change.rowKey)))
+
+    database.changes.batch(() => {
+      database!.changes.append({ collection: "messages", scopeKey: "ses_1", rowKey: "one", op: "insert", txid: "x" })
+      database!.changes.append({ collection: "messages", scopeKey: "ses_1", rowKey: "two", op: "insert", txid: "y" })
+      database!.changes.append({ collection: "messages", scopeKey: "ses_1", rowKey: "three", op: "insert", txid: "x" })
+    })
+
+    expect(received).toEqual([["one"], ["two"], ["three"]])
+  })
+
   test("rejects rows that cannot fit in one snapshot frame before writing the changelog", () => {
     database = createTestDatabase().database
 

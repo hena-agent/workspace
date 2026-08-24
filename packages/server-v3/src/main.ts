@@ -57,17 +57,18 @@ export async function start(input?: { port?: number; publicDir?: string; corsOri
     hostname: Hostname,
     port: input?.port ?? readPort(process.argv) ?? 4106,
     fetch: app.fetch,
+    idleTimeout: 0,
   })
   const compaction = setInterval(() => database.compact(), 60 * 60_000)
   compaction.unref()
   const stop = async () => {
     clearInterval(compaction)
+    await server.stop(true)
     unsubscribeCatalog()
     unsubscribeLocations()
     await catalog.idle()
     await domain.dispose()
     database.close()
-    await server.stop()
   }
   process.once("SIGINT", stop)
   process.once("SIGTERM", stop)

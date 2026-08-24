@@ -151,7 +151,7 @@ export const SessionInputTable = sqliteTable(
     prompt: text({ mode: "json" }).notNull().$type<Prompt>(),
     delivery: text().$type<SessionInput.Delivery>().notNull(),
     admitted_seq: integer().notNull(),
-    queue_position: integer().notNull(),
+    queue_position: integer().default(0).notNull(),
     promoted_seq: integer(),
     time_created: integer()
       .notNull()

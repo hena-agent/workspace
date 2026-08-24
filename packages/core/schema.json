@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "746d53e6-c0d5-4baf-8722-0f0fc2094720",
+  "id": "2dcef776-d3c4-4674-bdf1-292db23bfc96",
   "prevIds": [
-    "9894264a-39e7-411f-bfe4-0c205a0c0403"
+    "746d53e6-c0d5-4baf-8722-0f0fc2094720"
   ],
   "ddl": [
     {
@@ -996,7 +996,7 @@
       "type": "integer",
       "notNull": true,
       "autoincrement": false,
-      "default": null,
+      "default": "0",
       "generated": null,
       "name": "queue_position",
       "entityType": "columns",

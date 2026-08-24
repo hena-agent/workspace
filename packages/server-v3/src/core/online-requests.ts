@@ -5,6 +5,7 @@ type Kind = "permission" | "question"
 export type VolatileCollection = "permissions" | "questions" | "agents" | "models" | "providers"
 type Row = { id: string; sessionID: string; nonce: string } & Record<string, unknown>
 type Resolution = Record<string, unknown>
+type Resolved = { sessionID: string; nonce: string; value: Resolution }
 type Placement = { directory: string; workspaceID?: string }
 const ResolutionLimit = 1_024
 
@@ -14,7 +15,7 @@ export class OnlineRequestConflict extends Error {
 
 export function createOnlineRequestStore() {
   const rows = new Map<string, Map<string, Record<string, unknown>>>()
-  const resolutions = new Map<string, Resolution>()
+  const resolutions = new Map<string, Resolved>()
   const placements = new Map<string, Placement>()
   const replies = new Map<string, Promise<unknown>>()
   const listeners = new Set<(collection: VolatileCollection, scopeKey: string) => void>()
@@ -65,13 +66,19 @@ export function createOnlineRequestStore() {
         ? { location }
         : undefined
     },
-    resolution(kind: Kind, id: string) {
-      return resolutions.get(`${kind}:${id}`)
+    resolution(kind: Kind, id: string, sessionID?: string, nonce?: string) {
+      const resolved = resolutions.get(`${kind}:${id}`)
+      if (!resolved) return undefined
+      if (sessionID !== undefined && (resolved.sessionID !== sessionID || resolved.nonce !== nonce)) return undefined
+      return resolved.value
     },
     complete(kind: Kind, id: string, resolution: Resolution) {
       const key = `${kind}:${id}`
-      const authoritative = resolutions.get(key) ?? resolution
-      rememberResolution(key, authoritative)
+      const existing = resolutions.get(key)
+      const row = scoped(collection(kind), "").get(id)
+      const authoritative = existing?.value ?? resolution
+      if (existing) rememberResolution(key, existing)
+      else if (isPendingRow(row)) rememberResolution(key, { sessionID: row.sessionID, nonce: row.nonce, value: authoritative })
       placements.delete(key)
       if (scoped(collection(kind), "").delete(id)) changed(collection(kind), "")
       return authoritative
@@ -150,14 +157,16 @@ export function createOnlineRequestStore() {
   }
 
   function resolve(target: "permissions" | "questions", id: string, resolution: Resolution) {
-    if (!scoped(target, "").delete(id)) return
+    const row = scoped(target, "").get(id)
+    if (!isPendingRow(row)) return
+    scoped(target, "").delete(id)
     const key = `${target === "permissions" ? "permission" : "question"}:${id}`
     placements.delete(key)
-    rememberResolution(key, resolution)
+    rememberResolution(key, { sessionID: row.sessionID, nonce: row.nonce, value: resolution })
     changed(target, "")
   }
 
-  function rememberResolution(key: string, resolution: Resolution) {
+  function rememberResolution(key: string, resolution: Resolved) {
     resolutions.delete(key)
     resolutions.set(key, resolution)
     if (resolutions.size <= ResolutionLimit) return

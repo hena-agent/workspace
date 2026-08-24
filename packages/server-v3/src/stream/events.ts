@@ -9,6 +9,7 @@ import type { Delta, DeltaHub } from "./delta"
 import type { OnlineRequestStore, VolatileCollection } from "../core/online-requests"
 import { fitsPage, pages } from "./pages"
 import type { Change } from "../storage/changes"
+import type { Database } from "bun:sqlite"
 
 export function events(
   c: Context,
@@ -42,10 +43,8 @@ export function events(
     let deltaLive = false
     const pendingVolatile = new Set<string>()
     const pendingDeltas: Delta[] = []
-    const pendingRecoveries = new Map<
-      string,
-      { scope: (typeof scopes)[number]; fromSeq: number; throughSeq: number; change: Change }
-    >()
+    type Recovery = { scope: (typeof scopes)[number]; fromSeq: number; throughSeq: number; change: Change }
+    const pendingRecoveries = new Map<string, Recovery>()
     let writes = Promise.resolve()
     let snapshotsScheduled = false
     let queuedBytes = 0
@@ -236,6 +235,67 @@ export function events(
         await writes
       }
     }
+    const writeSnapshot = async (scope: (typeof scopes)[number], source: Database, throughSeq: number) => {
+      const snapshotId = crypto.randomUUID()
+      let keyCount = 0
+      let after = ""
+      through.set(scopeKey(scope), throughSeq)
+      await stream.writeSSE({
+        event: "snapshot.begin",
+        data: JSON.stringify(frame({ type: "snapshot.begin", scope, snapshotId, baseSeq: throughSeq, replace: true })),
+      })
+      const query = source.query<
+        { row_key: string; row: string; row_revision: string },
+        [string, string, string]
+      >(`
+        SELECT row_key, row, row_revision FROM collection_row
+        WHERE collection = ? AND scope_key = ? AND row_key > ?
+        ORDER BY row_key LIMIT 4
+      `)
+      while (!ending) {
+        const rows = query.all(scope.collection, scope.scopeKey, after)
+        if (rows.length === 0) break
+        after = rows.at(-1)!.row_key
+        const projected = rows.map((row) => ({
+          key: wireKey(scope.collection, row.row_key),
+          row: JSON.parse(row.row),
+          revision: row.row_revision,
+        }))
+        keyCount += projected.length
+        for (const page of pages(projected))
+          await stream.writeSSE({
+            event: "snapshot.page",
+            data: JSON.stringify(frame({ type: "snapshot.page", scope, snapshotId, rows: page })),
+          })
+      }
+      if (ending) return
+      await stream.writeSSE({
+        event: "snapshot.end",
+        data: JSON.stringify(frame({ type: "snapshot.end", scope, snapshotId, keyCount, throughSeq })),
+      })
+    }
+    const writeRecoveries = async (
+      recoveries: readonly Recovery[],
+      source: Database,
+      throughSeq: number,
+    ) => {
+      await stream.writeSSE({
+        event: "rows",
+        data: JSON.stringify(
+          frame({
+            type: "rows",
+            affectedScopes: recoveries.map((recovery) => recovery.scope),
+            fromSeq: Math.min(...recoveries.map((recovery) => recovery.fromSeq)),
+            throughSeq,
+            changes: recoveries.map((recovery) => ({ ...recovery.change, seq: throughSeq })),
+          }),
+        ),
+      })
+      for (const recovery of recoveries) {
+        if (ending) return
+        await writeSnapshot(recovery.scope, source, throughSeq)
+      }
+    }
     const scheduleRecoveries = (
       incoming: ReadonlyArray<{
         scope: (typeof scopes)[number]
@@ -249,27 +309,20 @@ export function events(
       snapshotsScheduled = true
       writes = writes
         .then(async () => {
-          while (!ending && pendingRecoveries.size > 0) {
-            const recoveries = Array.from(pendingRecoveries.values())
-            pendingRecoveries.clear()
-            await stream.writeSSE({
-              event: "rows",
-              data: JSON.stringify(
-                frame({
-                  type: "rows",
-                  affectedScopes: recoveries.map((recovery) => recovery.scope),
-                  fromSeq: Math.min(...recoveries.map((recovery) => recovery.fromSeq)),
-                  throughSeq: Math.max(...recoveries.map((recovery) => recovery.throughSeq)),
-                  changes: recoveries.map((recovery) => recovery.change),
-                }),
-              ),
-            })
-            for (const recovery of recoveries) {
-              for (const item of snapshotFrames(recovery.scope)) {
-                if (ending) return
-                await stream.writeSSE({ event: item.event, data: JSON.stringify(frame(item.value)) })
-              }
-            }
+          if (ending || pendingRecoveries.size === 0) return
+          const recoveries = Array.from(pendingRecoveries.values())
+          pendingRecoveries.clear()
+          const { Database } = await import("bun:sqlite")
+          const source = new Database(database.raw.filename, { readonly: true })
+          source.exec("BEGIN")
+          try {
+            const throughSeq = source
+              .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
+              .get()!.seq
+            await writeRecoveries(recoveries, source, throughSeq)
+          } finally {
+            source.exec("COMMIT")
+            source.close()
           }
         })
         .catch(disconnected.resolve)
@@ -297,7 +350,7 @@ export function events(
       const fromSeq = changes[0].seq
       const throughSeq = changes.at(-1)!.seq
       affectedScopes.forEach((scope) => through.set(scopeKey(scope), throughSeq))
-      if (!fitsPage(changes)) {
+      if (!fitsPage(changes) || changes.some((change) => change.op === "reset")) {
         scheduleRecoveries(
           affectedScopes.map((scope) => {
             const last = changes.findLast(
@@ -424,8 +477,37 @@ export function events(
       const flushReplay = async () => {
         if (pending.length === 0) return
         updateLocations(pending)
-        enqueueChanges(pending)
-        await writes
+        if (!fitsPage(pending) || pending.some((change) => change.op === "reset")) {
+          const affectedScopes = Array.from(
+            new Map(
+              pending.map((change) => {
+                const scope = { collection: change.collection, scopeKey: change.scopeKey }
+                return [scopeKey(scope), scope]
+              }),
+            ).values(),
+          )
+          await writeRecoveries(
+            affectedScopes.map((scope) => ({
+              scope,
+              fromSeq: pending[0].seq,
+              throughSeq: pending.at(-1)!.seq,
+              change: {
+                ...pending.findLast(
+                  (change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey,
+                )!,
+                rowKey: "",
+                op: "reset",
+                row: null,
+                rowRevision: undefined,
+              },
+            })),
+            snapshotDatabase,
+            baseSeq,
+          )
+        } else {
+          enqueueChanges(pending)
+          await writes
+        }
         pending = []
       }
       while (replayAfter < baseSeq) {

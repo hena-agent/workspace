@@ -184,6 +184,52 @@ describe("collection events", () => {
     expect(output).not.toContain("slow_consumer")
   })
 
+  test("replays against the attachment snapshot before buffered writes", async () => {
+    database = createTestDatabase().database
+    database.collections.replace(
+      "messages",
+      "session-1",
+      Array.from({ length: 5 }, (_, index) => ({
+        key: `large-${index}`,
+        row: { id: `large-${index}`, text: "x".repeat(900 * 1024) },
+        revision: "1",
+      })),
+      "tx-large",
+    )
+    database.collections.write({
+      collection: "messages",
+      scopeKey: "session-1",
+      rowKey: "target",
+      row: { id: "target", marker: "old" },
+      revision: "2",
+      txid: "tx-old",
+    })
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app, {
+      "messages:session-1": { feedId: database.feed.get().feedId, seq: 0 },
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = decoder.decode((await reader.read()).value)
+
+    database.collections.write({
+      collection: "messages",
+      scopeKey: "session-1",
+      rowKey: "target",
+      row: { id: "target", marker: "new" },
+      revision: "3",
+      txid: "tx-new",
+    })
+    while (!output.includes('"marker":"new"')) output += decoder.decode((await reader.read()).value)
+    await Bun.sleep(20)
+    const trailing = await Promise.race([reader.read(), Bun.sleep(20).then(() => undefined)])
+    if (trailing && !trailing.done) output += decoder.decode(trailing.value)
+    await reader.cancel()
+
+    expect(output.lastIndexOf('"marker":"new"')).toBeGreaterThan(output.lastIndexOf('"marker":"old"'))
+  })
+
   test("paces snapshots used to recover oversized transactions", async () => {
     database = createTestDatabase().database
     const app = createApp({ database })
@@ -255,6 +301,43 @@ describe("collection events", () => {
     expect(output.match(/event: snapshot.begin/g)).toHaveLength(1)
     expect(output).not.toContain("first-2")
     expect(output.match(/event: [^\n]+/g)?.at(-1)).toBe("event: snapshot.end")
+  })
+
+  test("orders later recoveries after already queued row frames", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 4)
+      output += decoder.decode((await reader.read()).value)
+    output = ""
+    const rows = (marker: string) =>
+      Array.from({ length: 5 }, (_, index) => ({
+        key: index === 0 ? "target" : `${marker}-${index}`,
+        row: { id: index === 0 ? "target" : `${marker}-${index}`, marker, text: "x".repeat(900 * 1024) },
+        revision: marker,
+      }))
+
+    database.collections.replace("messages", "session-1", rows("first"), "tx-first")
+    await Bun.sleep(0)
+    database.collections.write({
+      collection: "messages",
+      scopeKey: "session-1",
+      rowKey: "target",
+      row: { id: "target", marker: "middle" },
+      revision: "middle",
+      txid: "tx-middle",
+    })
+    database.collections.replace("messages", "session-1", rows("final"), "tx-final")
+    while (!output.includes('"marker":"final"')) output += decoder.decode((await reader.read()).value)
+    const trailing = await Promise.race([reader.read(), Bun.sleep(40).then(() => undefined)])
+    if (trailing && !trailing.done) output += decoder.decode(trailing.value)
+    await reader.cancel()
+
+    expect(output.lastIndexOf('"marker":"final"')).toBeGreaterThan(output.lastIndexOf('"marker":"middle"'))
   })
 
   test("buffers deltas until initial snapshots finish", async () => {

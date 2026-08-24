@@ -340,6 +340,42 @@ describe("collection events", () => {
     expect(output.lastIndexOf('"marker":"final"')).toBeGreaterThan(output.lastIndexOf('"marker":"middle"'))
   })
 
+  test("drains pending recoveries before newer row frames", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 4)
+      output += decoder.decode((await reader.read()).value)
+    output = ""
+    const rows = (marker: string) =>
+      Array.from({ length: 5 }, (_, index) => ({
+        key: index === 0 ? "target" : `${marker}-${index}`,
+        row: { id: index === 0 ? "target" : `${marker}-${index}`, marker, text: "x".repeat(900 * 1024) },
+        revision: marker,
+      }))
+
+    database.collections.replace("messages", "session-1", rows("first"), "tx-first")
+    while (!output.includes("event: snapshot.begin")) output += decoder.decode((await reader.read()).value)
+    database.collections.replace("messages", "session-1", rows("second"), "tx-second")
+    database.collections.write({
+      collection: "messages",
+      scopeKey: "session-1",
+      rowKey: "target",
+      row: { id: "target", marker: "newer" },
+      revision: "newer",
+      txid: "tx-newer",
+    })
+    while (!output.includes('"marker":"newer"')) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output.indexOf('"marker":"second"')).toBeGreaterThan(-1)
+    expect(output.indexOf('"marker":"second"')).toBeLessThan(output.indexOf('"marker":"newer"'))
+  })
+
   test("buffers deltas until initial snapshots finish", async () => {
     database = createTestDatabase().database
     const deltas = createDeltaHub()
@@ -374,6 +410,7 @@ describe("collection events", () => {
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()
     let output = ""
+    let disconnected = false
     while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 1)
       output += decoder.decode((await reader.read()).value)
 
@@ -388,13 +425,42 @@ describe("collection events", () => {
     )
     while (!output.includes("slow_consumer")) {
       const chunk = await reader.read()
-      if (chunk.done) break
+      if (chunk.done) {
+        disconnected = true
+        break
+      }
       output += decoder.decode(chunk.value)
     }
     await reader.cancel()
 
-    expect(output).toContain("slow_consumer")
+    expect(disconnected || output.includes("slow_consumer")).toBe(true)
     expect(output.match(/event: snapshot.end/g)?.length ?? 0).toBeLessThan(4)
+  })
+
+  test("disconnects slow consumers without waiting for stalled writes", async () => {
+    database = createTestDatabase().database
+    const deltas = createDeltaHub()
+    const app = createApp({ database, deltas })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+
+    Array.from({ length: 5 }, (_, index) =>
+      deltas.publish({
+        sessionId: "session-1",
+        messageId: "message-1",
+        partId: `part-${index}`,
+        partKind: "text",
+        text: "x".repeat(900 * 1024),
+      }),
+    )
+    const first = await Promise.race([reader.read(), Bun.sleep(1_000).then(() => undefined)])
+    const second = first?.done
+      ? first
+      : await Promise.race([reader.read(), Bun.sleep(1_000).then(() => undefined)])
+    await reader.cancel()
+
+    expect(second?.done).toBe(true)
   })
 
   test("subscribes once per distinct delta session", async () => {

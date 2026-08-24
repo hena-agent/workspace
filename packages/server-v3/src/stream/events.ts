@@ -58,16 +58,14 @@ export function events(
     streams.bind("local", resource.id, resource.generation, disconnect)
     stream.onAbort(disconnect)
     const slowConsumer = () => {
+      if (ending) return
       ending = true
-      writes = writes
-        .then(() =>
-          stream.writeSSE({
-            event: "error",
-            data: JSON.stringify(frame({ type: "error", code: "slow_consumer" })),
-          }),
-        )
-        .then(() => stream.close())
-        .finally(disconnected.resolve)
+      void stream.writeSSE({
+        event: "error",
+        data: JSON.stringify(frame({ type: "error", code: "slow_consumer" })),
+      })
+      stream.abort()
+      disconnected.resolve()
     }
     const reserveBuffer = (value: unknown) => {
       const size = new TextEncoder().encode(JSON.stringify(value)).byteLength
@@ -309,27 +307,28 @@ export function events(
       snapshotsScheduled = true
       writes = writes
         .then(async () => {
-          if (ending || pendingRecoveries.size === 0) return
-          const recoveries = Array.from(pendingRecoveries.values())
-          pendingRecoveries.clear()
-          const { Database } = await import("bun:sqlite")
-          const source = new Database(database.raw.filename, { readonly: true })
-          source.exec("BEGIN")
           try {
-            const throughSeq = source
-              .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
-              .get()!.seq
-            await writeRecoveries(recoveries, source, throughSeq)
+            while (!ending && pendingRecoveries.size > 0) {
+              const recoveries = Array.from(pendingRecoveries.values())
+              pendingRecoveries.clear()
+              const { Database } = await import("bun:sqlite")
+              const source = new Database(database.raw.filename, { readonly: true })
+              source.exec("BEGIN")
+              try {
+                const throughSeq = source
+                  .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
+                  .get()!.seq
+                await writeRecoveries(recoveries, source, throughSeq)
+              } finally {
+                source.exec("COMMIT")
+                source.close()
+              }
+            }
           } finally {
-            source.exec("COMMIT")
-            source.close()
+            snapshotsScheduled = false
           }
         })
         .catch(disconnected.resolve)
-        .finally(() => {
-          snapshotsScheduled = false
-          if (pendingRecoveries.size > 0) scheduleRecoveries([])
-        })
     }
     const enqueueEmptySnapshot = (scope: (typeof scopes)[number]) => {
       const snapshotId = crypto.randomUUID()
@@ -547,12 +546,15 @@ export function events(
       .filter((changes) => changes.some((change) => change.seq > (through.get(scopeKey(change)) ?? 0)))
       .sort((left, right) => left[0].seq - right[0].seq)
       .forEach(enqueueChanges)
+    buffered.length = 0
     pendingDeltas.forEach((delta) => enqueue("delta", { type: "delta", ...delta }))
+    pendingDeltas.length = 0
     deltaLive = true
     pendingVolatile.forEach((key) => {
       const [collection, scopeKey] = key.split("\u0000") as [VolatileCollection, string]
       enqueueVolatile({ collection, scopeKey })
     })
+    pendingVolatile.clear()
     const heartbeat = setInterval(() => {
       enqueue("heartbeat", { type: "heartbeat", time: Date.now() })
     }, 15_000)

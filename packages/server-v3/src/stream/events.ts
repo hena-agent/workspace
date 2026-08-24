@@ -208,16 +208,16 @@ export function events(
         splitDelta(delta).forEach((item) => enqueue("delta", { type: "delta", ...item }))
       }),
     )
-    const updateLocations = (changes: readonly Change[]) => {
+    const updateLocations = (changes: readonly Change[], removeOnline: boolean) => {
       changes
         .filter((change) => change.collection === "locations" && (change.op === "insert" || change.op === "update"))
         .forEach((change) => addLocation(change.rowKey))
       changes
         .filter((change) => change.collection === "locations" && change.op === "delete")
-        .forEach((change) => removeLocation(change.rowKey))
+        .forEach((change) => removeLocation(change.rowKey, removeOnline))
     }
     const publish = (changes: readonly Change[]) => {
-      updateLocations(changes)
+      updateLocations(changes, true)
       const visible = changes.filter(
         (change) =>
           scopes.some((scope) => scope.collection === change.collection && scope.scopeKey === change.scopeKey) &&
@@ -256,7 +256,7 @@ export function events(
         else pendingVolatile.add(`${collection}\u0000${locationKey}`)
       }
     }
-    function removeLocation(locationKey: string) {
+    function removeLocation(locationKey: string, removeOnline: boolean) {
       if (!subscription.lists) return
       for (const collection of ["settings", "agents", "models", "providers"] as const) {
         const index = scopes.findIndex((scope) => scope.collection === collection && scope.scopeKey === locationKey)
@@ -275,7 +275,8 @@ export function events(
         )
         enqueueEmptySnapshot(scope)
       }
-      for (const collection of ["agents", "models", "providers"] as const) online.remove(collection, locationKey)
+      if (removeOnline)
+        for (const collection of ["agents", "models", "providers"] as const) online.remove(collection, locationKey)
     }
     const enqueueVolatile = (scope: { collection: VolatileCollection; scopeKey: string }) => {
       volatileFrames(scope).forEach((item) => enqueue(item.event, item.value))
@@ -669,7 +670,7 @@ export function events(
             .map(storedChange)
           replayAfter = throughSeq
           if (pending.length === 0) continue
-          updateLocations(pending)
+          updateLocations(pending, false)
           if (oversized || !fitsPage(pending) || pending.some((change) => change.op === "reset")) {
             const affectedScopes = Array.from(
               new Map(

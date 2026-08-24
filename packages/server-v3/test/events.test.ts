@@ -1073,6 +1073,45 @@ describe("collection events", () => {
     expect(output).toContain('"collection":"settings"')
     expect(output).toContain(`"scopeKey":${JSON.stringify(location)}`)
   })
+
+  test("does not clear current catalogs while replaying an old location deletion", async () => {
+    database = createTestDatabase().database
+    const online = createOnlineRequestStore()
+    const location = JSON.stringify({ directory: "/restored" })
+    database.collections.write({
+      collection: "locations",
+      scopeKey: "",
+      rowKey: location,
+      row: { directory: "/restored" },
+      revision: "1",
+    })
+    const cursor = { feedId: database.feed.get().feedId, seq: database.changes.current() }
+    database.collections.delete("locations", "", location)
+    database.collections.write({
+      collection: "locations",
+      scopeKey: "",
+      rowKey: location,
+      row: { directory: "/restored" },
+      revision: "2",
+    })
+    online.replace("agents", location, [{ key: "current", row: { id: "current-agent" } }])
+    const app = createApp({ database, online })
+    const created = await app.request("/api/collection/streams", { method: "POST" })
+    const stream = (await created.json()) as { streamId: string }
+    await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revision: 1, lists: true, sessions: [], cursors: { "locations:": cursor } }),
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while (!output.includes('"op":"insert"')) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(online.snapshot("agents", location).rows).toMatchObject([{ key: "current", row: { id: "current-agent" } }])
+  })
 })
 
 async function createSubscribedStream(

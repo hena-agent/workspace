@@ -86,6 +86,23 @@ describe("session mutations", () => {
     expect(domain.calls).toEqual([])
   })
 
+  test("rejects prompt IDs that cannot fit in a stream frame", async () => {
+    database = createTestDatabase().database
+    const domain = recordingDomain()
+    const response = await createApp({ database, domain }).request(`/api/session/${Session.ID.create()}/prompt`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        idempotencyKey: "oversized-message-id",
+        messageID: `msg_${"x".repeat(1024 * 1024)}`,
+        prompt: { text: "small" },
+      }),
+    })
+
+    expect(response.status).toBe(413)
+    expect(domain.calls).toEqual([])
+  })
+
   test("rejects individual attachments larger than five MiB", async () => {
     database = createTestDatabase().database
     const domain = recordingDomain()

@@ -37,6 +37,33 @@ describe("collection events", () => {
     expect(output).toContain("event: snapshot.end")
   })
 
+  test("decodes composite part keys in snapshots and deletes", async () => {
+    database = createTestDatabase().database
+    const key = JSON.stringify(["msg_1", "text", "part_1"])
+    database.collections.write({
+      collection: "parts",
+      scopeKey: "session-1",
+      rowKey: key,
+      row: { id: "part_1" },
+      revision: "1",
+    })
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while (!output.includes('"key":["msg_1","text","part_1"]'))
+      output += decoder.decode((await reader.read()).value)
+
+    database.collections.delete("parts", "session-1", key)
+    while (!output.includes('"rowKey":["msg_1","text","part_1"]'))
+      output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output).not.toContain(`"rowKey":${JSON.stringify(key)}`)
+  })
+
   test("publishes rows committed after the snapshot", async () => {
     database = createTestDatabase().database
     const app = createApp({ database })

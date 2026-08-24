@@ -19,9 +19,10 @@ export function createSessionRoutes(domain: CoreDomain) {
       "/session",
       sValidator("json", Schema.toStandardSchemaV1(Sync.CreateSession), validationHook),
       async (c) => {
-        if (oversizedPrompt(c.req.valid("json").prompt))
+        const input = c.req.valid("json")
+        if (oversizedPrompt(input.prompt, input.sessionID, input.messageID))
           return error(c, 413, "payload_too_large", "Prompt exceeds the supported size")
-        return c.json(await domain.createSession(c.req.valid("json")))
+        return c.json(await domain.createSession(input))
       },
     )
     .post(
@@ -48,9 +49,10 @@ export function createSessionRoutes(domain: CoreDomain) {
       sValidator("param", Schema.toStandardSchemaV1(SessionParams), validationHook),
       sValidator("json", Schema.toStandardSchemaV1(Sync.AdmitPrompt), validationHook),
       async (c) => {
-        if (oversizedPrompt(c.req.valid("json").prompt))
+        const input = c.req.valid("json")
+        if (oversizedPrompt(input.prompt, c.req.valid("param").sessionId, input.messageID))
           return error(c, 413, "payload_too_large", "Prompt exceeds the supported size")
-        return c.json(await domain.admitPrompt(c.req.valid("param").sessionId, c.req.valid("json")))
+        return c.json(await domain.admitPrompt(c.req.valid("param").sessionId, input))
       },
     )
     .post(
@@ -63,7 +65,7 @@ export function createSessionRoutes(domain: CoreDomain) {
     )
 }
 
-function oversizedPrompt(prompt: PromptInput.Prompt) {
+function oversizedPrompt(prompt: PromptInput.Prompt, sessionID = "x".repeat(64), messageID = "x".repeat(64)) {
   const sizes = prompt.files?.map((file) => inlinedBytes(file.uri)) ?? []
   if (sizes.some((size) => size > 5 * 1024 * 1024) || sizes.reduce((total, size) => total + size, 0) > 20 * 1024 * 1024)
     return true
@@ -83,11 +85,11 @@ function oversizedPrompt(prompt: PromptInput.Prompt) {
     }),
   }
   return !fitsPage([{
-    key: "x".repeat(64),
+    key: messageID,
     revision: "x".repeat(64),
     row: {
-      id: "x".repeat(64),
-      sessionID: "x".repeat(64),
+      id: messageID,
+      sessionID,
       prompt: projected,
       delivery: "queue",
       admittedSeq: Number.MAX_SAFE_INTEGER,

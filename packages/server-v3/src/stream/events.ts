@@ -182,7 +182,7 @@ export function events(
             sourceRevision: snapshot.revision,
           },
         },
-        ...pages(snapshot.rows).map((rows) => ({
+        ...pages(snapshot.rows.map((row) => ({ ...row, key: wireKey(scope.collection, row.key) }))).map((rows) => ({
           event: "snapshot.page",
           value: { type: "snapshot.page", scope, snapshotId, rows },
         })),
@@ -211,7 +211,7 @@ export function events(
           event: "snapshot.begin",
           value: { type: "snapshot.begin", scope, snapshotId, baseSeq: snapshot.throughSeq, replace: true },
         },
-        ...pages(snapshot.rows).map((rows) => ({
+        ...pages(snapshot.rows.map((row) => ({ ...row, key: wireKey(scope.collection, row.key) }))).map((rows) => ({
           event: "snapshot.page",
           value: { type: "snapshot.page", scope, snapshotId, rows },
         })),
@@ -318,7 +318,7 @@ export function events(
         affectedScopes,
         fromSeq,
         throughSeq,
-        changes,
+        changes: changes.map((change) => ({ ...change, rowKey: wireKey(change.collection, change.rowKey) })),
       })
     }
     enqueue("stream.ready", { type: "stream.ready" })
@@ -395,7 +395,7 @@ export function events(
           if (rows.length === 0) break
           if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) break
           const projected = rows.map((row) => ({
-            key: row.row_key,
+            key: wireKey(scope.collection, row.row_key),
             row: JSON.parse(row.row),
             revision: row.row_revision,
           }))
@@ -505,4 +505,12 @@ function isVolatile(collection: string): collection is VolatileCollection {
 
 function scopeKey(scope: { collection: string; scopeKey: string }) {
   return `${scope.collection}\u0000${scope.scopeKey}`
+}
+
+function wireKey(collection: string, key: string) {
+  if (collection !== "parts" || !key.startsWith("[")) return key
+  const decoded = JSON.parse(key) as unknown
+  return Array.isArray(decoded) && decoded.length === 3 && decoded.every((item) => typeof item === "string")
+    ? decoded
+    : key
 }

@@ -215,6 +215,7 @@ const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const events = yield* EventV2.Service
     const { db } = yield* Database.Service
+    yield* SessionInput.normalizeQueuePositions(db)
     yield* events.project(SessionTodo.Event.Updated, (event) =>
       Effect.gen(function* () {
         const todos = event.data.todos.filter(
@@ -436,7 +437,7 @@ const layer = Layer.effectDiscard(
               isNull(SessionInputTable.promoted_seq),
             ),
           )
-          .orderBy(asc(SessionInputTable.queue_position))
+          .orderBy(asc(SessionInput.queueOrder), asc(SessionInputTable.admitted_seq))
           .all()
           .pipe(Effect.orDie)
         if (
@@ -584,7 +585,7 @@ function queueStateConflict(db: DatabaseService, sessionID: SessionSchema.ID, re
         isNull(SessionInputTable.promoted_seq),
       ),
     )
-    .orderBy(asc(SessionInputTable.queue_position))
+    .orderBy(asc(SessionInput.queueOrder), asc(SessionInputTable.admitted_seq))
     .all()
     .pipe(
       Effect.orDie,

@@ -135,6 +135,79 @@ describe("SessionV2.prompt", () => {
     }),
   )
 
+  it.effect("keeps rollback-created inputs ahead of newer inputs", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const events = yield* EventV2.Service
+      const first = SessionMessage.ID.make("msg_before_rollback")
+      const rollback = SessionMessage.ID.make("msg_from_rollback")
+      const newer = SessionMessage.ID.make("msg_after_upgrade")
+      yield* db
+        .insert(SessionInputTable)
+        .values([
+          {
+            id: first,
+            session_id: sessionID,
+            prompt: Prompt.make({ text: "first" }),
+            delivery: "queue",
+            admitted_seq: 1,
+            queue_position: 1,
+          },
+          {
+            id: rollback,
+            session_id: sessionID,
+            prompt: Prompt.make({ text: "rollback" }),
+            delivery: "queue",
+            admitted_seq: 2,
+          },
+        ])
+        .run()
+        .pipe(Effect.orDie)
+      expect(
+        yield* db
+          .select({ queuePosition: SessionInputTable.queue_position })
+          .from(SessionInputTable)
+          .where(eq(SessionInputTable.id, rollback))
+          .get()
+          .pipe(Effect.orDie),
+      ).toEqual({ queuePosition: Number.MAX_SAFE_INTEGER })
+      yield* SessionInput.normalizeQueuePositions(db)
+      expect(
+        yield* db
+          .select({ queuePosition: SessionInputTable.queue_position })
+          .from(SessionInputTable)
+          .where(eq(SessionInputTable.id, rollback))
+          .get()
+          .pipe(Effect.orDie),
+      ).toEqual({ queuePosition: 2 })
+      yield* db
+        .insert(SessionInputTable)
+        .values({
+          id: newer,
+          session_id: sessionID,
+          prompt: Prompt.make({ text: "newer" }),
+          delivery: "queue",
+          admitted_seq: 3,
+          queue_position: 3,
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
+      expect(
+        (yield* db
+          .select({ id: SessionInputTable.id })
+          .from(SessionInputTable)
+          .orderBy(asc(SessionInputTable.promoted_seq))
+          .all()
+          .pipe(Effect.orDie)).map((row) => row.id),
+      ).toEqual([first, rollback, newer])
+    }),
+  )
+
   it.effect("reorders and cancels pending queue inputs with revisions", () =>
     Effect.gen(function* () {
       yield* setup

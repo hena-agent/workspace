@@ -18,6 +18,16 @@ export { Admitted, Delivery }
 
 const decodePrompt = Schema.decodeUnknownSync(Prompt)
 const encodePrompt = Schema.encodeSync(Prompt)
+export const queueOrder = sql<number>`CASE WHEN ${SessionInputTable.queue_position} = ${Number.MAX_SAFE_INTEGER} THEN ${SessionInputTable.admitted_seq} ELSE ${SessionInputTable.queue_position} END`
+
+export const normalizeQueuePositions = Effect.fn("SessionInput.normalizeQueuePositions")(function* (db: DatabaseService) {
+  yield* db
+    .update(SessionInputTable)
+    .set({ queue_position: sql`${SessionInputTable.admitted_seq}` })
+    .where(eq(SessionInputTable.queue_position, Number.MAX_SAFE_INTEGER))
+    .run()
+    .pipe(Effect.orDie)
+})
 
 const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted =>
   Admitted.make({
@@ -286,7 +296,7 @@ export const promoteSteers = Effect.fn("SessionInput.promoteSteers")(function* (
         lte(SessionInputTable.admitted_seq, cutoff),
       ),
     )
-    .orderBy(asc(SessionInputTable.queue_position), asc(SessionInputTable.admitted_seq))
+    .orderBy(asc(queueOrder), asc(SessionInputTable.admitted_seq))
     .all()
     .pipe(Effect.orDie)
   return yield* publish(db, events, sessionID, rows)
@@ -307,7 +317,7 @@ export const promoteNextQueued = Effect.fn("SessionInput.promoteNextQueued")(fun
         eq(SessionInputTable.delivery, "queue"),
       ),
     )
-    .orderBy(asc(SessionInputTable.queue_position), asc(SessionInputTable.admitted_seq))
+    .orderBy(asc(queueOrder), asc(SessionInputTable.admitted_seq))
     .limit(1)
     .get()
     .pipe(Effect.orDie)

@@ -15,15 +15,20 @@ permissions:
   pull-requests: write
   issues: write
 
-# github.ref is refs/pull/<n>/merge here, so this is scoped per-PR and never
-# cancels another PR. Re-labelling supersedes an in-flight brief for the same PR.
+# A new brief request supersedes an in-flight brief for the same PR. Give
+# unrelated label events unique groups so they cannot cancel an active brief.
 concurrency:
-  group: pr-brief-${{ github.ref }}
+  group: pr-brief-${{ github.event.pull_request.number }}-${{ github.event.action == 'labeled' && github.event.label.name != 'pr-brief' && github.run_id || 'active' }}
   cancel-in-progress: true
 
 jobs:
   resolve:
+    if: >-
+      github.event.action != 'labeled' ||
+      github.event.label.name == 'pr-brief'
     uses: ./.github/workflows/_review-model.yml
+    with:
+      configuration: brief
 
   # Gates the (expensive) model run so it only fires for PRs big enough to be
   # worth summarizing. Reviewer-global eligibility is handled by the resolver.

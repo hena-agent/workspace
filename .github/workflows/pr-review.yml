@@ -13,39 +13,43 @@ permissions:
   pull-requests: write
   issues: write
 
-# A new review request supersedes an in-flight review for the same PR.
+# A new review request supersedes an in-flight review for the same PR. Give
+# unrelated label events unique groups so they cannot cancel active reviews.
 concurrency:
-  group: pr-review-${{ github.event.pull_request.number }}
+  group: pr-review-${{ github.event.pull_request.number }}-${{ github.event.action == 'labeled' && github.event.label.name != 'pr-review' && github.run_id || 'active' }}
   cancel-in-progress: true
 
 # The resolver owns reviewer-global eligibility (off, fork, and Dependabot) and
-# maps REVIEWER_MODEL to the provider-specific auth and GitHub App identity.
+# maps REVIEW_MODELS to provider-specific auth and GitHub App identities.
 jobs:
   resolve:
+    if: >-
+      github.event.action == 'opened' ||
+      (github.event.action == 'labeled' && github.event.label.name == 'pr-review')
     uses: ./.github/workflows/_review-model.yml
+    with:
+      configuration: review
 
   review:
     needs: resolve
-    if: >-
-      needs.resolve.outputs.enabled == 'true' &&
-      (
-        github.event.action == 'opened' ||
-        (github.event.action == 'labeled' && github.event.label.name == 'pr-review')
-      )
-    name: review (${{ needs.resolve.outputs.label }})
+    if: needs.resolve.outputs.enabled == 'true'
+    name: review (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.resolve.outputs.matrix) }}
     uses: ./.github/workflows/_opencode.yml
     with:
-      model: ${{ needs.resolve.outputs.model }}
-      variant: ${{ needs.resolve.outputs.variant }}
-      app-client-id: ${{ vars[needs.resolve.outputs.client_id_var] }}
+      model: ${{ matrix.model }}
+      variant: ${{ matrix.variant }}
+      app-client-id: ${{ vars[matrix.client_id_var] }}
       opencode-version: ${{ needs.resolve.outputs.opencode_version }}
       timeout-minutes: 40
       command: review
       command-arguments: ${{ github.event.pull_request.number }}
     secrets:
-      app-private-key: ${{ secrets[needs.resolve.outputs.private_key_secret] }}
-      opencode-auth-json: ${{ secrets[needs.resolve.outputs.auth_secret] }}
+      app-private-key: ${{ secrets[matrix.private_key_secret] }}
+      opencode-auth-json: ${{ secrets[matrix.auth_secret] }}
       # codex_web_search (a review-command plugin tool) always needs OpenAI
       # credentials for its own ChatGPT-backed search, independent of which
-      # provider REVIEWER_MODEL selects for the review itself.
+      # provider REVIEW_MODELS selects for each review itself.
       codex-web-search-auth-json: ${{ secrets.OPENAI_OPENCODE_AUTH_JSON }}

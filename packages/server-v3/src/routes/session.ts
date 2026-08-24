@@ -20,6 +20,8 @@ export function createSessionRoutes(domain: CoreDomain) {
       sValidator("json", Schema.toStandardSchemaV1(Sync.CreateSession), validationHook),
       async (c) => {
         const input = c.req.valid("json")
+        if (oversizedSessionID(input.sessionID))
+          return error(c, 413, "payload_too_large", "Session ID exceeds the supported size")
         if (oversizedPrompt(input.prompt, input.sessionID, input.messageID))
           return error(c, 413, "payload_too_large", "Prompt exceeds the supported size")
         return c.json(await domain.createSession(input))
@@ -63,6 +65,10 @@ export function createSessionRoutes(domain: CoreDomain) {
         return c.json({ outcome: "applied" as const })
       },
     )
+}
+
+function oversizedSessionID(sessionID?: string) {
+  return sessionID !== undefined && new TextEncoder().encode(sessionID).byteLength > 64 * 1024
 }
 
 function oversizedPrompt(prompt: PromptInput.Prompt, sessionID = "x".repeat(64), messageID = "x".repeat(64)) {

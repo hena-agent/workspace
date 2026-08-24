@@ -103,6 +103,24 @@ describe("session mutations", () => {
     expect(domain.calls).toEqual([])
   })
 
+  test("rejects oversized session IDs before projection", async () => {
+    database = createTestDatabase().database
+    const domain = recordingDomain()
+    const response = await createApp({ database, domain }).request("/api/session", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        idempotencyKey: crypto.randomUUID(),
+        sessionID: `ses_${"x".repeat(520 * 1024)}`,
+        location: { directory: "/tmp/project" },
+        prompt: { text: "small" },
+      }),
+    })
+
+    expect(response.status).toBe(413)
+    expect(domain.calls).toEqual([])
+  })
+
   test("accounts for prompt IDs in truncated attachment references", async () => {
     database = createTestDatabase().database
     const domain = recordingDomain()

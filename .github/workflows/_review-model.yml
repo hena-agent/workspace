@@ -62,7 +62,6 @@ jobs:
           VARS_JSON: ${{ toJSON(vars) }}
           REPOSITORY: ${{ github.repository }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
           ACTOR: ${{ github.actor }}
         run: |
           set -euo pipefail
@@ -117,10 +116,6 @@ jobs:
           fi
           if [ "$ACTOR" = "dependabot[bot]" ]; then
             disable "dependabot"
-            exit 0
-          fi
-          if [[ "$PR_TITLE" == *"[skip ci]"* ]]; then
-            disable "skip-ci"
             exit 0
           fi
 

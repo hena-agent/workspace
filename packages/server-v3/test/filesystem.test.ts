@@ -78,6 +78,30 @@ describe("filesystem reads", () => {
       { error: { code: "validation", message: "Path is unavailable" } },
     ])
   })
+
+  test("maps filesystem failures wrapped during directory enumeration", async () => {
+    database = createTestDatabase().database
+    const domain = fileDomain()
+    const failures = [
+      Object.assign(new Error("enumeration failed"), {
+        _tag: "FileSystemError",
+        cause: Object.assign(new Error("missing"), { code: "ENOENT" }),
+      }),
+      Object.assign(new Error("enumeration failed"), {
+        _tag: "FileSystemError",
+        cause: Object.assign(new Error("denied"), { code: "EACCES" }),
+      }),
+    ]
+    domain.listFiles = async () => {
+      throw failures.shift()
+    }
+    const app = createApp({ database, domain })
+    const responses = await Promise.all(
+      failures.map(() => Promise.resolve(app.request("/api/fs/list?directory=%2Ftmp%2Fproject"))),
+    )
+
+    expect(responses.map((response) => response.status)).toEqual([404, 400])
+  })
 })
 
 function fileDomain(): CoreDomain & { finds: unknown[]; lists: unknown[] } {

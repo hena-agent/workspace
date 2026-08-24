@@ -23,9 +23,14 @@ export function createFileSystemRoutes(domain: CoreDomain) {
 }
 
 function fileSystemError(c: Parameters<typeof error>[0], cause: unknown) {
-  if (isPlatformError(cause) && cause.reason === "NotFound") return error(c, 404, "not_found", "Path not found")
+  const code = fileSystemCode(cause)
+  if ((isPlatformError(cause) && cause.reason === "NotFound") || code === "ENOENT")
+    return error(c, 404, "not_found", "Path not found")
   if (
     isPlatformError(cause) ||
+    code === "EACCES" ||
+    code === "EPERM" ||
+    code === "ENOTDIR" ||
     (cause instanceof Error &&
       (cause.message === "Path is not a directory" || cause.message === "Path escapes the location"))
   )
@@ -35,4 +40,12 @@ function fileSystemError(c: Parameters<typeof error>[0], cause: unknown) {
 
 function isPlatformError(cause: unknown): cause is { _tag: "PlatformError"; reason?: string } {
   return typeof cause === "object" && cause !== null && "_tag" in cause && cause._tag === "PlatformError"
+}
+
+function fileSystemCode(cause: unknown) {
+  if (typeof cause !== "object" || cause === null || !("_tag" in cause) || cause._tag !== "FileSystemError")
+    return undefined
+  if (!("cause" in cause) || typeof cause.cause !== "object" || cause.cause === null || !("code" in cause.cause))
+    return undefined
+  return typeof cause.cause.code === "string" ? cause.cause.code : undefined
 }

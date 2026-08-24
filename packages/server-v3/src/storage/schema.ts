@@ -58,7 +58,7 @@ export function migrate(database: Database) {
       id TEXT NOT NULL,
       session_id TEXT NOT NULL,
       revision TEXT NOT NULL,
-      content TEXT NOT NULL,
+      content BLOB NOT NULL,
       created_at INTEGER NOT NULL,
       PRIMARY KEY (id, session_id, revision)
     )

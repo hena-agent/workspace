@@ -20,6 +20,18 @@ describe("full content", () => {
     expect(await response.json()).toEqual({ text: "a😀", offset: 0, nextOffset: 5, totalBytes: 6, revision: "r1" })
   })
 
+  test("stores content as bytes for bounded paging", () => {
+    database = createTestDatabase().database
+    database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "a😀b" })
+
+    expect(database.raw.query<{ type: string }, []>("SELECT typeof(content) AS type FROM full_content").get()?.type).toBe(
+      "blob",
+    )
+    expect(
+      database.content.page({ id: "content-1", sessionID: "session-1", revision: "r1", offset: 5, limit: 1 }),
+    ).toMatchObject({ text: "b", nextOffset: 6, totalBytes: 6 })
+  })
+
   test("rejects offsets in the middle of a code point", async () => {
     database = createTestDatabase().database
     database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "a😀b" })

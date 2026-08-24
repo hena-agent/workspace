@@ -220,6 +220,42 @@ describe("collection events", () => {
     expect(output).not.toContain("slow_consumer")
   })
 
+  test("detects oversized replay transactions before parsing their rows", async () => {
+    database = createTestDatabase().database
+    database.collections.replace(
+      "messages",
+      "session-1",
+      Array.from({ length: 6 }, (_, index) => ({
+        key: `message-${index}`,
+        row: { id: `message-${index}`, text: "x".repeat(900 * 1024) },
+        revision: "1",
+      })),
+      "tx-large-replay",
+    )
+    database.raw.query("UPDATE collection_change SET row = ? WHERE txid = ? AND row_key = ?").run(
+      "{",
+      "tx-large-replay",
+      "message-0",
+    )
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app, {
+      "messages:session-1": { feedId: database.feed.get().feedId, seq: 0 },
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while (!output.includes("message-5")) {
+      const chunk = await reader.read()
+      if (chunk.done) break
+      output += decoder.decode(chunk.value)
+    }
+    await reader.cancel()
+
+    expect(output).toContain("message-5")
+    expect(output).toContain('"op":"reset"')
+  })
+
   test("replays against the attachment snapshot before buffered writes", async () => {
     database = createTestDatabase().database
     database.collections.replace(
@@ -336,6 +372,8 @@ describe("collection events", () => {
 
     expect(output.match(/event: snapshot.begin/g)).toHaveLength(1)
     expect(output).not.toContain("first-2")
+    expect(output).toContain('"txid":"tx-first"')
+    expect(output).toContain('"txid":"tx-second"')
     expect(output.match(/event: [^\n]+/g)?.at(-1)).toBe("event: snapshot.end")
   })
 

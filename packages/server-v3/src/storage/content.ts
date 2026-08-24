@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite"
 
-type ContentRow = { content: string }
+type ContentRow = { content: Uint8Array; total_bytes: number }
 
 export class InvalidContentOffset extends Error {}
 
@@ -9,8 +9,10 @@ export function createContentStore(database: Database) {
     INSERT OR REPLACE INTO full_content (id, session_id, revision, content, created_at)
     VALUES (?, ?, ?, ?, ?)
   `)
-  const get = database.query<ContentRow, [string, string, string]>(`
-    SELECT content FROM full_content WHERE id = ? AND session_id = ? AND revision = ?
+  const get = database.query<ContentRow, [number, number, string, string, string]>(`
+    SELECT substr(CAST(content AS BLOB), ?, ?) AS content,
+      length(CAST(content AS BLOB)) AS total_bytes
+    FROM full_content WHERE id = ? AND session_id = ? AND revision = ?
   `)
   const compact = database.query(`
     WITH referenced AS (
@@ -39,21 +41,19 @@ export function createContentStore(database: Database) {
 
   return {
     put(input: { id: string; sessionID: string; revision: string; text: string }) {
-      insert.run(input.id, input.sessionID, input.revision, input.text, Date.now())
+      insert.run(input.id, input.sessionID, input.revision, new TextEncoder().encode(input.text), Date.now())
     },
     page(input: { id: string; sessionID: string; revision: string; offset: number; limit: number }) {
-      const row = get.get(input.id, input.sessionID, input.revision)
+      const row = get.get(input.offset + 1, input.limit + 4, input.id, input.sessionID, input.revision)
       if (!row) return undefined
-      const bytes = new TextEncoder().encode(row.content)
-      if (input.offset > bytes.length || !isCodePointBoundary(bytes, input.offset)) throw new InvalidContentOffset()
-      const boundary = endingBoundary(bytes, Math.min(bytes.length, input.offset + input.limit))
-      const end =
-        boundary === input.offset && input.offset < bytes.length ? followingBoundary(bytes, input.offset) : boundary
+      if (input.offset > row.total_bytes || !isCodePointBoundary(row.content, 0)) throw new InvalidContentOffset()
+      const boundary = endingBoundary(row.content, Math.min(row.content.length, input.limit))
+      const end = boundary === 0 && input.offset < row.total_bytes ? followingBoundary(row.content, 0) : boundary
       return {
-        text: new TextDecoder().decode(bytes.subarray(input.offset, end)),
+        text: new TextDecoder().decode(row.content.subarray(0, end)),
         offset: input.offset,
-        nextOffset: end,
-        totalBytes: bytes.length,
+        nextOffset: input.offset + end,
+        totalBytes: row.total_bytes,
         revision: input.revision,
       }
     },

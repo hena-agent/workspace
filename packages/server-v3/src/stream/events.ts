@@ -11,6 +11,19 @@ import { fitsPage, pages } from "./pages"
 import type { Change } from "../storage/changes"
 import type { Database } from "bun:sqlite"
 
+type StoredChange = {
+  seq: number
+  collection: string
+  scope_key: string
+  row_key: string
+  op: Change["op"]
+  row: string | null
+  row_revision: string | null
+  txid: string | null
+  runtime_id: string
+  created_at: number
+}
+
 export function events(
   c: Context,
   database: SyncDatabase,
@@ -60,7 +73,7 @@ export function events(
     let deltaLive = false
     const pendingVolatile = new Set<string>()
     const pendingDeltas: Delta[] = []
-    type Recovery = { scope: (typeof scopes)[number]; fromSeq: number; throughSeq: number; change: Change }
+    type Recovery = { scope: (typeof scopes)[number]; fromSeq: number; throughSeq: number; changes: Change[] }
     const pendingRecoveries = new Map<string, Recovery>()
     let snapshotsScheduled = false
     let queuedBytes = 0
@@ -301,7 +314,7 @@ export function events(
             affectedScopes: recoveries.map((recovery) => recovery.scope),
             fromSeq: Math.min(...recoveries.map((recovery) => recovery.fromSeq)),
             throughSeq,
-            changes: recoveries.map((recovery) => ({ ...recovery.change, seq: throughSeq })),
+            changes: recoveries.flatMap((recovery) => recovery.changes.map((change) => ({ ...change, seq: throughSeq }))),
           }),
         ),
       })
@@ -318,7 +331,15 @@ export function events(
         change: Change
       }>,
     ) => {
-      incoming.forEach((recovery) => pendingRecoveries.set(scopeKey(recovery.scope), recovery))
+      incoming.forEach((recovery) => {
+        const pending = pendingRecoveries.get(scopeKey(recovery.scope))
+        pendingRecoveries.set(scopeKey(recovery.scope), {
+          scope: recovery.scope,
+          fromSeq: pending ? Math.min(pending.fromSeq, recovery.fromSeq) : recovery.fromSeq,
+          throughSeq: recovery.throughSeq,
+          changes: [...(pending?.changes ?? []), recovery.change],
+        })
+      })
       if (snapshotsScheduled) return
       snapshotsScheduled = true
       writes = writes
@@ -414,25 +435,41 @@ export function events(
         WHERE collection = ? AND scope_key = ? AND row_key > ?
         ORDER BY row_key LIMIT 4
       `)
-      const replayRows = snapshotDatabase.query<
-        {
-          seq: number
-          collection: string
-          scope_key: string
-          row_key: string
-          op: Change["op"]
-          row: string | null
-          row_revision: string | null
-          txid: string | null
-          runtime_id: string
-          created_at: number
-        },
-        [number, number, number]
-      >(`
+      const replayNext = snapshotDatabase.query<StoredChange, [number, number]>(`
         SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
         FROM collection_change
         WHERE seq > ? AND seq <= ?
-        ORDER BY seq LIMIT ?
+        ORDER BY seq LIMIT 1
+      `)
+      const replayTransactionEnd = snapshotDatabase.query<{ seq: number }, [number, string]>(`
+        SELECT COALESCE(
+          (SELECT seq - 1 FROM collection_change WHERE seq > ? AND txid IS NOT ? ORDER BY seq LIMIT 1),
+          (SELECT MAX(seq) FROM collection_change)
+        ) AS seq
+      `)
+      const replayTransactionSize = snapshotDatabase.query<{ bytes: number }, [number, number]>(`
+        SELECT COALESCE(SUM(LENGTH(CAST(collection AS BLOB)) + LENGTH(CAST(scope_key AS BLOB)) +
+          LENGTH(CAST(row_key AS BLOB)) + COALESCE(LENGTH(CAST(row AS BLOB)), 0) + 128), 0) AS bytes
+        FROM collection_change
+        WHERE seq >= ? AND seq <= ?
+      `)
+      const replayTransaction = snapshotDatabase.query<StoredChange, [number, number]>(`
+        SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
+        FROM collection_change
+        WHERE seq >= ? AND seq <= ?
+        ORDER BY seq
+      `)
+      const replayTransactionScopes = snapshotDatabase.query<StoredChange, [number, number, number, number]>(`
+        SELECT seq, collection, scope_key, '' AS row_key, 'reset' AS op, NULL AS row, NULL AS row_revision,
+          txid, runtime_id, created_at
+        FROM collection_change
+        WHERE seq >= ? AND seq <= ? AND (collection || char(0) || scope_key || char(0) || seq) IN (
+          SELECT collection || char(0) || scope_key || char(0) || MAX(seq)
+          FROM collection_change
+          WHERE seq >= ? AND seq <= ?
+          GROUP BY collection, scope_key
+        )
+        ORDER BY seq
       `)
 
       for (const scope of scopes) {
@@ -487,12 +524,28 @@ export function events(
 
       const replayFrom = Math.min(...replayCursors.values(), baseSeq)
       let replayAfter = replayFrom
-      let pending: Change[] = []
-      let pendingKey: string | undefined
-      const flushReplay = async () => {
-        if (pending.length === 0) return
+      while (replayAfter < baseSeq) {
+        const next = replayNext.get(replayAfter, baseSeq)
+        if (!next) break
+        const throughSeq = next.txid === null ? next.seq : replayTransactionEnd.get(next.seq, next.txid)!.seq
+        const oversized =
+          next.txid !== null && replayTransactionSize.get(next.seq, throughSeq)!.bytes > 4 * 1024 * 1024
+        const pending = (
+          oversized
+            ? replayTransactionScopes.all(next.seq, throughSeq, next.seq, throughSeq)
+            : next.txid === null
+              ? [next]
+              : replayTransaction.all(next.seq, throughSeq)
+        )
+          .filter((row) => {
+            const cursor = replayCursors.get(`${row.collection}\u0000${row.scope_key}`)
+            return cursor !== undefined && row.seq > cursor
+          })
+          .map(storedChange)
+        replayAfter = throughSeq
+        if (pending.length === 0) continue
         updateLocations(pending)
-        if (!fitsPage(pending) || pending.some((change) => change.op === "reset")) {
+        if (oversized || !fitsPage(pending) || pending.some((change) => change.op === "reset")) {
           const affectedScopes = Array.from(
             new Map(
               pending.map((change) => {
@@ -504,17 +557,19 @@ export function events(
           await writeRecoveries(
             affectedScopes.map((scope) => ({
               scope,
-              fromSeq: pending[0].seq,
-              throughSeq: pending.at(-1)!.seq,
-              change: {
-                ...pending.findLast(
-                  (change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey,
-                )!,
-                rowKey: "",
-                op: "reset",
-                row: null,
-                rowRevision: undefined,
-              },
+              fromSeq: next.seq,
+              throughSeq,
+              changes: [
+                {
+                  ...pending.findLast(
+                    (change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey,
+                  )!,
+                  rowKey: "",
+                  op: "reset",
+                  row: null,
+                  rowRevision: undefined,
+                },
+              ],
             })),
             snapshotDatabase,
             baseSeq,
@@ -523,33 +578,7 @@ export function events(
           enqueueChanges(pending)
           await writes
         }
-        pending = []
       }
-      while (replayAfter < baseSeq) {
-        const rows = replayRows.all(replayAfter, baseSeq, 4)
-        if (rows.length === 0) break
-        for (const row of rows) {
-          const key = row.txid ?? `seq:${row.seq}`
-          if (pendingKey !== undefined && key !== pendingKey) await flushReplay()
-          pendingKey = key
-          const cursor = replayCursors.get(`${row.collection}\u0000${row.scope_key}`)
-          if (cursor === undefined || row.seq <= cursor) continue
-          pending.push({
-            seq: row.seq,
-            collection: row.collection,
-            scopeKey: row.scope_key,
-            rowKey: row.row_key,
-            op: row.op,
-            row: row.row === null ? null : JSON.parse(row.row),
-            rowRevision: row.row_revision ?? undefined,
-            txid: row.txid ?? undefined,
-            runtimeId: row.runtime_id,
-            createdAt: row.created_at,
-          })
-        }
-        replayAfter = rows.at(-1)!.seq
-      }
-      await flushReplay()
     } finally {
       snapshotDatabase.exec("COMMIT")
       snapshotDatabase.close()
@@ -599,6 +628,21 @@ function isVolatile(collection: string): collection is VolatileCollection {
 
 function scopeKey(scope: { collection: string; scopeKey: string }) {
   return `${scope.collection}\u0000${scope.scopeKey}`
+}
+
+function storedChange(row: StoredChange): Change {
+  return {
+    seq: row.seq,
+    collection: row.collection,
+    scopeKey: row.scope_key,
+    rowKey: row.row_key,
+    op: row.op,
+    row: row.row === null ? null : JSON.parse(row.row),
+    rowRevision: row.row_revision ?? undefined,
+    txid: row.txid ?? undefined,
+    runtimeId: row.runtime_id,
+    createdAt: row.created_at,
+  }
 }
 
 function wireKey(collection: string, key: string) {

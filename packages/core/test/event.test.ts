@@ -461,6 +461,40 @@ describe("EventV2", () => {
     }),
   )
 
+  it.effect("skips durable event types unknown to this binary", () =>
+    Effect.gen(function* () {
+      const events = yield* EventV2.Service
+      const { db } = yield* Database.Service
+      const aggregateID = Session.ID.create()
+      yield* events.publish(DurableMessage, durableData(aggregateID, "known-before"))
+      yield* db
+        .insert(EventTable)
+        .values({
+          id: EventV2.ID.create(),
+          aggregate_id: aggregateID,
+          seq: 1,
+          type: "future.event.1",
+          data: {},
+        })
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .update(EventSequenceTable)
+        .set({ seq: 1 })
+        .where(eq(EventSequenceTable.aggregate_id, aggregateID))
+        .run()
+        .pipe(Effect.orDie)
+      yield* events.publish(DurableMessage, durableData(aggregateID, "known-after"))
+
+      const received = yield* events.durable({ aggregateID }).pipe(Stream.take(2), Stream.runCollect)
+
+      expect(Array.from(received).map((event) => [event.durable?.seq, event.data])).toEqual([
+        [0, durableData(aggregateID, "known-before")],
+        [2, durableData(aggregateID, "known-after")],
+      ])
+    }),
+  )
+
   it.effect("catches durable aggregate events published during replay handoff", () =>
     Effect.gen(function* () {
       const events = yield* EventV2.Service

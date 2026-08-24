@@ -572,7 +572,13 @@ export const layerWith = (options?: LayerOptions) =>
             db
               .select()
               .from(EventTable)
-              .where(and(eq(EventTable.aggregate_id, aggregateID), gt(EventTable.seq, after)))
+              .where(
+                and(
+                  eq(EventTable.aggregate_id, aggregateID),
+                  gt(EventTable.seq, after),
+                  inArray(EventTable.type, Array.from(Durable.keys())),
+                ),
+              )
               .orderBy(asc(EventTable.seq))
               .all(),
           ),

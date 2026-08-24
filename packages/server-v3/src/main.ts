@@ -7,6 +7,9 @@ import { createDeltaHub } from "./stream/delta"
 import { bootstrapCollections, createLocationCollectionRefresh } from "./core/bootstrap"
 import { createOnlineRequestStore } from "./core/online-requests"
 import { Flag } from "@hena/core/flag/flag"
+import { Global } from "@hena/core/global"
+import { ConfigV1 } from "@hena/core/v1/config/config"
+import { Option, Schema } from "effect"
 
 if (import.meta.main) await start()
 
@@ -14,6 +17,7 @@ export const Hostname = "127.0.0.1"
 
 export async function start(input?: { port?: number; publicDir?: string; corsOrigins?: readonly string[] }) {
   assertNoPassword()
+  const corsOrigins = [...(await configuredCorsOrigins()), ...(input?.corsOrigins ?? [])]
   const deltas = createDeltaHub()
   const online = createOnlineRequestStore()
   const persisted = { publish: () => {} }
@@ -49,7 +53,7 @@ export async function start(input?: { port?: number; publicDir?: string; corsOri
     domain,
     deltas,
     online,
-    corsOrigins: input?.corsOrigins,
+    corsOrigins,
     logger: (record) => console.error(JSON.stringify(record)),
     publicDir: input?.publicDir ?? path.resolve(import.meta.dir, "../../app-v3/dist"),
   })
@@ -86,4 +90,27 @@ export function readPort(argv: readonly string[]) {
   const port = Number(argv[index + 1])
   if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("--port must be an integer from 1 to 65535")
   return port
+}
+
+async function configuredCorsOrigins() {
+  const directory = Flag.HENA_CONFIG_DIR ?? Global.Path.config
+  const configs = await Promise.all(
+    ["hena.json", "hena.jsonc"].map(async (name) => {
+      const file = Bun.file(path.join(directory, name))
+      if (!(await file.exists())) return undefined
+      const parsed = await file
+        .text()
+        .then((text) => Bun.JSONC.parse(text))
+        .catch((cause: unknown) => {
+          console.error(
+            JSON.stringify({ type: "server_config_error", name: cause instanceof Error ? cause.name : "Unknown" }),
+          )
+          return undefined
+        })
+      return Option.getOrUndefined(
+        Schema.decodeUnknownOption(ConfigV1.Info, { errors: "all", onExcessProperty: "ignore" })(parsed),
+      )
+    }),
+  )
+  return configs.findLast((config) => config?.server?.cors !== undefined)?.server?.cors ?? []
 }

@@ -15,7 +15,7 @@ import { AbsolutePath } from "@hena/core/schema"
 import { SessionV2 } from "@hena/core/session"
 import { SessionTable } from "@hena/core/session/sql"
 import { SessionStore } from "@hena/core/session/store"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
 
@@ -85,7 +85,7 @@ function assertion(input: Partial<PermissionV2.AssertInput> = {}) {
   } satisfies PermissionV2.AssertInput
 }
 
-function waitForRequest() {
+function waitForRequest(input: Partial<PermissionV2.AssertInput> = {}) {
   return Effect.gen(function* () {
     const service = yield* PermissionV2.Service
     const events = yield* EventV2.Service
@@ -96,7 +96,7 @@ function waitForRequest() {
         : Effect.void,
     )
     yield* Effect.addFinalizer(() => unsubscribe)
-    const fiber = yield* service.assert(assertion()).pipe(Effect.forkScoped)
+    const fiber = yield* service.assert(assertion(input)).pipe(Effect.forkScoped)
     const request = yield* Deferred.await(asked)
     return { service, fiber, request }
   })
@@ -310,6 +310,34 @@ describe("PermissionV2", () => {
       yield* service.assert(assertion({ id: PermissionV2.ID.create("per_next"), resources: ["src/next.ts"] }))
       yield* saved.remove(id)
       expect(yield* saved.list()).toEqual([])
+    }),
+  )
+
+  it.effect("does not publish an always reply before its saved grant persists", () =>
+    Effect.gen(function* () {
+      yield* setup()
+      const { service, request } = yield* waitForRequest({ save: ["src/*"] })
+      const events = yield* EventV2.Service
+      const replied: EventV2.Payload[] = []
+      const unsubscribe = yield* events.listen((event) =>
+        event.type === PermissionV2.Event.Replied.type
+          ? Effect.sync(() => {
+              replied.push(event)
+            })
+          : Effect.void,
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
+      const { db } = yield* Database.Service
+      yield* db
+        .run(sql`CREATE TRIGGER fail_saved_permission BEFORE INSERT ON permission BEGIN SELECT RAISE(FAIL, 'forced'); END`)
+        .pipe(Effect.orDie)
+
+      const exit = yield* service.reply({ requestID: request.id, reply: "always" }).pipe(Effect.exit)
+      yield* db.run(sql`DROP TRIGGER fail_saved_permission`).pipe(Effect.orDie)
+
+      expect(exit._tag).toBe("Failure")
+      expect(replied).toEqual([])
+      expect(yield* service.get(request.id)).toEqual(request)
     }),
   )
 })

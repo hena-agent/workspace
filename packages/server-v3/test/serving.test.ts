@@ -72,7 +72,7 @@ describe("serving", () => {
     expect(await response.text()).toContain("bun run build")
   })
 
-  test("allows configured origins and rejects unknown origins", async () => {
+  test("allows configured and same origins while rejecting other loopback origins", async () => {
     database = createTestDatabase().database
     const app = createApp({ database, corsOrigins: ["https://custom.example"] })
     const allowed = await app.request("/api/collection/capabilities", { headers: { origin: "https://app.hena.dev" } })
@@ -94,7 +94,8 @@ describe("serving", () => {
     expect(custom.headers.get("access-control-allow-origin")).toBe("https://custom.example")
     expect(sameOrigin.status).toBe(200)
     expect(sameOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost")
-    expect(devOrigin.headers.get("access-control-allow-origin")).toBe("http://localhost:5173")
+    expect(devOrigin.status).toBe(401)
+    expect(devOrigin.headers.get("access-control-allow-origin")).toBeNull()
     expect(rebound.status).toBe(401)
     expect(rejected.status).toBe(401)
     expect(rejected.headers.get("access-control-allow-origin")).toBeNull()
@@ -126,6 +127,21 @@ describe("serving", () => {
     await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
   }, 30_000)
 
+  test("loads CORS origins from standalone server configuration", async () => {
+    const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-config-${crypto.randomUUID()}`
+    const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
+    await Bun.write(`${directory}/hena.jsonc`, '{\n  // Additional browser client.\n  "server": { "cors": ["https://configured.example",], },\n}')
+    await runServer(
+      path,
+      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "https://configured.example" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "https://configured.example") throw new Error("server.cors origin was rejected")',
+      { HENA_CONFIG_DIR: directory },
+    )
+    await Promise.all([
+      rm(directory, { force: true, recursive: true }),
+      ...[path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })),
+    ])
+  }, 30_000)
+
   test("keeps idle event streams alive and closes them during shutdown", async () => {
     await runServer(
       ":memory:",
@@ -137,11 +153,12 @@ describe("serving", () => {
 async function runServer(
   database: string,
   source = 'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); await instance.stop()',
+  env?: Record<string, string>,
 ) {
   const child = Bun.spawn({
     cmd: [process.execPath, "-e", source],
     cwd: resolve(import.meta.dir, ".."),
-    env: { ...process.env, HENA_DB: database },
+    env: { ...process.env, HENA_DB: database, ...env },
     stdout: "ignore",
     stderr: "pipe",
   })

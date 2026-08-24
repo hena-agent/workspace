@@ -8,18 +8,22 @@ type Resolution = Record<string, unknown>
 type Resolved = { sessionID: string; nonce: string; value: Resolution }
 type Placement = { directory: string; workspaceID?: string }
 const ResolutionLimit = 1_024
+const RequestNonceTTL = 10 * 60_000
 
 export class OnlineRequestConflict extends Error {
   readonly code = "online_request_conflict"
 }
 
-export function createOnlineRequestStore() {
+export function createOnlineRequestStore(config: { nonceTTL?: number; now?: () => number } = {}) {
   const rows = new Map<string, Map<string, Record<string, unknown>>>()
   const resolutions = new Map<string, Resolved>()
   const placements = new Map<string, Placement>()
+  const expirations = new Map<string, number>()
   const replies = new Map<string, Promise<unknown>>()
   const listeners = new Set<(collection: VolatileCollection, scopeKey: string) => void>()
   const catalogListeners = new Set<() => void>()
+  const now = config.now ?? Date.now
+  const nonceTTL = config.nonceTTL ?? RequestNonceTTL
   let revision = 0
 
   const changed = (collection: VolatileCollection, scopeKey: string) => {
@@ -39,12 +43,14 @@ export function createOnlineRequestStore() {
     project(event: { type: string; data: unknown; location?: Placement }) {
       if (isRequestEvent(event.data) && event.type === "permission.v2.asked") {
         scoped("permissions", "").set(event.data.id, boundRequest(event.data, crypto.randomUUID()))
+        expirations.set(`permission:${event.data.id}`, now() + nonceTTL)
         rememberPlacement("permission", event.data.id, event.location)
         changed("permissions", "")
         return
       }
       if (isRequestEvent(event.data) && event.type === "question.v2.asked") {
         scoped("questions", "").set(event.data.id, boundRequest(event.data, crypto.randomUUID()))
+        expirations.set(`question:${event.data.id}`, now() + nonceTTL)
         rememberPlacement("question", event.data.id, event.location)
         changed("questions", "")
         return
@@ -56,11 +62,11 @@ export function createOnlineRequestStore() {
         resolve("questions", event.data.requestID, event.data)
     },
     pending(kind: Kind, id: string, sessionID: string, nonce: string) {
-      const row = scoped(collection(kind), "").get(id)
+      const row = pendingRow(kind, id)
       return isPendingRow(row) && row.sessionID === sessionID && row.nonce === nonce
     },
     request(kind: Kind, id: string, sessionID: string, nonce: string) {
-      const row = scoped(collection(kind), "").get(id)
+      const row = pendingRow(kind, id)
       const location = placements.get(`${kind}:${id}`)
       return isPendingRow(row) && row.sessionID === sessionID && row.nonce === nonce && location
         ? { location }
@@ -80,6 +86,7 @@ export function createOnlineRequestStore() {
       if (existing) rememberResolution(key, existing)
       else if (isPendingRow(row)) rememberResolution(key, { sessionID: row.sessionID, nonce: row.nonce, value: authoritative })
       placements.delete(key)
+      expirations.delete(key)
       if (scoped(collection(kind), "").delete(id)) changed(collection(kind), "")
       return authoritative
     },
@@ -90,7 +97,9 @@ export function createOnlineRequestStore() {
         const removed = Array.from(scopedRows).filter(([, row]) => row.sessionID === sessionID)
         removed.forEach(([id]) => {
           scopedRows.delete(id)
-          placements.delete(`${target === "permissions" ? "permission" : "question"}:${id}`)
+          const key = `${target === "permissions" ? "permission" : "question"}:${id}`
+          placements.delete(key)
+          expirations.delete(key)
         })
         if (removed.length > 0) changed(target, "")
       })
@@ -134,6 +143,10 @@ export function createOnlineRequestStore() {
       }
     },
     snapshot(target: VolatileCollection, scopeKey = "") {
+      if (target === "permissions" || target === "questions") {
+        const kind = target === "permissions" ? "permission" : "question"
+        Array.from(scoped(target, scopeKey).keys()).forEach((id) => pendingRow(kind, id))
+      }
       return {
         revision,
         rows: Array.from(scoped(target, scopeKey), ([key, row]) => ({ key, row, revision: String(revision) })),
@@ -162,6 +175,7 @@ export function createOnlineRequestStore() {
     scoped(target, "").delete(id)
     const key = `${target === "permissions" ? "permission" : "question"}:${id}`
     placements.delete(key)
+    expirations.delete(key)
     rememberResolution(key, { sessionID: row.sessionID, nonce: row.nonce, value: resolution })
     changed(target, "")
   }
@@ -178,6 +192,19 @@ export function createOnlineRequestStore() {
     const key = `${kind}:${id}`
     if (placement) placements.set(key, placement)
     else placements.delete(key)
+  }
+
+  function pendingRow(kind: Kind, id: string) {
+    const target = collection(kind)
+    const row = scoped(target, "").get(id)
+    if (!isPendingRow(row)) return row
+    const key = `${kind}:${id}`
+    if ((expirations.get(key) ?? 0) > now()) return row
+    const replacement = boundRequest(row, crypto.randomUUID())
+    scoped(target, "").set(id, replacement)
+    expirations.set(key, now() + nonceTTL)
+    changed(target, "")
+    return replacement
   }
 }
 

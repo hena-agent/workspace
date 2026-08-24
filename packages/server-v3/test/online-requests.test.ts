@@ -95,6 +95,26 @@ describe("online requests", () => {
     expect(calls).toEqual(["first", "second"])
   })
 
+  test("rotates expired request nonces without dropping the pending request", () => {
+    let now = 1_000
+    const online = createOnlineRequestStore({ nonceTTL: 100, now: () => now })
+    online.project({
+      type: "permission.v2.asked",
+      location: { directory: "/repo" },
+      data: { id: "per_1", sessionID: "ses_1" },
+    })
+    const original = requireNonce(online.snapshot("permissions").rows[0].row)
+
+    now += 101
+
+    expect(online.request("permission", "per_1", "ses_1", original)).toBeUndefined()
+    const replacement = requireNonce(online.snapshot("permissions").rows[0].row)
+    expect(replacement).not.toBe(original)
+    expect(online.request("permission", "per_1", "ses_1", replacement)).toEqual({
+      location: { directory: "/repo" },
+    })
+  })
+
   test("bounds retained request resolutions", () => {
     const online = createOnlineRequestStore()
 

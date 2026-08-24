@@ -21,7 +21,7 @@ function isAllowed(origin: string, requestURL: string, allowed: ReadonlySet<stri
   const parsed = URL.parse(origin)
   if (!parsed) return false
   const request = new URL(requestURL)
-  return isLoopback(parsed.hostname) && isLoopback(request.hostname)
+  return parsed.origin === request.origin && isLoopback(request.hostname)
 }
 
 function isLoopback(hostname: string) {

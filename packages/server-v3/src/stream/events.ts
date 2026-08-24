@@ -590,9 +590,10 @@ function scopeKey(scope: { collection: string; scopeKey: string }) {
 }
 
 function wireKey(collection: string, key: string) {
-  if (collection !== "parts" || !key.startsWith("[")) return key
+  const length = collection === "parts" ? 3 : collection === "models" ? 2 : undefined
+  if (length === undefined || !key.startsWith("[")) return key
   const decoded = JSON.parse(key) as unknown
-  return Array.isArray(decoded) && decoded.length === 3 && decoded.every((item) => typeof item === "string")
+  return Array.isArray(decoded) && decoded.length === length && decoded.every((item) => typeof item === "string")
     ? decoded
     : key
 }

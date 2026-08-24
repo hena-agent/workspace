@@ -82,6 +82,7 @@ export type AppType = ApplyGlobalResponse<
   ReturnType<typeof createApp>,
   {
     400: { json: ErrorResponse }
+    401: { json: ErrorResponse }
     404: { json: ErrorResponse }
     409: { json: ErrorResponse }
     413: { json: ErrorResponse }

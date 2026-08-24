@@ -547,11 +547,18 @@ describe("collection events", () => {
       revision: "1",
     })
     online.replace("agents", location, [{ key: "build", row: { id: "build" } }])
-    while (!output.includes('"id":"build"') || !output.includes('"value":"dark"'))
+    const modelKey = JSON.stringify(["provider-1", "model-1"])
+    online.replace("models", location, [{ key: modelKey, row: { id: "model-1", providerID: "provider-1" } }])
+    while (
+      !output.includes('"id":"build"') ||
+      !output.includes('"value":"dark"') ||
+      !output.includes('"key":["provider-1","model-1"]')
+    )
       output += decoder.decode((await reader.read()).value)
     await reader.cancel()
 
     expect(output).toContain(`"scopeKey":${JSON.stringify(location)}`)
+    expect(output).not.toContain(`"key":${JSON.stringify(modelKey)}`)
   })
 
   test("clears location catalogs removed while connected", async () => {

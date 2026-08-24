@@ -34,10 +34,14 @@ describe("app", () => {
 
   test("includes global failures in the client contract", () => {
     const client = hc<AppType>("http://localhost")
+    const unauthorized: InferResponseType<typeof client.api.session.$post, 401> = {
+      error: { code: "unauthorized", message: "Origin is not allowed" },
+    }
     const response: InferResponseType<typeof client.api.session.$post, 500> = {
       error: { code: "internal", message: "Internal server error" },
     }
 
+    expect(unauthorized.error.code).toBe("unauthorized")
     expect(response.error.code).toBe("internal")
   })
 

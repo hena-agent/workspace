@@ -77,6 +77,7 @@ export function events(
         : []
     })
     const scopes = requestedScopes(subscription, Array.from(new Set([...currentLocations, ...cursorLocations])))
+    const initialScopes = [...scopes]
     const deletedLocations = new Set(cursorLocations.filter((location) => !currentLocations.includes(location)))
     const through = new Map<string, number>()
     const recoveredThrough = new Map<string, number>()
@@ -574,7 +575,7 @@ export function events(
         ORDER BY seq
       `)
 
-        for (const scope of scopes) {
+        for (const scope of initialScopes) {
           if (ending) break
           if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) continue
           if (deletedLocations.has(scope.scopeKey)) {

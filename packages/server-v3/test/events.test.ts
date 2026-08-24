@@ -158,6 +158,51 @@ describe("collection events", () => {
     expect(output.match(/"id":"part-race"/g)).toHaveLength(1)
   })
 
+  test("does not overwrite a location added during the initial snapshot", async () => {
+    database = createTestDatabase().database
+    Array.from({ length: 5 }, (_, index) =>
+      database!.collections.write({
+        collection: "projects",
+        scopeKey: "",
+        rowKey: `project-${index}`,
+        row: { id: `project-${index}`, text: "x".repeat(900 * 1024) },
+        revision: "1",
+      }),
+    )
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app, {}, [], true)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while (!output.includes("event: snapshot.page")) output += decoder.decode((await reader.read()).value)
+
+    const location = JSON.stringify({ directory: "/late" })
+    database.changes.batch(() => {
+      database!.collections.write({
+        collection: "locations",
+        scopeKey: "",
+        rowKey: location,
+        row: { directory: "/late" },
+        revision: "1",
+      })
+      database!.collections.write({
+        collection: "settings",
+        scopeKey: location,
+        rowKey: "theme",
+        row: { value: "current" },
+        revision: "1",
+      })
+    })
+    const providerEnd = `"type":"snapshot.end","scope":{"collection":"providers","scopeKey":${JSON.stringify(location)}}`
+    while (!output.includes(providerEnd)) output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    const settingsBegin = `"type":"snapshot.begin","scope":{"collection":"settings","scopeKey":${JSON.stringify(location)}}`
+    expect(output.split(settingsBegin)).toHaveLength(2)
+    expect(output).toContain('"value":"current"')
+  })
+
   test("streams initial snapshots larger than the live backpressure limit", async () => {
     database = createTestDatabase().database
     Array.from({ length: 5 }, (_, index) =>
@@ -1118,13 +1163,14 @@ async function createSubscribedStream(
   app: ReturnType<typeof createApp>,
   cursors: Record<string, { feedId: string; seq: number }> = {},
   sessions = ["session-1"],
+  lists = false,
 ) {
   const created = await app.request("/api/collection/streams", { method: "POST" })
   const stream = (await created.json()) as { streamId: string }
   await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
     method: "PUT",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ revision: 1, lists: false, sessions, cursors }),
+    body: JSON.stringify({ revision: 1, lists, sessions, cursors }),
   })
   return stream
 }

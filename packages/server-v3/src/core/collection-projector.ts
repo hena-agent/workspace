@@ -23,7 +23,11 @@ const layer = Layer.effectDiscard(
     const events = yield* EventV2.Service
     const database = yield* Database.Service
     for (const definition of SessionEvent.DurableDefinitions) {
-      if (definition.type === SessionEvent.Compaction.Started.type) continue
+      if (
+        definition.type === SessionEvent.Compaction.Started.type ||
+        definition.type === SessionEvent.Compaction.Discarded.type
+      )
+        continue
       yield* events.project(definition, (event) => {
         const sessionID = sessionId(event.data)
         if (!sessionID) return Effect.void
@@ -35,11 +39,6 @@ const layer = Layer.effectDiscard(
           },
         })
       })
-    }
-    for (const definition of [SessionEvent.InputCanceled, SessionEvent.InputReordered]) {
-      yield* events.project(definition, (event) =>
-        refreshDurableEvent(database.db, { type: event.type, data: event.data }).pipe(Effect.orDie),
-      )
     }
     yield* events.project(SessionEvent.Compaction.Started, (event) => refreshCompactionStart(database.db, event))
     yield* events.project(SessionEvent.Compaction.Discarded, (event) =>

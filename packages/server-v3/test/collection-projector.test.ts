@@ -1,8 +1,14 @@
 import { describe, expect, test } from "bun:test"
 import { Database } from "@hena/core/database/database"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
+import { EventV2 } from "@hena/core/event"
+import { EventTable } from "@hena/core/event/sql"
+import { SessionProjector } from "@hena/core/session/projector"
 import { DateTime, Effect, Schema } from "effect"
-import { sql } from "drizzle-orm"
+import { asc, eq, sql } from "drizzle-orm"
 import {
+  CollectionProjector,
   projectCompactionStart,
   reconcileLocations,
   refreshCompactionDiscarded,
@@ -235,6 +241,66 @@ describe("collection projector", () => {
           `),
         ).toBeUndefined()
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
+  test("removes a provisional compaction row during durable replay", async () => {
+    const nodes = LayerNode.group([Database.node, EventV2.node, SessionProjector.node, CollectionProjector])
+    const sourceLayer = AppNodeBuilder.build(nodes, [[Database.node, Database.layerFromPath(":memory:")]])
+    const targetLayer = AppNodeBuilder.build(
+      LayerNode.group([Database.node, EventV2.node, SessionProjector.node, CollectionProjector]),
+      [[Database.node, Database.layerFromPath(":memory:")]],
+    )
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const serialized = yield* Effect.gen(function* () {
+          const { db: database } = yield* Database.Service
+          const events = yield* EventV2.Service
+          yield* database.run(sql`
+            INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
+            VALUES (1, 'source', 0, 'source')
+          `)
+          const data = {
+            sessionID: Session.ID.make("ses_compaction_replay"),
+            messageID: SessionMessage.ID.make("msg_compaction_replay"),
+            timestamp: DateTime.makeUnsafe(1),
+          }
+          yield* events.publish(SessionEvent.Compaction.Started, { ...data, reason: "auto" })
+          yield* events.publish(SessionEvent.Compaction.Discarded, data)
+          return (yield* database
+            .select()
+            .from(EventTable)
+            .where(eq(EventTable.aggregate_id, data.sessionID))
+            .orderBy(asc(EventTable.seq))
+            .all()
+            .pipe(Effect.orDie)).map((event) => ({
+            id: event.id,
+            aggregateID: event.aggregate_id,
+            seq: event.seq,
+            type: event.type,
+            data: event.data,
+          }))
+        }).pipe(Effect.provide(sourceLayer))
+
+        yield* Effect.gen(function* () {
+          const { db: database } = yield* Database.Service
+          const events = yield* EventV2.Service
+          yield* database.run(sql`
+            INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id)
+            VALUES (1, 'target', 0, 'target')
+          `)
+          yield* events.replayAll(serialized)
+
+          expect(
+            yield* database.get(sql`
+              SELECT row FROM collection_row
+              WHERE collection = 'messages'
+                AND scope_key = 'ses_compaction_replay'
+                AND row_key = 'msg_compaction_replay'
+            `),
+          ).toBeUndefined()
+        }).pipe(Effect.provide(targetLayer))
+      }),
     )
   })
 

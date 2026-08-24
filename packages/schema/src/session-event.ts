@@ -419,6 +419,7 @@ export namespace Compaction {
 
   export const Discarded = Event.define({
     type: "session.next.compaction.discarded",
+    ...options,
     schema: {
       ...Base,
       messageID: SessionMessage.ID,
@@ -491,6 +492,7 @@ export const DurableDefinitions = Event.inventory(
   Reasoning.Ended,
   Retried,
   Compaction.Started,
+  Compaction.Discarded,
   Compaction.Ended,
   RevertEvent.Staged,
   RevertEvent.Cleared,

@@ -396,7 +396,6 @@ describe("collection events", () => {
       }))
 
     database.collections.replace("messages", "session-1", rows("first"), "tx-first")
-    await Bun.sleep(0)
     database.collections.write({
       collection: "messages",
       scopeKey: "session-1",
@@ -406,9 +405,8 @@ describe("collection events", () => {
       txid: "tx-middle",
     })
     database.collections.replace("messages", "session-1", rows("final"), "tx-final")
-    while (!output.includes('"marker":"final"')) output += decoder.decode((await reader.read()).value)
-    const trailing = await Promise.race([reader.read(), Bun.sleep(40).then(() => undefined)])
-    if (trailing && !trailing.done) output += decoder.decode(trailing.value)
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 2 || !output.includes('"marker":"middle"'))
+      output += decoder.decode((await reader.read()).value)
     await reader.cancel()
 
     expect(output.lastIndexOf('"marker":"final"')).toBeGreaterThan(output.lastIndexOf('"marker":"middle"'))
@@ -579,6 +577,55 @@ describe("collection events", () => {
     await reader.cancel()
 
     expect(second?.done).toBe(true)
+  })
+
+  test("aborts superseded streams during snapshot writes", async () => {
+    database = createTestDatabase().database
+    const source = createOnlineRequestStore()
+    let subscriptions = 0
+    let totalSubscriptions = 0
+    const online = {
+      ...source,
+      subscribe(listener: Parameters<typeof source.subscribe>[0]) {
+        subscriptions++
+        totalSubscriptions++
+        const unsubscribe = source.subscribe(listener)
+        return () => {
+          subscriptions--
+          return unsubscribe()
+        }
+      },
+    }
+    const app = createApp({ database, online })
+    const stream = await createSubscribedStream(app)
+    const first = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const firstReader = first.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 4)
+      output += decoder.decode((await firstReader.read()).value)
+    output = ""
+    database.collections.replace(
+      "messages",
+      "session-1",
+      Array.from({ length: 5 }, (_, index) => ({
+        key: `message-${index}`,
+        row: { id: `message-${index}`, text: "x".repeat(900 * 1024) },
+        revision: "1",
+      })),
+      "tx-large",
+    )
+    while (!output.includes("event: snapshot.page"))
+      output += decoder.decode((await firstReader.read()).value)
+
+    const second = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    await Bun.sleep(10)
+
+    expect(totalSubscriptions).toBe(2)
+    expect(subscriptions).toBe(1)
+
+    await second.body!.cancel()
+    await firstReader.cancel()
   })
 
   test("subscribes once per distinct delta session", async () => {

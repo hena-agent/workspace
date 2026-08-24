@@ -143,13 +143,23 @@ export function createOnlineRequestStore(config: { nonceTTL?: number; now?: () =
       }
     },
     snapshot(target: VolatileCollection, scopeKey = "") {
+      const targetRows = scoped(target, scopeKey)
       if (target === "permissions" || target === "questions") {
         const kind = target === "permissions" ? "permission" : "question"
-        Array.from(scoped(target, scopeKey).keys()).forEach((id) => pendingRow(kind, id))
+        const time = now()
+        const expired = Array.from(targetRows).filter(
+          (entry): entry is [string, Row] =>
+            isPendingRow(entry[1]) && (expirations.get(`${kind}:${entry[0]}`) ?? 0) <= time,
+        )
+        expired.forEach(([id, row]) => {
+          targetRows.set(id, boundRequest(row, crypto.randomUUID()))
+          expirations.set(`${kind}:${id}`, time + nonceTTL)
+        })
+        if (expired.length > 0) changed(target, scopeKey)
       }
       return {
         revision,
-        rows: Array.from(scoped(target, scopeKey), ([key, row]) => ({ key, row, revision: String(revision) })),
+        rows: Array.from(targetRows, ([key, row]) => ({ key, row, revision: String(revision) })),
       }
     },
     subscribe(listener: (collection: VolatileCollection, scopeKey: string) => void) {

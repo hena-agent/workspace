@@ -115,6 +115,25 @@ describe("online requests", () => {
     })
   })
 
+  test("publishes one change when a snapshot rotates multiple expired nonces", () => {
+    let now = 1_000
+    const online = createOnlineRequestStore({ nonceTTL: 100, now: () => now })
+    online.project({ type: "permission.v2.asked", data: { id: "per_1", sessionID: "ses_1" } })
+    online.project({ type: "permission.v2.asked", data: { id: "per_2", sessionID: "ses_1" } })
+    const original = online.snapshot("permissions").rows.map((item) => requireNonce(item.row))
+    let changes = 0
+    online.subscribe((collection) => {
+      changes++
+      online.snapshot(collection)
+    })
+
+    now += 101
+    const rotated = online.snapshot("permissions").rows.map((item) => requireNonce(item.row))
+
+    expect(changes).toBe(1)
+    expect(rotated.every((nonce, index) => nonce !== original[index])).toBe(true)
+  })
+
   test("bounds retained request resolutions", () => {
     const online = createOnlineRequestStore()
 

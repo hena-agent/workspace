@@ -83,14 +83,16 @@ export function events(
     const pendingVolatile = new Set<string>()
     const pendingDeltas: Delta[] = []
     type Recovery = { scope: (typeof scopes)[number]; fromSeq: number; throughSeq: number; changes: Change[] }
-    const pendingRecoveries = new Map<string, Recovery>()
-    let snapshotsScheduled = false
+    type RecoveryJob = { started: boolean; recoveries: Map<string, Recovery>; promise?: Promise<void> }
+    let recoveryJob: RecoveryJob | undefined
     let queuedBytes = 0
     let bufferedBytes = 0
     let ending = false
     const disconnected = Promise.withResolvers<void>()
     const disconnect = () => {
+      if (ending) return
       ending = true
+      stream.abort()
       disconnected.resolve()
     }
     streams.bind("local", resource.id, resource.generation, disconnect)
@@ -194,7 +196,7 @@ export function events(
         const scope = scopes[index]
         scopes.splice(index, 1)
         pendingVolatile.delete(`${collection}\u0000${locationKey}`)
-        pendingRecoveries.delete(scopeKey(scope))
+        recoveryJob?.recoveries.delete(scopeKey(scope))
         through.delete(scopeKey(scope))
         buffered.splice(
           0,
@@ -349,22 +351,31 @@ export function events(
         change: Change
       }>,
     ) => {
+      const active = recoveryJob
+      const recoveries = active && !active.started && writes === active.promise
+        ? active.recoveries
+        : new Map<string, Recovery>()
+      const mergeable = recoveries === active?.recoveries
       incoming.forEach((recovery) => {
-        const pending = pendingRecoveries.get(scopeKey(recovery.scope))
-        pendingRecoveries.set(scopeKey(recovery.scope), {
+        const pending = recoveries.get(scopeKey(recovery.scope))
+        recoveries.set(scopeKey(recovery.scope), {
           scope: recovery.scope,
           fromSeq: pending ? Math.min(pending.fromSeq, recovery.fromSeq) : recovery.fromSeq,
           throughSeq: recovery.throughSeq,
           changes: [...(pending?.changes ?? []), recovery.change],
         })
       })
-      if (snapshotsScheduled) return
-      snapshotsScheduled = true
-      writes = writes
+      if (mergeable) return
+      const job: RecoveryJob = { started: false, recoveries }
+      const promise = writes
         .then(async () => {
-          const recoveries = Array.from(pendingRecoveries.values())
-          pendingRecoveries.clear()
-          snapshotsScheduled = false
+          job.started = true
+          if (ending) return
+          const batch = Array.from(job.recoveries.values()).filter((recovery) =>
+            scopes.some((scope) => scopeKey(scope) === scopeKey(recovery.scope))
+          )
+          job.recoveries.clear()
+          if (batch.length === 0) return
           const { Database } = await import("bun:sqlite")
           const source = new Database(database.raw.filename, { readonly: true })
           source.exec("BEGIN")
@@ -372,13 +383,16 @@ export function events(
             const throughSeq = source
               .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
               .get()!.seq
-            await writeRecoveries(recoveries, source, throughSeq)
+            await writeRecoveries(batch, source, throughSeq)
           } finally {
             source.exec("COMMIT")
             source.close()
           }
         })
         .catch(disconnected.resolve)
+      job.promise = promise
+      recoveryJob = job
+      writes = promise
     }
     const enqueueEmptySnapshot = (scope: (typeof scopes)[number]) => {
       const snapshotId = crypto.randomUUID()

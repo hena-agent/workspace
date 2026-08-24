@@ -389,9 +389,9 @@ runs:
             .[]
             | select(.type == "tool_use" and .part.tool == "task" and .part.state.status == "completed")
             | .part.state.output
-            | select(type == "string" and contains("<task_result>\n") and contains("\n</task_result>"))
-            | split("<task_result>\n")[1]
-            | split("\n</task_result>")[0]
+            | select(type == "string" and startswith("<task_result>\n") and endswith("\n</task_result>"))
+            | ltrimstr("<task_result>\n")
+            | rtrimstr("\n</task_result>")
           ] | last
           | if type == "string" and test("\\S") then . else error("OpenCode command returned no completed review task") end
         ' "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"; then

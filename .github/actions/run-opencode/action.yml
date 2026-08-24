@@ -406,6 +406,9 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
+        MODEL: ${{ inputs.model }}
+        VARIANT: ${{ inputs.variant }}
+        OPENCODE_VERSION: ${{ env.OPENCODE_VERSION }}
       run: |
         set -euo pipefail
         PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
@@ -419,11 +422,25 @@ runs:
           exit 0
         fi
 
-        jq -n --arg head "$HEAD_SHA" --rawfile body "$RUNNER_TEMP/opencode-command-result.md" '
+        jq -n \
+          --arg head "$HEAD_SHA" \
+          --arg model "$MODEL" \
+          --arg variant "$VARIANT" \
+          --arg opencode_version "$OPENCODE_VERSION" \
+          --arg run_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+          --arg commit_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$HEAD_SHA" \
+          --rawfile review "$RUNNER_TEMP/opencode-command-result.md" '
           {
             event: "COMMENT",
             commit_id: $head,
-            body: $body
+            body: (
+              "<!-- ai-review "
+              + ({model: $model, variant: $variant, opencode_version: $opencode_version, run_url: $run_url, commit: $head} | tojson)
+              + " -->\n"
+              + "### Review from `" + $model + "` (`" + $variant + "`)\n"
+              + "_OpenCode `" + $opencode_version + "` | [workflow run](" + $run_url + ") | [commit `" + $head[0:9] + "`](" + $commit_url + ")_\n\n"
+              + $review
+            )
           }
         ' > "$RUNNER_TEMP/github-review.json"
 

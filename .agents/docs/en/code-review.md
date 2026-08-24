@@ -71,7 +71,7 @@ Fork PRs and PRs authored by Dependabot resolve as disabled because repository c
 
 Pushes, edits, reopening, and unrelated labels do not start reviews. Unrelated label events use distinct concurrency groups, so they also cannot cancel an active review. To force another review, remove and add the `pr-review` label again.
 
-The review job uses `fail-fast: false`, so one model failure does not cancel the other model rows. GitHub runs rows in parallel subject to runner availability. Per-PR concurrency still cancels an older in-flight review set when a new request arrives.
+The review job uses `fail-fast: false`, so one model failure does not cancel the other model rows. GitHub runs rows in parallel subject to runner availability. Per-PR concurrency still cancels an older in-flight review set when a new request arrives. Each published review starts with workflow-generated model, variant, OpenCode version, run, and commit provenance.
 
 ## Brief behavior
 

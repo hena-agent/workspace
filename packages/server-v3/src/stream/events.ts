@@ -153,7 +153,8 @@ export function events(
     const publish = (changes: readonly Change[]) => {
       updateLocations(changes)
       const visible = changes.filter((change) =>
-        scopes.some((scope) => scope.collection === change.collection && scope.scopeKey === change.scopeKey),
+        scopes.some((scope) => scope.collection === change.collection && scope.scopeKey === change.scopeKey) &&
+        change.seq > (through.get(scopeKey(change)) ?? 0),
       )
       if (visible.length === 0) return
       if (!live) {

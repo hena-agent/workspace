@@ -4,8 +4,10 @@ import { Hono } from "hono"
 export function createStaticRoutes(publicDir: string) {
   return new Hono().get("*", async (c) => {
     if (c.req.path.startsWith("/api")) return c.notFound()
+    const pathname = decodePath(c.req.path)
+    if (pathname === undefined) return c.notFound()
     const index = Bun.file(resolve(publicDir, "index.html"))
-    const requested = safePath(publicDir, c.req.path)
+    const requested = safePath(publicDir, pathname)
     const requestedFile = requested && await Bun.file(requested).exists() ? Bun.file(requested) : undefined
     if (!requestedFile && isAssetPath(c.req.path)) return c.notFound()
     const file = requestedFile ?? ((await index.exists()) ? index : undefined)
@@ -20,12 +22,20 @@ function isAssetPath(pathname: string) {
 }
 
 function safePath(root: string, pathname: string) {
-  const relative = normalize(decodeURIComponent(pathname)).replace(/^[/\\]+/, "")
+  const relative = normalize(pathname).replace(/^[/\\]+/, "")
   const base = resolve(root)
   const target = resolve(base, relative)
   if (isAbsolute(relative) || target === base || !target.startsWith(base.endsWith(sep) ? base : `${base}${sep}`))
     return undefined
   return target
+}
+
+function decodePath(pathname: string) {
+  try {
+    return decodeURIComponent(pathname)
+  } catch {
+    return undefined
+  }
 }
 
 function cacheControl(pathname: string, index: boolean) {

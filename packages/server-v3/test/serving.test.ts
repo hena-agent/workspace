@@ -53,6 +53,16 @@ describe("serving", () => {
     expect(file.status).toBe(404)
   })
 
+  test("returns 404 for malformed URL escapes", async () => {
+    database = createTestDatabase().database
+    const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
+    await Bun.write(`${directory}/index.html`, "<main>app-v3</main>")
+
+    const response = await createApp({ database, publicDir: directory }).request("/%ZZ")
+
+    expect(response.status).toBe(404)
+  })
+
   test("compresses large static responses", async () => {
     database = createTestDatabase().database
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`

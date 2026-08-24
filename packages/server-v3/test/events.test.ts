@@ -744,6 +744,50 @@ describe("collection events", () => {
     )
   })
 
+  test("does not replay changes covered by a dynamically added scope snapshot", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database })
+    const created = await app.request("/api/collection/streams", { method: "POST" })
+    const stream = (await created.json()) as { streamId: string }
+    await app.request(`/api/collection/streams/${stream.streamId}/subscription`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revision: 1, lists: true, sessions: [], cursors: {} }),
+    })
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 6)
+      output += decoder.decode((await reader.read()).value)
+    output = ""
+    const location = JSON.stringify({ directory: "/new" })
+
+    database.changes.batch(() => {
+      database!.collections.write({
+        collection: "locations",
+        scopeKey: "",
+        rowKey: location,
+        row: { directory: "/new" },
+        revision: "1",
+        txid: "tx-location",
+      })
+      database!.collections.write({
+        collection: "settings",
+        scopeKey: location,
+        rowKey: "theme",
+        row: { value: "dark" },
+        revision: "1",
+        txid: "tx-location",
+      })
+    })
+    while (!output.includes('"txid":"tx-location"'))
+      output += decoder.decode((await reader.read()).value)
+    await reader.cancel()
+
+    expect(output.match(/"value":"dark"/g)).toHaveLength(1)
+  })
+
   test("discovers location catalogs added while connected", async () => {
     database = createTestDatabase().database
     const online = createOnlineRequestStore()

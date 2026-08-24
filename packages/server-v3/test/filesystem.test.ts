@@ -12,7 +12,9 @@ describe("filesystem reads", () => {
   test("passes a bounded location query to the domain", async () => {
     database = createTestDatabase().database
     const domain = fileDomain()
-    const response = await createApp({ database, domain }).request("/api/fs/find?directory=%2Ftmp%2Fproject&query=src&type=file&limit=20")
+    const response = await createApp({ database, domain }).request(
+      "/api/fs/find?directory=%2Ftmp%2Fproject&query=src&type=file&limit=20",
+    )
 
     expect(response.status).toBe(200)
     expect(domain.finds).toEqual([{ directory: "/tmp/project", query: "src", type: "file", limit: 20 }])
@@ -49,6 +51,32 @@ describe("filesystem reads", () => {
 
     expect(responses.map((response) => response.status)).toEqual([400, 400, 400])
     expect(domain.finds).toEqual([])
+  })
+
+  test("maps expected filesystem failures", async () => {
+    database = createTestDatabase().database
+    const domain = fileDomain()
+    const failures = [
+      Object.assign(new Error("missing"), { _tag: "PlatformError", reason: "NotFound" }),
+      Object.assign(new Error("denied"), { _tag: "PlatformError", reason: "PermissionDenied" }),
+      new Error("Path is not a directory"),
+      new Error("Path escapes the location"),
+    ]
+    domain.listFiles = async () => {
+      throw failures.shift()
+    }
+    const app = createApp({ database, domain })
+    const responses = await Promise.all(
+      failures.map(() => Promise.resolve(app.request("/api/fs/list?directory=%2Ftmp%2Fproject"))),
+    )
+
+    expect(responses.map((response) => response.status)).toEqual([404, 400, 400, 400])
+    expect(await Promise.all(responses.map((response) => response.json()))).toEqual([
+      { error: { code: "not_found", message: "Path not found" } },
+      { error: { code: "validation", message: "Path is unavailable" } },
+      { error: { code: "validation", message: "Path is unavailable" } },
+      { error: { code: "validation", message: "Path is unavailable" } },
+    ])
   })
 })
 

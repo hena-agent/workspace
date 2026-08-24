@@ -24,6 +24,10 @@ type StoredChange = {
   created_at: number
 }
 
+const MaxConcurrentSnapshots = 8
+const WriteTimeoutMs = 30_000
+let activeSnapshots = 0
+
 export function events(
   c: Context,
   database: SyncDatabase,
@@ -96,6 +100,29 @@ export function events(
       stream.abort()
       disconnected.resolve()
     }
+    const writeEvent = async (event: Parameters<typeof stream.writeSSE>[0]) => {
+      if (ending) return
+      const timeout = setTimeout(disconnect, WriteTimeoutMs)
+      timeout.unref()
+      try {
+        await Promise.race([stream.writeSSE(event), disconnected.promise])
+      } finally {
+        clearTimeout(timeout)
+      }
+    }
+    const reserveSnapshot = async () => {
+      if (activeSnapshots < MaxConcurrentSnapshots) {
+        activeSnapshots++
+        return true
+      }
+      await writeEvent({
+        event: "error",
+        data: JSON.stringify(frame({ type: "error", code: "stream_limit_exceeded" })),
+      })
+      ending = true
+      disconnected.resolve()
+      return false
+    }
     streams.bind("local", resource.id, resource.generation, disconnect)
     stream.onAbort(disconnect)
     const slowConsumer = () => {
@@ -127,7 +154,7 @@ export function events(
       }
       queuedBytes += size
       writes = writes
-        .then(() => (ending ? undefined : stream.writeSSE({ event, data })))
+        .then(() => writeEvent({ event, data }))
         .catch(disconnected.resolve)
         .finally(() => {
           queuedBytes -= size
@@ -161,7 +188,7 @@ export function events(
           if (ending) return
           const pending = changes.filter((change) => change.seq > (recoveredThrough.get(scopeKey(change)) ?? 0))
           if (pending.length === 0) return
-          await stream.writeSSE({
+          await writeEvent({
             event: "rows",
             data: pending.length === changes.length ? initial : JSON.stringify(frame(rowsValue(pending))),
           })
@@ -191,9 +218,10 @@ export function events(
     }
     const publish = (changes: readonly Change[]) => {
       updateLocations(changes)
-      const visible = changes.filter((change) =>
-        scopes.some((scope) => scope.collection === change.collection && scope.scopeKey === change.scopeKey) &&
-        change.seq > (through.get(scopeKey(change)) ?? 0),
+      const visible = changes.filter(
+        (change) =>
+          scopes.some((scope) => scope.collection === change.collection && scope.scopeKey === change.scopeKey) &&
+          change.seq > (through.get(scopeKey(change)) ?? 0),
       )
       if (visible.length === 0) return
       if (!live) {
@@ -327,19 +355,17 @@ export function events(
       let keyCount = 0
       let after = ""
       through.set(scopeKey(scope), throughSeq)
-      await stream.writeSSE({
+      await writeEvent({
         event: "snapshot.begin",
         data: JSON.stringify(frame({ type: "snapshot.begin", scope, snapshotId, baseSeq: throughSeq, replace: true })),
       })
-      const query = source.query<
-        { row_key: string; row: string; row_revision: string },
-        [string, string, string]
-      >(`
+      const query = source.query<{ row_key: string; row: string; row_revision: string }, [string, string, string]>(`
         SELECT row_key, row, row_revision FROM collection_row
         WHERE collection = ? AND scope_key = ? AND row_key > ?
         ORDER BY row_key LIMIT 4
       `)
-      while (!ending) {
+      while (true) {
+        if (ending) break
         const rows = query.all(scope.collection, scope.scopeKey, after)
         if (rows.length === 0) break
         after = rows.at(-1)!.row_key
@@ -350,23 +376,19 @@ export function events(
         }))
         keyCount += projected.length
         for (const page of pages(projected))
-          await stream.writeSSE({
+          await writeEvent({
             event: "snapshot.page",
             data: JSON.stringify(frame({ type: "snapshot.page", scope, snapshotId, rows: page })),
           })
       }
       if (ending) return
-      await stream.writeSSE({
+      await writeEvent({
         event: "snapshot.end",
         data: JSON.stringify(frame({ type: "snapshot.end", scope, snapshotId, keyCount, throughSeq })),
       })
     }
-    const writeRecoveries = async (
-      recoveries: readonly Recovery[],
-      source: Database,
-      throughSeq: number,
-    ) => {
-      await stream.writeSSE({
+    const writeRecoveries = async (recoveries: readonly Recovery[], source: Database, throughSeq: number) => {
+      await writeEvent({
         event: "rows",
         data: JSON.stringify(
           frame({
@@ -374,7 +396,9 @@ export function events(
             affectedScopes: recoveries.map((recovery) => recovery.scope),
             fromSeq: Math.min(...recoveries.map((recovery) => recovery.fromSeq)),
             throughSeq,
-            changes: recoveries.flatMap((recovery) => recovery.changes.map((change) => ({ ...change, seq: throughSeq }))),
+            changes: recoveries.flatMap((recovery) =>
+              recovery.changes.map((change) => ({ ...change, seq: throughSeq })),
+            ),
           }),
         ),
       })
@@ -392,9 +416,8 @@ export function events(
       }>,
     ) => {
       const active = recoveryJob
-      const recoveries = active && !active.started && writes === active.promise
-        ? active.recoveries
-        : new Map<string, Recovery>()
+      const recoveries =
+        active && !active.started && writes === active.promise ? active.recoveries : new Map<string, Recovery>()
       const mergeable = recoveries === active?.recoveries
       incoming.forEach((recovery) => {
         const pending = recoveries.get(scopeKey(recovery.scope))
@@ -412,25 +435,33 @@ export function events(
           job.started = true
           if (ending) return
           const batch = Array.from(job.recoveries.values()).filter((recovery) =>
-            scopes.some((scope) => scopeKey(scope) === scopeKey(recovery.scope))
+            scopes.some((scope) => scopeKey(scope) === scopeKey(recovery.scope)),
           )
           job.recoveries.clear()
           if (batch.length === 0) return
-          const { Database } = await import("bun:sqlite")
-          const source = new Database(database.raw.filename, { readonly: true })
-          source.exec("BEGIN")
+          if (!(await reserveSnapshot())) return
           try {
-            const throughSeq = source
-              .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
-              .get()!.seq
-            await writeRecoveries(batch, source, throughSeq)
-            batch.forEach((recovery) => {
-              const key = scopeKey(recovery.scope)
-              recoveredThrough.set(key, Math.max(recoveredThrough.get(key) ?? 0, throughSeq))
-            })
+            const { Database } = await import("bun:sqlite")
+            const source = new Database(database.raw.filename, { readonly: true })
+            try {
+              source.exec("BEGIN")
+              const throughSeq = source
+                .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
+                .get()!.seq
+              await writeRecoveries(batch, source, throughSeq)
+              batch.forEach((recovery) => {
+                const key = scopeKey(recovery.scope)
+                recoveredThrough.set(key, Math.max(recoveredThrough.get(key) ?? 0, throughSeq))
+              })
+            } finally {
+              try {
+                if (source.inTransaction) source.exec("ROLLBACK")
+              } finally {
+                source.close()
+              }
+            }
           } finally {
-            source.exec("COMMIT")
-            source.close()
+            activeSnapshots--
           }
         })
         .catch(disconnected.resolve)
@@ -477,54 +508,59 @@ export function events(
     }
     enqueue("stream.ready", { type: "stream.ready" })
     await writes
-    const { Database } = await import("bun:sqlite")
-    const snapshotDatabase = new Database(database.raw.filename, { readonly: true })
-    snapshotDatabase.exec("BEGIN")
+    if (ending) return
+    if (!(await reserveSnapshot())) return
     try {
-      const feed = snapshotDatabase
-        .query<{ feed_id: string; retained_floor: number }, []>(
-          "SELECT feed_id, retained_floor FROM collection_feed WHERE id = 1",
+      const { Database } = await import("bun:sqlite")
+      const snapshotDatabase = new Database(database.raw.filename, { readonly: true })
+      try {
+        snapshotDatabase.exec("BEGIN")
+        const feed = snapshotDatabase
+          .query<
+            { feed_id: string; retained_floor: number },
+            []
+          >("SELECT feed_id, retained_floor FROM collection_feed WHERE id = 1")
+          .get()!
+        const baseSeq = Math.max(
+          snapshotDatabase
+            .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
+            .get()!.seq,
+          feed.retained_floor,
         )
-        .get()!
-      const baseSeq = Math.max(
-        snapshotDatabase.query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change").get()!
-          .seq,
-        feed.retained_floor,
-      )
-      // Collection rows are individually bounded below 1 MiB, so four rows cap each decoded read near 4 MiB.
-      const snapshotRows = snapshotDatabase.query<
-        { row_key: string; row: string; row_revision: string },
-        [string, string, string]
-      >(`
+        // Collection rows are individually bounded below 1 MiB, so four rows cap each decoded read near 4 MiB.
+        const snapshotRows = snapshotDatabase.query<
+          { row_key: string; row: string; row_revision: string },
+          [string, string, string]
+        >(`
         SELECT row_key, row, row_revision FROM collection_row
         WHERE collection = ? AND scope_key = ? AND row_key > ?
         ORDER BY row_key LIMIT 4
       `)
-      const replayNext = snapshotDatabase.query<StoredChange, [number, number]>(`
+        const replayNext = snapshotDatabase.query<StoredChange, [number, number]>(`
         SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
         FROM collection_change
         WHERE seq > ? AND seq <= ?
         ORDER BY seq LIMIT 1
       `)
-      const replayTransactionEnd = snapshotDatabase.query<{ seq: number }, [number, string]>(`
+        const replayTransactionEnd = snapshotDatabase.query<{ seq: number }, [number, string]>(`
         SELECT COALESCE(
           (SELECT seq - 1 FROM collection_change WHERE seq > ? AND txid IS NOT ? ORDER BY seq LIMIT 1),
           (SELECT MAX(seq) FROM collection_change)
         ) AS seq
       `)
-      const replayTransactionSize = snapshotDatabase.query<{ bytes: number }, [number, number]>(`
+        const replayTransactionSize = snapshotDatabase.query<{ bytes: number }, [number, number]>(`
         SELECT COALESCE(SUM(LENGTH(CAST(collection AS BLOB)) + LENGTH(CAST(scope_key AS BLOB)) +
           LENGTH(CAST(row_key AS BLOB)) + COALESCE(LENGTH(CAST(row AS BLOB)), 0) + 128), 0) AS bytes
         FROM collection_change
         WHERE seq >= ? AND seq <= ?
       `)
-      const replayTransaction = snapshotDatabase.query<StoredChange, [number, number]>(`
+        const replayTransaction = snapshotDatabase.query<StoredChange, [number, number]>(`
         SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
         FROM collection_change
         WHERE seq >= ? AND seq <= ?
         ORDER BY seq
       `)
-      const replayTransactionScopes = snapshotDatabase.query<StoredChange, [number, number, number, number]>(`
+        const replayTransactionScopes = snapshotDatabase.query<StoredChange, [number, number, number, number]>(`
         SELECT seq, collection, scope_key, '' AS row_key, 'reset' AS op, NULL AS row, NULL AS row_revision,
           txid, runtime_id, created_at
         FROM collection_change
@@ -537,138 +573,149 @@ export function events(
         ORDER BY seq
       `)
 
-      for (const scope of scopes) {
-        if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) continue
-        if (deletedLocations.has(scope.scopeKey)) {
+        for (const scope of scopes) {
+          if (ending) break
+          if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) continue
+          if (deletedLocations.has(scope.scopeKey)) {
+            const snapshotId = crypto.randomUUID()
+            await writeFrames([
+              {
+                event: "snapshot.begin",
+                value: { type: "snapshot.begin", scope, snapshotId, baseSeq, replace: true },
+              },
+              {
+                event: "snapshot.end",
+                value: { type: "snapshot.end", scope, snapshotId, keyCount: 0, throughSeq: baseSeq },
+              },
+            ])
+            continue
+          }
+          if (isVolatile(scope.collection)) {
+            await writeFrames(volatileFrames({ collection: scope.collection, scopeKey: scope.scopeKey }))
+            continue
+          }
+          const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]
+          if (
+            !deletedLocations.has(scope.scopeKey) &&
+            cursor?.feedId === feed.feed_id &&
+            cursor.seq >= feed.retained_floor &&
+            cursor.seq <= baseSeq
+          ) {
+            through.set(scopeKey(scope), cursor.seq)
+            replayCursors.set(scopeKey(scope), cursor.seq)
+            continue
+          }
+
+          through.set(scopeKey(scope), baseSeq)
           const snapshotId = crypto.randomUUID()
           await writeFrames([
             {
               event: "snapshot.begin",
               value: { type: "snapshot.begin", scope, snapshotId, baseSeq, replace: true },
             },
+          ])
+          let keyCount = 0
+          let after = ""
+          while (true) {
+            if (ending) break
+            const rows = snapshotRows.all(scope.collection, scope.scopeKey, after)
+            if (rows.length === 0) break
+            if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) break
+            const projected = rows.map((row) => ({
+              key: wireKey(scope.collection, row.row_key),
+              row: JSON.parse(row.row),
+              revision: row.row_revision,
+            }))
+            keyCount += projected.length
+            after = rows.at(-1)!.row_key
+            await writeFrames(
+              pages(projected).map((page) => ({
+                event: "snapshot.page",
+                value: { type: "snapshot.page", scope, snapshotId, rows: page },
+              })),
+            )
+          }
+          if (ending) break
+          if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) continue
+          await writeFrames([
             {
               event: "snapshot.end",
-              value: { type: "snapshot.end", scope, snapshotId, keyCount: 0, throughSeq: baseSeq },
+              value: { type: "snapshot.end", scope, snapshotId, keyCount, throughSeq: baseSeq },
             },
           ])
-          continue
         }
-        if (isVolatile(scope.collection)) {
-          await writeFrames(volatileFrames({ collection: scope.collection, scopeKey: scope.scopeKey }))
-          continue
-        }
-        const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]
-        if (
-          !deletedLocations.has(scope.scopeKey) &&
-          cursor?.feedId === feed.feed_id &&
-          cursor.seq >= feed.retained_floor &&
-          cursor.seq <= baseSeq
-        ) {
-          through.set(scopeKey(scope), cursor.seq)
-          replayCursors.set(scopeKey(scope), cursor.seq)
-          continue
-        }
+        scopes.splice(0, scopes.length, ...scopes.filter((scope) => !deletedLocations.has(scope.scopeKey)))
 
-        through.set(scopeKey(scope), baseSeq)
-        const snapshotId = crypto.randomUUID()
-        await writeFrames([
-          {
-            event: "snapshot.begin",
-            value: { type: "snapshot.begin", scope, snapshotId, baseSeq, replace: true },
-          },
-        ])
-        let keyCount = 0
-        let after = ""
-        while (true) {
-          const rows = snapshotRows.all(scope.collection, scope.scopeKey, after)
-          if (rows.length === 0) break
-          if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) break
-          const projected = rows.map((row) => ({
-            key: wireKey(scope.collection, row.row_key),
-            row: JSON.parse(row.row),
-            revision: row.row_revision,
-          }))
-          keyCount += projected.length
-          after = rows.at(-1)!.row_key
-          await writeFrames(
-            pages(projected).map((page) => ({
-              event: "snapshot.page",
-              value: { type: "snapshot.page", scope, snapshotId, rows: page },
-            })),
+        const replayFrom = Math.min(...replayCursors.values(), baseSeq)
+        let replayAfter = replayFrom
+        while (replayAfter < baseSeq) {
+          if (ending) break
+          const next = replayNext.get(replayAfter, baseSeq)
+          if (!next) break
+          const throughSeq = next.txid === null ? next.seq : replayTransactionEnd.get(next.seq, next.txid)!.seq
+          const oversized =
+            next.txid !== null && replayTransactionSize.get(next.seq, throughSeq)!.bytes > 4 * 1024 * 1024
+          const pending = (
+            oversized
+              ? replayTransactionScopes.all(next.seq, throughSeq, next.seq, throughSeq)
+              : next.txid === null
+                ? [next]
+                : replayTransaction.all(next.seq, throughSeq)
           )
+            .filter((row) => {
+              const cursor = replayCursors.get(`${row.collection}\u0000${row.scope_key}`)
+              return cursor !== undefined && row.seq > cursor
+            })
+            .map(storedChange)
+          replayAfter = throughSeq
+          if (pending.length === 0) continue
+          updateLocations(pending)
+          if (oversized || !fitsPage(pending) || pending.some((change) => change.op === "reset")) {
+            const affectedScopes = Array.from(
+              new Map(
+                pending.map((change) => {
+                  const scope = { collection: change.collection, scopeKey: change.scopeKey }
+                  return [scopeKey(scope), scope]
+                }),
+              ).values(),
+            )
+            await writeRecoveries(
+              affectedScopes.map((scope) => ({
+                scope,
+                fromSeq: next.seq,
+                throughSeq,
+                changes: [
+                  {
+                    ...pending.findLast(
+                      (change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey,
+                    )!,
+                    rowKey: "",
+                    op: "reset",
+                    row: null,
+                    rowRevision: undefined,
+                  },
+                ],
+              })),
+              snapshotDatabase,
+              baseSeq,
+            )
+          } else {
+            enqueueChanges(pending)
+            await writes
+          }
         }
-        if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) continue
-        await writeFrames([
-          {
-            event: "snapshot.end",
-            value: { type: "snapshot.end", scope, snapshotId, keyCount, throughSeq: baseSeq },
-          },
-        ])
-      }
-      scopes.splice(0, scopes.length, ...scopes.filter((scope) => !deletedLocations.has(scope.scopeKey)))
-
-      const replayFrom = Math.min(...replayCursors.values(), baseSeq)
-      let replayAfter = replayFrom
-      while (replayAfter < baseSeq) {
-        const next = replayNext.get(replayAfter, baseSeq)
-        if (!next) break
-        const throughSeq = next.txid === null ? next.seq : replayTransactionEnd.get(next.seq, next.txid)!.seq
-        const oversized =
-          next.txid !== null && replayTransactionSize.get(next.seq, throughSeq)!.bytes > 4 * 1024 * 1024
-        const pending = (
-          oversized
-            ? replayTransactionScopes.all(next.seq, throughSeq, next.seq, throughSeq)
-            : next.txid === null
-              ? [next]
-              : replayTransaction.all(next.seq, throughSeq)
-        )
-          .filter((row) => {
-            const cursor = replayCursors.get(`${row.collection}\u0000${row.scope_key}`)
-            return cursor !== undefined && row.seq > cursor
-          })
-          .map(storedChange)
-        replayAfter = throughSeq
-        if (pending.length === 0) continue
-        updateLocations(pending)
-        if (oversized || !fitsPage(pending) || pending.some((change) => change.op === "reset")) {
-          const affectedScopes = Array.from(
-            new Map(
-              pending.map((change) => {
-                const scope = { collection: change.collection, scopeKey: change.scopeKey }
-                return [scopeKey(scope), scope]
-              }),
-            ).values(),
-          )
-          await writeRecoveries(
-            affectedScopes.map((scope) => ({
-              scope,
-              fromSeq: next.seq,
-              throughSeq,
-              changes: [
-                {
-                  ...pending.findLast(
-                    (change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey,
-                  )!,
-                  rowKey: "",
-                  op: "reset",
-                  row: null,
-                  rowRevision: undefined,
-                },
-              ],
-            })),
-            snapshotDatabase,
-            baseSeq,
-          )
-        } else {
-          enqueueChanges(pending)
-          await writes
+      } finally {
+        try {
+          if (snapshotDatabase.inTransaction) snapshotDatabase.exec("ROLLBACK")
+        } finally {
+          snapshotDatabase.close()
         }
       }
     } finally {
-      snapshotDatabase.exec("COMMIT")
-      snapshotDatabase.close()
+      activeSnapshots--
     }
 
+    if (ending) return
     live = true
     volatileLive = true
     bufferedBytes = 0
@@ -726,7 +773,7 @@ function splitDelta(delta: Delta) {
   const bytes = new TextEncoder().encode(delta.text)
   const decoder = new TextDecoder()
   const chunks: Delta[] = []
-  for (let start = 0; start < bytes.length;) {
+  for (let start = 0; start < bytes.length; ) {
     let end = Math.min(start + 512 * 1024, bytes.length)
     while (end < bytes.length && (bytes[end] & 0xc0) === 0x80) end--
     chunks.push({ ...delta, offset: delta.offset + start, text: decoder.decode(bytes.subarray(start, end)) })

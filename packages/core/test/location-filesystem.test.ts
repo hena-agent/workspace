@@ -71,6 +71,29 @@ describe("FileSystem", () => {
     ),
   )
 
+  it.live("retains the earliest entries while applying list limits", () =>
+    withTmp((directory) =>
+      Effect.gen(function* () {
+        yield* Effect.forEach(
+          ["z-dir", "a-dir", "m-dir"],
+          (name) => Effect.promise(() => fs.mkdir(path.join(directory, name))),
+          { discard: true },
+        )
+        yield* Effect.forEach(
+          ["z-file", "a-file", "m-file"],
+          (name) => Effect.promise(() => fs.writeFile(path.join(directory, name), "file")),
+          { discard: true },
+        )
+
+        const entries = yield* (yield* FileSystem.Service).list({ limit: 3 })
+
+        expect(entries.map((entry) => entry.path)).toEqual(
+          ["a-dir", "m-dir", "z-dir"].map((name) => RelativePath.make(name + path.sep)),
+        )
+      }).pipe(provide(directory)),
+    ),
+  )
+
   it.live("lists every direct child when no limit is supplied", () =>
     withTmp((directory) =>
       Effect.gen(function* () {

@@ -89,12 +89,10 @@ describe("collection events", () => {
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()
     let output = ""
-    while (!output.includes('"key":["msg_1","text","part_1"]'))
-      output += decoder.decode((await reader.read()).value)
+    while (!output.includes('"key":["msg_1","text","part_1"]')) output += decoder.decode((await reader.read()).value)
 
     database.collections.delete("parts", "session-1", key)
-    while (!output.includes('"rowKey":["msg_1","text","part_1"]'))
-      output += decoder.decode((await reader.read()).value)
+    while (!output.includes('"rowKey":["msg_1","text","part_1"]')) output += decoder.decode((await reader.read()).value)
     await reader.cancel()
 
     expect(output).not.toContain(`"rowKey":${JSON.stringify(key)}`)
@@ -189,6 +187,62 @@ describe("collection events", () => {
     expect(output).not.toContain("slow_consumer")
   })
 
+  test("limits concurrent initial snapshot readers", async () => {
+    database = createTestDatabase().database
+    Array.from({ length: 5 }, (_, index) =>
+      database!.collections.write({
+        collection: "messages",
+        scopeKey: "session-1",
+        rowKey: `message-${index}`,
+        row: { id: `message-${index}`, text: "x".repeat(900 * 1024) },
+        revision: "1",
+      }),
+    )
+    const app = createApp({ database })
+    const streams = await Promise.all(Array.from({ length: 9 }, () => createSubscribedStream(app)))
+    const responses = await Promise.all(
+      streams.map((stream) => Promise.resolve(app.request(`/api/collection/streams/${stream.streamId}/events`))),
+    )
+    const output = await Promise.race([
+      new Response(responses.at(-1)!.body).text(),
+      Bun.sleep(2_000).then(() => "timeout"),
+    ])
+    await Promise.all(responses.slice(0, -1).flatMap((response) => (response.body ? [response.body.cancel()] : [])))
+
+    expect(output).toContain("stream_limit_exceeded")
+  })
+
+  test("releases the snapshot transaction when the client disconnects", async () => {
+    database = createTestDatabase().database
+    Array.from({ length: 5 }, (_, index) =>
+      database!.collections.write({
+        collection: "messages",
+        scopeKey: "session-1",
+        rowKey: `message-${index}`,
+        row: { id: `message-${index}`, text: "x".repeat(900 * 1024) },
+        revision: "1",
+      }),
+    )
+    const app = createApp({ database })
+    const stream = await createSubscribedStream(app)
+    const response = await app.request(`/api/collection/streams/${stream.streamId}/events`)
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let output = ""
+    while (!output.includes("event: snapshot.page")) output += decoder.decode((await reader.read()).value)
+    database.collections.write({
+      collection: "messages",
+      scopeKey: "session-1",
+      rowKey: "message-live",
+      row: { id: "message-live" },
+      revision: "1",
+    })
+    await reader.cancel()
+    await Bun.sleep(10)
+
+    expect(database.raw.query<{ busy: number }, []>("PRAGMA wal_checkpoint(TRUNCATE)").get()!.busy).toBe(0)
+  })
+
   test("paces cursor replay beyond the live backpressure limit", async () => {
     database = createTestDatabase().database
     Array.from({ length: 5 }, (_, index) =>
@@ -232,11 +286,9 @@ describe("collection events", () => {
       })),
       "tx-large-replay",
     )
-    database.raw.query("UPDATE collection_change SET row = ? WHERE txid = ? AND row_key = ?").run(
-      "{",
-      "tx-large-replay",
-      "message-0",
-    )
+    database.raw
+      .query("UPDATE collection_change SET row = ? WHERE txid = ? AND row_key = ?")
+      .run("{", "tx-large-replay", "message-0")
     const app = createApp({ database })
     const stream = await createSubscribedStream(app, {
       "messages:session-1": { feedId: database.feed.get().feedId, seq: 0 },
@@ -534,8 +586,7 @@ describe("collection events", () => {
       partKind: "text",
       text,
     })
-    while ((output.match(/event: delta/g)?.length ?? 0) < 3)
-      output += decoder.decode((await reader.read()).value)
+    while ((output.match(/event: delta/g)?.length ?? 0) < 3) output += decoder.decode((await reader.read()).value)
     await reader.cancel()
 
     const frames = output
@@ -611,9 +662,7 @@ describe("collection events", () => {
       }),
     )
     const first = await Promise.race([reader.read(), Bun.sleep(1_000).then(() => undefined)])
-    const second = first?.done
-      ? first
-      : await Promise.race([reader.read(), Bun.sleep(1_000).then(() => undefined)])
+    const second = first?.done ? first : await Promise.race([reader.read(), Bun.sleep(1_000).then(() => undefined)])
     await reader.cancel()
 
     expect(second?.done).toBe(true)
@@ -655,8 +704,7 @@ describe("collection events", () => {
       })),
       "tx-large",
     )
-    while (!output.includes("event: snapshot.page"))
-      output += decoder.decode((await firstReader.read()).value)
+    while (!output.includes("event: snapshot.page")) output += decoder.decode((await firstReader.read()).value)
 
     const second = await app.request(`/api/collection/streams/${stream.streamId}/events`)
     await Bun.sleep(10)
@@ -821,8 +869,7 @@ describe("collection events", () => {
         txid: "tx-location",
       })
     })
-    while (!output.includes('"txid":"tx-location"'))
-      output += decoder.decode((await reader.read()).value)
+    while (!output.includes('"txid":"tx-location"')) output += decoder.decode((await reader.read()).value)
     await reader.cancel()
 
     expect(output.match(/"value":"dark"/g)).toHaveLength(1)
@@ -1020,8 +1067,7 @@ describe("collection events", () => {
       row: { directory: "/deleted" },
       revision: "2",
     })
-    while (!output.includes('"collection":"settings"'))
-      output += decoder.decode((await reader.read()).value)
+    while (!output.includes('"collection":"settings"')) output += decoder.decode((await reader.read()).value)
     await reader.cancel()
 
     expect(output).toContain('"collection":"settings"')

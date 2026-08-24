@@ -34,6 +34,15 @@ export function createCoreDomain(
   publishPersisted?: () => void,
   databasePath = Database.path(),
 ): CoreDomain {
+  const locations = new Map<string, Location.Ref>()
+  const location = (input: { directory: string; workspaceID?: string }) => {
+    const key = JSON.stringify([input.directory, input.workspaceID])
+    const cached = locations.get(key)
+    if (cached) return cached
+    const ref = Schema.decodeUnknownSync(Location.Ref)(input)
+    locations.set(key, ref)
+    return ref
+  }
   const runtime = ManagedRuntime.make(
     AppNodeBuilder.build(
       LayerNode.group([SessionV2.node, LocationServiceMap.node, EventV2.node, Database.node, CollectionProjector]),
@@ -239,7 +248,7 @@ export function createCoreDomain(
       ),
     listFiles: (input) =>
       runtime.runPromise(
-        FileSystem.Service.use((fs) => fs.list({ path: input.path, limit: input.limit })).pipe(
+        FileSystem.Service.use((fs) => fs.list({ path: input.path, limit: input.limit ?? 1_000 })).pipe(
           Effect.provide(LocationServiceMap.Service.get(location(input))),
         ),
       ),
@@ -352,10 +361,6 @@ function resolvedReply(
   const resolution = online.resolution(kind, requestID, sessionID, nonce)
   if (!resolution) throw new OnlineRequestConflict(`${kind} request does not match a resolved request`)
   return { outcome: "already_resolved" as const, resolution }
-}
-
-function location(input: { directory: string; workspaceID?: string }) {
-  return Schema.decodeUnknownSync(Location.Ref)(input)
 }
 
 function compactAdmissionResponse(response: unknown) {

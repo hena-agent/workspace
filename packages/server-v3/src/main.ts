@@ -18,73 +18,101 @@ export const Hostname = "127.0.0.1"
 export async function start(input?: { port?: number; publicDir?: string; corsOrigins?: readonly string[] }) {
   assertNoPassword()
   const corsOrigins = [...(await configuredCorsOrigins()), ...viteCorsOrigins(), ...(input?.corsOrigins ?? [])]
-  const deltas = createDeltaHub()
-  const online = createOnlineRequestStore()
-  const persisted = { publish: () => {} }
-  const configuredDatabasePath = Database.path()
-  const databasePath =
-    configuredDatabasePath === ":memory:"
-      ? `file:hena-server-v3-${crypto.randomUUID()}?mode=memory&cache=shared`
-      : configuredDatabasePath
-  const domain = createCoreDomain(deltas, online, () => persisted.publish(), databasePath)
-  await domain.ready()
-  const sqlite = await import("bun:sqlite")
-  const database = createSyncDatabase(new sqlite.Database(databasePath, { create: true }))
-  persisted.publish = database.changes.publishPersisted
-  database.compact()
-  database.raw.transaction(() => {
-    if (bootstrapCollections(database)) database.feed.replace()
-  })()
-  const catalog = createLocationCollectionRefresh(database, domain, online, (cause) =>
-    console.error(
-      JSON.stringify({ type: "catalog_refresh_error", name: cause instanceof Error ? cause.name : "Unknown" }),
-    ),
-  )
-  void catalog.run()
-  await catalog.idle()
-  const unsubscribeCatalog = online.subscribeCatalog(() => {
-    void catalog.run()
-  })
-  const unsubscribeLocations = database.changes.subscribe("locations", "", () => {
-    void catalog.run()
-  })
-  const app = createApp({
-    database,
-    domain,
-    deltas,
-    online,
-    corsOrigins,
-    logger: (record) => console.error(JSON.stringify(record)),
-    publicDir: input?.publicDir ?? path.resolve(import.meta.dir, "../../app-v3/dist"),
-  })
   const server = Bun.serve({
     hostname: Hostname,
     port: input?.port ?? readPort(process.argv) ?? 4106,
-    fetch: app.fetch,
+    fetch: () => new Response("Server is starting", { status: 503 }),
     idleTimeout: 0,
   })
-  const compaction = setInterval(() => database.compact(), 60 * 60_000)
-  compaction.unref()
-  let shutdown: Promise<void> | undefined
-  const stop = () => {
-    if (shutdown) return shutdown
-    shutdown = (async () => {
-      process.off("SIGINT", stop)
-      process.off("SIGTERM", stop)
-      clearInterval(compaction)
-      await server.stop(true)
-      unsubscribeCatalog()
-      unsubscribeLocations()
-      await catalog.idle()
-      await domain.dispose()
-      database.close()
+  const cleanups: Array<() => void | Promise<void>> = []
+  const dispose = () =>
+    cleanups.reduceRight(
+      (result, cleanup) =>
+        result
+          .then(cleanup)
+          .catch((cause) =>
+            console.error(
+              JSON.stringify({ type: "server_cleanup_error", name: cause instanceof Error ? cause.name : "Unknown" }),
+            ),
+          ),
+      Promise.resolve(),
+    )
+  try {
+    const deltas = createDeltaHub()
+    const online = createOnlineRequestStore()
+    const persisted = { publish: () => {} }
+    const configuredDatabasePath = Database.path()
+    const databasePath =
+      configuredDatabasePath === ":memory:"
+        ? `file:hena-server-v3-${crypto.randomUUID()}?mode=memory&cache=shared`
+        : configuredDatabasePath
+    const domain = createCoreDomain(deltas, online, () => persisted.publish(), databasePath)
+    cleanups.push(() => domain.dispose())
+    await domain.ready()
+    const sqlite = await import("bun:sqlite")
+    const raw = new sqlite.Database(databasePath, { create: true })
+    cleanups.unshift(() => raw.close())
+    const database = createSyncDatabase(raw)
+    cleanups[0] = () => database.close()
+    persisted.publish = database.changes.publishPersisted
+    database.compact()
+    database.raw.transaction(() => {
+      if (bootstrapCollections(database)) database.feed.replace()
     })()
-    return shutdown
+    const catalog = createLocationCollectionRefresh(database, domain, online, (cause) =>
+      console.error(
+        JSON.stringify({ type: "catalog_refresh_error", name: cause instanceof Error ? cause.name : "Unknown" }),
+      ),
+    )
+    cleanups.push(() => catalog.idle())
+    void catalog.run()
+    await catalog.idle()
+    const unsubscribeCatalog = online.subscribeCatalog(() => {
+      void catalog.run()
+    })
+    cleanups.push(() => {
+      unsubscribeCatalog()
+    })
+    const unsubscribeLocations = database.changes.subscribe("locations", "", () => {
+      void catalog.run()
+    })
+    cleanups.push(() => {
+      unsubscribeLocations()
+    })
+    server.reload({
+      fetch: createApp({
+        database,
+        domain,
+        deltas,
+        online,
+        corsOrigins,
+        logger: (record) => console.error(JSON.stringify(record)),
+        publicDir: input?.publicDir ?? path.resolve(import.meta.dir, "../../app-v3/dist"),
+      }).fetch,
+    })
+    const compaction = setInterval(() => database.compact(), 60 * 60_000)
+    compaction.unref()
+    cleanups.push(() => clearInterval(compaction))
+    let shutdown: Promise<void> | undefined
+    const stop = () => {
+      if (shutdown) return shutdown
+      shutdown = (async () => {
+        process.off("SIGINT", stop)
+        process.off("SIGTERM", stop)
+        await server.stop(true)
+        await dispose()
+      })()
+      return shutdown
+    }
+    process.once("SIGINT", stop)
+    process.once("SIGTERM", stop)
+    console.error(`server-v3 listening on ${server.url}`)
+    return { server, stop }
+  } catch (cause) {
+    await server.stop(true)
+    await dispose()
+    throw cause
   }
-  process.once("SIGINT", stop)
-  process.once("SIGTERM", stop)
-  console.error(`server-v3 listening on ${server.url}`)
-  return { server, stop }
 }
 
 export function assertNoPassword(password = Flag.HENA_SERVER_PASSWORD) {

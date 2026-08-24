@@ -89,26 +89,23 @@ const baseLayer = Layer.effect(
         const target = yield* resolve(input.path)
         const info = yield* fs.stat(target.real).pipe(Effect.orDie)
         if (info.type !== "Directory") return yield* Effect.die(new Error("Path is not a directory"))
-        return yield* fs.readDirectoryEntries(target.real).pipe(
-          Effect.orDie,
-          Effect.map((items) =>
-            items
-              .filter(
-                (item): item is typeof item & { type: "file" | "directory" } =>
-                  item.type === "file" || item.type === "directory",
-              )
-              .map((item) => {
-                const absolute = path.join(target.absolute, item.name)
-                const relative = path.relative(target.directory, absolute)
-                return Entry.make({
-                  path: RelativePath.make(relative + (item.type === "directory" ? path.sep : "")),
-                  type: item.type,
-                })
-              })
-              .sort((a, b) => (a.type === b.type ? a.path.localeCompare(b.path) : a.type === "directory" ? -1 : 1))
-              .slice(0, input.limit ?? Number.POSITIVE_INFINITY),
-          ),
-        )
+        return yield* fs
+          .reduceDirectoryEntries(target.real, [] as Entry[], (best, item) => {
+            if (item.type !== "file" && item.type !== "directory") return best
+            const absolute = path.join(target.absolute, item.name)
+            const relative = path.relative(target.directory, absolute)
+            const entry = Entry.make({
+              path: RelativePath.make(relative + (item.type === "directory" ? path.sep : "")),
+              type: item.type,
+            })
+            if (input.limit) return retainEntry(best, entry, input.limit)
+            best.push(entry)
+            return best
+          })
+          .pipe(
+            Effect.orDie,
+            Effect.map((entries) => entries.sort(compareEntries)),
+          )
       }),
     })
   }),
@@ -119,3 +116,32 @@ export const node = makeLocationNode({
   layer: baseLayer,
   deps: [FSUtil.node, Location.node, FileSystemSearch.node],
 })
+
+function compareEntries(a: Entry, b: Entry) {
+  return a.type === b.type ? a.path.localeCompare(b.path) : a.type === "directory" ? -1 : 1
+}
+
+function retainEntry(entries: Entry[], entry: Entry, limit: number) {
+  if (entries.length < limit) {
+    entries.push(entry)
+    for (let index = entries.length - 1; index > 0; ) {
+      const parent = Math.floor((index - 1) / 2)
+      if (compareEntries(entries[parent], entries[index]) >= 0) break
+      ;[entries[parent], entries[index]] = [entries[index], entries[parent]]
+      index = parent
+    }
+    return entries
+  }
+  if (compareEntries(entry, entries[0]) >= 0) return entries
+  entries[0] = entry
+  for (let index = 0; ; ) {
+    const left = index * 2 + 1
+    if (left >= entries.length) break
+    const right = left + 1
+    const child = right < entries.length && compareEntries(entries[right], entries[left]) > 0 ? right : left
+    if (compareEntries(entries[index], entries[child]) >= 0) break
+    ;[entries[index], entries[child]] = [entries[child], entries[index]]
+    index = child
+  }
+  return entries
+}

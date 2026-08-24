@@ -143,6 +143,15 @@ describe("serving", () => {
     )
   }, 30_000)
 
+  test("does not mutate shared state when the port is already in use", async () => {
+    const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
+    await runServer(
+      path,
+      'import { Database } from "bun:sqlite"; import { start } from "./src/main.ts"; const first = await start({ port: 0, publicDir: "/missing" }); const database = new Database(process.env.HENA_DB); const runtime = () => database.query("SELECT runtime_id FROM collection_feed WHERE id = 1").get().runtime_id; const before = runtime(); const listeners = ["SIGINT", "SIGTERM"].map((signal) => process.listenerCount(signal)); let rejected = false; try { await start({ port: first.server.port, publicDir: "/missing" }) } catch { rejected = true } if (!rejected) throw new Error("second server started"); if (runtime() !== before) throw new Error("failed startup changed runtime identity"); if (["SIGINT", "SIGTERM"].some((signal, index) => process.listenerCount(signal) !== listeners[index])) throw new Error("failed startup leaked signal handlers"); const response = await fetch(new URL("/api/collection/capabilities", first.server.url)); if (!response.ok) throw new Error("first server stopped serving"); database.close(); await first.stop();',
+    )
+    await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
+  }, 30_000)
+
   test("passes configured CORS origins through standalone startup", async () => {
     const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
     await runServer(
@@ -155,7 +164,10 @@ describe("serving", () => {
   test("loads CORS origins from standalone server configuration", async () => {
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-config-${crypto.randomUUID()}`
     const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
-    await Bun.write(`${directory}/hena.jsonc`, '{\n  // Additional browser client.\n  "server": { "cors": ["https://configured.example",], },\n}')
+    await Bun.write(
+      `${directory}/hena.jsonc`,
+      '{\n  // Additional browser client.\n  "server": { "cors": ["https://configured.example",], },\n}',
+    )
     await runServer(
       path,
       'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "https://configured.example" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "https://configured.example") throw new Error("server.cors origin was rejected")',

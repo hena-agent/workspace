@@ -36,7 +36,7 @@ export function events(
     )
     const through = new Map<string, number>()
     const buffered: Array<readonly Change[]> = []
-    const replay = new Map<number, Change>()
+    const replayCursors = new Map<string, number>()
     let live = false
     let volatileLive = false
     let deltaLive = false
@@ -323,48 +323,139 @@ export function events(
     }
     enqueue("stream.ready", { type: "stream.ready" })
     await writes
-    const initial = database.raw.transaction(() => {
-      const feed = database.feed.get()
-      const baseSeq = database.changes.current()
-      return scopes.map((scope) => {
-        if (isVolatile(scope.collection)) return { scope }
-        const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]
-        if (cursor?.feedId === feed.feedId && cursor.seq >= feed.retainedFloor && cursor.seq <= baseSeq) {
-          return {
-            scope,
-            cursor,
-            changes: database.changes
-              .after(scope.collection, scope.scopeKey, cursor.seq)
-              .filter((change) => change.seq <= baseSeq),
-          }
-        }
-        return {
-          scope,
-          snapshot: {
-            ...database.collections.snapshot(scope.collection, scope.scopeKey),
-            throughSeq: baseSeq,
-          },
-        }
-      })
-    })()
-    for (const item of initial) {
-      if (!scopes.some((scope) => scopeKey(scope) === scopeKey(item.scope))) continue
-      if (isVolatile(item.scope.collection)) {
-        await writeFrames(volatileFrames({ collection: item.scope.collection, scopeKey: item.scope.scopeKey }))
-        continue
-      }
-      if (item.cursor) {
-        through.set(scopeKey(item.scope), item.cursor.seq)
-        item.changes?.forEach((change) => replay.set(change.seq, change))
-        continue
-      }
-      await writeFrames(snapshotFrames(item.scope, item.snapshot))
-    }
+    const { Database } = await import("bun:sqlite")
+    const snapshotDatabase = new Database(database.raw.filename, { readonly: true })
+    snapshotDatabase.exec("BEGIN")
+    try {
+      const feed = snapshotDatabase
+        .query<{ feed_id: string; retained_floor: number }, []>(
+          "SELECT feed_id, retained_floor FROM collection_feed WHERE id = 1",
+        )
+        .get()!
+      const baseSeq = Math.max(
+        snapshotDatabase.query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change").get()!
+          .seq,
+        feed.retained_floor,
+      )
+      // Collection rows are individually bounded below 1 MiB, so four rows cap each decoded read near 4 MiB.
+      const snapshotRows = snapshotDatabase.query<
+        { row_key: string; row: string; row_revision: string },
+        [string, string, string]
+      >(`
+        SELECT row_key, row, row_revision FROM collection_row
+        WHERE collection = ? AND scope_key = ? AND row_key > ?
+        ORDER BY row_key LIMIT 4
+      `)
+      const replayRows = snapshotDatabase.query<
+        {
+          seq: number
+          collection: string
+          scope_key: string
+          row_key: string
+          op: Change["op"]
+          row: string | null
+          row_revision: string | null
+          txid: string | null
+          runtime_id: string
+          created_at: number
+        },
+        [number, number, number]
+      >(`
+        SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
+        FROM collection_change
+        WHERE seq > ? AND seq <= ?
+        ORDER BY seq LIMIT ?
+      `)
 
-    for (const changes of groupTransactions(Array.from(replay.values()).sort((left, right) => left.seq - right.seq))) {
-      updateLocations(changes)
-      enqueueChanges(changes)
-      await writes
+      for (const scope of scopes) {
+        if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) continue
+        if (isVolatile(scope.collection)) {
+          await writeFrames(volatileFrames({ collection: scope.collection, scopeKey: scope.scopeKey }))
+          continue
+        }
+        const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]
+        if (cursor?.feedId === feed.feed_id && cursor.seq >= feed.retained_floor && cursor.seq <= baseSeq) {
+          through.set(scopeKey(scope), cursor.seq)
+          replayCursors.set(scopeKey(scope), cursor.seq)
+          continue
+        }
+
+        through.set(scopeKey(scope), baseSeq)
+        const snapshotId = crypto.randomUUID()
+        await writeFrames([
+          {
+            event: "snapshot.begin",
+            value: { type: "snapshot.begin", scope, snapshotId, baseSeq, replace: true },
+          },
+        ])
+        let keyCount = 0
+        let after = ""
+        while (true) {
+          const rows = snapshotRows.all(scope.collection, scope.scopeKey, after)
+          if (rows.length === 0) break
+          if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) break
+          const projected = rows.map((row) => ({
+            key: row.row_key,
+            row: JSON.parse(row.row),
+            revision: row.row_revision,
+          }))
+          keyCount += projected.length
+          after = rows.at(-1)!.row_key
+          await writeFrames(
+            pages(projected).map((page) => ({
+              event: "snapshot.page",
+              value: { type: "snapshot.page", scope, snapshotId, rows: page },
+            })),
+          )
+        }
+        if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) continue
+        await writeFrames([
+          {
+            event: "snapshot.end",
+            value: { type: "snapshot.end", scope, snapshotId, keyCount, throughSeq: baseSeq },
+          },
+        ])
+      }
+
+      const replayFrom = Math.min(...replayCursors.values(), baseSeq)
+      let replayAfter = replayFrom
+      let pending: Change[] = []
+      let pendingKey: string | undefined
+      const flushReplay = async () => {
+        if (pending.length === 0) return
+        updateLocations(pending)
+        enqueueChanges(pending)
+        await writes
+        pending = []
+      }
+      while (replayAfter < baseSeq) {
+        const rows = replayRows.all(replayAfter, baseSeq, 4)
+        if (rows.length === 0) break
+        for (const row of rows) {
+          const key = row.txid ?? `seq:${row.seq}`
+          if (pendingKey !== undefined && key !== pendingKey) await flushReplay()
+          pendingKey = key
+          const cursor = replayCursors.get(`${row.collection}\u0000${row.scope_key}`)
+          if (cursor === undefined || row.seq <= cursor) continue
+          pending.push({
+            seq: row.seq,
+            collection: row.collection,
+            scopeKey: row.scope_key,
+            rowKey: row.row_key,
+            op: row.op,
+            row: row.row === null ? null : JSON.parse(row.row),
+            rowRevision: row.row_revision ?? undefined,
+            txid: row.txid ?? undefined,
+            runtimeId: row.runtime_id,
+            createdAt: row.created_at,
+          })
+        }
+        replayAfter = rows.at(-1)!.seq
+      }
+      await flushReplay()
+    } finally {
+      snapshotDatabase.exec("COMMIT")
+      snapshotDatabase.close()
     }
 
     live = true

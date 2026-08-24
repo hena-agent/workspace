@@ -32,7 +32,9 @@ function fileSystemError(c: Parameters<typeof error>[0], cause: unknown) {
     code === "EPERM" ||
     code === "ENOTDIR" ||
     (cause instanceof Error &&
-      (cause.message === "Path is not a directory" || cause.message === "Path escapes the location"))
+      (cause.message === "Path is not a directory" ||
+        cause.message === "Path escapes the location" ||
+        cause.message === "Location is unavailable"))
   )
     return error(c, 400, "validation", "Path is unavailable")
   throw cause

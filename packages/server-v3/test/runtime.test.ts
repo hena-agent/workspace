@@ -95,6 +95,37 @@ describe("core runtime", () => {
     expect(stored.length).toBeLessThan(10_000)
   })
 
+  test("rejects filesystem locations that are not exposed", async () => {
+    const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
+    const bootstrap = createCoreDomain(undefined, undefined, undefined, filename)
+    await bootstrap.ready()
+    await bootstrap.dispose()
+    createSyncDatabase(new Database(filename, { create: true })).close()
+    const domain = createCoreDomain(undefined, undefined, undefined, filename)
+    await domain.ready()
+
+    try {
+      await domain.createSession({
+        idempotencyKey: "expose-location",
+        sessionID: Session.ID.create(),
+        messageID: SessionMessage.ID.create(),
+        location: Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() }),
+        prompt: { text: "first" },
+        delivery: "queue",
+      })
+
+      await expect(
+        domain.listFiles({
+          directory: Schema.decodeUnknownSync(Location.Ref)({ directory: "/" }).directory,
+          limit: 1,
+        }),
+      ).rejects.toThrow("Location is unavailable")
+    } finally {
+      await domain.dispose()
+      await Bun.file(filename).delete()
+    }
+  })
+
   test("waits for a concurrent writer before reading idempotency state", async () => {
     const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
     const workerPath = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.worker.ts`

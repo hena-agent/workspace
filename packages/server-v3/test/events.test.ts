@@ -1068,7 +1068,14 @@ describe("collection events", () => {
       row: { value: "stale" },
       revision: "1",
     })
-    online.replace("agents", location, [{ key: "stale", row: { id: "stale-agent" } }])
+    online.replace(
+      "agents",
+      location,
+      Array.from({ length: 32 }, (_, index) => ({
+        key: `stale-${index}`,
+        row: { id: `stale-agent-${index}`, description: "x".repeat(2 * 1024 * 1024) },
+      })),
+    )
     const app = createApp({ database, online })
     const created = await app.request("/api/collection/streams", { method: "POST" })
     const stream = (await created.json()) as { streamId: string }
@@ -1081,16 +1088,19 @@ describe("collection events", () => {
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()
     let output = ""
-    while ((output.match(/event: snapshot.end/g)?.length ?? 0) < 1)
-      output += decoder.decode((await reader.read()).value)
+    while (!output.includes('"id":"stale-agent-0"')) output += decoder.decode((await reader.read()).value)
 
     output = ""
     database.collections.delete("locations", "", location)
-    while (!output.includes('"op":"delete"')) output += decoder.decode((await reader.read()).value)
+    while ((output.match(/"keyCount":0/g)?.length ?? 0) < 4) output += decoder.decode((await reader.read()).value)
+    const trailing = await Promise.race([
+      reader.read().then((chunk) => decoder.decode(chunk.value)),
+      Bun.sleep(100).then(() => ""),
+    ])
     await reader.cancel()
 
     expect(output).not.toContain('"value":"stale"')
-    expect(output).not.toContain('"id":"stale-agent"')
+    expect((output + trailing).lastIndexOf("stale-agent")).toBeLessThan(output.lastIndexOf('"keyCount":0'))
   })
 
   test("clears cursor scopes for locations deleted before reconnect", async () => {

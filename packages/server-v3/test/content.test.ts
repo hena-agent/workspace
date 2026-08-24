@@ -124,4 +124,39 @@ describe("full content", () => {
       database.content.page({ id: "content-1", sessionID: "session-1", revision: "r1", offset: 0, limit: 20 })?.text,
     ).toBe("attachment")
   })
+
+  test("bounds orphan cleanup work per compaction", () => {
+    database = createTestDatabase().database
+    database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "first" })
+    database.content.put({ id: "content-2", sessionID: "session-1", revision: "r1", text: "second" })
+
+    database.compact({ contentMaxRows: 1 })
+
+    expect(database.raw.query<{ count: number }, []>("SELECT COUNT(*) AS count FROM full_content").get()).toEqual({
+      count: 1,
+    })
+  })
+
+  test("backfills references for existing databases", () => {
+    const fixture = createTestDatabase()
+    database = fixture.database
+    database.content.put({ id: "content-1", sessionID: "session-1", revision: "r1", text: "retained" })
+    database.collections.write({
+      collection: "parts",
+      scopeKey: "session-1",
+      rowKey: "part-1",
+      row: { content: { id: "content-1", revision: "r1", bytes: 8 } },
+      revision: "row-1",
+    })
+    database.raw.run("DELETE FROM full_content_reference")
+    database.raw.run("DELETE FROM server_v3_migration WHERE id = 'full-content-references-v1'")
+    database.close()
+
+    database = fixture.reopen()
+    database.compact()
+
+    expect(
+      database.content.page({ id: "content-1", sessionID: "session-1", revision: "r1", offset: 0, limit: 20 })?.text,
+    ).toBe("retained")
+  })
 })

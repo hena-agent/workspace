@@ -43,6 +43,21 @@ export function createCoreDomain(
     locations.set(key, ref)
     return ref
   }
+  const exposedLocation = (input: { directory: string; workspaceID?: string }) =>
+    Database.Service.use((database) =>
+      Effect.gen(function* () {
+        const key = JSON.stringify({
+          directory: input.directory,
+          ...(input.workspaceID ? { workspaceID: input.workspaceID } : {}),
+        })
+        const exposed = yield* database.db.get(sql`
+          SELECT 1 FROM collection_row
+          WHERE collection = 'locations' AND scope_key = '' AND row_key = ${key}
+        `)
+        if (!exposed) return yield* Effect.fail(new Error("Location is unavailable"))
+        return location(input)
+      }),
+    )
   const runtime = ManagedRuntime.make(
     AppNodeBuilder.build(
       LayerNode.group([SessionV2.node, LocationServiceMap.node, EventV2.node, Database.node, CollectionProjector]),
@@ -248,19 +263,27 @@ export function createCoreDomain(
       ),
     listFiles: (input) =>
       runtime.runPromise(
-        FileSystem.Service.use((fs) => fs.list({ path: input.path, limit: input.limit ?? 1_000 })).pipe(
-          Effect.provide(LocationServiceMap.Service.get(location(input))),
+        exposedLocation(input).pipe(
+          Effect.flatMap((ref) =>
+            FileSystem.Service.use((fs) => fs.list({ path: input.path, limit: input.limit ?? 1_000 })).pipe(
+              Effect.provide(LocationServiceMap.Service.get(ref)),
+            ),
+          ),
         ),
       ),
     findFiles: (input) =>
       runtime.runPromise(
-        FileSystem.Service.use((fs) =>
-          fs.find({
-            query: input.query,
-            type: input.type,
-            limit: input.limit,
-          }),
-        ).pipe(Effect.provide(LocationServiceMap.Service.get(location(input)))),
+        exposedLocation(input).pipe(
+          Effect.flatMap((ref) =>
+            FileSystem.Service.use((fs) =>
+              fs.find({
+                query: input.query,
+                type: input.type,
+                limit: input.limit,
+              }),
+            ).pipe(Effect.provide(LocationServiceMap.Service.get(ref))),
+          ),
+        ),
       ),
     replyPermission: async (requestID, input) => {
       if (!online) throw new Error("Online request store is unavailable")

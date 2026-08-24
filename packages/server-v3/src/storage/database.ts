@@ -25,7 +25,13 @@ export function createSyncDatabase(database: Database) {
     settings: createSettingStore(database, collections),
     content,
     compact(
-      input: { now?: number; changeMaxAgeMs?: number; changeMaxRows?: number; idempotencyMaxAgeMs?: number } = {},
+      input: {
+        now?: number
+        changeMaxAgeMs?: number
+        changeMaxRows?: number
+        contentMaxRows?: number
+        idempotencyMaxAgeMs?: number
+      } = {},
     ) {
       return database.transaction(() => {
         const retainedFloor = changes.compact({
@@ -34,7 +40,7 @@ export function createSyncDatabase(database: Database) {
           maxRows: input.changeMaxRows ?? 500_000,
         })
         feed.advanceRetainedFloor(retainedFloor)
-        content.compact()
+        content.compact(input.contentMaxRows)
         database
           .query("DELETE FROM idempotency_record WHERE created_at < ?")
           .run((input.now ?? Date.now()) - (input.idempotencyMaxAgeMs ?? 30 * 24 * 60 * 60_000))

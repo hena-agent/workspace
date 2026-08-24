@@ -124,6 +124,23 @@ describe("SessionProjector", () => {
           .where(eq(SessionTable.id, sessionID))
           .get(),
       ).toEqual({ revision: 3 })
+      yield* events.publish(SessionEvent.RevertEvent.Staged, {
+        sessionID,
+        timestamp: DateTime.makeUnsafe(5),
+        revert: { messageID: boundary, files: [] },
+      })
+      yield* events.publish(SessionEvent.RevertEvent.Committed, {
+        sessionID,
+        messageID: boundary,
+        timestamp: DateTime.makeUnsafe(6),
+      })
+      expect(
+        yield* db
+          .select({ revision: SessionTable.queue_revision })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get(),
+      ).toEqual({ revision: 4 })
     }),
   )
 

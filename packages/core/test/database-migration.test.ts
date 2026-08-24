@@ -124,11 +124,12 @@ describe("DatabaseMigration", () => {
           INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, time_created)
           VALUES ('msg_1', 'ses_1', '{}', 'queue', 42, 1)
         `)
-        yield* db.run(sql`INSERT INTO event_sequence (aggregate_id, seq) VALUES ('ses_1', 1)`)
+        yield* db.run(sql`INSERT INTO event_sequence (aggregate_id, seq) VALUES ('ses_1', 2)`)
         yield* db.run(sql`
           INSERT INTO event (id, aggregate_id, seq, type, data) VALUES
             ('evt_admitted', 'ses_1', 0, 'session.next.prompt.admitted.1', '{}'),
-            ('evt_prompted', 'ses_1', 1, 'session.next.prompted.1', '{}')
+            ('evt_prompted', 'ses_1', 1, 'session.next.prompted.1', '{}'),
+            ('evt_reverted', 'ses_1', 2, 'session.next.revert.committed.1', '{}')
         `)
         yield* db.run(sql`
           INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated)
@@ -141,7 +142,7 @@ describe("DatabaseMigration", () => {
           queue_position: 42,
         })
         expect(yield* db.get(sql`SELECT queue_revision FROM session WHERE id = 'ses_1'`)).toEqual({
-          queue_revision: 2,
+          queue_revision: 3,
         })
         expect((yield* db.get<{ id: string }>(sql`SELECT id FROM todo`))?.id).toStartWith("todo_")
         yield* db.run(sql`

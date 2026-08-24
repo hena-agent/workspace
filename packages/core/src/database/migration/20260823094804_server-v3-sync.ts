@@ -69,7 +69,11 @@ export default {
         SET \`queue_revision\` = (
           SELECT COUNT(*) FROM \`event\`
           WHERE \`event\`.\`aggregate_id\` = \`session\`.\`id\`
-            AND \`event\`.\`type\` IN ('session.next.prompt.admitted.1', 'session.next.prompted.1')
+            AND \`event\`.\`type\` IN (
+              'session.next.prompt.admitted.1',
+              'session.next.prompted.1',
+              'session.next.revert.committed.1'
+            )
         );
       `)
       yield* tx.run(`ALTER TABLE \`todo\` ADD \`id\` text;`)

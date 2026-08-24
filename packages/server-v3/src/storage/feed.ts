@@ -30,6 +30,7 @@ export function createFeedStore(database: Database) {
       const feedId = crypto.randomUUID()
       database.transaction(() => {
         database.query("DELETE FROM collection_change").run()
+        database.query("DELETE FROM idempotency_record").run()
         database.query("UPDATE collection_feed SET feed_id = ?, retained_floor = 0 WHERE id = 1").run(feedId)
       })()
       return feedId

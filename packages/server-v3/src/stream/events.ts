@@ -356,8 +356,12 @@ export function events(
     const enqueueSnapshot = (scope: (typeof scopes)[number]) => {
       snapshotFrames(scope).forEach((item) => enqueue(item.event, item.value))
     }
-    const writeFrames = async (frames: ReadonlyArray<{ event: string; value: Record<string, unknown> }>) => {
+    const writeFrames = async (
+      frames: ReadonlyArray<{ event: string; value: Record<string, unknown> }>,
+      activeScope?: (typeof scopes)[number],
+    ) => {
       for (const item of frames) {
+        if (activeScope && !scopes.some((scope) => scopeKey(scope) === scopeKey(activeScope))) return
         enqueue(item.event, item.value)
         await writes
       }
@@ -603,7 +607,7 @@ export function events(
             continue
           }
           if (isVolatile(scope.collection)) {
-            await writeFrames(volatileFrames({ collection: scope.collection, scopeKey: scope.scopeKey }))
+            await writeFrames(volatileFrames({ collection: scope.collection, scopeKey: scope.scopeKey }), scope)
             continue
           }
           const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]

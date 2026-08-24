@@ -523,7 +523,7 @@ const layer = Layer.effectDiscard(
           )
           .run()
           .pipe(Effect.orDie)
-        const deleted = yield* db
+        yield* db
           .delete(SessionInputTable)
           .where(
             and(
@@ -531,8 +531,7 @@ const layer = Layer.effectDiscard(
               or(gt(SessionInputTable.admitted_seq, boundary.seq), gt(SessionInputTable.promoted_seq, boundary.seq)),
             ),
           )
-          .returning({ id: SessionInputTable.id })
-          .all()
+          .run()
           .pipe(Effect.orDie)
         yield* db
           .update(SessionTable)
@@ -541,7 +540,7 @@ const layer = Layer.effectDiscard(
           .run()
           .pipe(Effect.orDie)
         yield* SessionContextEpoch.reset(db, event.data.sessionID)
-        if (deleted.length > 0) yield* incrementQueueRevision(db, event.data.sessionID)
+        yield* incrementQueueRevision(db, event.data.sessionID)
       }),
     )
   }),

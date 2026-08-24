@@ -31,6 +31,7 @@ export class QueueRevisionConflictError extends Schema.TaggedErrorClass<QueueRev
     sessionID: SessionSchema.ID,
     expected: NonNegativeInt,
     actual: NonNegativeInt,
+    messageIDs: Schema.Array(SessionMessage.ID),
   },
 ) {}
 

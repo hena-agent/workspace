@@ -119,7 +119,6 @@ export function bootstrapCollections(database: SyncDatabase) {
     hydrateSessionCollections(
       database,
       session.id,
-      session.queue_revision,
       messagesBySession.get(session.id) ?? [],
       inputsBySession.get(session.id) ?? [],
       todosBySession.get(session.id) ?? [],
@@ -168,7 +167,6 @@ export function bootstrapCollections(database: SyncDatabase) {
 function hydrateSessionCollections(
   database: SyncDatabase,
   sessionID: string,
-  queueRevision: number,
   storedMessages: ReadonlyArray<MessageRow>,
   inputs: ReadonlyArray<InputRow>,
   todos: ReadonlyArray<TodoRow>,
@@ -222,7 +220,6 @@ function hydrateSessionCollections(
         admittedSeq: input.admitted_seq,
         promotedSeq: input.promoted_seq ?? undefined,
         queuePosition: input.queue_position,
-        queueRevision,
         timeCreated: input.time_created,
       }
       return { key: input.id, row, revision: fingerprint(row) }

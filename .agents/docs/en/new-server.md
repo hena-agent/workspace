@@ -321,7 +321,7 @@ Session delete and rename ride the same queueable pattern when core exposes them
 
 ### 6.2 Queue revision
 
-Cancel and reorder need capability core does not have today, and building it is v1 scope: `sessionInputs` gains a per-Session `queue_revision`, incremented in the same transaction as every admit, promote, cancel, and reorder. The revision rides on every `sessionInputs` DTO. A mutation with a stale revision returns `revision_conflict` with the authoritative queue; the client retains the attempt as editable intent per web-ui.md §6.6. Promotion races (the runner promotes an input the user just reordered) resolve in core's serialized runner, so the revision check and the promotion are never concurrent.
+Cancel and reorder need capability core does not have today, and building it is v1 scope: each Session gains a `queue_revision`, incremented in the same transaction as every admit, promote, cancel, and reorder. The revision rides on the Session DTO rather than every pending input. A mutation with a stale revision returns `revision_conflict` with the authoritative queue; the client retains the attempt as editable intent per web-ui.md §6.6. Promotion races (the runner promotes an input the user just reordered) resolve in core's serialized runner, so the revision check and the promotion are never concurrent.
 
 ### 6.3 Secrets
 

@@ -156,9 +156,9 @@ describe("collection bootstrap", () => {
     expect(database.collections.snapshot("sessionInputs", "ses_1").rows[0]?.row).toMatchObject({
       id: "msg_2",
       delivery: "queue",
-      queueRevision: 2,
       prompt: { files: [{ truncated: true, content: { bytes: uri.length } }] },
     })
+    expect(database.collections.snapshot("sessionInputs", "ses_1").rows[0]?.row).not.toHaveProperty("queueRevision")
     const projected = database.collections.snapshot("sessionInputs", "ses_1").rows[0]!.row as {
       prompt: { files: Array<{ content: { id: string; revision: string } }> }
     }

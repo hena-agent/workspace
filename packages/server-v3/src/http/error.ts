@@ -46,6 +46,7 @@ export function coreError(
     return error(c, 409, "revision_conflict", "Queue revision does not match", {
       expected: cause.expected,
       actual: cause.actual,
+      messageIDs: cause.messageIDs,
     })
   if (cause._tag === "Session.QueueStateConflictError")
     return error(c, 409, "queue_conflict", "Pending inputs changed", {

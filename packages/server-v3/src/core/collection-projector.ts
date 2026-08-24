@@ -306,11 +306,6 @@ function projectMessageParts(
 
 function refreshInputs(database: DatabaseService, sessionID: string, txid: string) {
   return Effect.gen(function* () {
-    const session = yield* database
-      .select({ queueRevision: SessionTable.queue_revision })
-      .from(SessionTable)
-      .where(eq(SessionTable.id, Session.ID.make(sessionID)))
-      .get()
     const inputs = yield* database
       .select()
       .from(SessionInputTable)
@@ -327,7 +322,6 @@ function refreshInputs(database: DatabaseService, sessionID: string, txid: strin
           admittedSeq: input.admitted_seq,
           promotedSeq: input.promoted_seq ?? undefined,
           queuePosition: input.queue_position,
-          queueRevision: session?.queueRevision ?? 0,
           timeCreated: input.time_created,
         }
         return {
@@ -568,7 +562,7 @@ function projectPrompt(database: DatabaseService, sessionID: string, inputID: st
         if (!projected.truncated) return file
         const id = `${inputID}_attachment_${index}`
         yield* database.run(sql`
-          INSERT OR REPLACE INTO full_content (id, session_id, revision, content, created_at)
+          INSERT OR IGNORE INTO full_content (id, session_id, revision, content, created_at)
           VALUES (${id}, ${sessionID}, ${revision}, ${file.uri}, ${Date.now()})
         `)
         return {

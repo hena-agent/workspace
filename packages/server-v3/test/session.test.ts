@@ -164,6 +164,7 @@ describe("session mutations", () => {
         _tag: "Session.QueueRevisionConflictError",
         expected: 2,
         actual: 3,
+        messageIDs: ["msg_pending"],
       })
     }
     const response = await createApp({ database, domain }).request("/api/session/ses_1/input/msg_1/cancel", {
@@ -177,7 +178,7 @@ describe("session mutations", () => {
       error: {
         code: "revision_conflict",
         message: "Queue revision does not match",
-        details: { expected: 2, actual: 3 },
+        details: { expected: 2, actual: 3, messageIDs: ["msg_pending"] },
       },
     })
   })

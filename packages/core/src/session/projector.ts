@@ -559,22 +559,35 @@ function incrementQueueRevision(db: DatabaseService, sessionID: SessionSchema.ID
 }
 
 function requireQueueRevision(db: DatabaseService, sessionID: SessionSchema.ID, expected: number) {
-  return db
-    .select({ revision: SessionTable.queue_revision })
-    .from(SessionTable)
-    .where(eq(SessionTable.id, sessionID))
-    .get()
-    .pipe(
-      Effect.orDie,
-      Effect.flatMap((row) =>
-        row?.revision === expected
-          ? Effect.succeed(row.revision)
-          : Effect.die(new QueueRevisionConflictError({ sessionID, expected, actual: row?.revision ?? 0 })),
-      ),
+  return Effect.gen(function* () {
+    const row = yield* db
+      .select({ revision: SessionTable.queue_revision })
+      .from(SessionTable)
+      .where(eq(SessionTable.id, sessionID))
+      .get()
+      .pipe(Effect.orDie)
+    if (row?.revision === expected) return row.revision
+    const pending = yield* pendingQueue(db, sessionID)
+    return yield* Effect.die(
+      new QueueRevisionConflictError({
+        sessionID,
+        expected,
+        actual: row?.revision ?? 0,
+        messageIDs: pending.map((input) => input.id),
+      }),
     )
+  })
 }
 
 function queueStateConflict(db: DatabaseService, sessionID: SessionSchema.ID, revision: number) {
+  return pendingQueue(db, sessionID).pipe(
+    Effect.flatMap((pending) =>
+      Effect.die(new QueueStateConflictError({ sessionID, revision, messageIDs: pending.map((row) => row.id) })),
+    ),
+  )
+}
+
+function pendingQueue(db: DatabaseService, sessionID: SessionSchema.ID) {
   return db
     .select({ id: SessionInputTable.id })
     .from(SessionInputTable)
@@ -587,12 +600,7 @@ function queueStateConflict(db: DatabaseService, sessionID: SessionSchema.ID, re
     )
     .orderBy(asc(SessionInput.queueOrder), asc(SessionInputTable.admitted_seq))
     .all()
-    .pipe(
-      Effect.orDie,
-      Effect.flatMap((pending) =>
-        Effect.die(new QueueStateConflictError({ sessionID, revision, messageIDs: pending.map((row) => row.id) })),
-      ),
-    )
+    .pipe(Effect.orDie)
 }
 
 function validateTodoIDs(

@@ -255,7 +255,7 @@ describe("SessionV2.prompt", () => {
         })
         .pipe(Effect.catchDefect(Effect.succeed))
       expect(defect).toBeInstanceOf(SessionV2.QueueRevisionConflictError)
-      expect(defect).toMatchObject({ expected: 3, actual: 4 })
+      expect(defect).toMatchObject({ expected: 3, actual: 4, messageIDs: [second.id] })
       expect(
         yield* db.get<{ count: number }>(sql`
           SELECT COUNT(*) AS count FROM event
@@ -271,7 +271,7 @@ describe("SessionV2.prompt", () => {
         })
         .pipe(Effect.flip)
       expect(conflict).toBeInstanceOf(SessionV2.QueueRevisionConflictError)
-      expect(conflict).toMatchObject({ expected: 3, actual: 4 })
+      expect(conflict).toMatchObject({ expected: 3, actual: 4, messageIDs: [second.id] })
 
       const canceled = yield* session
         .cancelInput({ sessionID, messageID: first.id, expectedRevision: 4 })

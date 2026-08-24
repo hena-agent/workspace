@@ -21,7 +21,7 @@ import { SessionProjector } from "@hena/core/session/projector"
 import { SessionExecution } from "@hena/core/session/execution"
 import { SessionInput } from "@hena/core/session/input"
 import { SessionEvent } from "@hena/core/session/event"
-import { SessionTable } from "@hena/core/session/sql"
+import { SessionInputTable, SessionTable } from "@hena/core/session/sql"
 import { SessionStore } from "@hena/core/session/store"
 import { WorkspaceV2 } from "@hena/core/workspace"
 import { testEffect } from "./lib/effect"
@@ -290,6 +290,84 @@ describe("SessionV2.create", () => {
           [1, EventV2.versionedType(SessionEvent.PromptAdmitted.type, 1)],
           [2, EventV2.versionedType(SessionEvent.Prompted.type, 1)],
         ])
+      }).pipe(Effect.provide(Layer.fresh(targetLayer)))
+    }),
+  )
+
+  it.effect("replays pending queue cancellation and ordering into a fresh target database", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionV2.Service
+      const sourceDb = (yield* Database.Service).db
+      const created = yield* session.create({ id: SessionV2.ID.make("ses_queue_target_replay"), location })
+      const first = yield* session.prompt({
+        sessionID: created.id,
+        prompt: Prompt.make({ text: "First" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const second = yield* session.prompt({
+        sessionID: created.id,
+        prompt: Prompt.make({ text: "Second" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const third = yield* session.prompt({
+        sessionID: created.id,
+        prompt: Prompt.make({ text: "Third" }),
+        delivery: "queue",
+        resume: false,
+      })
+      yield* session.reorderInputs({
+        sessionID: created.id,
+        messageIDs: [third.id, second.id, first.id],
+        expectedRevision: 3,
+      })
+      yield* session.cancelInput({ sessionID: created.id, messageID: first.id, expectedRevision: 4 })
+      const serialized = (yield* sourceDb
+        .select()
+        .from(EventTable)
+        .where(eq(EventTable.aggregate_id, created.id))
+        .orderBy(asc(EventTable.seq))
+        .all()
+        .pipe(Effect.orDie)).map((event) => ({
+        id: event.id,
+        aggregateID: event.aggregate_id,
+        seq: event.seq,
+        type: event.type,
+        data: event.data,
+      }))
+
+      const tmp = yield* Effect.acquireRelease(
+        Effect.promise(() => tmpdir()),
+        (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
+      )
+      const targetLayer = AppNodeBuilder.build(
+        LayerNode.group([Database.node, EventV2.node, SessionProjector.node, SessionStore.node]),
+        [[Database.node, Database.layerFromPath(path.join(tmp.path, "target.sqlite"))]],
+      )
+
+      yield* Effect.gen(function* () {
+        const db = (yield* Database.Service).db
+        const events = yield* EventV2.Service
+        const store = yield* SessionStore.Service
+        yield* db
+          .insert(ProjectTable)
+          .values({ id: ProjectV2.ID.global, worktree: location.directory, sandboxes: [] })
+          .run()
+          .pipe(Effect.orDie)
+        yield* events.replayAll(serialized)
+
+        expect(yield* store.get(created.id)).toMatchObject({ queueRevision: 5 })
+        expect(yield* SessionInput.find(db, first.id)).toBeUndefined()
+        expect(
+          (yield* db
+            .select({ id: SessionInputTable.id })
+            .from(SessionInputTable)
+            .where(eq(SessionInputTable.session_id, created.id))
+            .orderBy(asc(SessionInput.queueOrder), asc(SessionInputTable.admitted_seq))
+            .all()
+            .pipe(Effect.orDie)).map((input) => input.id),
+        ).toEqual([third.id, second.id])
       }).pipe(Effect.provide(Layer.fresh(targetLayer)))
     }),
   )

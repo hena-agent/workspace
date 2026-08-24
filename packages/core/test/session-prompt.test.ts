@@ -261,7 +261,7 @@ describe("SessionV2.prompt", () => {
           SELECT COUNT(*) AS count FROM event
           WHERE type IN ('session.next.input.canceled.1', 'session.next.input.reordered.1')
         `),
-      ).toEqual({ count: 0 })
+      ).toEqual({ count: 2 })
 
       const conflict = yield* session
         .cancelInput({

@@ -24,7 +24,7 @@ describe("public event manifest", () => {
       SessionV1.Event.Error,
     ])
     expect(EventManifest.Latest.size).toBe(91)
-    expect(EventManifest.Durable.size).toBe(35)
+    expect(EventManifest.Durable.size).toBe(37)
   })
 
   test("uses canonical definitions for current public events", () => {
@@ -48,6 +48,8 @@ describe("public event manifest", () => {
     expect(EventManifest.Latest.get("session.error")).toBe(SessionV1.Event.Error)
     expect(EventManifest.Durable.has("session.next.step.ended.1")).toBe(false)
     expect(EventManifest.Durable.get("session.next.step.ended.2")).toBe(SessionEvent.Step.Ended)
+    expect(EventManifest.Durable.get("session.next.input.canceled.1")).toBe(SessionEvent.InputCanceled)
+    expect(EventManifest.Durable.get("session.next.input.reordered.1")).toBe(SessionEvent.InputReordered)
     expect(SessionTodo.Event.Updated.durable).toBeUndefined()
     expect(SessionEvent.Compaction.Discarded.durable).toBeUndefined()
     expect(EventManifest.Durable.has("todo.updated.1")).toBe(false)

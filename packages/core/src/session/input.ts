@@ -73,6 +73,12 @@ export class LifecycleConflict extends Schema.TaggedErrorClass<LifecycleConflict
   id: SessionMessage.ID,
 }) {}
 
+class PromotionConflict extends Error {
+  constructor(readonly promoted = 0) {
+    super()
+  }
+}
+
 export const admit = Effect.fn("SessionInput.admit")(function* (
   db: DatabaseService,
   events: EventV2.Interface,
@@ -255,23 +261,30 @@ const publish = Effect.fn("SessionInput.publish")(function* (
   events: EventV2.Interface,
   sessionID: SessionSchema.ID,
   rows: ReadonlyArray<typeof SessionInputTable.$inferSelect>,
+  guard?: (row: typeof SessionInputTable.$inferSelect) => Effect.Effect<void>,
 ) {
-  for (const row of rows) {
+  for (const [index, row] of rows.entries()) {
     const id = SessionMessage.ID.make(row.id)
     yield* events
-      .publish(SessionEvent.Prompted, {
-        sessionID,
-        timestamp: DateTime.makeUnsafe(row.time_created),
-        messageID: id,
-        prompt: decodePrompt(row.prompt),
-        delivery: row.delivery,
-      })
+      .publish(
+        SessionEvent.Prompted,
+        {
+          sessionID,
+          timestamp: DateTime.makeUnsafe(row.time_created),
+          messageID: id,
+          prompt: decodePrompt(row.prompt),
+          delivery: row.delivery,
+        },
+        guard ? { guard: () => guard(row) } : undefined,
+      )
       .pipe(
         Effect.catchDefect((defect) =>
           defect instanceof LifecycleConflict
             ? find(db, id).pipe(
                 Effect.flatMap((stored) => (stored?.promotedSeq === undefined ? Effect.die(defect) : Effect.void)),
               )
+            : defect instanceof PromotionConflict
+              ? Effect.die(new PromotionConflict(index))
             : Effect.die(defect),
         ),
       )
@@ -279,7 +292,12 @@ const publish = Effect.fn("SessionInput.publish")(function* (
   return rows.length
 })
 
-export const promoteSteers = Effect.fn("SessionInput.promoteSteers")(function* (
+export const promoteSteers: (
+  db: DatabaseService,
+  events: EventV2.Interface,
+  sessionID: SessionSchema.ID,
+  cutoff: number,
+) => Effect.Effect<number> = Effect.fn("SessionInput.promoteSteers")(function* (
   db: DatabaseService,
   events: EventV2.Interface,
   sessionID: SessionSchema.ID,
@@ -299,10 +317,38 @@ export const promoteSteers = Effect.fn("SessionInput.promoteSteers")(function* (
     .orderBy(asc(queueOrder), asc(SessionInputTable.admitted_seq))
     .all()
     .pipe(Effect.orDie)
-  return yield* publish(db, events, sessionID, rows)
+  return yield* publish(db, events, sessionID, rows, (row) =>
+    db
+      .select({ id: SessionInputTable.id })
+      .from(SessionInputTable)
+      .where(
+        and(
+          eq(SessionInputTable.id, row.id),
+          eq(SessionInputTable.session_id, sessionID),
+          isNull(SessionInputTable.promoted_seq),
+          eq(SessionInputTable.delivery, "steer"),
+          lte(SessionInputTable.admitted_seq, cutoff),
+        ),
+      )
+      .get()
+      .pipe(
+        Effect.orDie,
+        Effect.flatMap((stored) => (stored ? Effect.void : Effect.die(new PromotionConflict()))),
+      ),
+  ).pipe(
+    Effect.catchDefect((defect) =>
+      defect instanceof PromotionConflict
+        ? promoteSteers(db, events, sessionID, cutoff).pipe(Effect.map((promoted) => defect.promoted + promoted))
+        : Effect.die(defect),
+    ),
+  )
 })
 
-export const promoteNextQueued = Effect.fn("SessionInput.promoteNextQueued")(function* (
+export const promoteNextQueued: (
+  db: DatabaseService,
+  events: EventV2.Interface,
+  sessionID: SessionSchema.ID,
+) => Effect.Effect<boolean> = Effect.fn("SessionInput.promoteNextQueued")(function* (
   db: DatabaseService,
   events: EventV2.Interface,
   sessionID: SessionSchema.ID,
@@ -321,5 +367,29 @@ export const promoteNextQueued = Effect.fn("SessionInput.promoteNextQueued")(fun
     .limit(1)
     .get()
     .pipe(Effect.orDie)
-  return row === undefined ? false : yield* publish(db, events, sessionID, [row]).pipe(Effect.as(true))
+  if (row === undefined) return false
+  return yield* publish(db, events, sessionID, [row], () =>
+    db
+      .select({ id: SessionInputTable.id })
+      .from(SessionInputTable)
+      .where(
+        and(
+          eq(SessionInputTable.session_id, sessionID),
+          isNull(SessionInputTable.promoted_seq),
+          eq(SessionInputTable.delivery, "queue"),
+        ),
+      )
+      .orderBy(asc(queueOrder), asc(SessionInputTable.admitted_seq))
+      .limit(1)
+      .get()
+      .pipe(
+        Effect.orDie,
+        Effect.flatMap((stored) => (stored?.id === row.id ? Effect.void : Effect.die(new PromotionConflict()))),
+      ),
+  ).pipe(
+    Effect.as(true),
+    Effect.catchDefect((defect) =>
+      defect instanceof PromotionConflict ? promoteNextQueued(db, events, sessionID) : Effect.die(defect),
+    ),
+  )
 })

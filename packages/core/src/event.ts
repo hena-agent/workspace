@@ -122,6 +122,8 @@ export interface PublishOptions {
   readonly id?: ID
   readonly metadata?: Record<string, unknown>
   readonly location?: Location.Ref
+  /** Local precondition checked inside the durable event transaction before projectors run. */
+  readonly guard?: (seq: number) => Effect.Effect<void>
   /** Local operational projection committed atomically with a new durable event. Not replayed or serialized. */
   readonly commit?: (seq: number) => Effect.Effect<void>
 }
@@ -214,7 +216,7 @@ export const layerWith = (options?: LayerOptions) =>
           readonly ownerID?: string
           readonly strictOwner?: boolean
         },
-        commit?: (seq: number) => Effect.Effect<void>,
+        hooks?: Pick<PublishOptions, "guard" | "commit">,
       ) {
         return Effect.gen(function* () {
           const durable = definition?.durable
@@ -320,10 +322,11 @@ export const layerWith = (options?: LayerOptions) =>
                             ...event,
                             durable: { aggregateID, seq, version: durable.version },
                           } as Payload
+                          if (hooks?.guard) yield* hooks.guard(seq)
                           for (const projector of list) {
                             yield* projector(committed)
                           }
-                          if (commit) yield* commit(seq)
+                          if (hooks?.commit) yield* hooks.commit(seq)
                           yield* db
                             .insert(EventSequenceTable)
                             .values([{ aggregate_id: aggregateID, seq, owner_id: input?.ownerID }])
@@ -370,9 +373,13 @@ export const layerWith = (options?: LayerOptions) =>
         })
       }
 
-      function publishEvent<D extends Definition>(definition: D, event: Payload<D>, commit?: PublishOptions["commit"]) {
+      function publishEvent<D extends Definition>(
+        definition: D,
+        event: Payload<D>,
+        hooks?: Pick<PublishOptions, "guard" | "commit">,
+      ) {
         return Effect.gen(function* () {
-          if (!definition?.durable && commit)
+          if (!definition?.durable && (hooks?.guard || hooks?.commit))
             return yield* Effect.die(
               new InvalidDurableEventError({
                 type: event.type,
@@ -380,7 +387,7 @@ export const layerWith = (options?: LayerOptions) =>
               }),
             )
           if (definition?.durable) {
-            const committed = yield* commitDurableEvent(definition, event as Payload, undefined, commit)
+            const committed = yield* commitDurableEvent(definition, event as Payload, undefined, hooks)
             if (committed) {
               event = {
                 ...event,
@@ -452,7 +459,7 @@ export const layerWith = (options?: LayerOptions) =>
               ...(location ? { location } : {}),
               data,
             } as Payload<D>,
-            options?.commit,
+            options,
           )
         })
       }

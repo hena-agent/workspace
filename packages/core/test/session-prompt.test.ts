@@ -622,6 +622,115 @@ describe("SessionV2.prompt", () => {
     }),
   )
 
+  it.effect("does not promote an input canceled after queue selection", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const input = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "Cancel during promotion" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const racingEvents = EventV2.Service.of({
+        ...events,
+        publish: (definition, data, options) =>
+          Effect.gen(function* () {
+            if (definition.type === SessionEvent.Prompted.type)
+              yield* events.publish(SessionEvent.InputCanceled, {
+                sessionID,
+                messageID: input.id,
+                expectedRevision: 1,
+                timestamp: yield* DateTime.now,
+              })
+            return yield* events.publish(definition, data, options)
+          }),
+      })
+
+      expect(yield* SessionInput.promoteNextQueued(db, racingEvents, sessionID)).toBe(false)
+      expect(yield* admitted(input.id)).toBeUndefined()
+      expect(yield* session.messages({ sessionID })).toEqual([])
+    }),
+  )
+
+  it.effect("promotes the reordered first input when ordering changes after selection", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const first = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "First before reorder" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const second = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "First after reorder" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const state = { reordered: false }
+      const racingEvents = EventV2.Service.of({
+        ...events,
+        publish: (definition, data, options) =>
+          Effect.gen(function* () {
+            if (definition.type === SessionEvent.Prompted.type && !state.reordered) {
+              state.reordered = true
+              yield* events.publish(SessionEvent.InputReordered, {
+                sessionID,
+                messageIDs: [second.id, first.id],
+                expectedRevision: 2,
+                timestamp: yield* DateTime.now,
+              })
+            }
+            return yield* events.publish(definition, data, options)
+          }),
+      })
+
+      expect(yield* SessionInput.promoteNextQueued(db, racingEvents, sessionID)).toBe(true)
+      expect(yield* admitted(first.id)).not.toHaveProperty("promotedSeq")
+      expect(yield* admitted(second.id)).toHaveProperty("promotedSeq")
+      expect(yield* session.messages({ sessionID })).toMatchObject([
+        { id: second.id, type: "user", text: "First after reorder" },
+      ])
+    }),
+  )
+
+  it.effect("counts steers promoted before a later selected input is canceled", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const first = yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Promote" }), resume: false })
+      const second = yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Cancel" }), resume: false })
+      const state = { prompted: 0 }
+      const racingEvents = EventV2.Service.of({
+        ...events,
+        publish: (definition, data, options) =>
+          Effect.gen(function* () {
+            if (definition.type === SessionEvent.Prompted.type) state.prompted++
+            if (definition.type === SessionEvent.Prompted.type && state.prompted === 2)
+              yield* events.publish(SessionEvent.InputCanceled, {
+                sessionID,
+                messageID: second.id,
+                expectedRevision: 3,
+                timestamp: yield* DateTime.now,
+              })
+            return yield* events.publish(definition, data, options)
+          }),
+      })
+
+      expect(yield* SessionInput.promoteSteers(db, racingEvents, sessionID, Number.MAX_SAFE_INTEGER)).toBe(1)
+      expect(yield* admitted(first.id)).toHaveProperty("promotedSeq")
+      expect(yield* admitted(second.id)).toBeUndefined()
+    }),
+  )
+
   it.effect("promotes steers only through the captured inbox cutoff", () =>
     Effect.gen(function* () {
       yield* setup

@@ -77,7 +77,7 @@ export function SidebarPanelHeader({
               <LegacyIcon name="dot-grid" className="size-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-max whitespace-nowrap">
             <DropdownMenuItem onSelect={() => setEditing(true)}>Edit</DropdownMenuItem>
             <DropdownMenuItem>Enable workspaces</DropdownMenuItem>
             <DropdownMenuItem onSelect={onClearNotifications}>Clear notifications</DropdownMenuItem>

@@ -17,7 +17,7 @@
  * - `.json(...)` / `.jsonEffect(...)` assert response shape and optional side effects.
  * - `.mutating()` tells the runner to reset isolated state after destructive routes.
  */
-import { Effect } from "effect"
+import { Effect, Fiber } from "effect"
 import { OpenApi } from "effect/unstable/httpapi"
 import { TestLLMServer } from "../../lib/llm-server"
 import path from "path"
@@ -97,9 +97,7 @@ const scenarios: Scenario[] = [
         Effect.gen(function* () {
           object(body)
           check(body.username === "httpapi-global", "global config update should return patched config")
-          const text = yield* Effect.promise(() =>
-            Bun.file(path.join(exerciseConfigDirectory, "hena.jsonc")).text(),
-          )
+          const text = yield* Effect.promise(() => Bun.file(path.join(exerciseConfigDirectory, "hena.jsonc")).text())
           check(text.includes('"username": "httpapi-global"'), "global config update should write isolated config file")
         }),
       "status",
@@ -536,6 +534,17 @@ const scenarios: Scenario[] = [
   http.protected
     .post("/experimental/worktree", "worktree.create")
     .mutating()
+    .seeded(() =>
+      Effect.gen(function* () {
+        const modules = yield* Effect.promise(() => runtime())
+        const { waitGlobalBusEvent } = yield* Effect.promise(() => import("../global-bus"))
+        return yield* waitGlobalBusEvent({
+          predicate: (event) =>
+            event.payload.type === modules.Worktree.Event.Ready.type && event.payload.properties.name === "api-dsl",
+          message: "timed out waiting for worktree.ready",
+        }).pipe(Effect.orDie, Effect.asVoid, Effect.forkDetach)
+      }),
+    )
     .at((ctx) => ({ path: "/experimental/worktree", headers: ctx.headers(), body: { name: "api-dsl" } }))
     .jsonEffect(
       200,
@@ -543,6 +552,7 @@ const scenarios: Scenario[] = [
         Effect.gen(function* () {
           object(body)
           check(typeof body.directory === "string", "created worktree should include directory")
+          yield* Fiber.join(ctx.state)
           yield* ctx.worktreeRemove(body.directory)
         }),
       "status",

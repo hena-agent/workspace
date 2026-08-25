@@ -20,7 +20,7 @@ export const ProjectTable = sqliteTable("project", {
 })
 
 // Folderless projects are excluded from legacy reads and ordinary writes.
-export const rooted = isNotNull(ProjectTable.worktree)
+export const hasWorktree = isNotNull(ProjectTable.worktree)
 
 export const ProjectDirectoryTable = sqliteTable(
   "project_directory",

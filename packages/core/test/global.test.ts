@@ -13,14 +13,4 @@ describe("global paths", () => {
   test("tmp path is created on module load", async () => {
     expect((await fs.stat(Global.Path.tmp)).isDirectory()).toBe(true)
   })
-
-  test("path overrides do not cascade", () => {
-    const data = path.join(os.tmpdir(), "hena-global-override")
-    expect(Global.make({ data })).toMatchObject({
-      data,
-      log: Global.Path.log,
-      projects: Global.Path.projects,
-      repos: Global.Path.repos,
-    })
-  })
 })

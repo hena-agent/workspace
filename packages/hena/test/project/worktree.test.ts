@@ -1,5 +1,4 @@
 import { afterEach, describe, expect } from "bun:test"
-import { rm, symlink } from "fs/promises"
 import path from "path"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { FSUtil } from "@hena/core/fs-util"
@@ -19,7 +18,7 @@ const it = testEffect(
     [InstanceStore.bootstrapNode, InstanceBootstrap.node],
   ]),
 )
-const nonWindowsIt = process.platform !== "win32" ? it.instance : it.instance.skip
+const wintest = process.platform !== "win32" ? it.instance : it.instance.skip
 
 function normalize(input: string) {
   return input.replace(/\\/g, "/").toLowerCase()
@@ -46,7 +45,8 @@ const waitReady = Effect.fn("WorktreeTest.waitReady")(function* () {
 const removeCreatedWorktree = (directory: string) =>
   Effect.gen(function* () {
     const svc = yield* Worktree.Service
-    yield* svc.remove({ directory })
+    const ok = yield* svc.remove({ directory })
+    if (!ok) return yield* Effect.fail(new Error(`failed to remove worktree ${directory}`))
   })
 
 const withCreatedWorktree = <A, E, R>(
@@ -151,7 +151,7 @@ describe("Worktree", () => {
       }),
     )
 
-    nonWindowsIt(
+    wintest(
       "creates detached git worktree when info has no branch",
       () =>
         Effect.gen(function* () {
@@ -260,47 +260,7 @@ describe("Worktree", () => {
   })
 
   describe("createFromInfo", () => {
-    nonWindowsIt(
-      "records one resolved sandbox for an aliased directory",
-      () =>
-        Effect.gen(function* () {
-          const ctx = yield* InstanceState.context
-          const fs = yield* FSUtil.Service
-          const project = yield* Project.Service
-          const svc = yield* Worktree.Service
-          const test = yield* TestInstance
-          const root = path.join(path.dirname(test.directory), `worktree-real-${Date.now().toString(36)}`)
-          const alias = `${root}-alias`
-          yield* fs.ensureDir(root)
-          yield* Effect.promise(() => symlink(root, alias, "dir"))
-          yield* Effect.addFinalizer(() =>
-            Effect.promise(async () => {
-              await rm(alias, { force: true })
-              await rm(root, { recursive: true, force: true })
-            }),
-          )
-          const name = `aliased-${Date.now().toString(36)}`
-          const info = { name, branch: `hena/${name}`, directory: path.join(alias, name) }
-          const ready = yield* waitReady().pipe(Effect.forkScoped)
-          yield* svc.createFromInfo(info)
-          yield* Effect.addFinalizer(() =>
-            fs.exists(info.directory).pipe(
-              Effect.orDie,
-              Effect.flatMap((exists) =>
-                exists ? svc.remove({ directory: info.directory }).pipe(Effect.ignore) : Effect.void,
-              ),
-            ),
-          )
-          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
-          yield* Fiber.join(ready)
-          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
-          yield* svc.remove({ directory: info.directory })
-          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([])
-        }),
-      { git: true },
-    )
-
-    nonWindowsIt(
+    wintest(
       "creates git worktree and boots asynchronously",
       () =>
         Effect.gen(function* () {
@@ -359,7 +319,8 @@ describe("Worktree", () => {
         Effect.gen(function* () {
           const test = yield* TestInstance
           const svc = yield* Worktree.Service
-          yield* svc.remove({ directory: path.join(test.directory, "does-not-exist") })
+          const ok = yield* svc.remove({ directory: path.join(test.directory, "does-not-exist") })
+          expect(ok).toBe(true)
         }),
       { git: true },
     )

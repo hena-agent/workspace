@@ -27,7 +27,7 @@ import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
 import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "@hena/core/session/sql"
-import { ProjectTable, rooted } from "@hena/core/project/sql"
+import { hasWorktree, ProjectTable } from "@hena/core/project/sql"
 import { MessageV2 } from "./message-v2"
 import type { InstanceContext } from "../project/instance-context"
 import { InstanceState } from "@/effect/instance-state"
@@ -579,7 +579,7 @@ const layer: Layer.Layer<
         const items = yield* db
           .select({ id: ProjectTable.id, name: ProjectTable.name, worktree: ProjectTable.worktree })
           .from(ProjectTable)
-          .where(and(inArray(ProjectTable.id, ids), rooted))
+          .where(and(inArray(ProjectTable.id, ids), hasWorktree))
           .all()
           .pipe(Effect.orDie)
         for (const item of items) {

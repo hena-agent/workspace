@@ -1,7 +1,7 @@
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { and, eq, ne, sql } from "drizzle-orm"
 import { Database } from "@hena/core/database/database"
-import { ProjectDirectoryTable, ProjectTable, rooted } from "@hena/core/project/sql"
+import { hasWorktree, ProjectDirectoryTable, ProjectTable } from "@hena/core/project/sql"
 import { ProjectDirectories } from "@hena/core/project/directories"
 import { SessionTable } from "@hena/core/session/sql"
 import { WorkspaceTable } from "@hena/core/control-plane/workspace.sql"
@@ -404,7 +404,7 @@ const layer = Layer.effect(
           commands: input.commands,
           time_updated: Date.now(),
         })
-        .where(and(eq(ProjectTable.id, input.projectID), rooted))
+        .where(and(eq(ProjectTable.id, input.projectID), hasWorktree))
         .returning()
         .get()
         .pipe(Effect.orDie)
@@ -430,7 +430,7 @@ const layer = Layer.effect(
       yield* db
         .update(ProjectTable)
         .set({ time_initialized: Date.now() })
-        .where(and(eq(ProjectTable.id, id), rooted))
+        .where(and(eq(ProjectTable.id, id), hasWorktree))
         .run()
         .pipe(Effect.orDie)
     })
@@ -455,7 +455,7 @@ const layer = Layer.effect(
       const row = yield* db
         .select()
         .from(ProjectTable)
-        .where(and(eq(ProjectTable.id, id), rooted))
+        .where(and(eq(ProjectTable.id, id), hasWorktree))
         .get()
         .pipe(Effect.orDie)
       if (!row) return []
@@ -475,13 +475,13 @@ const layer = Layer.effect(
               const row = yield* d
                 .select()
                 .from(ProjectTable)
-                .where(and(eq(ProjectTable.id, id), rooted))
+                .where(and(eq(ProjectTable.id, id), hasWorktree))
                 .get()
               if (!row) return undefined
               const result = yield* d
                 .update(ProjectTable)
                 .set({ sandboxes: next(row.sandboxes), time_updated: Date.now() })
-                .where(and(eq(ProjectTable.id, id), rooted))
+                .where(and(eq(ProjectTable.id, id), hasWorktree))
                 .returning()
                 .get()
               if (

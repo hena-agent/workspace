@@ -10,9 +10,10 @@ import { ServerSettingsView } from "@/features/settings/server-settings-view"
 import { SERVER_SETTINGS_SECTION_VALUES } from "@/features/settings/server-settings-sections"
 import { SettingsNav } from "@/features/settings/settings-nav"
 import { SETTINGS_SECTIONS, type SettingsSection } from "@/features/settings/settings-sections"
-import { useMockServers } from "@/features/server/mock-server-provider"
+import { useConnectionAgent, useServers } from "@/connection/provider"
+import { useCatalog, useProjects, useSettings } from "@/data/queries"
+import { replaceSettingOptimistically } from "@/mutations/settings"
 import { isOneOf } from "@/lib/utils"
-import { listMcpServers, listModels, listProviders } from "@/mock/queries"
 
 export const Route = createFileRoute("/$connectionId/settings/$section")({
   component: SettingsRoute,
@@ -22,8 +23,14 @@ export const Route = createFileRoute("/$connectionId/settings/$section")({
 function SettingsRoute() {
   const { connectionId, section } = Route.useParams()
   const navigate = useNavigate()
-  const servers = useMockServers()
+  const servers = useServers()
   const server = servers.getServerBySlug(connectionId)
+  const agent = useConnectionAgent(connectionId)
+  const projects = useProjects(agent)
+  const location = projects[0] ? { directory: projects[0].path } : undefined
+  const scope = location ? JSON.stringify(location) : "missing"
+  const catalog = useCatalog(agent, location)
+  const syncedSettings = useSettings(agent, scope)
   const { theme, setTheme } = useTheme()
   const [density, setDensity] = useState<DensityPreference>(() => {
     const stored = localStorage.getItem("density")
@@ -36,7 +43,6 @@ function SettingsRoute() {
   })
   const [reducedMotion, setReducedMotion] = useState(() => localStorage.getItem("reduced-motion") === "true")
   const [notifications, setNotifications] = useState<NotificationPreferences>({ sound: true, desktop: false })
-  const [providers, setProviders] = useState(() => listProviders())
 
   useEffect(() => {
     document.documentElement.dataset.density = density
@@ -78,22 +84,27 @@ function SettingsRoute() {
   ) : (
     <ServerSettingsView
       section={serverSection}
-      providers={providers}
-      onToggleProviderConnection={(id) =>
-        setProviders((current) =>
-          current.map((provider) => (provider.id === id ? { ...provider, connected: !provider.connected } : provider)),
-        )
-      }
-      models={listModels()}
-      mcpServers={listMcpServers()}
+      providers={catalog.providers}
+      agents={catalog.agents}
+      models={catalog.models}
+      mcpServers={[]}
       connections={servers.connections}
-      onRemoveConnection={() => {}}
+      onRemoveConnection={(id) => servers.removeServer(id)}
       storage={{
-        usedMib: server.id === "conn-local" ? 18 : server.id === "conn-staging" ? 7 : 0,
+        usedMib: 0,
         budgetMib: 50,
       }}
-      onClearCache={() => {}}
-      onRemoveAllData={() => {}}
+      defaults={{
+        agent: typeof syncedSettings.defaultAgent === "string" ? syncedSettings.defaultAgent : undefined,
+        model: modelSetting(syncedSettings.defaultModel),
+        queueDelivery: syncedSettings.queueDelivery === "queue" ? "queue" : "steer",
+      }}
+      onChangeDefault={agent && location ? async (key, value) => {
+        const settingValue = key === "defaultModel"
+          ? { providerID: value.slice(0, value.indexOf(":")), id: value.slice(value.indexOf(":") + 1) }
+          : value
+        await replaceSettingOptimistically(agent, { scope, key, value: settingValue })
+      } : undefined}
     />
   )
 
@@ -103,4 +114,10 @@ function SettingsRoute() {
       <div className="min-w-0 flex-1">{content}</div>
     </div>
   )
+}
+
+function modelSetting(value: unknown) {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return
+  const model = value as Record<string, unknown>
+  return typeof model.providerID === "string" && typeof model.id === "string" ? `${model.providerID}:${model.id}` : undefined
 }

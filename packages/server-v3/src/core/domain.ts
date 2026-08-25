@@ -20,6 +20,10 @@ export interface CoreDomain {
   reorderInputs(sessionID: string, input: Sync.ReorderInputs): Promise<{ revision: number; receipt: Receipt }>
   listFiles(input: Sync.FileListQuery): Promise<readonly { path: string; type: "file" | "directory" }[]>
   findFiles(input: Sync.FileFindQuery): Promise<readonly { path: string; type: "file" | "directory" }[]>
+  readFile(input: Sync.FileReadQuery): Promise<
+    | { text: string; totalBytes: number; truncated: boolean }
+    | { binary: true; totalBytes: number }
+  >
   replyPermission(requestID: string, input: Sync.PermissionReply): Promise<OnlineReply>
   replyQuestion(requestID: string, input: Sync.QuestionReply): Promise<OnlineReply>
   catalog(location: { directory: string; workspaceID?: string }): Promise<{
@@ -41,6 +45,7 @@ export function unavailableCoreDomain(): CoreDomain {
     reorderInputs: unavailable,
     listFiles: unavailable,
     findFiles: unavailable,
+    readFile: unavailable,
     replyPermission: unavailable,
     replyQuestion: unavailable,
     catalog: unavailable,

@@ -114,6 +114,7 @@ describe("collection bootstrap", () => {
     expect(database.collections.snapshot("sessions", "").rows[0]?.row).toMatchObject({
       id: "ses_1",
       queueRevision: 2,
+      working: false,
       model: { id: "model", providerID: "provider", variant: "default" },
     })
     expect(database.collections.snapshot("sessions", "").rows[0]?.row).not.toHaveProperty("subpath")

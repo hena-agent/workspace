@@ -22,8 +22,8 @@ export function listConnections(): Connection[] {
   return connections
 }
 
-export function getConnection(id: string): Connection | undefined {
-  return connections.find((c) => c.id === id)
+export function getConnection(url: string): Connection | undefined {
+  return connections.find((connection) => connection.url === url)
 }
 
 export function listProjects(connectionId?: string): Project[] {
@@ -118,7 +118,7 @@ export function getProjectNotificationState(options: { projectId: string; connec
   if (projectSessions.some((s) => s.status === "error")) {
     return { kind: "error", working }
   }
-  if (projectSessions.some((s) => s.unseenCount > 0)) {
+  if (projectSessions.some((s) => s.unread)) {
     return { kind: "unread", working }
   }
   return { kind: "none", working }

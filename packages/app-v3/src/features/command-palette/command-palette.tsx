@@ -1,4 +1,4 @@
-import { Settings } from "lucide-react"
+import { Server, Settings } from "lucide-react"
 import {
   Command,
   CommandDialog,
@@ -9,7 +9,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command"
-import type { Project, ServerCommand, Session } from "@/lib/types"
+import type { Connection, Project, ServerCommand, Session } from "@/lib/types"
 
 export function CommandPalette({
   open,
@@ -17,9 +17,11 @@ export function CommandPalette({
   projects,
   sessions,
   serverCommands,
+  connections = [],
   onSelectProject,
   onSelectSession,
   onRunServerCommand,
+  onSelectConnection,
   onOpenSettings,
 }: {
   open: boolean
@@ -27,9 +29,11 @@ export function CommandPalette({
   projects: Project[]
   sessions: Session[]
   serverCommands: ServerCommand[]
+  connections?: Connection[]
   onSelectProject: (project: Project) => void
   onSelectSession: (session: Session) => void
   onRunServerCommand: (command: ServerCommand) => void
+  onSelectConnection?: (connection: Connection) => void
   onOpenSettings: () => void
 }) {
   return (
@@ -83,6 +87,21 @@ export function CommandPalette({
             })}
           </CommandGroup>
           <CommandSeparator />
+          <CommandGroup heading="Servers">
+            {connections.map((connection) => (
+              <CommandItem
+                key={connection.url}
+                value={`server ${connection.name} ${connection.url}`}
+                onSelect={() => {
+                  onSelectConnection?.(connection)
+                  onOpenChange(false)
+                }}
+              >
+                <Server /> {connection.name}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+          <CommandSeparator />
           <CommandGroup heading="Commands">
             {serverCommands.map((command) => (
               <CommandItem
@@ -96,6 +115,7 @@ export function CommandPalette({
                 {command.name}
               </CommandItem>
             ))}
+            {serverCommands.length === 0 ? <CommandItem disabled>No server commands available.</CommandItem> : null}
             <CommandItem
               value="open settings"
               onSelect={() => {

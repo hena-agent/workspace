@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test"
 import { Session } from "@hena/schema/session"
 import { SessionMessage } from "@hena/schema/session-message"
 import { Location } from "@hena/schema/location"
+import { Agent } from "@hena/schema/agent"
+import { Model } from "@hena/schema/model"
 import { Database } from "bun:sqlite"
 import { Schema } from "effect"
 import { createCoreDomain } from "../src/core/runtime"
@@ -27,6 +29,8 @@ describe("core runtime", () => {
         location: Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() }),
         prompt: { text: "first" },
         delivery: "queue",
+        agent: Agent.ID.make("build"),
+        model: Schema.decodeUnknownSync(Model.Ref)({ id: "alpha", providerID: "opencode-go" }),
       })
       const admitted = await domain.admitPrompt(sessionID, {
         idempotencyKey: "prompt-timestamps",
@@ -39,6 +43,7 @@ describe("core runtime", () => {
         throw new Error("Created session response is missing time.created")
       expect(typeof created.session.time.created).toBe("number")
       expect(created.session.queueRevision).toBe(1)
+      expect(created.session).toMatchObject({ agent: "build", model: { id: "alpha", providerID: "opencode-go" } })
       expect(typeof created.admitted.timeCreated).toBe("number")
       expect(typeof admitted.admitted.timeCreated).toBe("number")
     } finally {

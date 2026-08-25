@@ -330,6 +330,7 @@ function recordingDomain(): CoreDomain & { calls: string[] } {
     },
     listFiles: async () => [],
     findFiles: async () => [],
+    readFile: async () => ({ text: "", totalBytes: 0, truncated: false }),
     replyPermission: async () => ({ outcome: "applied", resolution: {} }),
     replyQuestion: async () => ({ outcome: "applied", resolution: {} }),
     catalog: async () => ({ agents: [], models: [], providers: [] }),

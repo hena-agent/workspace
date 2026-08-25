@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { render } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { projects, sessions, MOCK_NOW } from "@/mock/fixtures"
+import { projects, sessions, MOCK_NOW } from "@/test/fixtures"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { act, fireEvent, renderWithProviders, screen, waitFor, within } from "@/test/test-utils"
 import { AppShell } from "./app-shell"

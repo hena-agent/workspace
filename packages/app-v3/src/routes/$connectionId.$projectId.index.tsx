@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { ProjectOverviewView } from "@/features/project/project-overview-view"
-import { useMockServers } from "@/features/server/mock-server-provider"
+import { useConnectionAgent } from "@/connection/provider"
+import { RouteLoadingState } from "@/connection/route-state"
+import { useCollectionReady, useProject, useSessions } from "@/data/queries"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { getProject, listSessions } from "@/mock/queries"
 import { SessionList } from "@/shell/session-list"
 
 const DESKTOP_QUERY = "(min-width: 1280px)"
@@ -16,11 +17,13 @@ function ProjectOverviewRoute() {
   const { connectionId, projectId } = Route.useParams()
   const navigate = useNavigate()
   const isDesktop = useMediaQuery(DESKTOP_QUERY)
-  const server = useMockServers().getServerBySlug(connectionId)
-  const project = server ? getProject({ id: projectId, connectionId: server.id }) : undefined
+  const agent = useConnectionAgent(connectionId)
+  const project = useProject(agent, projectId)
+  const sessions = useSessions(agent, projectId)
+  const projectsReady = useCollectionReady(agent, "projects")
 
   if (!project) {
-    return <div className="flex h-full w-full items-center justify-center">Project not found.</div>
+    return <RouteLoadingState agent={agent} ready={projectsReady} missing="Project not found." />
   }
 
   function startSession() {
@@ -46,7 +49,7 @@ function ProjectOverviewRoute() {
         </Button>
       </div>
       <SessionList
-        sessions={listSessions({ projectId, connectionId: project.connectionId })}
+         sessions={sessions}
         autoFocusSessionId={
           typeof window.history.state?.henaFocusSessionId === "string"
             ? window.history.state.henaFocusSessionId
@@ -60,7 +63,6 @@ function ProjectOverviewRoute() {
             params: { connectionId, projectId, sessionId: id },
           })
         }}
-        onArchiveSession={() => {}}
       />
     </div>
   )

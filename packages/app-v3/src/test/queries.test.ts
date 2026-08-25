@@ -13,7 +13,7 @@ import { MOCK_NOW } from "./fixtures"
 
 describe("listConnections", () => {
   test("returns every configured connection", () => {
-    expect(listConnections().map((c) => c.id)).toEqual(["conn-local", "conn-staging"])
+    expect(listConnections().map((connection) => connection.url)).toEqual(["http://localhost:4096", "https://staging.hena.dev"])
   })
 })
 

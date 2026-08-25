@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useEffect, useEffectEvent, useState, type FormEvent } from "react"
 import { CheckIcon, PlusIcon, ServerIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import type { Connection } from "@/lib/types"
 import { ConnectionStatusDot } from "@/shell/connection-status-dot"
-import { useMockServers } from "./mock-server-provider"
+import { useServers } from "@/connection/provider"
 
 export function ServerSelectionModal({
   current,
@@ -26,10 +26,11 @@ export function ServerSelectionModal({
   pendingUrl?: string
   onSelect: (server: Connection) => void
 }) {
-  const servers = useMockServers()
+  const servers = useServers()
   const [open, setOpen] = useState(false)
   const [url, setUrl] = useState(pendingUrl ?? "")
   const [error, setError] = useState("")
+  const probeConnections = useEffectEvent(() => servers.probeConnections())
   const status = servers.connections.some((server) => server.status === "offline")
     ? "offline"
     : servers.connections.some((server) => server.status === "connecting")
@@ -45,6 +46,13 @@ export function ServerSelectionModal({
     setOpen(next)
   }
 
+  useEffect(() => {
+    if (!open) return
+    void probeConnections()
+    const interval = setInterval(() => void probeConnections(), 60_000)
+    return () => clearInterval(interval)
+  }, [open])
+
   function select(server: Connection) {
     setUrl("")
     setError("")
@@ -52,20 +60,16 @@ export function ServerSelectionModal({
     setOpen(false)
   }
 
-  function add(event: FormEvent<HTMLFormElement>) {
+  async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const server = servers.addServer(url)
-    if (!server) {
-      setError("Enter an HTTP or HTTPS server URL allowed from this origin.")
-      return
-    }
-    if (server.status === "offline") {
-      setError("This server is offline and available only for diagnostics.")
+    const result = await servers.addServer(url)
+    if (!result.connection) {
+      setError(result.probe.message)
       return
     }
     setUrl("")
     setError("")
-    select(server)
+    select(result.connection)
   }
 
   return (
@@ -86,17 +90,17 @@ export function ServerSelectionModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Servers</DialogTitle>
-          <DialogDescription>Select the mock server this window connects to.</DialogDescription>
+          <DialogDescription>Select the server this window connects to.</DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-col gap-1">
           {servers.connections.map((server) => (
             <Button
-              key={server.id}
+              key={server.url}
               type="button"
               variant="ghost"
               className="h-auto w-full justify-start px-2 py-2.5"
-              aria-pressed={server.id === current?.id}
+              aria-pressed={server.url === current?.url}
               disabled={server.status === "offline"}
               onClick={() => select(server)}
             >
@@ -104,18 +108,19 @@ export function ServerSelectionModal({
               <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
                 <span className="truncate">{server.name}</span>
                 <span className="max-w-full truncate text-xs font-normal text-muted-foreground">{server.url}</span>
+                <span className="max-w-full truncate text-xs font-normal text-muted-foreground">{server.health}</span>
               </span>
-              {server.id === current?.id ? <CheckIcon data-icon="inline-end" /> : null}
+              {server.url === current?.url ? <CheckIcon data-icon="inline-end" /> : null}
             </Button>
           ))}
         </div>
 
         <Separator />
 
-        <form onSubmit={add} className="flex flex-col gap-4">
+        <form onSubmit={(event) => void add(event)} className="flex flex-col gap-4">
           <FieldGroup>
             <Field data-invalid={Boolean(error)}>
-              <FieldLabel htmlFor="server-url">Add a mock server</FieldLabel>
+              <FieldLabel htmlFor="server-url">Add a server</FieldLabel>
               <Input
                 id="server-url"
                 name="server-url"

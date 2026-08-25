@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
 import { render, screen } from "@/test/test-utils"
 import { ProvidersSection } from "./providers-section"
-import { providers } from "@/mock/fixtures"
+import { providers } from "@/test/fixtures"
 
 describe("ProvidersSection", () => {
   test("shows Connect for a disconnected provider and Disconnect for a connected one", () => {

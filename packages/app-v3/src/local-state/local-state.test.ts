@@ -1,0 +1,43 @@
+import { afterEach, describe, expect, test } from "bun:test"
+import { encodeServerSlug } from "@/lib/server-url"
+import { listDrafts, loadDraft, removeDraft, saveDraft } from "./drafts"
+import { clearSeenWatermarks, markSessionSeen, wasSeenAfter } from "./seen"
+
+const url = "http://localhost:4106"
+
+afterEach(() => {
+  localStorage.clear()
+})
+
+describe("local client state", () => {
+  test("stores and removes versioned drafts under the server slug", () => {
+    saveDraft(url, "draft", "/new/draft", {
+      text: "continue this prompt",
+      selection: { start: 4, end: 4 },
+      delivery: "queue",
+      droppedAttachments: 2,
+    })
+
+    expect(loadDraft(url, "draft")).toMatchObject({ text: "continue this prompt", delivery: "queue", droppedAttachments: 2 })
+    expect(listDrafts(url)).toHaveLength(1)
+    expect(localStorage.getItem(`hena.drafts.v1.${encodeServerSlug(url)}`)).not.toBeNull()
+    removeDraft(url, "draft")
+    expect(loadDraft(url, "draft")).toBeUndefined()
+  })
+
+  test("migrates a version-one draft without resetting user text", () => {
+    localStorage.setItem(`hena.drafts.v1.${encodeServerSlug(url)}`, JSON.stringify({
+      version: 1,
+      drafts: { old: { route: "/old", text: "keep me", updatedAt: 1 } },
+    }))
+    expect(loadDraft(url, "old")?.text).toBe("keep me")
+  })
+
+  test("tracks and clears per-server seen watermarks", () => {
+    markSessionSeen(url, "session", 20)
+    expect(wasSeenAfter(url, "session", 20)).toBe(true)
+    expect(wasSeenAfter(url, "session", 21)).toBe(false)
+    clearSeenWatermarks(url)
+    expect(wasSeenAfter(url, "session", 1)).toBe(false)
+  })
+})

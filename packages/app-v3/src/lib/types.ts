@@ -1,14 +1,22 @@
-// Domain types for the app-v3 UI shell. Shaped loosely after the collection
-// manifest in .agents/docs/en/web-ui.md §4.1, simplified for dummy/local data.
-// A real sync layer can refine these without changing component props much.
-
 export type ConnectionStatus = "online" | "connecting" | "offline"
+export type ConnectionHealth =
+  | "self"
+  | "reachable"
+  | "live"
+  | "connecting"
+  | "reconnecting"
+  | "unreachable"
+  | "auth-unsupported"
+  | "upgrade-required"
+  | "error"
 
 export type Connection = {
-  id: string
   name: string
   url: string
   status: ConnectionStatus
+  health: ConnectionHealth
+  statusMessage?: string
+  removable?: boolean
 }
 
 export type Project = {
@@ -35,12 +43,14 @@ export type Session = {
   connectionId: string
   title: string
   status: SessionStatus
-  unseenCount: number
+  unread: boolean
   createdAt: number
   updatedAt: number
   archived: boolean
   shared: boolean
   parentId?: string
+  agentId?: string
+  model?: { id: string; providerId: string }
 }
 
 export type ToolStatus = "pending" | "running" | "completed" | "error"
@@ -49,12 +59,15 @@ export type TextPart = {
   id: string
   kind: "text"
   text: string
+  live?: LiveText
+  content?: ContentReference
 }
 
 export type ReasoningPart = {
   id: string
   kind: "reasoning"
   text: string
+  live?: LiveText
 }
 
 export type ToolPart = {
@@ -65,14 +78,40 @@ export type ToolPart = {
   input: string
   output?: string
   durationMs?: number
+  liveInput?: LiveText
+  outputContent?: ContentReference
 }
 
-export type AssistantPart = TextPart | ReasoningPart | ToolPart
+export type UnknownPart = {
+  id: string
+  kind: "unknown"
+  type: string
+  summary: string
+}
+
+export type LiveText = {
+  subscribe: (listener: () => void) => () => void
+  snapshot: () => string
+  incomplete: () => boolean
+}
+
+export type ContentPage = { text: string; offset: number; nextOffset: number; totalBytes: number; revision: string }
+
+export type ContentReference = {
+  id: string
+  revision: string
+  bytes: number
+  queryKey: readonly unknown[]
+  loadPage: (offset: number, signal: AbortSignal) => Promise<ContentPage>
+}
+
+export type AssistantPart = TextPart | ReasoningPart | ToolPart | UnknownPart
 
 export type MessageBase = {
   id: string
   sessionId: string
   createdAt: number
+  pending?: boolean
 }
 
 export type UserMessage = MessageBase & {
@@ -122,6 +161,12 @@ export type ModelSwitchedMessage = MessageBase & {
   to: string
 }
 
+export type UnknownMessage = MessageBase & {
+  role: "unknown"
+  type: string
+  summary: string
+}
+
 export type SessionMessage =
   | UserMessage
   | AssistantMessage
@@ -131,6 +176,7 @@ export type SessionMessage =
   | SyntheticMessage
   | AgentSwitchedMessage
   | ModelSwitchedMessage
+  | UnknownMessage
 
 export type TodoStatus = "pending" | "in_progress" | "completed" | "cancelled"
 

@@ -9,6 +9,7 @@ import type { SyncDatabase } from "../storage/database"
 import { SessionCollections } from "../collection/manifest"
 import type { CoreDomain } from "./domain"
 import type { OnlineRequestStore } from "./online-requests"
+import { resetWorkingSessions } from "./collection-projector"
 
 type ProjectRow = {
   id: string
@@ -60,6 +61,7 @@ const encodeMessage = Schema.encodeSync(SessionMessage.Message)
 const encodeSession = Schema.encodeUnknownSync(Session.Info)
 
 export function bootstrapCollections(database: SyncDatabase) {
+  resetWorkingSessions()
   database.raw.exec(`UPDATE todo SET id = 'todo_' || lower(hex(randomblob(16))) WHERE id IS NULL`)
   const projects = database.raw.query<ProjectRow, []>("SELECT * FROM project ORDER BY id").all()
   const projectsChanged = database.collections.hydrate(
@@ -98,7 +100,8 @@ export function bootstrapCollections(database: SyncDatabase) {
     "",
     sessions.map((session) => {
       const row = sessionRow(session)
-      return { key: session.id, revision: fingerprint(row), row }
+      const projected = { ...row, working: false }
+      return { key: session.id, revision: fingerprint(projected), row: projected }
     }),
   )
   const messages = database.raw

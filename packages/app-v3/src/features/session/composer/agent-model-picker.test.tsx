@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
 import { render, screen } from "@/test/test-utils"
 import { AgentModelPicker } from "./agent-model-picker"
-import { agents, models } from "@/mock/fixtures"
+import { agents, models } from "@/test/fixtures"
 
 describe("AgentModelPicker", () => {
   test("shows the currently selected agent and model", () => {

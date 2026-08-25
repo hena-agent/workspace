@@ -12,16 +12,27 @@ export function FileTreeNode({
   depth,
   activePath,
   onSelectFile,
+  onExpand,
 }: {
   node: FileNode
   depth: number
   activePath?: string
   onSelectFile: (path: string) => void
+  onExpand?: (path: string) => Promise<FileNode[]>
 }) {
-  // The mock tree is small, so every directory starts expanded to show the
-  // full structure at a glance; a real (much larger) tree would default deep
-  // levels to collapsed instead.
-  const [open, setOpen] = useState(true)
+  const [openOverride, setOpenOverride] = useState<boolean>()
+  const [loadedChildren, setLoadedChildren] = useState<FileNode[]>()
+  const [loading, setLoading] = useState(false)
+  const open = openOverride ?? Boolean(node.children)
+  const children = node.children ?? loadedChildren
+
+  async function toggle() {
+    const next = !open
+    setOpenOverride(next)
+    if (!next || children || !onExpand) return
+    setLoading(true)
+    setLoadedChildren(await onExpand(node.path).finally(() => setLoading(false)))
+  }
 
   if (node.type === "file") {
     const active = node.path === activePath
@@ -46,7 +57,7 @@ export function FileTreeNode({
     <div>
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggle}
         aria-expanded={open}
         style={{ paddingLeft: `${8 + depth * 14}px` }}
         className="flex hit-area w-full items-center gap-1.5 rounded-md py-1 pr-2 text-left text-xs hover:bg-accent/60"
@@ -54,16 +65,18 @@ export function FileTreeNode({
         <ChevronRight aria-hidden className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")} />
         <Folder aria-hidden className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="truncate">{baseName(node.path)}</span>
+        {loading ? <span className="text-muted-foreground">Loading...</span> : null}
       </button>
       {open
         ? <ul role="list">
-            {node.children?.map((child) => (
+            {children?.map((child) => (
               <li key={child.path}>
                 <FileTreeNode
                   node={child}
                   depth={depth + 1}
                   activePath={activePath}
                   onSelectFile={onSelectFile}
+                  onExpand={onExpand}
                 />
               </li>
             ))}

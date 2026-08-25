@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
 import { render, screen } from "@/test/test-utils"
 import { FileTree } from "./file-tree"
-import { getFileTree } from "@/mock/queries"
+import { getFileTree } from "@/test/queries"
 
 const tree = getFileTree()
 

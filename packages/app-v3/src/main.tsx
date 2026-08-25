@@ -1,13 +1,15 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { RouterProvider } from "@tanstack/react-router"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 import "./index.css"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
-import { MockServerProvider } from "@/features/server/mock-server-provider"
+import { ConnectionProvider } from "@/connection/provider"
 import { createAppRouter } from "./router"
 
 const router = createAppRouter()
+const queryClient = new QueryClient()
 const embeddedOrigin =
   import.meta.env.VITE_HENA_EMBEDDED === "true"
     ? new URL(import.meta.env.BASE_URL, window.location.origin).toString()
@@ -16,9 +18,11 @@ const embeddedOrigin =
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
-      <MockServerProvider embeddedOrigin={embeddedOrigin}>
-        <RouterProvider router={router} />
-      </MockServerProvider>
+      <QueryClientProvider client={queryClient}>
+        <ConnectionProvider embeddedOrigin={embeddedOrigin}>
+          <RouterProvider router={router} />
+        </ConnectionProvider>
+      </QueryClientProvider>
     </ThemeProvider>
   </StrictMode>,
 )

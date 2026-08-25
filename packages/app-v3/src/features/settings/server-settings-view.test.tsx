@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { render, screen } from "@/test/test-utils"
 import { ServerSettingsView, type ServerSettingsSection } from "./server-settings-view"
-import { connections, mcpServers, models, providers } from "@/mock/fixtures"
+import { connections, mcpServers, models, providers } from "@/test/fixtures"
 
 function view(section: ServerSettingsSection) {
   return (
@@ -37,5 +37,21 @@ describe("ServerSettingsView", () => {
 
     result.rerender(view("storage"))
     expect(screen.getByText("12 MiB of 50 MiB")).toBeInTheDocument()
+  })
+
+  test("explains when MCP servers are unsupported", () => {
+    render(
+      <ServerSettingsView
+        section="mcp"
+        providers={[]}
+        models={[]}
+        mcpServers={[]}
+        connections={[]}
+        onRemoveConnection={() => {}}
+        storage={{ usedMib: 0, budgetMib: 50 }}
+      />,
+    )
+
+    expect(screen.getByText("MCP servers are not supported by this server yet.")).toBeInTheDocument()
   })
 })

@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useState, useSyncExternalStore } from "react"
 import { Check, Circle, Loader2, X } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 import type { ToolPart } from "@/lib/types"
+import { FullContent } from "./full-content"
 
 const STATUS_ICON = { pending: Circle, running: Loader2, completed: Check, error: X } as const
 const STATUS_CLASS = {
@@ -16,6 +17,8 @@ const STATUS_LABEL = { pending: "Pending", running: "Running", completed: "Compl
 export function ToolPartView({ part }: { part: ToolPart }) {
   const [open, setOpen] = useState(false)
   const StatusIcon = STATUS_ICON[part.status]
+  const liveInput = useSyncExternalStore(part.liveInput?.subscribe ?? emptySubscribe, part.liveInput?.snapshot ?? emptySnapshot, emptySnapshot)
+  const input = part.input || liveInput
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-md border px-2 py-1.5">
@@ -25,12 +28,16 @@ export function ToolPartView({ part }: { part: ToolPart }) {
           className={cn("size-3.5 shrink-0", STATUS_CLASS[part.status])}
         />
         <span className="font-mono font-medium">{part.tool}</span>
-        <span className="truncate text-muted-foreground">{part.input}</span>
+        <span className="truncate text-muted-foreground">{input}</span>
       </CollapsibleTrigger>
       <CollapsibleContent className="mt-1.5 flex flex-col gap-1 text-xs">
-        <pre className="overflow-x-auto rounded-sm bg-muted p-2 font-mono">{part.input}</pre>
-        {part.output ? <pre className="overflow-x-auto rounded-sm bg-muted p-2 font-mono">{part.output}</pre> : null}
+        <pre className="overflow-x-auto rounded-sm bg-muted p-2 font-mono">{input}</pre>
+        {part.outputContent ? <FullContent content={part.outputContent} preview={part.output ?? ""} /> : part.output ? <pre className="overflow-x-auto rounded-sm bg-muted p-2 font-mono">{part.output}</pre> : null}
+        {part.liveInput?.incomplete() ? <span className="text-amber-600">Tool input stream incomplete</span> : null}
       </CollapsibleContent>
     </Collapsible>
   )
 }
+
+function emptySubscribe() { return () => {} }
+function emptySnapshot() { return "" }

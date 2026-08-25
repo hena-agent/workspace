@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { fireEvent, render, screen } from "@/test/test-utils"
 import { MessageList } from "./message-list"
-import { listMessages } from "@/mock/queries"
+import { listMessages } from "@/test/queries"
 
 describe("MessageList", () => {
   test("shows an empty state when there are no messages", () => {

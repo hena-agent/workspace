@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
 import { render, screen, within } from "@/test/test-utils"
 import { ReviewView } from "./review-view"
-import { listDiffFiles } from "@/mock/queries"
+import { listDiffFiles } from "@/test/queries"
 
 const files = listDiffFiles({
   sessionId: "sess-transcript",

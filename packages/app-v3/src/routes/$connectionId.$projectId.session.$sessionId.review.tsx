@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { ReviewView } from "@/features/review/review-view"
-import { useMockServers } from "@/features/server/mock-server-provider"
-import { getSession, listDiffFiles } from "@/mock/queries"
+import { createFileRoute } from "@tanstack/react-router"
+import { useConnectionAgent } from "@/connection/provider"
+import { RouteLoadingState } from "@/connection/route-state"
+import { useCollectionReady, useSession } from "@/data/queries"
+import { SessionNavigation } from "@/features/session/session-navigation"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/review")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -13,21 +14,20 @@ export const Route = createFileRoute("/$connectionId/$projectId/session/$session
 
 function ReviewRoute() {
   const { connectionId, projectId, sessionId } = Route.useParams()
-  const { file } = Route.useSearch()
-  const navigate = useNavigate({ from: Route.fullPath })
-  const server = useMockServers().getServerBySlug(connectionId)
+  const agent = useConnectionAgent(connectionId)
+  const session = useSession(agent, sessionId)
+  const sessionsReady = useCollectionReady(agent, "sessions")
 
-  if (!server || !getSession({ id: sessionId, connectionId: server.id, projectId })) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Session not found.</div>
-    )
+  if (!session || session.projectId !== projectId) {
+    return <RouteLoadingState agent={agent} ready={sessionsReady} missing="Session not found." />
   }
 
   return (
-    <ReviewView
-      files={listDiffFiles({ sessionId, connectionId: server.id, projectId })}
-      activePath={file}
-      onSelectFile={(path) => void navigate({ search: { file: path } })}
-    />
+    <div className="flex h-full w-full min-w-0 flex-col">
+      <SessionNavigation connectionId={connectionId} projectId={projectId} sessionId={sessionId} />
+      <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm text-muted-foreground">
+        Review is not supported by this server yet.
+      </div>
+    </div>
   )
 }

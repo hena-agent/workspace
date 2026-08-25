@@ -22,7 +22,7 @@ export function SidebarPanel({
   activeSessionId?: string
   now: number
   onSelectSession: (sessionId: string) => void
-  onArchiveSession: (sessionId: string) => void
+  onArchiveSession?: (sessionId: string) => void
   onNewSession: () => void
   onRenameProject: (name: string) => void
   onClearNotifications: () => void

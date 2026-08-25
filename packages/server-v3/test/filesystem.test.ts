@@ -33,6 +33,28 @@ describe("filesystem reads", () => {
     ).toBe(400)
   })
 
+  test("reads bounded text files", async () => {
+    database = createTestDatabase().database
+    const domain = fileDomain()
+    const response = await createApp({ database, domain }).request(
+      "/api/fs/read?directory=%2Ftmp%2Fproject&path=src%2Fmain.ts&offset=2&limit=12",
+    )
+
+    expect(response.status).toBe(200)
+    expect(domain.reads).toEqual([{ directory: "/tmp/project", path: "src/main.ts", offset: 2, limit: 12 }])
+    expect(await response.json()).toEqual({ text: "hello", totalBytes: 5, truncated: false })
+  })
+
+  test("rejects unsafe or oversized file reads", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database, domain: fileDomain() })
+    const responses = await Promise.all([
+      app.request("/api/fs/read?directory=%2Ftmp%2Fproject&path=..%2Fsecret"),
+      app.request("/api/fs/read?directory=%2Ftmp%2Fproject&path=src%2Fmain.ts&limit=262145"),
+    ])
+    expect(responses.map((response) => response.status)).toEqual([400, 400])
+  })
+
   test("requires a location", async () => {
     database = createTestDatabase().database
     const response = await createApp({ database, domain: fileDomain() }).request("/api/fs/list")
@@ -104,13 +126,15 @@ describe("filesystem reads", () => {
   })
 })
 
-function fileDomain(): CoreDomain & { finds: unknown[]; lists: unknown[] } {
+function fileDomain(): CoreDomain & { finds: unknown[]; lists: unknown[]; reads: unknown[] } {
   const finds: unknown[] = []
   const lists: unknown[] = []
+  const reads: unknown[] = []
   const unavailable = () => Promise.reject(new Error("unused"))
   return {
     finds,
     lists,
+    reads,
     ready: async () => {},
     createSession: unavailable,
     admitPrompt: unavailable,
@@ -124,6 +148,10 @@ function fileDomain(): CoreDomain & { finds: unknown[]; lists: unknown[] } {
     findFiles: async (input) => {
       finds.push(input)
       return [{ path: "src/main.ts", type: "file" }]
+    },
+    readFile: async (input) => {
+      reads.push(input)
+      return { text: "hello", totalBytes: 5, truncated: false }
     },
     replyPermission: async () => ({ outcome: "applied", resolution: {} }),
     replyQuestion: async () => ({ outcome: "applied", resolution: {} }),

@@ -64,17 +64,31 @@ const encodeSession = Schema.encodeUnknownSync(Session.Info)
 const decodeMessage = Schema.decodeUnknownSync(SessionMessage.Message)
 const encodeMessage = Schema.encodeSync(SessionMessage.Message)
 const decodeTodoUpdate = Schema.decodeUnknownSync(SessionTodo.Event.Updated.data)
+const workingSessions = new Set<string>()
 
 export function refreshDurableEvent(
   database: DatabaseService,
   event: {
     type: string
-    data: { sessionID: string; messageID?: string; assistantMessageID?: string; callID?: string }
+    data: {
+      sessionID: string
+      messageID?: string
+      assistantMessageID?: string
+      callID?: string
+      delivery?: string
+      finish?: string
+    }
   },
 ) {
   return Effect.gen(function* () {
     if (event.type === SessionEvent.Retried.type) return
     const txid = (yield* MutationTxid) ?? crypto.randomUUID()
+    if (event.type === SessionEvent.Prompted.type ||
+      (event.type === SessionEvent.PromptAdmitted.type && "delivery" in event.data && event.data.delivery !== "queue"))
+      workingSessions.add(event.data.sessionID)
+    if (event.type === SessionEvent.Step.Failed.type ||
+      (event.type === SessionEvent.Step.Ended.type && (!("finish" in event.data) || event.data.finish !== "tool-calls")))
+      workingSessions.delete(event.data.sessionID)
     if (event.type === SessionEvent.RevertEvent.Committed.type) {
       yield* refreshSession(database, event.data.sessionID, false, txid)
       yield* refreshMessages(database, event.data.sessionID, txid)
@@ -139,7 +153,7 @@ function refreshSession(database: DatabaseService, sessionID: string, moved: boo
       .where(eq(SessionTable.id, Session.ID.make(sessionID)))
       .get()
     if (session) {
-      const row = encodeSession(fromRow(session))
+      const row = { ...encodeSession(fromRow(session)), working: workingSessions.has(sessionID) }
       yield* replaceScopeRow(database, "sessions", "", { key: session.id, row, revision: fingerprint(row) }, txid)
     }
     if (!session) yield* removeScopeRow(database, "sessions", "", sessionID, txid)
@@ -191,6 +205,16 @@ function refreshSession(database: DatabaseService, sessionID: string, moved: boo
     `))
     if (!session || moved || !location) yield* reconcileLocations(database, txid)
   })
+}
+
+export function setSessionWorking(database: DatabaseService, sessionID: string, working: boolean, txid: string) {
+  if (working) workingSessions.add(sessionID)
+  if (!working) workingSessions.delete(sessionID)
+  return refreshSession(database, sessionID, false, txid)
+}
+
+export function resetWorkingSessions() {
+  workingSessions.clear()
 }
 
 function refreshMessages(database: DatabaseService, sessionID: string, txid: string) {

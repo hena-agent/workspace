@@ -14,25 +14,24 @@ export function LegacyHomeView({
   projects: Project[]
   now: number
   onOpenProject: (project: Project) => void
-  onAddProject: () => void
+  onAddProject?: () => void
 }) {
   return (
     <div className="h-full w-full overflow-y-auto px-4">
       <div className="mx-auto mt-[220px] max-w-xl pb-8">
         <LegacyLogo />
-        <Button
-          variant="ghost"
-          className="mx-auto mt-4 h-8 hit-area text-[14px] font-normal text-[var(--legacy-text-weak)]"
-        >
+        <div className="mx-auto mt-4 flex h-8 items-center justify-center gap-2 text-[14px] text-[var(--legacy-text-base)]">
           <span className="size-2 rounded-full bg-[var(--legacy-border-weak)]" />
           {connection.name}
-        </Button>
+        </div>
         <div className="mt-20 flex w-full flex-col gap-4">
           <div className="flex items-center justify-between gap-2 pl-3">
             <h1 className="text-[14px] font-medium text-[var(--legacy-text-strong)]">Recent projects</h1>
-            <Button className="legacy-primary-button h-7 pr-3 pl-2 text-[13px]" onClick={onAddProject}>
-              <LegacyIcon name="folder-add-left" className="size-4" /> Open project
-            </Button>
+            {onAddProject ? (
+              <Button className="legacy-primary-button h-7 pr-3 pl-2 text-[13px]" onClick={onAddProject}>
+                <LegacyIcon name="folder-add-left" className="size-4" /> Open project
+              </Button>
+            ) : null}
           </div>
           <ul className="flex flex-col gap-2">
             {projects.slice(0, 5).map((project) => (
@@ -43,7 +42,7 @@ export function LegacyHomeView({
                   onClick={() => onOpenProject(project)}
                 >
                   {project.path}
-                  <span className="font-sans text-[14px] text-[var(--legacy-text-weak)]">
+                  <span className="font-sans text-[14px] text-[var(--legacy-text-base)]">
                     {formatRelativeTime(project.updatedAt, now)}
                   </span>
                 </Button>

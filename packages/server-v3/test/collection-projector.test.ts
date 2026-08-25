@@ -20,6 +20,35 @@ import { Session } from "@hena/schema/session"
 import { SessionEvent } from "@hena/schema/session-event"
 
 describe("collection projector", () => {
+  test("projects working from admission through terminal settlement", async () => {
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`)
+        yield* database.run(sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_working', 'global', 'session', '/project', 'Session', '1', 1, 1)`)
+        yield* database.run(sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`)
+
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.PromptAdmitted.type,
+          data: { sessionID: "ses_working", messageID: "msg_1", delivery: "steer" },
+        })
+        expect(yield* sessionWorking(database, "ses_working")).toBe(true)
+
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.Step.Ended.type,
+          data: { sessionID: "ses_working", finish: "tool-calls" },
+        })
+        expect(yield* sessionWorking(database, "ses_working")).toBe(true)
+
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.Step.Ended.type,
+          data: { sessionID: "ses_working", finish: "stop" },
+        })
+        expect(yield* sessionWorking(database, "ses_working")).toBe(false)
+      }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
+    )
+  })
+
   test("projects ID-preserving todo reordering", async () => {
     await Effect.runPromise(
       Effect.gen(function* () {
@@ -588,3 +617,9 @@ describe("collection projector", () => {
     )
   })
 })
+
+function sessionWorking(database: Database.Interface["db"], sessionID: string) {
+  return database.get<{ row: string }>(sql`
+    SELECT row FROM collection_row WHERE collection = 'sessions' AND scope_key = '' AND row_key = ${sessionID}
+  `).pipe(Effect.map((result) => result ? (JSON.parse(result.row) as { working: boolean }).working : undefined))
+}

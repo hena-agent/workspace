@@ -1,4 +1,5 @@
 export const SERVER_SETTINGS_SECTIONS = [
+  { id: "defaults", label: "Defaults" },
   { id: "providers", label: "Providers" },
   { id: "models", label: "Models" },
   { id: "mcp", label: "MCP servers" },

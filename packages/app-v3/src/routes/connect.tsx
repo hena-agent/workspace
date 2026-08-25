@@ -4,7 +4,7 @@ import { PlusIcon, ServerIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { useMockServers } from "@/features/server/mock-server-provider"
+import { useServers } from "@/connection/provider"
 
 export const Route = createFileRoute("/connect")({
   component: ConnectRoute,
@@ -12,24 +12,20 @@ export const Route = createFileRoute("/connect")({
 
 function ConnectRoute() {
   const navigate = useNavigate()
-  const servers = useMockServers()
+  const servers = useServers()
   const [url, setUrl] = useState("")
   const [error, setError] = useState("")
 
-  function add(event: FormEvent<HTMLFormElement>) {
+  async function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const server = servers.addServer(url)
-    if (!server) {
-      setError("Enter an HTTP or HTTPS server URL allowed from this origin.")
-      return
-    }
-    if (server.status === "offline") {
-      setError("This server is offline and available only for diagnostics.")
+    const result = await servers.addServer(url)
+    if (!result.connection) {
+      setError(result.probe.message)
       return
     }
     void navigate({
       to: "/$connectionId",
-      params: { connectionId: servers.getSlug(server) },
+      params: { connectionId: servers.getSlug(result.connection) },
       replace: true,
     })
   }
@@ -48,7 +44,7 @@ function ConnectRoute() {
             : "This hosted profile accepts HTTPS servers only."}
         </p>
 
-        <form onSubmit={add} className="mt-8 flex flex-col gap-4">
+        <form onSubmit={(event) => void add(event)} className="mt-8 flex flex-col gap-4">
           <FieldGroup>
             <Field data-invalid={Boolean(error)}>
               <FieldLabel htmlFor="connect-server-url">Server URL</FieldLabel>

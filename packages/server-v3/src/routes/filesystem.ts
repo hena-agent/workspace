@@ -20,6 +20,12 @@ export function createFileSystemRoutes(domain: CoreDomain) {
         .then((data) => c.json({ data }))
         .catch((cause) => fileSystemError(c, cause)),
     )
+    .get("/fs/read", sValidator("query", Schema.toStandardSchemaV1(Sync.FileReadQuery), validationHook), async (c) =>
+      domain
+        .readFile(c.req.valid("query"))
+        .then((data) => c.json(data))
+        .catch((cause) => fileSystemError(c, cause)),
+    )
 }
 
 function fileSystemError(c: Parameters<typeof error>[0], cause: unknown) {

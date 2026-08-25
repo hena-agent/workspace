@@ -14,7 +14,7 @@ export function SessionList({
   autoFocusSessionId?: string
   mobile?: boolean
   onSelectSession: (sessionId: string) => void
-  onArchiveSession: (sessionId: string) => void
+  onArchiveSession?: (sessionId: string) => void
 }) {
   if (sessions.length === 0) {
     return <div className="px-2 py-3 text-[13px] text-[var(--legacy-text-weak)]">No sessions yet</div>
@@ -30,7 +30,7 @@ export function SessionList({
           autoFocus={session.id === autoFocusSessionId}
           mobile={mobile}
           onSelect={() => onSelectSession(session.id)}
-          onArchive={() => onArchiveSession(session.id)}
+          onArchive={onArchiveSession ? () => onArchiveSession(session.id) : undefined}
         />
       ))}
     </nav>

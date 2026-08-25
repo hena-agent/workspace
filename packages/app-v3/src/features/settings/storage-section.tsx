@@ -9,8 +9,8 @@ export function StorageSection({
 }: {
   usedMib: number
   budgetMib: number
-  onClearCache: () => void
-  onRemoveAllData: () => void
+  onClearCache?: () => void
+  onRemoveAllData?: () => void
 }) {
   const percent = Math.min(100, Math.round((usedMib / budgetMib) * 100))
 
@@ -31,16 +31,16 @@ export function StorageSection({
           <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
         </div>
       </div>
-      <SettingsRow label="Clear cached transcripts" description="Frees space; sessions re-sync from the server.">
+      {onClearCache ? <SettingsRow label="Clear cached transcripts" description="Frees space; sessions re-sync from the server.">
         <Button variant="outline" size="sm" onClick={onClearCache} className="hit-area">
           Clear
         </Button>
-      </SettingsRow>
-      <SettingsRow label="Remove all local data" description="Signs out this server and removes its local data.">
+      </SettingsRow> : null}
+      {onRemoveAllData ? <SettingsRow label="Remove all local data" description="Signs out this server and removes its local data.">
         <Button variant="destructive" size="sm" onClick={onRemoveAllData} className="hit-area">
           Remove
         </Button>
-      </SettingsRow>
+      </SettingsRow> : null}
     </div>
   )
 }

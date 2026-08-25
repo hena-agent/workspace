@@ -1,0 +1,30 @@
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { Button } from "@/components/ui/button"
+import type { ContentReference } from "@/lib/types"
+
+export function FullContent({ content, preview }: { content: ContentReference; preview: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const query = useQuery({
+    queryKey: content.queryKey,
+    enabled: expanded,
+    gcTime: 0,
+    queryFn: ({ signal }) => loadAll(content, 0, "", signal),
+  })
+  return (
+    <div className="flex flex-col gap-2">
+      <pre className="overflow-x-auto whitespace-pre-wrap">{expanded && query.data !== undefined ? query.data : preview}</pre>
+      <Button type="button" size="sm" variant="outline" className="self-start" onClick={() => setExpanded((value) => !value)}>
+        {expanded ? "Show preview" : `Show full output (${content.bytes} bytes)`}
+      </Button>
+      {query.isError ? <p className="text-xs text-destructive">Full output is unavailable.</p> : null}
+    </div>
+  )
+}
+
+async function loadAll(content: ContentReference, offset: number, text: string, signal: AbortSignal): Promise<string> {
+  const page = await content.loadPage(offset, signal)
+  const next = text + page.text
+  if (page.nextOffset >= page.totalBytes) return next
+  return loadAll(content, page.nextOffset, next, signal)
+}

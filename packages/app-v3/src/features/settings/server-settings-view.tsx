@@ -1,10 +1,11 @@
-import type { Connection, McpServer, Model, Provider } from "@/lib/types"
+import type { Agent, Connection, McpServer, Model, Provider } from "@/lib/types"
 import { McpSection } from "./mcp-section"
 import { ModelsSection } from "./models-section"
 import { ProvidersSection } from "./providers-section"
 import type { ServerSettingsSection } from "./server-settings-sections"
 import { ServersSection } from "./servers-section"
 import { StorageSection } from "./storage-section"
+import { DefaultsSection } from "./defaults-section"
 
 export type { ServerSettingsSection } from "./server-settings-sections"
 
@@ -19,20 +20,28 @@ export function ServerSettingsView({
   storage,
   onClearCache,
   onRemoveAllData,
+  defaults,
+  onChangeDefault,
+  agents = [],
 }: {
   section: ServerSettingsSection
   providers: Provider[]
-  onToggleProviderConnection: (providerId: string) => void
+  onToggleProviderConnection?: (providerId: string) => void
   models: Model[]
   mcpServers: McpServer[]
   connections: Connection[]
   onRemoveConnection: (connectionId: string) => void
   storage: { usedMib: number; budgetMib: number }
-  onClearCache: () => void
-  onRemoveAllData: () => void
+  onClearCache?: () => void
+  onRemoveAllData?: () => void
+  defaults?: { agent?: string; model?: string; queueDelivery?: "steer" | "queue" }
+  onChangeDefault?: (key: "defaultAgent" | "defaultModel" | "queueDelivery", value: string) => Promise<void>
+  agents?: Agent[]
 }) {
   const content = (() => {
     switch (section) {
+      case "defaults":
+        return <DefaultsSection agents={agents} models={models} defaultAgent={defaults?.agent} defaultModel={defaults?.model} queueDelivery={defaults?.queueDelivery} onChange={onChangeDefault} />
       case "providers":
         return <ProvidersSection providers={providers} onToggleConnection={onToggleProviderConnection} />
       case "models":

@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react"
 import { Outlet, useLocation, useNavigate, useParams } from "@tanstack/react-router"
 import { CommandPalette } from "@/features/command-palette/command-palette"
-import { useMockServers } from "@/features/server/mock-server-provider"
+import { useConnectionAgent, useServers } from "@/connection/provider"
+import type { ProbeResult } from "@/connection/probe"
+import { ConnectionStateBanner } from "@/connection/route-state"
+import { Button } from "@/components/ui/button"
 import { ServerSelectionModal } from "@/features/server/server-selection-modal"
 import { decodeServerSlug } from "@/lib/server-url"
 import type { Project } from "@/lib/types"
-import { MOCK_NOW } from "@/mock/fixtures"
-import { getProject, getProjectNotificationState, listProjects, listServerCommands, listSessions } from "@/mock/queries"
+import { projectNotification, useProject, useProjects, useSessions } from "@/data/queries"
 import { AppShell } from "./app-shell"
 
 const DRAFT_INSTANCE_ID = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) => value.toString(36)).join(
@@ -16,7 +18,62 @@ const DRAFT_INSTANCE_ID = Array.from(crypto.getRandomValues(new Uint32Array(4)),
 export function RootLayout() {
   const pathname = useLocation({ select: (location) => location.pathname })
   if (pathname === "/connect") return <Outlet />
-  return <ShellLayout />
+  return <ConnectionGate><ShellLayout /></ConnectionGate>
+}
+
+function ConnectionGate({ children }: { children: ReactNode }) {
+  const params = useParams({ strict: false }) as { connectionId?: string }
+  const servers = useServers()
+  const resolution = params.connectionId ? servers.resolveSlug(params.connectionId) : undefined
+  const [probe, setProbe] = useState<ProbeResult>()
+  const [adding, setAdding] = useState(false)
+  const diagnoseServer = useEffectEvent((url: string) => servers.diagnoseServer(url))
+  const resolutionKind = resolution?.kind
+  const resolutionUrl = resolution && "url" in resolution ? resolution.url : undefined
+
+  useEffect(() => {
+    if (!resolutionUrl || resolutionKind === "registered" || resolutionKind === "malformed") return
+    let active = true
+    void diagnoseServer(resolutionUrl).then((result) => {
+      if (active) setProbe(result)
+    })
+    return () => { active = false }
+  }, [resolutionKind, resolutionUrl])
+
+  if (!resolution || resolution.kind === "registered") return children
+  if (resolution.kind === "malformed") return <ConnectionGateState title="Invalid server link" detail="This address is not a valid canonical server URL." />
+
+  async function register() {
+    if (!resolution || !("url" in resolution)) return
+    setAdding(true)
+    const result = await servers.addServer(resolution.url)
+    setProbe(result.probe)
+    setAdding(false)
+  }
+
+  return (
+    <ConnectionGateState
+      title={resolution.kind === "tombstoned" ? "You removed this server" : "Connect to this server?"}
+      detail={`${resolution.url}\n${probe?.message ?? "Checking compatibility..."}`}
+      action={probe?.status === "reachable" ? (
+        <Button onClick={() => void register()} disabled={adding}>
+          {adding ? "Adding server..." : resolution.kind === "tombstoned" ? "Re-add server" : "Add server"}
+        </Button>
+      ) : undefined}
+    />
+  )
+}
+
+function ConnectionGateState({ title, detail, action }: { title: string; detail: string; action?: ReactNode }) {
+  return (
+    <main className="flex min-h-svh items-center justify-center bg-[var(--legacy-background-base)] p-6">
+      <section className="w-full max-w-lg rounded-xl border border-[var(--legacy-border-weak)] bg-background p-6">
+        <h1 className="text-xl font-semibold">{title}</h1>
+        <p className="mt-3 whitespace-pre-line break-all text-sm text-muted-foreground">{detail}</p>
+        {action ? <div className="mt-6">{action}</div> : null}
+      </section>
+    </main>
+  )
 }
 
 function ShellLayout() {
@@ -26,9 +83,11 @@ function ShellLayout() {
     projectId?: string
     sessionId?: string
   }
-  const servers = useMockServers()
+  const servers = useServers()
+  const agent = useConnectionAgent(params.connectionId)
   const connection = servers.getServerBySlug(params.connectionId)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [now] = useState(Date.now)
   const draftSequence = useRef(0)
 
   useEffect(() => {
@@ -42,13 +101,13 @@ function ShellLayout() {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [])
 
-  const projects = connection ? listProjects(connection.id) : []
-  const project = connection && params.projectId ? getProject({ id: params.projectId, connectionId: connection.id }) : undefined
-  const projectSessions = project ? listSessions({ projectId: project.id, connectionId: project.connectionId }) : []
-  const serverSessions = connection ? listSessions({ connectionId: connection.id }) : []
+  const projects = useProjects(agent).map((project) => ({ ...project, connectionId: connection?.url ?? "" }))
+  const project = useProject(agent, params.projectId)
+  const serverSessions = useSessions(agent)
+  const projectSessions = serverSessions.filter((session) => session.projectId === project?.id)
 
   function goToProject(target: Project) {
-    const server = servers.connections.find((candidate) => candidate.id === target.connectionId)
+    const server = servers.connections.find((candidate) => candidate.url === target.connectionId)
     if (!server) return
     void navigate({
       to: "/$connectionId/$projectId",
@@ -70,7 +129,7 @@ function ShellLayout() {
       rail={{
         projects: projects.map((item) => ({
           project: item,
-          notification: getProjectNotificationState({ projectId: item.id, connectionId: item.connectionId }),
+           notification: projectNotification(item.id, serverSessions),
         })),
         selectedProject: project,
         onSelectProject: goToProject,
@@ -87,7 +146,7 @@ function ShellLayout() {
         project,
         sessions: projectSessions,
         activeSessionId: params.sessionId,
-        now: MOCK_NOW,
+        now,
         onSelectSession: (id) => {
           if (!params.connectionId || !params.projectId) return
           void navigate({
@@ -95,7 +154,6 @@ function ShellLayout() {
             params: { connectionId: params.connectionId, projectId: params.projectId, sessionId: id },
           })
         },
-        onArchiveSession: () => {},
         onNewSession: () => {
           if (!params.connectionId || !params.projectId) return
           draftSequence.current += 1
@@ -119,23 +177,23 @@ function ShellLayout() {
         <ServerSelectionModal
           current={connection}
           pendingUrl={connection ? undefined : decodeServerSlug(params.connectionId ?? "")}
-          onSelect={(server) =>
-            runAfterMobileNavClose(() => {
-              const connectionId = servers.getSlug(server)
-              if (params.connectionId === connectionId) return
-              void navigate({ to: "/$connectionId", params: { connectionId } })
-            })
-          }
+          onSelect={(server) => {
+            const connectionId = servers.getSlug(server)
+            if (params.connectionId === connectionId) return
+            void navigate({ to: "/$connectionId", params: { connectionId } })
+          }}
         />
       }
     >
+      <ConnectionStateBanner agent={agent} />
       <Outlet />
       <CommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         projects={projects}
         sessions={serverSessions.filter((session) => !session.archived)}
-        serverCommands={listServerCommands()}
+        serverCommands={[]}
+        connections={servers.connections}
         onSelectProject={(target) => runAfterMobileNavClose(() => goToProject(target))}
         onSelectSession={(session) =>
           runAfterMobileNavClose(() => {
@@ -151,6 +209,9 @@ function ShellLayout() {
           })
         }
         onRunServerCommand={() => runAfterMobileNavClose(() => {})}
+        onSelectConnection={(server) => runAfterMobileNavClose(() => {
+          void navigate({ to: "/$connectionId", params: { connectionId: servers.getSlug(server) } })
+        })}
         onOpenSettings={() =>
           runAfterMobileNavClose(() => {
             if (!params.connectionId) return

@@ -619,17 +619,17 @@ describe("filesystem", () => {
       expect(result).toBe(Filesystem.normalizePath(path.resolve(missing)))
     })
 
-    test("falls back on symlink cycles", async () => {
+    test("throws ELOOP on symlink cycle", async () => {
       await using tmp = await tmpdir()
       const a = path.join(tmp.path, "a")
       const b = path.join(tmp.path, "b")
       await fs.symlink(b, a)
       await fs.symlink(a, b)
-      expect(Filesystem.resolve(a)).toBe(Filesystem.normalizePath(path.resolve(a)))
+      expect(() => Filesystem.resolve(a)).toThrow()
     })
 
     // Windows: chmod(0o000) is a no-op, so EACCES cannot be triggered
-    test("falls back on permission-denied symlink targets", async () => {
+    test("throws EACCES on permission-denied symlink target", async () => {
       if (process.platform === "win32") return
       if (process.getuid?.() === 0) return // skip when running as root
       await using tmp = await tmpdir()
@@ -639,19 +639,20 @@ describe("filesystem", () => {
       await fs.symlink(dir, link)
       await fs.chmod(dir, 0o000)
       try {
-        const input = path.join(link, "child")
-        expect(Filesystem.resolve(input)).toBe(Filesystem.normalizePath(path.resolve(input)))
+        expect(() => Filesystem.resolve(path.join(link, "child"))).toThrow()
       } finally {
         await fs.chmod(dir, 0o755)
       }
     })
 
-    test("falls back on non-ENOENT errors", async () => {
+    // Windows: traversing through a file throws ENOENT (not ENOTDIR),
+    // which resolve() catches as a fallback instead of rethrowing
+    test("rethrows non-ENOENT errors", async () => {
+      if (process.platform === "win32") return
       await using tmp = await tmpdir()
       const file = path.join(tmp.path, "not-a-directory")
       await fs.writeFile(file, "x")
-      const input = path.join(file, "child")
-      expect(Filesystem.resolve(input)).toBe(Filesystem.normalizePath(path.resolve(input)))
+      expect(() => Filesystem.resolve(path.join(file, "child"))).toThrow()
     })
   })
 

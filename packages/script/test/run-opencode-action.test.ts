@@ -32,34 +32,29 @@ describe("run-opencode review action", () => {
     const body = "First\n<task_result>\ninner\n</task_result>\nLast"
     const result = jq(
       ["-jers", "--arg", "operation", "completed-review", "-f", extractionFilter],
-      events(
-        {
-          type: "tool_use",
-          part: {
-            tool: "task",
-            state: {
-              status: "completed",
-              input: { command: "review" },
-              output: `<task id="ses_review" state="completed">\n<task_result>\n${body}\n</task_result>\n</task>`,
-            },
-          },
-        },
-        {
-          type: "tool_use",
-          part: {
-            tool: "task",
-            state: {
-              status: "completed",
-              input: { command: "explore" },
-              output: '<task id="ses_explore" state="completed">\n<task_result>\nunrelated\n</task_result>\n</task>',
-            },
-          },
-        },
-        { type: "error", error: { data: { isRetryable: true } } },
-      ),
+      events(completedTask(body, "review"), completedTask("unrelated", "explore"), {
+        type: "error",
+        error: { data: { isRetryable: true } },
+      }),
     )
     expect(result.exitCode).toBe(0)
     expect(result.stdout).toBe(body)
+  })
+
+  test("accepts the pinned OpenCode retry classifications", () => {
+    const errors = [
+      { data: { isRetryable: false, statusCode: 503, message: "Service unavailable" } },
+      { data: { isRetryable: false, message: "socket hang up" } },
+      { data: { isRetryable: false, responseBody: "provider_returned_error" } },
+    ]
+    expect(
+      errors.map((error) =>
+        jq(
+          ["-jers", "--arg", "operation", "completed-review", "-f", extractionFilter],
+          events(completedTask("review", "review"), { type: "error", error }),
+        ),
+      ),
+    ).toEqual(errors.map(() => expect.objectContaining({ exitCode: 0, stdout: "review" })))
   })
 
   test("rejects incomplete tasks, malformed wrappers, and non-retryable errors", () => {
@@ -69,13 +64,9 @@ describe("run-opencode review action", () => {
         { type: "error", error: { data: { isRetryable: true } } },
       ),
       events(
-        { type: "tool_use", part: { tool: "task", state: { status: "completed", output: "review" } } },
-        { type: "error", error: { data: { isRetryable: true } } },
-      ),
-      events(
         {
           type: "tool_use",
-          part: { tool: "task", state: { status: "completed", output: "<task_result>\nreview\n</task_result>" } },
+          part: { tool: "task", state: { status: "completed", input: { command: "review" }, output: "review" } },
         },
         { type: "error", error: { data: { isRetryable: true } } },
       ),
@@ -86,18 +77,24 @@ describe("run-opencode review action", () => {
             tool: "task",
             state: {
               status: "completed",
-              output: '<task id="ses_review" state="completed">\n<task_result>\nreview\n</task_result>\n</task>',
+              input: { command: "review" },
+              output: "<task_result>\nreview\n</task_result>",
             },
           },
         },
-        { type: "error", error: { data: { isRetryable: false } } },
+        { type: "error", error: { data: { isRetryable: true } } },
       ),
+      events(completedTask("review", "review"), { type: "error", error: { data: { isRetryable: false } } }),
+      events(completedTask("review", "review"), {
+        type: "error",
+        error: { name: "ContextOverflowError", data: { isRetryable: true } },
+      }),
     ]
     expect(
       failures.map(
         (input) => jq(["-jers", "--arg", "operation", "completed-review", "-f", extractionFilter], input).exitCode,
       ),
-    ).toEqual([5, 5, 5, 5])
+    ).toEqual([5, 5, 5, 5, 5])
   })
 
   test("renders trusted review provenance", () => {
@@ -152,6 +149,20 @@ describe("run-opencode review action", () => {
 
 function events(...values: unknown[]) {
   return values.map((value) => JSON.stringify(value)).join("\n")
+}
+
+function completedTask(body: string, command: string) {
+  return {
+    type: "tool_use",
+    part: {
+      tool: "task",
+      state: {
+        status: "completed",
+        input: { command },
+        output: `<task id="ses_${command}" state="completed">\n<task_result>\n${body}\n</task_result>\n</task>`,
+      },
+    },
+  }
 }
 
 function jq(args: string[], input: string) {

@@ -95,10 +95,14 @@ describe("managed projects", () => {
           .quiet(),
       )
 
-      expect(yield* projects.resolve(separate.directory)).toEqual({
-        ...separate,
+      const transitioned = yield* projects.resolve(separate.directory)
+      expect(transitioned).toEqual({
+        previous: separate.id,
+        id: transitioned.id,
+        directory: separate.directory,
         vcs: { type: "git", store: AbsolutePath.make(yield* Effect.promise(() => fs.realpath(storage))) },
       })
+      expect(transitioned.id).not.toBe(separate.id)
 
       const linked = AbsolutePath.make(path.join(data, `linked-${separate.id}`))
       yield* Effect.promise(() =>
@@ -106,7 +110,8 @@ describe("managed projects", () => {
       )
 
       expect(yield* projects.resolve(linked)).toEqual({
-        id: separate.id,
+        previous: separate.id,
+        id: transitioned.id,
         directory: AbsolutePath.make(yield* Effect.promise(() => fs.realpath(linked))),
         vcs: { type: "git", store: AbsolutePath.make(yield* Effect.promise(() => fs.realpath(storage))) },
       })
@@ -115,14 +120,15 @@ describe("managed projects", () => {
       yield* Effect.promise(() => fs.mkdir(nested))
       yield* Effect.promise(() => $`git init`.cwd(nested).quiet())
       expect(yield* projects.resolve(nested)).toEqual({
-        id: separate.id,
+        previous: separate.id,
+        id: transitioned.id,
         directory: AbsolutePath.make(yield* Effect.promise(() => fs.realpath(linked))),
         vcs: { type: "git", store: AbsolutePath.make(yield* Effect.promise(() => fs.realpath(storage))) },
       })
     }),
   )
 
-  it.live("keeps managed identity when a directory becomes a git repository", () =>
+  it.live("uses Git identity once a managed project has a commit", () =>
     Effect.gen(function* () {
       const projects = yield* Project.Service
       yield* Effect.promise(() => $`git init`.cwd(data).quiet())
@@ -142,12 +148,16 @@ describe("managed projects", () => {
           .cwd(created.directory)
           .quiet(),
       )
+      const transitioned = yield* projects.resolve(created.directory)
+      expect(transitioned.id).not.toBe(created.id)
+      expect(transitioned.previous).toBe(created.id)
+
       const linked = path.join(data, `linked-${created.id}`)
       yield* Effect.addFinalizer(() => Effect.promise(() => fs.rm(linked, { recursive: true, force: true })))
       yield* Effect.promise(() => $`git worktree add ${linked} -b linked-${created.id}`.cwd(created.directory).quiet())
       const linkedDirectory = AbsolutePath.make(yield* Effect.promise(() => fs.realpath(linked)))
       expect(yield* projects.resolve(AbsolutePath.make(linked))).toMatchObject({
-        id: created.id,
+        id: transitioned.id,
         directory: linkedDirectory,
         vcs: { type: "git" },
       })
@@ -156,7 +166,8 @@ describe("managed projects", () => {
       yield* Effect.promise(() => fs.mkdir(linkedNested))
       yield* Effect.promise(() => $`git init`.cwd(linkedNested).quiet())
       expect(yield* projects.resolve(AbsolutePath.make(linkedNested))).toEqual({
-        id: created.id,
+        previous: created.id,
+        id: transitioned.id,
         directory: linkedDirectory,
         vcs: { type: "git", store: AbsolutePath.make(path.join(created.directory, ".git")) },
       })
@@ -165,9 +176,18 @@ describe("managed projects", () => {
       yield* Effect.promise(() => fs.mkdir(nested))
       yield* Effect.promise(() => $`git init`.cwd(nested).quiet())
       expect(yield* projects.resolve(AbsolutePath.make(nested))).toMatchObject({
-        id: created.id,
+        id: transitioned.id,
         directory: created.directory,
         vcs: { type: "git", store: AbsolutePath.make(path.join(created.directory, ".git")) },
+      })
+
+      const renamedPath = path.join(data, `renamed-${created.id}`)
+      yield* Effect.promise(() => fs.rename(created.directory, renamedPath))
+      const renamed = AbsolutePath.make(yield* Effect.promise(() => fs.realpath(renamedPath)))
+      expect(yield* projects.resolve(renamed)).toMatchObject({
+        id: transitioned.id,
+        directory: renamed,
+        vcs: { type: "git" },
       })
     }),
   )

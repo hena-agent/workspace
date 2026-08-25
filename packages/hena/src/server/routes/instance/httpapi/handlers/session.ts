@@ -37,7 +37,6 @@ import {
   UpdatePayload,
 } from "../groups/session"
 import { PermissionNotFoundError } from "../errors"
-import { markInstanceForReload } from "../lifecycle"
 import * as SessionError from "./session-errors"
 
 const tryParseJson = (text: string) =>
@@ -154,11 +153,7 @@ export const sessionHandlers = HttpApiBuilder.group(InstanceHttpApi, "session", 
     })
 
     const create = Effect.fn("SessionHttpApi.create")(function* (ctx: { payload?: Session.CreateInput }) {
-      const instance = yield* InstanceState.context
-      const result = yield* shareSvc.create(ctx.payload)
-      if (result.projectID !== instance.project.id)
-        yield* markInstanceForReload(instance, { directory: instance.directory })
-      return result
+      return yield* shareSvc.create(ctx.payload)
     })
 
     const createRaw = Effect.fn("SessionHttpApi.createRaw")(function* (ctx: {

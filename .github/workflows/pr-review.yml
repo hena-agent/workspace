@@ -1,9 +1,10 @@
 name: pr-review
 
-# Runs once when a PR is opened; adding the `pr-review` label re-runs it on demand.
+# Runs once when a PR is opened or marked ready for review; adding the
+# `pr-review` label re-runs it on demand.
 on:
   pull_request:
-    types: [opened, labeled]
+    types: [opened, ready_for_review, labeled]
 
 # A called (reusable) workflow cannot exceed the caller's token scopes, and this
 # repo's default workflow permission is read-only. The reusable workflow needs
@@ -22,10 +23,13 @@ concurrency:
 # The resolver owns reviewer-global eligibility (off, fork, and Dependabot) and
 # maps REVIEW_MODELS to provider-specific auth and GitHub App identities.
 jobs:
+  # Automatic triggers (opened, ready_for_review) skip drafts so a review fires
+  # once, when the PR is actually ready. An explicit `pr-review` label is a
+  # deliberate human request, so it also works on drafts.
   resolve:
     if: >-
-      github.event.action == 'opened' ||
-      (github.event.action == 'labeled' && github.event.label.name == 'pr-review')
+      (github.event.action == 'labeled' && github.event.label.name == 'pr-review') ||
+      (github.event.action != 'labeled' && github.event.pull_request.draft == false)
     uses: ./.github/workflows/_review-model.yml
     with:
       configuration: review

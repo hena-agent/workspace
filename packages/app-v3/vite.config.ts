@@ -23,8 +23,9 @@ export default defineConfig({
   },
   server: {
     // Set this for non-loopback development hosts such as Tailscale MagicDNS names.
-    allowedHosts: process.env.HENA_VITE_ALLOWED_HOSTS?.split(",")
-      .map((host) => host.trim())
-      .filter(Boolean),
+    allowedHosts: [
+      ".ts.net",
+      ...(process.env.HENA_VITE_ALLOWED_HOSTS?.split(",").map((host) => host.trim()).filter(Boolean) ?? []),
+    ],
   },
 })

@@ -24,6 +24,7 @@ import { testEffect } from "../lib/effect"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { RuntimeFlags } from "../../src/effect/runtime-flags"
 import { GlobalBus, type GlobalEvent } from "../../src/bus/global"
+import { deleteInstanceProject } from "../../src/effect/instance-registry"
 import path from "path"
 
 const it = testEffect(LayerNode.compile(LayerNode.group([Project.node, Database.node, CrossSpawnSpawner.node])))
@@ -222,14 +223,15 @@ describe("migrateFromGlobal", () => {
 
       const sessions = yield* Session.Service
       const barrier = yield* PublishBarrier
-      const creating = yield* sessions.create({}).pipe(
-        Effect.provideService(InstanceRef, {
-          directory: nested,
-          worktree: stale.sandbox,
-          project: stale.project,
-        }),
-        Effect.forkChild,
-      )
+      const staleContext = {
+        directory: nested,
+        worktree: stale.sandbox,
+        project: stale.project,
+      }
+      yield* Effect.addFinalizer(() => Effect.sync(() => deleteInstanceProject(nested)))
+      const creating = yield* sessions
+        .create({})
+        .pipe(Effect.provideService(InstanceRef, staleContext), Effect.forkChild)
       yield* Deferred.await(barrier.started[0]!)
       yield* seedProject(nestedProjectID, nestedRoot)
       yield* Deferred.succeed(barrier.release[0]!, undefined)
@@ -237,6 +239,7 @@ describe("migrateFromGlobal", () => {
       yield* seedProject(finalProjectID, finalRoot)
       yield* Deferred.succeed(barrier.release[1]!, undefined)
       const result = yield* Fiber.join(creating)
+      const listed = yield* sessions.list().pipe(Effect.provideService(InstanceRef, staleContext))
       const rows = yield* db.select().from(SessionTable).where(eq(SessionTable.id, result.id)).all().pipe(Effect.orDie)
       const durable = yield* db
         .select()
@@ -246,6 +249,7 @@ describe("migrateFromGlobal", () => {
         .pipe(Effect.orDie)
 
       expect(result.projectID).toBe(finalProjectID)
+      expect(listed.map((item) => item.id)).toContain(result.id)
       expect(result.directory).toBe(nested)
       expect(result.path).toBe("src")
       expect(created).toHaveLength(1)

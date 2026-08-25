@@ -4,7 +4,7 @@ import { GlobalBus } from "@/bus/global"
 import { serviceUse } from "@hena/core/effect/service-use"
 import { WorkspaceContext } from "@/control-plane/workspace-context"
 import { InstanceRef } from "@/effect/instance-ref"
-import { disposeInstance as runDisposers } from "@/effect/instance-registry"
+import { clearInstanceProject, disposeInstance as runDisposers, instanceProject } from "@/effect/instance-registry"
 import { FSUtil } from "@hena/core/fs-util"
 import { Context, Deferred, Duration, Effect, Exit, Layer, Scope } from "effect"
 import { type InstanceContext } from "./instance-context"
@@ -110,6 +110,8 @@ const layer: Layer.Layer<Service, never, Project.Service | InstanceBootstrap.Ser
       return Effect.uninterruptibleMask((restore) =>
         Effect.gen(function* () {
           const existing = cache.get(directory)
+          const marker = instanceProject(directory)
+          if (existing && marker) return yield* restore(reload(input, marker))
           if (existing) return yield* restore(Deferred.await(existing.deferred))
 
           const entry: Entry = { deferred: Deferred.makeUnsafe<InstanceContext>() }
@@ -118,12 +120,17 @@ const layer: Layer.Layer<Service, never, Project.Service | InstanceBootstrap.Ser
             yield* Effect.logInfo("creating instance", { directory: directory })
             yield* completeLoad(directory, input, entry)
           }).pipe(Effect.forkIn(scope, { startImmediately: true }))
-          return yield* restore(Deferred.await(entry.deferred))
+          const ctx = yield* restore(Deferred.await(entry.deferred))
+          if (marker) clearInstanceProject(directory, marker)
+          return ctx
         }),
       ).pipe(Effect.withSpan("InstanceStore.load"))
     }
 
-    const reload = (input: LoadInput): Effect.Effect<InstanceContext> => {
+    const reload = (
+      input: LoadInput,
+      marker = instanceProject(FSUtil.resolve(input.directory)),
+    ): Effect.Effect<InstanceContext> => {
       const directory = FSUtil.resolve(input.directory)
       return Effect.uninterruptibleMask((restore) =>
         Effect.gen(function* () {
@@ -139,7 +146,9 @@ const layer: Layer.Layer<Service, never, Project.Service | InstanceBootstrap.Ser
             }
             yield* completeLoad(directory, input, entry)
           }).pipe(Effect.forkIn(scope, { startImmediately: true }))
-          return yield* restore(Deferred.await(entry.deferred))
+          const ctx = yield* restore(Deferred.await(entry.deferred))
+          if (marker) clearInstanceProject(directory, marker)
+          return ctx
         }),
       ).pipe(Effect.withSpan("InstanceStore.reload"))
     }

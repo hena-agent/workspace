@@ -1,9 +1,10 @@
 import { describe, expect } from "bun:test"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
+import { ProjectV2 } from "@hena/core/project"
 import { Deferred, Effect, Fiber, Layer } from "effect"
 import { InstanceRef } from "../../src/effect/instance-ref"
-import { registerDisposer } from "../../src/effect/instance-registry"
+import { markInstanceProject, registerDisposer } from "../../src/effect/instance-registry"
 import { InstanceBootstrap } from "../../src/project/bootstrap"
 import { InstanceStore } from "../../src/project/instance-store"
 import { tmpdirScoped } from "../fixture/fixture"
@@ -163,6 +164,71 @@ describe("InstanceStore", () => {
 
       expect(second).not.toBe(first)
       expect(cached).toBe(second)
+    }),
+  )
+
+  it.live("reloads a cached context after its project ownership changes", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped({ git: true })
+      const store = yield* InstanceStore.Service
+      const first = yield* store.load({ directory: dir })
+
+      markInstanceProject(dir, first.project.id)
+      const second = yield* store.load({ directory: dir })
+
+      expect(second).not.toBe(first)
+      expect(yield* store.load({ directory: dir })).toBe(second)
+    }),
+  )
+
+  it.live("does not clear a newer ownership change during reload", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped({ git: true })
+      const store = yield* InstanceStore.Service
+      const first = yield* store.load({ directory: dir })
+      const reloading = yield* Deferred.make<void>()
+      const releaseReload = yield* Deferred.make<void>()
+      yield* setBootstrap(
+        Effect.gen(function* () {
+          yield* Deferred.succeed(reloading, undefined)
+          yield* Deferred.await(releaseReload)
+        }),
+      )
+
+      markInstanceProject(dir, first.project.id)
+      const reload = yield* store.load({ directory: dir }).pipe(Effect.forkScoped)
+      yield* Deferred.await(reloading)
+      markInstanceProject(dir, first.project.id)
+      yield* Deferred.succeed(releaseReload, undefined)
+      const second = yield* Fiber.join(reload)
+      const third = yield* store.load({ directory: dir })
+
+      expect(second).not.toBe(first)
+      expect(third).not.toBe(second)
+    }),
+  )
+
+  it.live("does not clear an ownership change created during initial load", () =>
+    Effect.gen(function* () {
+      const dir = yield* tmpdirScoped({ git: true })
+      const store = yield* InstanceStore.Service
+      const loading = yield* Deferred.make<void>()
+      const releaseLoad = yield* Deferred.make<void>()
+      yield* setBootstrap(
+        Effect.gen(function* () {
+          yield* Deferred.succeed(loading, undefined)
+          yield* Deferred.await(releaseLoad)
+        }),
+      )
+
+      const load = yield* store.load({ directory: dir }).pipe(Effect.forkScoped)
+      yield* Deferred.await(loading)
+      markInstanceProject(dir, ProjectV2.ID.global)
+      yield* Deferred.succeed(releaseLoad, undefined)
+      const first = yield* Fiber.join(load)
+      const second = yield* store.load({ directory: dir })
+
+      expect(second).not.toBe(first)
     }),
   )
 

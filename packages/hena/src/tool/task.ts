@@ -14,6 +14,9 @@ import { Effect, Exit, Schema, Scope } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Database } from "@hena/core/database/database"
+import { InstanceState } from "@/effect/instance-state"
+import { InstanceRef } from "@/effect/instance-ref"
+import { Project } from "@/project/project"
 
 export interface TaskPromptOps {
   cancel(sessionID: SessionID): Effect.Effect<void>
@@ -88,6 +91,7 @@ export const TaskTool = Tool.define(
     const scope = yield* Scope.Scope
     const flags = yield* RuntimeFlags.Service
     const database = yield* Database.Service
+    const projects = yield* Project.Service
 
     const run = Effect.fn("TaskTool.execute")(function* (
       params: Schema.Schema.Type<typeof Parameters>,
@@ -96,9 +100,7 @@ export const TaskTool = Tool.define(
       const cfg = yield* config.get()
       const runInBackground = params.background === true
       if (runInBackground && !flags.experimentalBackgroundSubagents) {
-        return yield* Effect.fail(
-          new Error("Background subagents require HENA_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true"),
-        )
+        return yield* Effect.fail(new Error("Background subagents require HENA_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true"))
       }
 
       const parent = yield* sessions.get(ctx.sessionID)
@@ -170,6 +172,17 @@ export const TaskTool = Tool.define(
             ),
           ],
         }))
+      const instance = yield* InstanceState.context
+      const taskInstance =
+        nextSession.projectID === instance.project.id && nextSession.directory === instance.directory
+          ? instance
+          : yield* projects.fromDirectory(nextSession.directory).pipe(
+              Effect.map((result) => ({
+                directory: nextSession.directory,
+                worktree: result.sandbox,
+                project: result.project,
+              })),
+            )
 
       const msg = yield* MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }).pipe(
         Effect.provideService(Database.Service, database),
@@ -212,6 +225,7 @@ export const TaskTool = Tool.define(
         })
         return result.parts.findLast((item) => item.type === "text")?.text ?? ""
       })
+      const taskEffect = () => runTask().pipe(Effect.provideService(InstanceRef, taskInstance))
 
       const inject = Effect.fn("TaskTool.injectBackgroundResult")(function* (
         state: "completed" | "error",
@@ -253,7 +267,7 @@ export const TaskTool = Tool.define(
         )
       })
 
-      if (yield* background.extend({ id: nextSession.id, run: runTask() })) {
+      if (yield* background.extend({ id: nextSession.id, run: taskEffect() })) {
         return {
           title: params.description,
           metadata: {
@@ -282,7 +296,7 @@ export const TaskTool = Tool.define(
           }),
           notify(nextSession.id),
         ]),
-        run: runTask().pipe(Effect.onInterrupt(() => ops.cancel(nextSession.id))),
+        run: taskEffect().pipe(Effect.onInterrupt(() => ops.cancel(nextSession.id))),
       })
 
       function backgroundResult() {

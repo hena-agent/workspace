@@ -63,7 +63,9 @@ describe("Worktree.remove", () => {
         )
         void prev
 
-        yield* svc.remove({ directory: dir })
+        const ok = yield* svc.remove({ directory: dir })
+
+        expect(ok).toBe(true)
         expect(
           yield* Effect.promise(() =>
             fs
@@ -104,7 +106,9 @@ describe("Worktree.remove", () => {
         const before = yield* Effect.promise(() => $`git fsmonitor--daemon status`.cwd(dir).quiet().nothrow())
         expect(before.exitCode).toBe(0)
 
-        yield* svc.remove({ directory: dir })
+        const ok = yield* svc.remove({ directory: dir })
+
+        expect(ok).toBe(true)
         expect(
           yield* Effect.promise(() =>
             fs

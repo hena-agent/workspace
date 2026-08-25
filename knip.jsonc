@@ -11,6 +11,7 @@
     "namespaceMembers": "off",
   },
   "ignoreIssues": {
+    "script/opencode/codex-web-search.ts": ["duplicates"],
     "packages/sdk/js/src/{gen,v2/gen}/**": [
       "nsExports",
       "nsTypes",

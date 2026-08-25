@@ -57,7 +57,9 @@ describe("app routing (real routeTree, memory history)", () => {
 
     expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Open menu" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Manage servers. Current server: Local" })).toHaveTextContent("Local")
+    const serverButton = screen.getByRole("button", { name: "Manage servers. Current server: Local" })
+    expect(serverButton.querySelector("svg")).toBeInTheDocument()
+    expect(serverButton).not.toHaveTextContent("Local")
     expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
   })
 
@@ -67,9 +69,9 @@ describe("app routing (real routeTree, memory history)", () => {
 
     expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(`/${STAGING_SLUG}`)
-    expect(screen.getByRole("button", { name: "Manage servers. Current server: staging.hena.dev" })).toHaveTextContent(
-      "staging.hena.dev",
-    )
+    expect(
+      screen.getByRole("button", { name: "Manage servers. Current server: staging.hena.dev" }),
+    ).toBeInTheDocument()
   })
 
   test("an embedded HTTP origin is the first seeded server", async () => {
@@ -79,9 +81,9 @@ describe("app routing (real routeTree, memory history)", () => {
 
     expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(`/${encodeServerSlug(origin)}`)
-    expect(screen.getByRole("button", { name: "Manage servers. Current server: server.local:4096" })).toHaveTextContent(
-      "server.local:4096",
-    )
+    expect(
+      screen.getByRole("button", { name: "Manage servers. Current server: server.local:4096" }),
+    ).toBeInTheDocument()
   })
 
   test("the Vite development origin is not seeded as a server", async () => {
@@ -90,7 +92,7 @@ describe("app routing (real routeTree, memory history)", () => {
 
     expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
-    expect(screen.getByRole("button", { name: "Manage servers. Current server: Local" })).toHaveTextContent("Local")
+    expect(screen.getByRole("button", { name: "Manage servers. Current server: Local" })).toBeInTheDocument()
   })
 
   test("an embedded path prefix remains part of the server identity", async () => {

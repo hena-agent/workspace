@@ -1,4 +1,5 @@
 import { afterEach, describe, expect } from "bun:test"
+import { $ } from "bun"
 import { SessionV1 } from "@hena/core/v1/session"
 import { Database } from "@hena/core/database/database"
 import { LayerNode } from "@hena/core/effect/layer-node"
@@ -24,6 +25,11 @@ import { disposeAllInstances } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 import { ProviderV2 } from "@hena/core/provider"
 import { ModelV2 } from "@hena/core/model"
+import { InstanceState } from "@/effect/instance-state"
+import { Project } from "@/project/project"
+import { SessionTable } from "@hena/core/session/sql"
+import { eq } from "drizzle-orm"
+import path from "path"
 
 afterEach(async () => {
   await disposeAllInstances()
@@ -51,6 +57,7 @@ const layer = (flags: Partial<RuntimeFlags.Info> = {}) =>
       Database.node,
       RuntimeFlags.node,
       Ripgrep.node,
+      Project.node,
     ]),
     [[RuntimeFlags.node, RuntimeFlags.layer(flags)]],
   )
@@ -221,10 +228,29 @@ describe("tool.task", () => {
       const sessions = yield* Session.Service
       const { chat, assistant } = yield* seed()
       const child = yield* sessions.create({ parentID: chat.id, title: "Existing child" })
+      const childDirectory = path.join((yield* InstanceState.context).directory, "child")
+      yield* Effect.promise(() => $`mkdir -p ${childDirectory}`.quiet())
+      yield* Database.Service.use(({ db }) =>
+        db
+          .update(SessionTable)
+          .set({ directory: childDirectory })
+          .where(eq(SessionTable.id, child.id))
+          .run()
+          .pipe(Effect.orDie),
+      )
       const tool = yield* TaskTool
       const def = yield* tool.init()
       let seen: SessionPrompt.PromptInput | undefined
-      const promptOps = stubOps({ text: "resumed", onPrompt: (input) => (seen = input) })
+      let seenDirectory: string | undefined
+      const promptOps: TaskPromptOps = {
+        ...stubOps({ text: "resumed" }),
+        prompt: (input) =>
+          Effect.gen(function* () {
+            seen = input
+            seenDirectory = (yield* InstanceState.context).directory
+            return reply(input, "resumed")
+          }),
+      }
 
       const result = yield* def.execute(
         {
@@ -252,7 +278,60 @@ describe("tool.task", () => {
       expect(result.output).toContain(`<task id="${child.id}" state="completed">`)
       expect(seen?.sessionID).toBe(child.id)
       expect(seen?.variant).toBe("xhigh")
+      expect(seenDirectory).toBe(childDirectory)
     }),
+  )
+
+  it.instance(
+    "runs a new child with revalidated project ownership",
+    () =>
+      Effect.gen(function* () {
+        const { chat, assistant } = yield* seed()
+        const ctx = yield* InstanceState.context
+        expect(String(ctx.project.id)).toBe("global")
+
+        yield* Effect.promise(() => $`git init`.cwd(ctx.directory).quiet())
+        yield* Effect.promise(() => $`git config user.name "Test"`.cwd(ctx.directory).quiet())
+        yield* Effect.promise(() => $`git config user.email "test@hena.test"`.cwd(ctx.directory).quiet())
+        yield* Effect.promise(() => $`git config commit.gpgsign false`.cwd(ctx.directory).quiet())
+        yield* Effect.promise(() => $`git commit --allow-empty -m "root"`.cwd(ctx.directory).quiet())
+        const project = yield* Project.use.fromDirectory(ctx.directory)
+        let childProjectID: Project.Info["id"] | undefined
+        const promptOps: TaskPromptOps = {
+          cancel: () => Effect.void,
+          resolvePromptParts: (template) => Effect.succeed([{ type: "text" as const, text: template }]),
+          prompt: (input) =>
+            Effect.gen(function* () {
+              childProjectID = (yield* InstanceState.context).project.id
+              return reply(input, "done")
+            }),
+        }
+        const tool = yield* TaskTool
+        const def = yield* tool.init()
+
+        yield* def.execute(
+          {
+            description: "inspect ownership",
+            prompt: "check the project",
+            subagent_type: "general",
+          },
+          {
+            sessionID: chat.id,
+            messageID: assistant.id,
+            agent: "build",
+            abort: new AbortController().signal,
+            extra: { bypassAgentCheck: true, promptOps },
+            messages: [],
+            metadata: () => Effect.void,
+            ask: () => Effect.void,
+          },
+        )
+
+        const [child] = yield* (yield* Session.Service).children(chat.id)
+        expect(child?.projectID).toBe(project.project.id)
+        expect(childProjectID).toBe(project.project.id)
+      }),
+    { config: { share: "disabled" } },
   )
 
   it.instance("execute asks by default and skips checks when bypassed", () =>

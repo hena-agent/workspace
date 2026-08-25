@@ -34,6 +34,7 @@ import { ProjectDirectoryTable, ProjectTable, rooted } from "@hena/core/project/
 import { MessageV2 } from "./message-v2"
 import type { InstanceContext } from "../project/instance-context"
 import { InstanceState } from "@/effect/instance-state"
+import { instanceProject, markInstanceProject } from "@/effect/instance-registry"
 import { Snapshot } from "@/snapshot"
 import { ProjectV2 } from "@hena/core/project"
 import { WorkspaceV2 } from "@hena/core/workspace"
@@ -618,7 +619,10 @@ const layer: Layer.Layer<
             return publishStable(defect.project ?? globalProject, retries - 1)
           }),
         )
-      return yield* publishStable(tentative ?? globalProject, 3)
+      const info = yield* publishStable(tentative ?? globalProject, 3)
+      if (info.projectID !== ctx.project.id)
+        yield* Effect.sync(() => markInstanceProject(ctx.directory, info.projectID))
+      return info
     })
 
     const get = Effect.fn("Session.get")(function* (id: SessionID) {
@@ -630,7 +634,7 @@ const layer: Layer.Layer<
     const list = Effect.fn("Session.list")(function* (input?: ListInput) {
       const ctx = yield* InstanceState.context
       return yield* listByProject(db, {
-        projectID: ctx.project.id,
+        projectID: instanceProject(ctx.directory)?.projectID ?? ctx.project.id,
         experimentalWorkspaces: flags.experimentalWorkspaces,
         ...input,
       })

@@ -64,12 +64,13 @@ Fork PRs and PRs authored by Dependabot resolve as disabled because repository c
 
 ## Review triggers
 
-`pr-review.yml` starts reviews in two cases:
+`pr-review.yml` starts reviews in three cases:
 
-1. A pull request is opened.
-2. The `pr-review` label is added.
+1. A non-draft pull request is opened.
+2. A draft pull request is marked ready for review.
+3. The `pr-review` label is added, including on a draft.
 
-Pushes, edits, reopening, and unrelated labels do not start reviews. Unrelated label events use distinct concurrency groups, so they also cannot cancel an active review. To force another review, remove and add the `pr-review` label again.
+Pushes, edits, reopening, and unrelated labels do not start reviews. Draft pull requests otherwise do not start reviews. Unrelated label events use distinct concurrency groups, so they also cannot cancel an active review. To force another review, remove and add the `pr-review` label again.
 
 The review job uses `fail-fast: false`, so one model failure does not cancel the other model rows. GitHub runs rows in parallel subject to runner availability. Per-PR concurrency still cancels an older in-flight review set when a new request arrives. Each published review starts with workflow-generated model, variant, OpenCode version, run, and commit provenance.
 

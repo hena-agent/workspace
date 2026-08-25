@@ -372,29 +372,22 @@ runs:
           || COMMAND_STATUS=$?
 
         if [ "$COMMAND_STATUS" -eq 0 ]; then
-          jq -jrs '
-            [.[] | select(.type == "text") | .part.text] | last
-            | if type == "string" and test("\\S") then . else error("OpenCode command returned no final text") end
-          ' "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"
+          jq -jrs \
+            --arg operation "final-text" \
+            -f "$GITHUB_ACTION_PATH/extract-review.jq" \
+            "$RUNNER_TEMP/opencode-command.ndjson" \
+            > "$RUNNER_TEMP/opencode-command-result.md"
           exit 0
         fi
 
         # The review command delegates to a review task, then asks the parent
         # model to present that result. Preserve the completed review when only
         # that final turn fails with a retryable provider error.
-        if jq -ers '
-          [.[] | select(.type == "error") | .error.data.isRetryable] | last == true
-        ' "$RUNNER_TEMP/opencode-command.ndjson" >/dev/null && jq -jrs '
-          [
-            .[]
-            | select(.type == "tool_use" and .part.tool == "task" and .part.state.status == "completed")
-            | .part.state.output
-            | select(type == "string" and startswith("<task_result>\n") and endswith("\n</task_result>"))
-            | ltrimstr("<task_result>\n")
-            | rtrimstr("\n</task_result>")
-          ] | last
-          | if type == "string" and test("\\S") then . else error("OpenCode command returned no completed review task") end
-        ' "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"; then
+        if jq -jers \
+          --arg operation "completed-review" \
+          -f "$GITHUB_ACTION_PATH/extract-review.jq" \
+          "$RUNNER_TEMP/opencode-command.ndjson" \
+          > "$RUNNER_TEMP/opencode-command-result.md"; then
           echo "::notice::Publishing the completed review task after a retryable final provider error."
           exit 0
         fi
@@ -429,20 +422,9 @@ runs:
           --arg opencode_version "$OPENCODE_VERSION" \
           --arg run_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
           --arg commit_url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/commit/$HEAD_SHA" \
-          --rawfile review "$RUNNER_TEMP/opencode-command-result.md" '
-          {
-            event: "COMMENT",
-            commit_id: $head,
-            body: (
-              "<!-- ai-review "
-              + ({model: $model, variant: $variant, opencode_version: $opencode_version, run_url: $run_url, commit: $head} | tojson)
-              + " -->\n"
-              + "### Review from `" + $model + "` (`" + $variant + "`)\n"
-              + "_OpenCode `" + $opencode_version + "` | [workflow run](" + $run_url + ") | [commit `" + $head[0:9] + "`](" + $commit_url + ")_\n\n"
-              + $review
-            )
-          }
-        ' > "$RUNNER_TEMP/github-review.json"
+          --rawfile review "$RUNNER_TEMP/opencode-command-result.md" \
+          -f "$GITHUB_ACTION_PATH/review-payload.jq" \
+          > "$RUNNER_TEMP/github-review.json"
 
         gh api \
           --method POST \

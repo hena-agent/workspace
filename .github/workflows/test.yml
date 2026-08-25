@@ -131,7 +131,11 @@ jobs:
 
       - name: Run HttpApi exerciser gates
         working-directory: packages/hena
-        run: bun run test:httpapi
+        timeout-minutes: 10
+        run: |
+          bun run test:httpapi:coverage
+          bun run test:httpapi:auth
+          bun run test:httpapi:effect -- --progress --trace
 
   e2e:
     if: ${{ !contains(github.event.pull_request.title, '[skip ci]') }}

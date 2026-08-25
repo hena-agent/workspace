@@ -1,6 +1,6 @@
 # Review model configuration
 
-The automated PR review and PR brief workflows select models from repository Actions variables. Review runs use a model matrix. Brief runs use one independently configured model.
+The automated PR review and PR brief workflows select models from repository Actions variables. Review runs use a model matrix. Brief runs use one independently configured model and default to `opencode-go/ox-alpha-free@max`.
 
 Applies to `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_review-model.yml`, `.github/workflows/_opencode.yml`, and `.github/actions/run-opencode/action.yml`.
 
@@ -82,7 +82,7 @@ The review job uses `fail-fast: false`, so one model failure does not cancel the
 The CLI embeds a model catalog. A new model may require a newer exact version:
 
 ```sh
-gh variable set REVIEWER_OPENCODE_VERSION --body '1.18.22'
+gh variable set REVIEWER_OPENCODE_VERSION --body "$(gh release view --repo anomalyco/opencode --json tagName --jq '.tagName | ltrimstr("v")')"
 gh variable delete REVIEWER_OPENCODE_VERSION
 ```
 

@@ -29,6 +29,10 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "@hena/script#test": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.github/actions/run-opencode/**"],
+      "outputs": []
+    },
     "@hena/tui#test": {
       "dependsOn": ["^build"],
       "outputs": []

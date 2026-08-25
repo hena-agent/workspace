@@ -37,7 +37,6 @@ export function ServerSelectionModal({
       : servers.connections.length
         ? "online"
         : undefined
-
   function changeOpen(next: boolean) {
     if (next) {
       setUrl(pendingUrl ?? "")
@@ -74,13 +73,14 @@ export function ServerSelectionModal({
       <DialogTrigger asChild>
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           aria-label={`Manage servers. Current server: ${current?.name ?? "none"}`}
-          className="w-40 justify-start px-2"
+          className="legacy-titlebar-button"
         >
-          <ServerIcon />
-          <span className="min-w-0 flex-1 truncate text-left">{current?.name ?? "No server"}</span>
-          {status ? <ConnectionStatusDot status={status} /> : null}
+          <span className="relative flex size-4">
+            <ServerIcon />
+            {status ? <ConnectionStatusDot status={status} className="absolute -top-1 -right-1" /> : null}
+          </span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">

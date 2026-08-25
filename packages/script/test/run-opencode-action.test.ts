@@ -8,11 +8,13 @@ const payloadFilter = path.join(actionDirectory, "review-payload.jq")
 const reviewCommand = "thermo-nuclear-code-quality-review"
 
 describe("run-opencode review action", () => {
-  test("uses the committed jq filters", async () => {
+  test("uses the committed review assets", async () => {
     const action = await Bun.file(path.join(actionDirectory, "action.yml")).text()
+    const command = await Bun.file(path.join(root, ".opencode/command", `${reviewCommand}.md`)).arrayBuffer()
     expect(action).toContain('-f "$GITHUB_ACTION_PATH/extract-review.jq"')
     expect(action).toContain('-f "$GITHUB_ACTION_PATH/review-payload.jq"')
     expect(action).toContain("contents/.opencode/command/$COMMAND.md?ref=$BASE_SHA")
+    expect(action).toContain(new Bun.CryptoHasher("sha256").update(command).digest("hex"))
   })
 
   test("extracts the final text event", () => {

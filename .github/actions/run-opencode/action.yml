@@ -237,13 +237,24 @@ runs:
         BASE_SHA=$(jq -r '.pull_request.base.sha' "$GITHUB_EVENT_PATH")
 
         # Project config is disabled for this step so a PR cannot rewrite the command
-        # that reviews it. Install the base branch's command as global config.
-        gh api \
+        # that reviews it. Install the base branch's command as global config. While
+        # this PR bootstraps the new file, accept only its exact committed digest.
+        COMMAND_PATH="$REVIEW_CONTEXT/$COMMAND.md"
+        if ! gh api \
           -H "Accept: application/vnd.github.raw+json" \
           "repos/$GITHUB_REPOSITORY/contents/.opencode/command/$COMMAND.md?ref=$BASE_SHA" \
-          > "$REVIEW_CONTEXT/$COMMAND.md"
+          > "$COMMAND_PATH"; then
+          EXPECTED_COMMAND_SHA256="a5f54a331903c3fe3486036be40a9e2280059bf026fe3741e4a580febee59de8"
+          if ! printf '%s  %s\n' "$EXPECTED_COMMAND_SHA256" ".opencode/command/$COMMAND.md" \
+            | sha256sum --check --status; then
+            echo "::error::The base commit has no trusted $COMMAND command and the checkout does not match its bootstrap digest."
+            exit 1
+          fi
+          echo "::notice::The base commit has no $COMMAND command; using the digest-verified bootstrap copy."
+          install -m 600 ".opencode/command/$COMMAND.md" "$COMMAND_PATH"
+        fi
         install -d -m 700 "$HOME/.config/opencode/command"
-        install -m 600 "$REVIEW_CONTEXT/$COMMAND.md" "$HOME/.config/opencode/command/$COMMAND.md"
+        install -m 600 "$COMMAND_PATH" "$HOME/.config/opencode/command/$COMMAND.md"
 
         gh pr view "$COMMAND_ARGUMENTS" > "$REVIEW_CONTEXT/view"
         if ! gh pr diff "$COMMAND_ARGUMENTS" > "$REVIEW_CONTEXT/diff" 2> "$REVIEW_CONTEXT/diff-error"; then

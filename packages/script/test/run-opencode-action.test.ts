@@ -39,7 +39,19 @@ describe("run-opencode review action", () => {
             tool: "task",
             state: {
               status: "completed",
+              input: { command: "review" },
               output: `<task id="ses_review" state="completed">\n<task_result>\n${body}\n</task_result>\n</task>`,
+            },
+          },
+        },
+        {
+          type: "tool_use",
+          part: {
+            tool: "task",
+            state: {
+              status: "completed",
+              input: { command: "explore" },
+              output: '<task id="ses_explore" state="completed">\n<task_result>\nunrelated\n</task_result>\n</task>',
             },
           },
         },

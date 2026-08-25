@@ -12,7 +12,12 @@ def completed_review:
   else
     [
       .[]
-      | select(.type == "tool_use" and .part.tool == "task" and .part.state.status == "completed")
+      | select(
+          .type == "tool_use"
+          and .part.tool == "task"
+          and .part.state.status == "completed"
+          and .part.state.input.command == "review"
+        )
       | .part.state.output
       | select(
           type == "string"

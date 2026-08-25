@@ -38,6 +38,7 @@ type SearchResult = {
 }
 
 const registeredClients = new WeakSet()
+let codexModelPromise: Promise<string> | undefined
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
@@ -269,7 +270,18 @@ function requireSuccessfulResponse(response: Response, auth: CodexAuth, operatio
   if (!response.ok) throw new Error(`${operation} failed with HTTP ${response.status}`)
 }
 
-async function loadCodexModel(auth: CodexAuth, signal: AbortSignal) {
+function loadCodexModel(auth: CodexAuth, signal: AbortSignal) {
+  if (codexModelPromise) return codexModelPromise
+
+  const request = discoverCodexModel(auth, signal)
+  codexModelPromise = request
+  void request.catch(() => {
+    if (codexModelPromise === request) codexModelPromise = undefined
+  })
+  return request
+}
+
+async function discoverCodexModel(auth: CodexAuth, signal: AbortSignal) {
   const response = await fetch(MODELS_ENDPOINT, { headers: authHeaders(auth), signal }).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : "unknown network error"
     throw new Error(`Codex model discovery request failed: ${message}`, { cause: error })
@@ -332,7 +344,7 @@ function parseJwtClaims(token: string): Record<string, unknown> | undefined {
   }
 }
 
-const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree }) => {
+export const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree }) => {
   const currentPath = await canonicalPath(fileURLToPath(import.meta.url))
   const projectConfigDisabled = ["1", "true"].includes(process.env.OPENCODE_DISABLE_PROJECT_CONFIG?.toLowerCase() ?? "")
   const projectRoots = projectConfigDisabled
@@ -392,7 +404,7 @@ const CodexWebSearchPlugin: Plugin = async ({ client, directory, worktree }) => 
 
           context.metadata({ title: `Web search: ${query}` })
           await context.ask({
-            permission: "websearch",
+            permission: "codex_web_search",
             patterns: [query],
             always: ["*"],
             metadata: { query, max_results, recency, domains, provider: "codex-standalone-search" },

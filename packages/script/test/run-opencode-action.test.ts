@@ -5,17 +5,19 @@ const root = path.resolve(import.meta.dir, "../../..")
 const actionDirectory = path.join(root, ".github/actions/run-opencode")
 const extractionFilter = path.join(actionDirectory, "extract-review.jq")
 const payloadFilter = path.join(actionDirectory, "review-payload.jq")
+const reviewCommand = "thermo-nuclear-code-quality-review"
 
 describe("run-opencode review action", () => {
   test("uses the committed jq filters", async () => {
     const action = await Bun.file(path.join(actionDirectory, "action.yml")).text()
     expect(action).toContain('-f "$GITHUB_ACTION_PATH/extract-review.jq"')
     expect(action).toContain('-f "$GITHUB_ACTION_PATH/review-payload.jq"')
+    expect(action).toContain("contents/.opencode/command/$COMMAND.md?ref=$BASE_SHA")
   })
 
   test("extracts the final text event", () => {
     const result = jq(
-      ["-jrs", "--arg", "operation", "final-text", "-f", extractionFilter],
+      extractionArgs("-jrs", "final-text"),
       events({ type: "text", part: { text: "draft" } }, { type: "text", part: { text: "final review" } }),
     )
     expect(result.exitCode).toBe(0)
@@ -23,7 +25,7 @@ describe("run-opencode review action", () => {
   })
 
   test("rejects a successful command without final text", () => {
-    const result = jq(["-jrs", "--arg", "operation", "final-text", "-f", extractionFilter], events())
+    const result = jq(extractionArgs("-jrs", "final-text"), events())
     expect(result.exitCode).not.toBe(0)
     expect(result.stderr).toContain("OpenCode command returned no final text")
   })
@@ -31,8 +33,8 @@ describe("run-opencode review action", () => {
   test("extracts the OpenCode task envelope and preserves nested result markers", () => {
     const body = "First\n<task_result>\ninner\n</task_result>\nLast"
     const result = jq(
-      ["-jers", "--arg", "operation", "completed-review", "-f", extractionFilter],
-      events(completedTask(body, "review"), completedTask("unrelated", "explore"), {
+      extractionArgs("-jers", "completed-review"),
+      events(completedTask(body, reviewCommand), completedTask("unrelated", "explore"), {
         type: "error",
         error: { data: { isRetryable: true } },
       }),
@@ -50,8 +52,8 @@ describe("run-opencode review action", () => {
     expect(
       errors.map((error) =>
         jq(
-          ["-jers", "--arg", "operation", "completed-review", "-f", extractionFilter],
-          events(completedTask("review", "review"), { type: "error", error }),
+          extractionArgs("-jers", "completed-review"),
+          events(completedTask("review", reviewCommand), { type: "error", error }),
         ),
       ),
     ).toEqual(errors.map(() => expect.objectContaining({ exitCode: 0, stdout: "review" })))
@@ -66,7 +68,10 @@ describe("run-opencode review action", () => {
       events(
         {
           type: "tool_use",
-          part: { tool: "task", state: { status: "completed", input: { command: "review" }, output: "review" } },
+          part: {
+            tool: "task",
+            state: { status: "completed", input: { command: reviewCommand }, output: "review" },
+          },
         },
         { type: "error", error: { data: { isRetryable: true } } },
       ),
@@ -77,24 +82,22 @@ describe("run-opencode review action", () => {
             tool: "task",
             state: {
               status: "completed",
-              input: { command: "review" },
+              input: { command: reviewCommand },
               output: "<task_result>\nreview\n</task_result>",
             },
           },
         },
         { type: "error", error: { data: { isRetryable: true } } },
       ),
-      events(completedTask("review", "review"), { type: "error", error: { data: { isRetryable: false } } }),
-      events(completedTask("review", "review"), {
+      events(completedTask("review", reviewCommand), { type: "error", error: { data: { isRetryable: false } } }),
+      events(completedTask("review", reviewCommand), {
         type: "error",
         error: { name: "ContextOverflowError", data: { isRetryable: true } },
       }),
     ]
-    expect(
-      failures.map(
-        (input) => jq(["-jers", "--arg", "operation", "completed-review", "-f", extractionFilter], input).exitCode,
-      ),
-    ).toEqual([5, 5, 5, 5, 5])
+    expect(failures.map((input) => jq(extractionArgs("-jers", "completed-review"), input).exitCode)).toEqual([
+      5, 5, 5, 5, 5,
+    ])
   })
 
   test("renders trusted review provenance", () => {
@@ -163,6 +166,10 @@ function completedTask(body: string, command: string) {
       },
     },
   }
+}
+
+function extractionArgs(flags: string, operation: string) {
+  return [flags, "--arg", "operation", operation, "--arg", "command", reviewCommand, "-f", extractionFilter]
 }
 
 function jq(args: string[], input: string) {

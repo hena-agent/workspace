@@ -48,7 +48,7 @@ jobs:
       app-client-id: ${{ vars[matrix.client_id_var] }}
       opencode-version: ${{ needs.resolve.outputs.opencode_version }}
       timeout-minutes: 40
-      command: review
+      command: thermo-nuclear-code-quality-review
       command-arguments: ${{ github.event.pull_request.number }}
     secrets:
       app-private-key: ${{ secrets[matrix.private_key_secret] }}

@@ -42,7 +42,7 @@ def completed_review:
           .type == "tool_use"
           and .part.tool == "task"
           and .part.state.status == "completed"
-          and .part.state.input.command == "review"
+          and .part.state.input.command == $command
         )
       | .part.state.output
       | select(

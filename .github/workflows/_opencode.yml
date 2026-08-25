@@ -24,7 +24,7 @@ on:
         default: ""
         type: string
       command:
-        description: Built-in slash command passed to `opencode run --command`; currently only review
+        description: Slash command passed to `opencode run --command`
         required: false
         default: ""
         type: string

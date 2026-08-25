@@ -130,16 +130,25 @@ const layer = Layer.effect(
       return { id: ID.make(id), directory: AbsolutePath.make(path.join(projects, id)) }
     }
 
+    const resolveRepository = Effect.fnUntraced(function* (repo: Git.Repository, fallback?: ID) {
+      const cachedID = yield* cached(repo.commonDirectory)
+      const id = (yield* remote(repo)) ?? cachedID ?? (yield* root(repo)) ?? fallback ?? ID.global
+      return {
+        previous: cachedID ?? (fallback !== id ? fallback : undefined),
+        id,
+        directory: repo.worktree,
+        vcs: { type: "git" as const, store: repo.commonDirectory },
+      }
+    })
+
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
       const directory = AbsolutePath.make(FSUtil.resolve(input))
       const managed = managedProject(directory)
       if (managed) {
         const found = yield* git.repo.discover(managed.directory)
         const repository = found?.worktree === managed.directory ? found : undefined
-        return {
-          ...managed,
-          vcs: repository ? { type: "git" as const, store: repository.commonDirectory } : undefined,
-        }
+        if (repository) return yield* resolveRepository(repository, managed.id)
+        return managed
       }
 
       const repo = yield* git.repo.discover(input)
@@ -149,11 +158,7 @@ const layer = Layer.effect(
         const common = path.dirname(enclosing.commonDirectory)
         const shared = managedProject(common)
         if (shared?.directory === common) {
-          return {
-            ...shared,
-            directory: enclosing.worktree,
-            vcs: { type: "git" as const, store: enclosing.commonDirectory },
-          }
+          return yield* resolveRepository(enclosing, shared.id)
         }
         const parent = path.dirname(enclosing.worktree)
         if (parent === enclosing.worktree) break
@@ -181,21 +186,10 @@ const layer = Layer.effect(
         : undefined
       const shared = managedRoot ? managedProject(managedRoot.worktree) : undefined
       if (repository && managedRoot && shared?.directory === managedRoot.worktree) {
-        return {
-          ...shared,
-          directory: repository.worktree,
-          vcs: { type: "git" as const, store: repository.commonDirectory },
-        }
+        return yield* resolveRepository(repository, shared.id)
       }
 
-      const previous = yield* cached(repo.commonDirectory)
-      const id = (yield* remote(repo)) ?? previous ?? (yield* root(repo))
-      return {
-        previous,
-        id: id ?? ID.global,
-        directory: repo.worktree,
-        vcs: { type: "git" as const, store: repo.commonDirectory },
-      }
+      return yield* resolveRepository(repo)
     })
 
     const commit = Effect.fn("Project.commit")(function* (input: { store: AbsolutePath; id: ID }) {

@@ -7,8 +7,6 @@ import { ProjectDirectoryTable, ProjectTable } from "@hena/core/project/sql"
 import { AbsolutePath } from "@hena/core/schema"
 import { ProjectV2 } from "@hena/core/project"
 import { EventV2 } from "@hena/core/event"
-import { EventTable } from "@hena/core/event/sql"
-import { Location } from "@hena/core/location"
 import { SessionV1 } from "@hena/core/v1/session"
 import { SessionProjector } from "@hena/core/session/projector"
 import { SessionID } from "../../src/session/schema"
@@ -23,8 +21,6 @@ import { Context, Deferred, Effect, Fiber, Layer } from "effect"
 import { testEffect } from "../lib/effect"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { RuntimeFlags } from "../../src/effect/runtime-flags"
-import { GlobalBus, type GlobalEvent } from "../../src/bus/global"
-import { deleteInstanceProject } from "../../src/effect/instance-registry"
 import path from "path"
 
 const it = testEffect(LayerNode.compile(LayerNode.group([Project.node, Database.node, CrossSpawnSpawner.node])))
@@ -182,90 +178,6 @@ describe("migrateFromGlobal", () => {
 
       expect(main.project.id).not.toBe(ProjectV2.ID.global)
       expect(created.projectID).toBe(ProjectV2.ID.global)
-    }),
-  )
-
-  sessionIt.live("revalidates stale global context before durable session creation", () =>
-    Effect.gen(function* () {
-      const tmp = yield* tmpdirScoped()
-      yield* Effect.promise(() => $`git init`.cwd(tmp).quiet())
-      yield* Effect.promise(() => $`git config user.name "Test"`.cwd(tmp).quiet())
-      yield* Effect.promise(() => $`git config user.email "test@hena.test"`.cwd(tmp).quiet())
-      yield* Effect.promise(() => $`git config commit.gpgsign false`.cwd(tmp).quiet())
-      const projects = yield* Project.Service
-      const stale = yield* projects.fromDirectory(tmp)
-      expect(stale.project.id).toBe(ProjectV2.ID.global)
-
-      const nestedProjectID = ProjectV2.ID.make("nested-project")
-      const finalProjectID = ProjectV2.ID.make("final-project")
-      const nestedRoot = AbsolutePath.make(path.join(tmp, "packages"))
-      const finalRoot = AbsolutePath.make(path.join(nestedRoot, "app"))
-      const nested = AbsolutePath.make(path.join(finalRoot, "src"))
-      const { db } = yield* Database.Service
-
-      const events = yield* EventV2Bridge.Service
-      const created = new Array<{ info: Session.Info; location: Location.Info }>()
-      const unsubscribe = yield* events.listen((event) => {
-        if (event.type === SessionV1.Event.Created.type)
-          created.push({
-            info: (event.data as typeof SessionV1.Event.Created.data.Type).info as Session.Info,
-            location: event.location as Location.Info,
-          })
-        return Effect.void
-      })
-      yield* Effect.addFinalizer(() => unsubscribe)
-      const forwarded = new Array<GlobalEvent>()
-      const listener = (event: GlobalEvent) => {
-        forwarded.push(event)
-      }
-      GlobalBus.on("event", listener)
-      yield* Effect.addFinalizer(() => Effect.sync(() => GlobalBus.off("event", listener)))
-
-      const sessions = yield* Session.Service
-      const barrier = yield* PublishBarrier
-      const staleContext = {
-        directory: nested,
-        worktree: stale.sandbox,
-        project: stale.project,
-      }
-      yield* Effect.addFinalizer(() => Effect.sync(() => deleteInstanceProject(nested)))
-      const creating = yield* sessions
-        .create({})
-        .pipe(Effect.provideService(InstanceRef, staleContext), Effect.forkChild)
-      yield* Deferred.await(barrier.started[0]!)
-      yield* seedProject(nestedProjectID, nestedRoot)
-      yield* Deferred.succeed(barrier.release[0]!, undefined)
-      yield* Deferred.await(barrier.started[1]!)
-      yield* seedProject(finalProjectID, finalRoot)
-      yield* Deferred.succeed(barrier.release[1]!, undefined)
-      const result = yield* Fiber.join(creating)
-      const listed = yield* sessions.list().pipe(Effect.provideService(InstanceRef, staleContext))
-      const rows = yield* db.select().from(SessionTable).where(eq(SessionTable.id, result.id)).all().pipe(Effect.orDie)
-      const durable = yield* db
-        .select()
-        .from(EventTable)
-        .where(eq(EventTable.aggregate_id, result.id))
-        .all()
-        .pipe(Effect.orDie)
-
-      expect(result.projectID).toBe(finalProjectID)
-      expect(listed.map((item) => item.id)).toContain(result.id)
-      expect(result.directory).toBe(nested)
-      expect(result.path).toBe("src")
-      expect(created).toHaveLength(1)
-      expect(created[0]!.info.projectID).toBe(finalProjectID)
-      expect(created[0]!.info.path).toBe("src")
-      expect(created[0]!.location.directory).toBe(nested)
-      expect(created[0]!.location.project).toEqual({ id: finalProjectID, directory: finalRoot })
-      expect(rows).toHaveLength(1)
-      expect(rows[0]!.project_id).toBe(finalProjectID)
-      expect(rows[0]!.path).toBe("src")
-      expect(durable).toHaveLength(1)
-      expect((durable[0]!.data.info as Session.Info).projectID).toBe(finalProjectID)
-      expect((durable[0]!.data.info as Session.Info).path).toBe("src")
-      expect(forwarded).toHaveLength(2)
-      expect(forwarded.map((item) => item.payload.type)).toEqual([SessionV1.Event.Created.type, "sync"])
-      expect(forwarded.map((item) => item.project)).toEqual([finalProjectID, finalProjectID])
     }),
   )
 

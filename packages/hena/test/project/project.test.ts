@@ -216,6 +216,62 @@ describe("Project.fromDirectory", () => {
     }),
   )
 
+  it.live("migrates managed project data when Git identity becomes available", () =>
+    Effect.gen(function* () {
+      const fs = yield* FSUtil.Service
+      const project = yield* Project.Service
+      const projectV2 = yield* ProjectV2.Service
+      const { db } = yield* Database.Service
+      const managed = yield* projectV2.create()
+      yield* Effect.addFinalizer(() =>
+        fs.remove(managed.directory, { recursive: true, force: true }).pipe(Effect.ignore),
+      )
+      yield* project.fromDirectory(managed.directory)
+      const sessionID = crypto.randomUUID() as SessionID
+      const workspaceID = WorkspaceV2.ID.ascending()
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          project_id: managed.id,
+          slug: sessionID,
+          directory: managed.directory,
+          title: "managed",
+          version: "0.0.0-test",
+          time_created: Date.now(),
+          time_updated: Date.now(),
+        })
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(WorkspaceTable)
+        .values({ id: workspaceID, type: "local", name: "managed", project_id: managed.id })
+        .run()
+        .pipe(Effect.orDie)
+
+      yield* Effect.promise(() => $`git init`.cwd(managed.directory).quiet())
+      yield* Effect.promise(() =>
+        $`git -c user.name=Test -c user.email=test@hena.test commit --allow-empty -m root`
+          .cwd(managed.directory)
+          .quiet(),
+      )
+      const result = yield* project.fromDirectory(managed.directory)
+
+      expect(result.project.id).not.toBe(managed.id)
+      expect(
+        yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, managed.id)).get().pipe(Effect.orDie),
+      ).toBeUndefined()
+      expect(
+        (yield* db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get().pipe(Effect.orDie))
+          ?.project_id,
+      ).toBe(result.project.id)
+      expect(
+        (yield* db.select().from(WorkspaceTable).where(eq(WorkspaceTable.id, workspaceID)).get().pipe(Effect.orDie))
+          ?.project_id,
+      ).toBe(result.project.id)
+    }),
+  )
+
   it.live("derives stable project ID from root commit", () =>
     Effect.gen(function* () {
       const project = yield* Project.Service

@@ -3,7 +3,6 @@ import { httpClient } from "@hena/core/effect/app-node-platform"
 import { Ripgrep } from "@hena/core/ripgrep"
 import { PlanExitTool } from "./plan"
 import { Session } from "@/session/session"
-import { Project } from "@/project/project"
 import { QuestionTool } from "./question"
 import { ShellTool } from "./shell"
 import { EditTool } from "./edit"
@@ -431,7 +430,6 @@ export const node = LayerNode.make({
     Agent.node,
     Skill.node,
     Session.node,
-    Project.node,
     BackgroundJob.node,
     Provider.node,
     LSP.node,

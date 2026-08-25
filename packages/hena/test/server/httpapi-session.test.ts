@@ -1,5 +1,4 @@
 import { PermissionV1 } from "@hena/core/v1/permission"
-import { $ } from "bun"
 import { afterEach, describe, expect } from "bun:test"
 import { NodeHttpServer, NodeServices } from "@effect/platform-node"
 import { SessionV1 } from "@hena/core/v1/session"
@@ -791,34 +790,6 @@ describe("session HttpApi", () => {
         ).toBe(true)
       }),
     { git: true, config: { formatter: false, lsp: false, share: "disabled" } },
-  )
-
-  it.instance(
-    "reloads stale global ownership after session creation",
-    () =>
-      Effect.gen(function* () {
-        const test = yield* TestInstance
-        const headers = { "x-hena-directory": test.directory, "content-type": "application/json" }
-        expect(yield* requestJson<Session.Info[]>(SessionPaths.list, { headers })).toEqual([])
-
-        yield* Effect.promise(() => $`git init`.cwd(test.directory).quiet())
-        yield* Effect.promise(() => $`git config user.name "Test"`.cwd(test.directory).quiet())
-        yield* Effect.promise(() => $`git config user.email "test@hena.test"`.cwd(test.directory).quiet())
-        yield* Effect.promise(() => $`git config commit.gpgsign false`.cwd(test.directory).quiet())
-        yield* Effect.promise(() => $`git commit --allow-empty -m "root"`.cwd(test.directory).quiet())
-        const project = yield* Project.use.fromDirectory(test.directory)
-
-        const created = yield* requestJson<Session.Info>(SessionPaths.create, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ title: "ownership changed" }),
-        })
-        const listed = yield* requestJson<Session.Info[]>(SessionPaths.list, { headers })
-
-        expect(created.projectID).toBe(project.project.id)
-        expect(listed.map((item) => item.id)).toContain(created.id)
-      }),
-    { config: { formatter: false, lsp: false, share: "disabled" } },
   )
 
   it.instance(

@@ -28,7 +28,7 @@ describe("run-opencode review action", () => {
     expect(result.stderr).toContain("OpenCode command returned no final text")
   })
 
-  test("preserves nested task result markers after a retryable final error", () => {
+  test("extracts the OpenCode task envelope and preserves nested result markers", () => {
     const body = "First\n<task_result>\ninner\n</task_result>\nLast"
     const result = jq(
       ["-jers", "--arg", "operation", "completed-review", "-f", extractionFilter],
@@ -37,7 +37,10 @@ describe("run-opencode review action", () => {
           type: "tool_use",
           part: {
             tool: "task",
-            state: { status: "completed", output: `<task_result>\n${body}\n</task_result>` },
+            state: {
+              status: "completed",
+              output: `<task id="ses_review" state="completed">\n<task_result>\n${body}\n</task_result>\n</task>`,
+            },
           },
         },
         { type: "error", error: { data: { isRetryable: true } } },
@@ -62,6 +65,19 @@ describe("run-opencode review action", () => {
           type: "tool_use",
           part: { tool: "task", state: { status: "completed", output: "<task_result>\nreview\n</task_result>" } },
         },
+        { type: "error", error: { data: { isRetryable: true } } },
+      ),
+      events(
+        {
+          type: "tool_use",
+          part: {
+            tool: "task",
+            state: {
+              status: "completed",
+              output: '<task id="ses_review" state="completed">\n<task_result>\nreview\n</task_result>\n</task>',
+            },
+          },
+        },
         { type: "error", error: { data: { isRetryable: false } } },
       ),
     ]
@@ -69,7 +85,7 @@ describe("run-opencode review action", () => {
       failures.map(
         (input) => jq(["-jers", "--arg", "operation", "completed-review", "-f", extractionFilter], input).exitCode,
       ),
-    ).toEqual([5, 5, 5])
+    ).toEqual([5, 5, 5, 5])
   })
 
   test("renders trusted review provenance", () => {

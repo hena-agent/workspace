@@ -14,9 +14,12 @@ def completed_review:
       .[]
       | select(.type == "tool_use" and .part.tool == "task" and .part.state.status == "completed")
       | .part.state.output
-      | select(type == "string" and startswith("<task_result>\n") and endswith("\n</task_result>"))
-      | ltrimstr("<task_result>\n")
-      | rtrimstr("\n</task_result>")
+      | select(
+          type == "string"
+          and test("^<task[^>]*>\\n<task_result>\\n[\\s\\S]*\\n</task_result>\\n</task>$")
+        )
+      | sub("^<task[^>]*>\\n<task_result>\\n"; "")
+      | sub("\\n</task_result>\\n</task>$"; "")
     ]
     | last
     | nonblank("OpenCode command returned no completed review task")

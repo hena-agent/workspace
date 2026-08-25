@@ -38,7 +38,7 @@ type SearchResult = {
 }
 
 const registeredClients = new WeakSet()
-let codexModelPromise: Promise<string> | undefined
+let codexModel: string | undefined
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
@@ -270,15 +270,10 @@ function requireSuccessfulResponse(response: Response, auth: CodexAuth, operatio
   if (!response.ok) throw new Error(`${operation} failed with HTTP ${response.status}`)
 }
 
-function loadCodexModel(auth: CodexAuth, signal: AbortSignal) {
-  if (codexModelPromise) return codexModelPromise
-
-  const request = discoverCodexModel(auth, signal)
-  codexModelPromise = request
-  void request.catch(() => {
-    if (codexModelPromise === request) codexModelPromise = undefined
-  })
-  return request
+async function loadCodexModel(auth: CodexAuth, signal: AbortSignal) {
+  if (codexModel) return codexModel
+  codexModel = await discoverCodexModel(auth, signal)
+  return codexModel
 }
 
 async function discoverCodexModel(auth: CodexAuth, signal: AbortSignal) {

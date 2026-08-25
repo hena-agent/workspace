@@ -51,7 +51,7 @@ on:
         description: Single-provider CI OAuth credential derived from ~/.local/share/opencode/auth.json
         required: true
       codex-web-search-auth-json:
-        description: OpenAI credential for the codex_web_search plugin tool, independent of which provider REVIEWER_MODEL selects
+        description: OpenAI credential for the codex_web_search plugin tool, independent of the selected provider
         required: false
 
 jobs:

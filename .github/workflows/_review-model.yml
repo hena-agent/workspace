@@ -2,33 +2,41 @@ name: _review-model
 
 on:
   workflow_call:
+    inputs:
+      configuration:
+        description: Configuration to resolve (review or brief)
+        required: true
+        type: string
     outputs:
       enabled:
-        description: Whether the reviewer should run
+        description: Whether the configured workflow should run
         value: ${{ jobs.resolve.outputs.enabled }}
       reason:
-        description: Why the reviewer is disabled, when applicable
+        description: Why the configured workflow is disabled, when applicable
         value: ${{ jobs.resolve.outputs.reason }}
+      matrix:
+        description: Resolved model matrix for parallel reviews
+        value: ${{ jobs.resolve.outputs.matrix }}
       provider:
-        description: Provider parsed from REVIEWER_MODEL
+        description: Provider for the first resolved model
         value: ${{ jobs.resolve.outputs.provider }}
       model:
-        description: Resolved provider/model id
+        description: First resolved provider/model id
         value: ${{ jobs.resolve.outputs.model }}
       variant:
-        description: Resolved provider-specific model variant
+        description: First resolved provider-specific model variant
         value: ${{ jobs.resolve.outputs.variant }}
       label:
-        description: Resolved provider/model@variant label
+        description: First resolved provider/model@variant label
         value: ${{ jobs.resolve.outputs.label }}
       auth_secret:
-        description: Repository secret containing this provider's auth.json entry
+        description: Repository secret containing the first provider's auth.json entry
         value: ${{ jobs.resolve.outputs.auth_secret }}
       client_id_var:
-        description: Repository variable containing this provider's GitHub App client ID
+        description: Repository variable containing the first provider's GitHub App client ID
         value: ${{ jobs.resolve.outputs.client_id_var }}
       private_key_secret:
-        description: Repository secret containing this provider's GitHub App private key
+        description: Repository secret containing the first provider's GitHub App private key
         value: ${{ jobs.resolve.outputs.private_key_secret }}
       opencode_version:
         description: Requested opencode CLI version override, or empty for the action pin
@@ -44,6 +52,7 @@ jobs:
     outputs:
       enabled: ${{ steps.resolve.outputs.enabled }}
       reason: ${{ steps.resolve.outputs.reason }}
+      matrix: ${{ steps.resolve.outputs.matrix }}
       provider: ${{ steps.resolve.outputs.provider }}
       model: ${{ steps.resolve.outputs.model }}
       variant: ${{ steps.resolve.outputs.variant }}
@@ -53,16 +62,18 @@ jobs:
       private_key_secret: ${{ steps.resolve.outputs.private_key_secret }}
       opencode_version: ${{ steps.resolve.outputs.opencode_version }}
     steps:
-      - name: Resolve reviewer model
+      - name: Resolve model configuration
         id: resolve
         shell: bash
         env:
-          RAW_MODEL: ${{ vars.REVIEWER_MODEL }}
+          CONFIGURATION: ${{ inputs.configuration }}
+          RAW_REVIEW_MODELS: ${{ vars.REVIEW_MODELS }}
+          RAW_BRIEF_MODEL: ${{ vars.BRIEF_MODEL }}
           RAW_OPENCODE_VERSION: ${{ vars.REVIEWER_OPENCODE_VERSION }}
           VARS_JSON: ${{ toJSON(vars) }}
           REPOSITORY: ${{ github.repository }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
-          ACTOR: ${{ github.actor }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
 
@@ -71,42 +82,60 @@ jobs:
               "anthropic": {
                 "auth_secret": "OPENCODE_AUTH_JSON",
                 "client_id_var": "HENA_REVIEWER_CLIENT_ID",
-                "private_key_secret": "HENA_REVIEWER_PRIVATE_KEY",
-                "default_variant": "max"
+                "private_key_secret": "HENA_REVIEWER_PRIVATE_KEY"
               },
               "openai": {
                 "auth_secret": "OPENAI_OPENCODE_AUTH_JSON",
                 "client_id_var": "GPT_REVIEWER_CLIENT_ID",
-                "private_key_secret": "GPT_REVIEWER_PRIVATE_KEY",
-                "default_variant": "xhigh"
+                "private_key_secret": "GPT_REVIEWER_PRIVATE_KEY"
               },
               "opencode-go": {
                 "auth_secret": "OPENCODE_GO_AUTH_JSON",
                 "client_id_var": "HENA_REVIEWER_CLIENT_ID",
-                "private_key_secret": "HENA_REVIEWER_PRIVATE_KEY",
-                "default_variant": "max"
+                "private_key_secret": "HENA_REVIEWER_PRIVATE_KEY"
               }
             }
           ')
-          DEFAULT_MODEL="anthropic/claude-sonnet-5@max"
-          REVIEWER_MODEL=$(jq -nr --arg value "$RAW_MODEL" '$value | gsub("^\\s+|\\s+$"; "")')
+          DEFAULT_REVIEW_MODELS="openai/gpt-5.6-sol@high,anthropic/claude-sonnet-5@max,opencode-go/ox-alpha-free@max"
+          DEFAULT_BRIEF_MODEL="opencode-go/ox-alpha-free@max"
+
+          case "$CONFIGURATION" in
+            review)
+              VARIABLE="REVIEW_MODELS"
+              RAW_MODELS="$RAW_REVIEW_MODELS"
+              DEFAULT_MODELS="$DEFAULT_REVIEW_MODELS"
+              ;;
+            brief)
+              VARIABLE="BRIEF_MODEL"
+              RAW_MODELS="$RAW_BRIEF_MODEL"
+              DEFAULT_MODELS="$DEFAULT_BRIEF_MODEL"
+              ;;
+            *)
+              echo "::error::configuration must be 'review' or 'brief', got '$CONFIGURATION'."
+              exit 1
+              ;;
+          esac
+
+          MODELS=$(jq -nr --arg value "$RAW_MODELS" '$value | gsub("^\\s+|\\s+$"; "")')
           OPENCODE_VERSION=$(jq -nr --arg value "$RAW_OPENCODE_VERSION" '$value | gsub("^\\s+|\\s+$"; "")')
 
           disable() {
             {
               echo "enabled=false"
               echo "reason=$1"
+              echo 'matrix={"include":[]}'
               echo "label=disabled: $1"
+              echo "opencode_version=$OPENCODE_VERSION"
             } >> "$GITHUB_OUTPUT"
-            echo "Reviewer disabled: $1"
+            echo "$CONFIGURATION disabled: $1"
             {
-              echo "### Reviewer model"
+              echo "### ${CONFIGURATION^} model configuration"
               echo "- Enabled: no"
               echo "- Reason: \`$1\`"
             } >> "$GITHUB_STEP_SUMMARY"
           }
 
-          if [ "${REVIEWER_MODEL,,}" = "off" ]; then
+          if [ "${MODELS,,}" = "off" ]; then
             disable "off"
             exit 0
           fi
@@ -114,70 +143,107 @@ jobs:
             disable "fork"
             exit 0
           fi
-          if [ "$ACTOR" = "dependabot[bot]" ]; then
+          if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
             disable "dependabot"
             exit 0
           fi
 
-          SOURCE="REVIEWER_MODEL"
-          if [ -z "$REVIEWER_MODEL" ]; then
-            REVIEWER_MODEL="$DEFAULT_MODEL"
+          SOURCE="$VARIABLE"
+          if [ -z "$MODELS" ]; then
+            MODELS="$DEFAULT_MODELS"
             SOURCE="workflow default"
           fi
-          if ! [[ "$REVIEWER_MODEL" =~ ^[a-z0-9][a-z0-9-]*/[A-Za-z0-9._:/-]+(@[a-z0-9-]+)?$ ]]; then
-            echo "::error::REVIEWER_MODEL must use provider/model[@variant] form or 'off', got '$REVIEWER_MODEL'. Set it with: gh variable set REVIEWER_MODEL --body 'anthropic/claude-sonnet-5@max'"
-            exit 1
-          fi
-
-          PROVIDER="${REVIEWER_MODEL%%/*}"
-          MODEL_ID="${REVIEWER_MODEL#*/}"
-          VARIANT=""
-          if [[ "$MODEL_ID" == *@* ]]; then
-            VARIANT="${MODEL_ID##*@}"
-            MODEL_ID="${MODEL_ID%@*}"
-          fi
-
-          if ! jq -e --arg provider "$PROVIDER" 'has($provider)' <<< "$MODEL_CONFIG" >/dev/null; then
-            REGISTERED=$(jq -r 'keys | join(", ")' <<< "$MODEL_CONFIG")
-            echo "::error::REVIEWER_MODEL names unregistered provider '$PROVIDER' (registered: $REGISTERED). Add its auth_secret, client_id_var, private_key_secret, and default_variant to .github/workflows/_review-model.yml."
-            exit 1
-          fi
-
-          AUTH_SECRET=$(jq -r --arg provider "$PROVIDER" '.[$provider].auth_secret' <<< "$MODEL_CONFIG")
-          CLIENT_ID_VAR=$(jq -r --arg provider "$PROVIDER" '.[$provider].client_id_var' <<< "$MODEL_CONFIG")
-          PRIVATE_KEY_SECRET=$(jq -r --arg provider "$PROVIDER" '.[$provider].private_key_secret' <<< "$MODEL_CONFIG")
-          if [ -z "$VARIANT" ]; then
-            VARIANT=$(jq -r --arg provider "$PROVIDER" '.[$provider].default_variant' <<< "$MODEL_CONFIG")
-          fi
-
-          if ! jq -e --arg name "$CLIENT_ID_VAR" '.[$name] | type == "string" and length > 0' <<< "$VARS_JSON" >/dev/null; then
-            echo "::error::Repository variable $CLIENT_ID_VAR is empty. Register the GitHub App for provider '$PROVIDER' before selecting it."
-            exit 1
-          fi
           if [ -n "$OPENCODE_VERSION" ] && ! [[ "$OPENCODE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::REVIEWER_OPENCODE_VERSION must be an exact semantic version such as '1.18.18', got '$OPENCODE_VERSION'."
+            echo "::error::REVIEWER_OPENCODE_VERSION must be an exact semantic version such as '1.18.22', got '$OPENCODE_VERSION'."
             exit 1
           fi
 
-          MODEL="$PROVIDER/$MODEL_ID"
-          LABEL="$MODEL@$VARIANT"
+          MODEL_LIST=$(jq -nc --arg value "$MODELS" '$value | split(",") | map(gsub("^\\s+|\\s+$"; ""))')
+          if ! jq -e 'length > 0 and all(.[]; length > 0)' <<< "$MODEL_LIST" >/dev/null; then
+            echo "::error::$VARIABLE contains an empty model entry. Use comma-separated provider/model@variant values."
+            exit 1
+          fi
+          MODEL_COUNT=$(jq -r 'length' <<< "$MODEL_LIST")
+          if [ "$CONFIGURATION" = "brief" ] && [ "$MODEL_COUNT" -ne 1 ]; then
+            echo "::error::BRIEF_MODEL must contain exactly one provider/model@variant value or 'off'."
+            exit 1
+          fi
+          if [ "$MODEL_COUNT" -gt 256 ]; then
+            echo "::error::$VARIABLE contains $MODEL_COUNT entries; GitHub Actions matrices support at most 256 jobs."
+            exit 1
+          fi
+          if ! jq -e 'length == (unique | length)' <<< "$MODEL_LIST" >/dev/null; then
+            echo "::error::$VARIABLE contains duplicate model entries."
+            exit 1
+          fi
+
+          MATRIX='{"include":[]}'
+          FIRST=true
+          while IFS= read -r MODEL_REF; do
+            if ! [[ "$MODEL_REF" =~ ^[a-z0-9][a-z0-9-]*/[A-Za-z0-9._:/-]+@[a-z0-9-]+$ ]]; then
+              echo "::error::$VARIABLE entries must use provider/model@variant form, got '$MODEL_REF'."
+              exit 1
+            fi
+
+            PROVIDER="${MODEL_REF%%/*}"
+            MODEL_AND_VARIANT="${MODEL_REF#*/}"
+            MODEL_ID="${MODEL_AND_VARIANT%@*}"
+            VARIANT="${MODEL_AND_VARIANT##*@}"
+            if ! jq -e --arg provider "$PROVIDER" 'has($provider)' <<< "$MODEL_CONFIG" >/dev/null; then
+              REGISTERED=$(jq -r 'keys | join(", ")' <<< "$MODEL_CONFIG")
+              echo "::error::$VARIABLE names unregistered provider '$PROVIDER' (registered: $REGISTERED). Add its auth_secret, client_id_var, and private_key_secret to .github/workflows/_review-model.yml."
+              exit 1
+            fi
+
+            AUTH_SECRET=$(jq -r --arg provider "$PROVIDER" '.[$provider].auth_secret' <<< "$MODEL_CONFIG")
+            CLIENT_ID_VAR=$(jq -r --arg provider "$PROVIDER" '.[$provider].client_id_var' <<< "$MODEL_CONFIG")
+            PRIVATE_KEY_SECRET=$(jq -r --arg provider "$PROVIDER" '.[$provider].private_key_secret' <<< "$MODEL_CONFIG")
+            if ! jq -e --arg name "$CLIENT_ID_VAR" '.[$name] | type == "string" and length > 0' <<< "$VARS_JSON" >/dev/null; then
+              echo "::error::Repository variable $CLIENT_ID_VAR is empty. Register the GitHub App for provider '$PROVIDER' before selecting it."
+              exit 1
+            fi
+
+            MODEL="$PROVIDER/$MODEL_ID"
+            LABEL="$MODEL@$VARIANT"
+            MATRIX=$(jq -c \
+              --arg model "$MODEL" \
+              --arg variant "$VARIANT" \
+              --arg label "$LABEL" \
+              --arg auth_secret "$AUTH_SECRET" \
+              --arg client_id_var "$CLIENT_ID_VAR" \
+              --arg private_key_secret "$PRIVATE_KEY_SECRET" \
+              '.include += [{model: $model, variant: $variant, label: $label, auth_secret: $auth_secret, client_id_var: $client_id_var, private_key_secret: $private_key_secret}]' \
+              <<< "$MATRIX")
+
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+              FIRST_PROVIDER="$PROVIDER"
+              FIRST_MODEL="$MODEL"
+              FIRST_VARIANT="$VARIANT"
+              FIRST_LABEL="$LABEL"
+              FIRST_AUTH_SECRET="$AUTH_SECRET"
+              FIRST_CLIENT_ID_VAR="$CLIENT_ID_VAR"
+              FIRST_PRIVATE_KEY_SECRET="$PRIVATE_KEY_SECRET"
+            fi
+          done < <(jq -r '.[]' <<< "$MODEL_LIST")
+
           {
             echo "enabled=true"
             echo "reason="
-            echo "provider=$PROVIDER"
-            echo "model=$MODEL"
-            echo "variant=$VARIANT"
-            echo "label=$LABEL"
-            echo "auth_secret=$AUTH_SECRET"
-            echo "client_id_var=$CLIENT_ID_VAR"
-            echo "private_key_secret=$PRIVATE_KEY_SECRET"
+            echo "matrix=$MATRIX"
+            echo "provider=$FIRST_PROVIDER"
+            echo "model=$FIRST_MODEL"
+            echo "variant=$FIRST_VARIANT"
+            echo "label=$FIRST_LABEL"
+            echo "auth_secret=$FIRST_AUTH_SECRET"
+            echo "client_id_var=$FIRST_CLIENT_ID_VAR"
+            echo "private_key_secret=$FIRST_PRIVATE_KEY_SECRET"
             echo "opencode_version=$OPENCODE_VERSION"
           } >> "$GITHUB_OUTPUT"
           {
-            echo "### Reviewer model"
+            echo "### ${CONFIGURATION^} model configuration"
             echo "- Enabled: yes"
-            echo "- Model: \`$MODEL\`"
-            echo "- Variant: \`$VARIANT\`"
+            jq -r '.include[].label | "- Model: `\(.)`"' <<< "$MATRIX"
             echo "- Source: \`$SOURCE\`"
             if [ -n "$OPENCODE_VERSION" ]; then
               echo "- OpenCode version override: \`$OPENCODE_VERSION\`"

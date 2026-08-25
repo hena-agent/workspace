@@ -542,7 +542,7 @@ const scenarios: Scenario[] = [
           predicate: (event) =>
             event.payload.type === modules.Worktree.Event.Ready.type && event.payload.properties.name === "api-dsl",
           message: "timed out waiting for worktree.ready",
-        }).pipe(Effect.orDie, Effect.asVoid, Effect.forkDetach)
+        }).pipe(Effect.orDie, Effect.asVoid, Effect.forkScoped({ startImmediately: true }))
       }),
     )
     .at((ctx) => ({ path: "/experimental/worktree", headers: ctx.headers(), body: { name: "api-dsl" } }))

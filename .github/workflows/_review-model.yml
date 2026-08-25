@@ -169,7 +169,7 @@ jobs:
             exit 1
           fi
           if [ "$MODEL_COUNT" -gt 256 ]; then
-            echo "::error::REVIEW_MODELS contains $MODEL_COUNT entries; GitHub Actions matrices support at most 256 jobs."
+            echo "::error::$VARIABLE contains $MODEL_COUNT entries; GitHub Actions matrices support at most 256 jobs."
             exit 1
           fi
           if ! jq -e 'length == (unique | length)' <<< "$MODEL_LIST" >/dev/null; then

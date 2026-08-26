@@ -39,9 +39,6 @@ The governing idea is narrower than "the network is never on the interaction pat
 - Application tabs or multi-Session keep-alive
 - Full RTL layout in the first stable release; see the Arabic support restriction in §9.3
 - Phone terminals
-- A cross-server Inbox; every route answers to the one server its URL names (§8.1)
-- The packaged Electron origin in the first release (§3.4)
-- Migrating V2 connection records or credentials (§10.5)
 
 ### 1.4 Stack
 
@@ -89,9 +86,6 @@ Replace scaffold tooling with the repository's oxlint, Prettier, `tsc`, Bun, Pla
 | Mutation confirmation | Durable transaction receipt, not first-row txid observation                                  |
 | Location scoping      | Instance-wide list collections; Session transcripts subscribe by scope                       |
 | Multi-server          | One isolated connection agent, outbox namespace, and trust boundary per connection           |
-| Server liveness       | Every registered server stays live; the URL slug names the focused one                       |
-| Connection identity   | The canonical base URL is the identity; there is no separate connection UUID                 |
-| Credentials           | Revocable server-issued device token; the password is never persisted                        |
 | Streaming text        | Ordered ephemeral deltas outside TanStack DB; finalized rows remain authoritative            |
 | Persistence           | SQLite in OPFS through TanStack persistence, subject to Milestone 0 gates                    |
 | Multi-tab             | One connection/database leader plus tab subscription claims and relay                        |
@@ -99,9 +93,8 @@ Replace scaffold tooling with the repository's oxlint, Prettier, `tsc`, Bun, Pla
 | HTTP client           | Generated Promise client from `@hena/client`                                                 |
 | Runtime validation    | Bounded protocol validation at network and IPC trust boundaries                              |
 | Routing               | TanStack Router file routes with non-blocking data loading                                   |
-| URL scheme            | Server slug first on every route: base64url of the canonical base URL                        |
+| URL scheme            | Local connection ID plus project and Session hierarchy                                       |
 | Tabs                  | None; project rail, Session list, and one content pane                                       |
-| Connection control    | Top-right titlebar control opens one server-management surface, also mounted in Settings     |
 | Timeline              | Virtualized stable history plus an unvirtualized live tail and reader mode                   |
 | Markdown              | Streamdown plus `@streamdown/code`, with raw HTML disabled                                   |
 | Diffs                 | `@pierre/diffs/react` with explicit worker-pool wiring                                       |
@@ -111,12 +104,12 @@ Replace scaffold tooling with the repository's oxlint, Prettier, `tsc`, Bun, Pla
 | i18n                  | Existing dictionaries and a typed custom hook; Arabic strings are beta until RTL ships       |
 | PWA                   | Versioned app-shell precache and explicit navigation/update behavior                         |
 | Notifications         | Permissioned local notifications with one elected notifier                                   |
-| Connectivity          | Manual server entry; transport rules differ per origin class and are stated per class        |
-| Hosting               | Origin is the profile boundary; hosted `app.hena.dev` and server-embedded are separate installs |
+| Connectivity          | Manual server entry with explicit browser transport requirements                             |
+| Hosting               | Origin is the profile boundary; embedded, hosted, and packaged origins are separate installs |
 | Desktop               | Versioned, runtime-validated `window.hena` capability bridge replacing `window.api`          |
 | Testing               | Bun/RTL, Playwright, protocol conformance, migration, security, and packaged desktop tests   |
 | Error handling        | App, route, and part boundaries; local redacted diagnostics only                             |
-| Delivery              | No preview channel; V3 takes `app.hena.dev` and the embed slot in one change                 |
+| Delivery              | Preview channel, then one stable cutover; rehearsed upgrade and rollback                     |
 
 ---
 
@@ -132,16 +125,7 @@ Vite must exclude the audited SQLite packages from dependency optimization and s
 
 ### 3.2 Release model
 
-There is no stable runtime toggle and no release containing both UI bundles. There is also **no preview channel and no second hostname**: V3 does not get a `v3.hena.dev`, and no artifact carries both UIs selectable at runtime. V3 replaces V2 at `https://app.hena.dev` and in the server's embed slot in the same change, and that change is gated on §12.4.
-
-That single change does all of the following together, because any subset leaves the two UIs contradicting each other:
-
-- The `sst.cloudflare.StaticSite("WebApp")` resource in `infra/app.ts` is deleted and `app.hena.dev` is served by `packages/app-v3`'s own `wrangler.jsonc` (§3.5).
-- `createEmbeddedWebUIBundle` in `packages/hena/script/build.ts` builds `packages/app-v3` instead of `packages/app`.
-- The proxy fallback in `packages/hena/src/server/shared/ui.ts` is deleted along with `UI_UPSTREAM` (§3.4).
-- `packages/desktop` is on the built V3 renderer artifact and `packages/app` is deleted, per the disposition table below.
-
-Because there is no preview channel, §12.4's gate list is the only thing standing between V3 and every user. Its "preview-channel feedback window" line is removed and not replaced; the remaining gates tighten rather than relax.
+There is no stable runtime toggle and no release containing both UI bundles. V3 first ships in preview artifacts that are not the stable update channel. Stable cutover occurs only after §12.4 passes.
 
 V2 UI code is not a single package, and deletion order is a gate, not an afterthought. Each dependent package has an explicit disposition that must be complete before the package it depends on is removed:
 
@@ -168,47 +152,25 @@ An unsupported connection enters `upgrade_required`; it does not open an outbox,
 
 ### 3.4 Hosting and origins
 
-V2 serves its UI two ways from the same server process: an embedded build, or a proxy to a hosted upstream when no build is embedded (`packages/hena/src/server/shared/ui.ts`). V3 keeps the embedded build and **deletes the proxy**. This is a normative constraint, not an implementation detail, because every durable client concept in this document is scoped to a browser origin.
+V2 serves its UI two ways from the same server process: an embedded build, or a proxy to a hosted upstream when no build is embedded (`packages/hena/src/server/shared/ui.ts`). V3 keeps both, and adds the packaged Electron origin. This is a normative constraint, not an implementation detail, because every durable client concept in this document is scoped to a browser origin.
 
 **An origin is a profile boundary.** The OPFS database, service worker and its precache, install identity, notification permission, connection list, credentials, drafts, and outboxes all belong to exactly one origin. Two origins are two independent installs of the same product, even when they talk to the same servers.
 
-V3 ships to two origin classes. The packaged Electron origin is deferred with the rest of §10.2 and is not part of the first V3 release.
-
-| Origin                       | Profile                                     | App version controlled by | Deferred |
-| ---------------------------- | ------------------------------------------- | ------------------------- | -------- |
-| Hosted `app.hena.dev`        | One profile shared across all added servers | The CF deployment (§3.5)  | no       |
-| Server-embedded (per server) | One profile per server origin               | That server's artifact    | no       |
-| Packaged Electron            | One profile per installation                | The desktop artifact      | yes      |
+| Origin                       | Profile                                     | App version controlled by |
+| ---------------------------- | ------------------------------------------- | ------------------------- |
+| Server-embedded (per server) | One profile per server origin               | That server's artifact    |
+| Hosted app origin            | One profile shared across all added servers | The app deployment        |
+| Packaged Electron            | One profile per installation                | The desktop artifact      |
 
 Consequences that the implementation and the UI must honor:
 
 - A profile opened from server A's origin may add servers B and C, but its data lives under A's origin. Opening B's origin later is a different profile with an empty connection list, and the UI says so rather than implying data loss.
 - On a server-embedded origin, the serving server also controls the app version, so §3.3's compatibility window governs the _other_ servers that profile connects to. A server-embedded profile can therefore be forced to upgrade by the server it was loaded from.
 - The service-worker update flow in §10.1 and rollback in §3.2 are per origin. A rollback on one server origin does not downgrade another profile.
+- §10.5 migration runs per profile, so the same user can have several partially migrated profiles; migration completion is recorded per origin.
 - Cross-origin requirements in §5.6 apply to every server that is not the serving origin, including the hosted-origin case where every server is cross-origin.
-- **Transport rules differ per origin class** and are stated per class in §10.3. They are not one global law, because a page served from `http://localhost:4096` reaching its own server is same-origin with no mixed content, no CORS preflight, and no Local Network Access check, while the hosted origin is cross-origin to everything.
 
-The connect surface and Settings show which origin the current profile belongs to, because "why are my servers missing" is otherwise indistinguishable from data loss.
-
-#### The server serves its own artifact
-
-`serveUIEffect` loses its upstream branch entirely; `UI_UPSTREAM`, `upstreamURL`, and the proxy response-header handling are deleted. A built binary serves its embedded bundle. A server running from source serves `packages/app-v3/dist` from disk, and when that directory is absent it returns a plain instruction to run the app build rather than silently serving someone else's UI.
-
-This makes §3.4's "that server's artifact controls the version" literally true, removes the class of bug where a CF deploy changes the UI of every running server, and fixes the long-standing behavior documented in `packages/app/AGENTS.md` where local UI edits are invisible under `hena dev web`. The cost is one build step before `hena dev web` works, and that is stated in the dev docs rather than worked around.
-
-#### A stable port is a requirement, not a preference
-
-`hena serve` currently defaults to port `0`, meaning "try 4096, else any free port" (`packages/hena/src/server/server.ts`). Under §6.2 the address is the connection identity, and on the embedded origin the address is also the **browser origin**. A silent port fallback therefore does not merely rename a connection; it moves the entire profile — localStorage, the registry, the device token, drafts, and outboxes — to a partition the previous profile cannot reach. No client-side canonicalization can recover it, because the browser partitioned storage before any response arrived.
-
-The silent fallback is removed. If the default port is unavailable and no `--port` was given, `hena serve` fails with an explicit message naming the conflict and the flag. A user who chooses a port keeps their profile permanently; a user who does not is told why up front instead of discovering an empty app later.
-
-### 3.5 Hosted deployment
-
-`packages/app-v3` owns its own `wrangler.jsonc` and deploys to Cloudflare Workers Static Assets, independent of `sst.config.ts`. Static assets are the whole product: there is no server-side rendering, no API worker, and no origin logic.
-
-- `assets.not_found_handling` is `single-page-application`, because every route begins with a base64url slug that no static file matches.
-- Response headers come from `_headers`; on a static host there is no server to add them. The header classes are the same ones the embedded origin must send (§10.1), so both origins are described once and tested once.
-- The origin is `app.hena.dev` and nothing else. That hostname already matches the server's built-in CORS allowlist (`packages/server/src/cors.ts`), so every already-shipped Hena server accepts the hosted app with no flag, no config change, and no upgrade. Choosing any other hostname would require every user to pass `--cors`, and a forgotten flag is indistinguishable from an opaque network failure.
+The connect screen and Settings show which origin the current profile belongs to, because "why are my servers missing" is otherwise indistinguishable from data loss.
 
 ---
 
@@ -243,7 +205,7 @@ Minimum catalog:
 
 `Location key` is a canonical encoding of the complete `Location.Ref`, including `workspaceID` when present. `locations` exists so the client can enumerate the Location keys a server exposes; without it, seven Location-scoped collections have keys the client cannot discover or render.
 
-A client storage key is the tuple `(connection identity, collection, manifest key)`, where the connection identity is the canonical base URL defined in §6.2. The manifest key is frequently composite, so no code may assume a single `id` field or flatten identity into a `${serverId}:${id}` string.
+A client storage key is the tuple `(connectionId, collection, manifest key)`. The manifest key is frequently composite, so no code may assume a single `id` field or flatten identity into a `${serverId}:${id}` string.
 
 #### Message model
 
@@ -360,18 +322,6 @@ DELETE /api/collection/streams/:streamId
 GET    /api/collection/transactions/:txid
 ```
 
-`GET /capabilities` is the connection handshake, and it is the only endpoint a client may call before it trusts a server or holds a credential. It answers four questions at once so that add-validation, Move verification (§6.2), and the `upgrade_required` state of §3.3 share one call instead of three heuristics:
-
-```ts
-type Capabilities = {
-  feedId: string // §4.2 durable identity; proves server sameness across an address change
-  protocol: { min: number; max: number }
-  auth: "none" | "required" // whether a credential is needed at all
-}
-```
-
-It is reachable without a credential, returns `no-store`, and carries CORS headers on every status including `401`, because a `401` without them is invisible to the browser. It exposes no Session, project, or principal data: it is a handshake, not a read.
-
 `POST /streams` returns a cryptographically random `streamId`, a separate control token, attachment generation, expiry, feed metadata, and initial subscription revision. The resource is bound to the authenticated principal. Control requests carry the control token in a header; IDs are not bearer capabilities.
 
 The revisioned subscription PUT supplies the complete desired state, not imperative add/remove commands:
@@ -464,14 +414,7 @@ Retention uses explicit age and maximum-size targets. Deletion and `retained_flo
 
 ### 5.6 HTTP and browser security
 
-Transport requirements are **per origin class** (§3.4) and §10.3 states the full matrix. Two rules hold everywhere and admit no override in any runtime:
-
-- A non-loopback plain-HTTP server is rejected.
-- HTTP Basic credentials are never sent over an untrusted plain HTTP connection.
-
-The loopback allowance is not global. It applies on the server-embedded origin, where the page is itself plain HTTP and a loopback target is same-origin or same-address-space. It does **not** apply on the hosted `https://app.hena.dev` origin, which rejects every plain-HTTP address including loopback; §10.3 explains why that is a rule rather than a bug.
-
-The connect surface rejects URL userinfo, unexpected redirects, mixed content, and certificate failures.
+Connections require HTTPS except browser-defined trustworthy loopback origins. There is no override, in either runtime, for a non-loopback plain-HTTP server; §10.3 states the same rule from the connectivity side and adds nothing to it. Local sidecars, including WSL servers reached through forwarded `localhost`, are loopback and therefore already allowed. The connect screen rejects URL userinfo, unexpected redirects, mixed content, and certificate failures. HTTP Basic credentials are never sent over an untrusted plain HTTP connection.
 
 Fetch-based SSE carries the normal `Authorization` header and owns reconnection. Cross-origin servers implement a configured exact-origin allowlist, bounded method/header preflights, `Vary: Origin`, and Private/Local Network Access responses only for approved origins. Cookies are not used for cross-server authentication.
 
@@ -493,33 +436,9 @@ Tier 2 is request-backed, not assumed static. Each use defines supported predica
 
 ### 6.2 Connection and row identity
 
-**A connection's identity is its canonical base URL.** There is no separate client-generated UUID. The canonical base URL namespaces local rows, cursors, stream state, drafts, receipt waiters, OAuth attempts, and outbox storage, and it is what §7.1 encodes into every route. A separate server `feedId` (§4.2) detects endpoint replacement and proves server sameness across an address change.
+A connection has an immutable client-generated UUID independent of editable URL and credentials. It namespaces local rows, cursors, stream state, drafts, receipt waiters, OAuth attempts, and outbox storage. A separate server `feedId` detects endpoint replacement.
 
-This is a deliberate reversal of a UUID-based scheme. A UUID is more comfortable internally — it survives an address change for free — but it is meaningless to any other device, so a copied URL cannot resolve anywhere but the profile that minted it. Making the address the identity is what allows §7.1's slug to be self-describing, and the cost is paid once, in the Move flow below, rather than being spread across every shared link.
-
-#### Canonical form
-
-The canonical base URL is derived once, at entry, and stored:
-
-- Scheme and host are lowercased.
-- A default port is omitted: `:443` for `https`, `:80` for `http`.
-- A path prefix is preserved, with any trailing slash stripped. Reverse-proxied servers at `https://x.example/hena` are a supported deployment and dropping them would be a regression against `packages/app`.
-- Userinfo, query, and fragment are rejected outright rather than stripped, because silently discarding them changes what the user asked for.
-- Username and password are attached to the connection but are **not** part of its identity.
-
-Canonicalization is the primary key derivation, so it is exhaustively unit-tested (§11.2). A rule that is too loose merges two servers' local data; a rule that is too tight orphans it.
-
-#### Changing a server's address
-
-Because the address is the key, editing it is not an edit — it changes the primary key. `packages/app` handles this by deleting and re-adding, which silently orphans that server's per-server state. A server moving from `https://box.local` to `https://box.tail.ts.net` is routine, not exotic, so V3 makes it a first-class operation:
-
-**Move** is an explicit, confirmed action that probes the new address, reads its `feedId` from §5.1's capabilities response, and verifies it matches the current connection's. Only then does it transactionally re-key that connection's cached rows, drafts, outbox entries, tombstones, and device token from the old identity to the new, and rewrite the current route and in-app history entries. It refuses when the new address is already registered, when the probe reports a different `feedId`, or when the probe cannot establish one. Editing the display name or credentials is an ordinary edit and does not go through Move, because neither is part of the identity.
-
-#### Removal and tombstones
-
-Removing a connection with pending work is blocked until the user drains, exports, or explicitly discards it. Removal wipes that identity's rows, cursors, drafts, outbox, OAuth state, and credentials through a clear confirmation, and revokes its device token where the server is reachable.
-
-A self-describing slug creates a loop a UUID scheme never had: removing a server leaves history entries that still encode its address, so an ordinary Back press would offer to add back the server just deleted, and a stale bookmark would quietly re-onboard it. Removal therefore records the canonical address in a small durable **tombstone** list. Navigating to a tombstoned slug shows "You removed `https://x.example` from this device" with an explicit re-add action — never the ordinary connect gate of §7.1. Re-adding clears the tombstone.
+Editing URL or authenticated identity requires an explicit reset or verified migration. Removing a connection with pending work is blocked until the user drains, exports, or explicitly discards it. Removing a connection can also wipe its rows, cursors, drafts, outbox, OAuth state, and credentials through a clear confirmation.
 
 ### 6.3 Startup gates
 
@@ -567,13 +486,7 @@ The SQLite worker and WASM are deferred after shell paint but remain part of col
 
 Claims pin transcripts against eviction. Leader generation fences stale broadcasts. Handoff reconstructs desired subscriptions from current claims; delta gaps remain explicit until final rows arrive. The outbox leader and connection leader may differ, so receipts and wakeups travel over the channel rather than relying on same-tab memory.
 
-Every per-server `OfflineExecutor` receives unique IndexedDB/database names and unique Web Locks leadership names, derived from the connection identity in §6.2. Library defaults are not reused across servers.
-
-#### Every registered server stays live
-
-All registered connections stream concurrently. The slug (§7.1) names the **focused** server — the one whose data the current route renders — but it does not suspend the others. This is what §2's "one isolated connection agent, outbox namespace, and trust boundary per connection" means in practice: N concurrent streams, N token refreshes, N outboxes, and a failure in one that cannot degrade another.
-
-Keeping every server live is what makes switching instant and background outbox work possible, and it is also why the connection control in §8.1 must escalate to the worst status across all connections rather than reporting only the focused one. The cost is real — concurrent connections on mobile radio and battery — and if measurement shows it is unacceptable, the replacement is an explicit dormant state that every status surface and §6.3 gate represents honestly, not a silent downgrade.
+Every per-server `OfflineExecutor` receives unique IndexedDB/database names and unique Web Locks leadership names. Library defaults are not reused across servers.
 
 ### 6.6 Mutation policy
 
@@ -591,7 +504,7 @@ Keeping every server live is what makes switching instant and background outbox 
 
 Queued-input cancel and reorder need protocol surface that does not exist yet: the server admits and promotes inputs but exposes no cancel, no reorder, and no queue revision. Adding them is Milestone 0 work, and until they exist the composer offers no reorder affordance rather than faking one locally.
 
-The outbox stores versioned operation name, bounded payload, idempotency key, request fingerprint, connection identity (§6.2), creation time, and expiry. Registry names are stable, but unknown or incompatible records are never silently dropped. They move to a visible dead-letter view with Retry, Edit/Recover Draft, Export, and Discard.
+The outbox stores versioned operation name, bounded payload, idempotency key, request fingerprint, connection ID, creation time, and expiry. Registry names are stable, but unknown or incompatible records are never silently dropped. They move to a visible dead-letter view with Retry, Edit/Recover Draft, Export, and Discard.
 
 This requires intercepting upstream behavior rather than inheriting it. Upstream treats a `NonRetriableError` as terminal and removes the transaction from its outbox, and routes unknown operation names through `onUnknownMutationFn`; both paths end in a record the user can no longer see. The wrapper captures terminal failures and unknown names into the dead-letter store before upstream removal completes, because a removed record is lost user intent, not a resolved failure.
 
@@ -647,39 +560,17 @@ Ephemeral hover, menus, and in-flight form input remain React state.
 ### 7.1 Routes
 
 ```text
-/                                                 replaces with /:server, or /connect when empty
-/connect                                          add the first server; the only server-less route
-/:server                                          that server's project list
-/:server/:projectId                               project Session list
-/:server/:projectId/new/:draftId                  new Session draft
-/:server/:projectId/session/:sessionId            Session
-/:server/:projectId/session/:sessionId/review
-/:server/:projectId/session/:sessionId/files
-/:server/settings/:section                        settings; the section decides profile-wide or server-owned
+/                                                    inbox
+/:connectionId/:projectId                            project Session list
+/:connectionId/:projectId/new/:draftId               new Session draft
+/:connectionId/:projectId/session/:sessionId         Session
+/:connectionId/:projectId/session/:sessionId/review
+/:connectionId/:projectId/session/:sessionId/files
+/settings/:section                                   profile settings
+/settings/:connectionId/:section                     server settings
 ```
 
-Path parameters are written `:name` here for readability; TanStack Router file routes use its own `$param` syntax, and the table describes URL shape rather than file naming.
-
-#### The server slug
-
-`:server` is **base64url, unpadded, of the connection's canonical base URL** (§6.2). It is the first segment of every route except `/connect`.
-
-Decoding applies a round-trip canonicality check: the decoded value is re-encoded and must equal the original segment exactly, and the decoded value must itself be a canonical base URL. This rejects alternate encodings, padded variants, and arbitrary strings, and it is the same guard `packages/app` applies to its `serverKey` segment. A segment that fails the check is a malformed route, not an unknown server.
-
-Putting the slug first removes §7.1's previous need to reserve `settings` as a first segment, and moves that reservation one segment right: `settings` is a reserved project ID. Literal segments match before parameters, so the match is deterministic. The collision is theoretical in the other direction too — base64url of any real `https://` URL is far longer than the word `settings` — but the reservation is stated rather than assumed.
-
-Settings collapses from two routes into one. §8.6's sections are already disjoint between profile-wide (appearance, notifications, keybindings, general) and server-owned (providers, models, MCP servers, server connections, storage/diagnostics), so one closed section set serves both and the slug supplies the server for the server-owned ones. Profile-wide sections carry the slug without being scoped by it; it preserves the server you return to.
-
-#### Resolving a slug
-
-Every navigation resolves the decoded address against the registry, in this order:
-
-1. **Registered** — render the route.
-2. **Tombstoned** (§6.2) — show "you removed this server" with an explicit re-add action. Never the connect gate.
-3. **Unknown** — show a blocking confirmation gate naming the decoded address, its transport verdict (§10.3), and a credential form when the probe reports `401`. Accepting registers the connection permanently and continues to the deep-linked route; declining leaves the profile untouched. This satisfies §10.6's rule that server-add links require confirmation and transport validation, and it makes a pasted link the primary onboarding path on the hosted origin.
-4. **Malformed** — a route error, not a connect prompt.
-
-A copied route is genuinely portable: it carries the address, so a recipient can act on it. It never carries credentials (§10.3) and never auto-adds a server.
+Path parameters are written `:name` here for readability; TanStack Router file routes use its own `$param` syntax, and the table describes URL shape rather than file naming. Settings is split into two routes instead of one route with an optional leading parameter, because `/settings/appearance` is otherwise ambiguous between a connection ID and a section name. Section names are a closed set, connection IDs are UUIDs, and literal segments match before parameters. `settings` is a reserved first segment for the same reason: a connection ID can never be mistaken for it.
 
 The project route never redirects as a route side effect. On mobile it is the list root; selecting a Session pushes detail, and Back returns to the list. Desktop may show an empty or most-recent detail pane without changing that URL contract.
 
@@ -687,27 +578,24 @@ Message anchors use `#message-<id>`. File/review selection uses bounded URL sear
 
 Loaders validate route syntax and start non-awaited subscription claims. They never wait on API data. Views distinguish hydrating, cached/stale, connecting, offline with cache, offline without cache, unauthorized, unsupported protocol, not found, deleted, and permanent sync failure. Invalid project/Session ownership fails closed.
 
+`connectionId` is profile-local. A copied route resolves on another device only if the same connection identity has been imported or explicitly mapped; it never auto-adds a server or transfers credentials.
+
 ### 7.2 Layout
 
 The desktop/wide layout has:
 
-1. A fixed project rail for the **slug's server only**, sorted by recent activity.
+1. A fixed project rail across connected servers, with Inbox pinned first.
 2. A collapsible Session list for the selected project, sorted by recent activity.
 3. One content pane.
-4. A connection control in the top-right of the titlebar (§8.1).
 
-The rail is scoped to one server rather than spanning all of them, and there is no Inbox. Both are deliberate reversals of an earlier cross-server design: the rail stays short on the 64px mobile column, and every list in the app answers to the server named in the URL, so a route never shows data belonging to a server it does not name. Every registered server still stays live (§6.5), so switching is instant and background work is not suspended — but the rail does not try to represent all of them at once.
-
-Switching servers is therefore the connection control's job (§8.1) and the command palette's, not the rail's.
-
-Project reorder uses pointer and keyboard drag controls, persists profile-wide, and announces movement. Server identity and status are visible without relying on color; a status dot always pairs with a shape, glyph, or text.
+Project reorder uses pointer and keyboard drag controls, persists profile-wide, and announces movement. Server identity and status are visible without relying on color. Server management is available from the top-right connection control and Settings; it includes add, edit, remove, authentication, sync, durability, protocol, local-storage usage, and clear-data states.
 
 There are no application tabs. Switching Sessions may unmount view components but does not terminate server resources such as PTYs without an explicit lifecycle action.
 
 ### 7.3 Mobile navigation
 
 - Project Session list is the project root.
-- Project switching is a left slide-over with a visible button; edge swipe is optional, not the only action. Server switching is not in the slide-over; it stays in the connection control so there is exactly one place to do it.
+- Project switching is a left slide-over with a visible button; edge swipe is optional, not the only action.
 - Review and files are full-screen subroutes.
 - Back closes popover, drawer, subroute, Session, then project in that order.
 - Focus moves to the pushed screen heading and returns to the initiating control on pop.
@@ -755,66 +643,11 @@ An explicit compact/comfortable preference can override visual density but never
 
 ## 8. Product surfaces
 
-### 8.1 Server connections
+### 8.1 Inbox and requests
 
-There is no Inbox. Permission and question requests render in their Session, using the immutable request identity and pending-reply state described in §8.2 and §8.9. Replies are online-only by default, carry a pending nonce/revision and expiry, become disabled while resolving, and reconcile an already-resolved race without a destructive error.
+Inbox is a global "Needs you" view across servers, projects, and Sessions. Requests also render in their Session. Both use the same immutable request identity and pending-reply state.
 
-The surface that replaces it is server management, because with the rail scoped to one server (§7.2) the connection control is how a user moves between servers at all.
-
-#### The connection control
-
-A single control occupies the top-right of the titlebar on every route. It renders:
-
-- The **focused** server's display name, meaning the server named by the current slug.
-- A status badge that escalates to the **worst** state across every live connection, not just the focused one.
-
-The escalation is the point. Every registered server stays live (§6.5), so a background connection can be unauthenticated, backing off, `upgrade_required`, or permanently failed while the focused server is perfectly healthy. A control that reported only the focused server would let the one always-visible status indicator in the application read "fine" while another server had been dead for an hour. Opening the surface shows which connection is actually degraded.
-
-Status is never color alone (§7.2, §9.4). The control reserves its width so the titlebar does not reflow as the focused server's name changes across navigation.
-
-Activating the control opens the server-management surface.
-
-#### One surface, two mounts
-
-The connection list, add form, Move flow, credential form, and per-server detail are **one component tree with one shared state**. The titlebar control mounts it as a modal; §8.6's `server connections` section mounts the same tree inline at `/:server/settings/server-connections`.
-
-`packages/app` reached the same conclusion the hard way, extracting `useServerManagementController` after building the dialog and the settings tab separately. V3 starts there. Every state below — `401`, `upgrade_required`, transport-blocked, tombstoned, pending outbox work, migrating — is written once and tested once, and the settings route stays linkable while the modal stays reachable from anywhere.
-
-#### Actions
-
-| Action              | Behavior                                                                                             |
-| ------------------- | ---------------------------------------------------------------------------------------------------- |
-| Add                 | Address, optional display name, optional username and password. Validated per §10.3 before persisting |
-| Switch              | Clicking a healthy row navigates to `/:target` and closes the surface                                 |
-| Move                | Explicit address change with `feedId` verification and transactional re-keying (§6.2)                 |
-| Edit                | Display name and credentials only; neither is part of the identity                                    |
-| Re-authenticate     | Mints a new device token (§10.3) without touching cached rows                                         |
-| Remove              | Blocked on pending work; wipes the namespace, revokes the token, writes a tombstone (§6.2)            |
-| Sign out this device | Revokes the device token and keeps the connection and its cached rows                                |
-
-Switching is a plain navigation because the slug **is** the active server. There is no separate active-server state to flip, so the navigate-then-flip-in-a-microtask race `packages/app` works around cannot occur. The current project and Session cannot survive a switch — they do not exist on the target — so the destination is always the target's project list, and no name-matching heuristic tries to guess an equivalent project. Unreachable servers are not clickable to switch, only to diagnose.
-
-The command palette gains a "Switch server" command so the whole flow has a keyboard path, matching V2's `command.server.switch`.
-
-#### The connect route
-
-`/connect` is the only server-less route and is where `/` lands when the registry is empty. It is a real route rather than an auto-opened modal, so it is linkable from documentation, reachable after the last connection is removed, and has room for the thing an address field alone cannot convey: which transports work from this origin, and why (§10.3, §3.4).
-
-Per §3.4 it also names the origin the current profile belongs to, because "why are my servers missing" is otherwise indistinguishable from data loss.
-
-#### Zero-configuration on the embedded origin
-
-On a server-embedded origin the serving server is seeded into the registry at boot, addressed by the same base64url slug as every other connection, and marked as the origin's own server so Remove is disabled. Removing it would leave a UI served by a server it refuses to talk to, and the tombstone rule would then suppress re-adding it on reload.
-
-The slug encodes the origin twice in a URL served from that origin, which looks redundant. It is accepted deliberately: a reserved literal such as `~self` would be shorter but would mean a different machine on every origin, so a copied URL would silently resolve to the wrong server — exactly the failure the address-in-slug decision exists to eliminate. Uniform encoding keeps one code path and one meaning.
-
-#### First implementation slice
-
-The first slice ships this surface against a **real persisted registry and a mocked network**. The registry is real client-owned state: real add, Move, remove, reorder, real canonicalization, real base64url encoding and decoding, real validation, real tombstones, persisted locally and surviving reload. Status, version, and `feedId` come from a mock probe module behind a single seam that the real §5.1 capabilities call replaces later.
-
-The mock-only `app-v3` shell may prototype this surface with in-memory fixtures before that slice. Such a prototype is non-shipping UI validation and does not satisfy the persisted-registry acceptance criteria above.
-
-This is the smallest slice in which the slug, the confirmation gate, and Move-with-migration are demonstrable and testable end to end without a server. Mock fixtures use HTTPS addresses, since the hosted origin rejects plain HTTP (§10.3).
+Permission and question replies are online-only by default, carry a pending nonce/revision and expiry, and become disabled while resolving. Already-resolved races reconcile without a destructive error. Every row shows owning server/project/Session and age. Focus advances predictably after resolution.
 
 ### 8.2 Session transcript
 
@@ -867,12 +700,7 @@ Full file content is tier 3, revisioned, bounded, and not claimed to work offlin
 
 ### 8.6 Settings
 
-Settings is a full route at `/:server/settings/:section` (§7.1). Sections are a closed set and are disjoint between the two kinds:
-
-- **Profile-wide:** appearance, notifications/sound, keybindings, general. These carry the slug without being scoped by it; it records the server to return to.
-- **Server-owned:** providers, models, MCP servers, server connections, storage/diagnostics. These are scoped to the slug's server.
-
-`server connections` mounts the same component tree as the titlebar modal (§8.1), not a parallel implementation.
+Settings is a full route using the two paths in §7.1: profile-wide sections under `/settings/:section` and server-owned sections under `/settings/:connectionId/:section`. Sections are providers, models, MCP servers, server connections, appearance, notifications/sound, keybindings, storage/diagnostics, and general.
 
 Fields expose `clean`, `dirty`, `saving`, `queued`, `saved`, `invalid`, `failed`, and `conflicted`. Debounced writes flush on blur, navigation, `pagehide`, and desktop close. Authoritative rollback updates the visible control and announces field errors.
 
@@ -933,8 +761,6 @@ Enable React Compiler and enforce its diagnostics in CI. The compiler may skip c
 
 ### 9.3 Internationalization and direction
 
-The port happens as one pass across `packages/app-v3`, not incrementally per feature (§12.2). Until it runs, V3 source carries hardcoded English, which is the state the package is already in; a partially translated package invites both patterns to spread and forces churning copy to be translated repeatedly.
-
 Port all existing dictionaries and add every V3 key. The release locale set is the eighteen V2 dictionaries: `ar`, `br`, `bs`, `da`, `de`, `en`, `es`, `fr`, `ja`, `ko`, `no`, `pl`, `ru`, `th`, `tr`, `uk`, `zh`, `zht`. Dropping a locale is a product decision recorded here, not an outcome of an incomplete port. Locale chunks load dynamically without a wrong-language first paint. Key, placeholder, and desktop-native-string parity for all release locales runs in CI. Dates, relative time, numbers, lists, sorting, and plurals use appropriate `Intl` APIs.
 
 Full mirrored RTL layout is deferred. Until it ships, Arabic is labeled beta rather than fully supported. User prose uses `dir="auto"`; paths, commands, hashes, and code use isolated LTR spans. Mixed Arabic/Latin content receives visual regression coverage. Stable release notes disclose the limitation.
@@ -976,16 +802,7 @@ Browser and Electron responses enforce a reviewed CSP. The full directive set is
 
 `style-src-attr 'unsafe-inline'` is the one real concession, and it is stated rather than hidden: the component library sets inline style attributes, attribute values cannot be hashed, and a nonce does not apply to them. It is bounded by `style-src 'self'` for stylesheets, so injected `<style>` elements and remote stylesheets are still blocked.
 
-`connect-src` cannot be a tight allowlist. Servers are entered by the user at runtime (§10.3), so no build-time or response-time list can contain them. The actual defense for server endpoints is the explicit connection model, the per-origin transport rules in §10.3, and the exact-origin CORS allowlist on the server side — not the client CSP.
-
-It differs by origin class, following the transport matrix rather than restating it loosely:
-
-| Origin          | `connect-src`                          | Why                                                            |
-| --------------- | -------------------------------------- | -------------------------------------------------------------- |
-| Hosted          | `'self' https: wss:`                   | Plain HTTP is rejected there, so no loopback allowance is needed |
-| Server-embedded | `'self' https: wss:` plus loopback HTTP | Loopback is a supported target on that origin                   |
-
-The hosted origin's CSP is delivered by `_headers` (§3.5); a static host has no other way to send it.
+`connect-src` cannot be a tight allowlist. Servers are entered by the user at runtime (§10.3), so no build-time or response-time list can contain them. The honest policy is `'self' https: wss:` plus loopback for local development, and the actual defense for server endpoints is the explicit connection model, HTTPS enforcement in §5.6, and the exact-origin CORS allowlist on the server side, not the client CSP. A server-embedded deployment that knows its own origin may narrow this; a hosted origin cannot.
 
 Add `wasm-unsafe-eval` to `script-src` only if the audited WASM loader requires it; never use unrestricted `unsafe-eval`.
 
@@ -999,29 +816,13 @@ Enable Trusted Types where supported with narrowly named policies around reviewe
 
 Use `vite-plugin-pwa` in `generateSW` mode. The precache manifest explicitly includes the shell, persistence worker/WASM, and route chunks required to hydrate and display the product surfaces promised offline. Deferred execution does not imply exclusion from precache; the worker/WASM bytes count toward the measured install cost. Terminal, large diff workers, and all `/api/**`, SSE, content, OAuth, bootstrap, and diagnostics URLs remain excluded unless a later requirement explicitly changes the offline contract.
 
-Navigation fallback serves the versioned shell for client routes only. After one successful online load, the server root, project, Session, new draft, review shell, files shell, and settings routes open from a fresh offline process; features requiring uncached data show an offline state.
+Navigation fallback serves the versioned shell for client routes only. After one successful online load, inbox, project, Session, new draft, review shell, files shell, and settings routes open from a fresh offline process; features requiring uncached data show an offline state.
 
 A waiting worker never activates over an unsaved draft or in-flight durable admission without an explicit safe reload. The update UI reports the new version, waits for a safe point, activates, reloads, and cleans old caches. Persisted-schema compatibility and service-worker version are tested together. Offline first launch is distinct from an offline returning-user launch.
 
 Manifest, maskable icons, `display: standalone`, Apple metadata, install eligibility, standalone viewport behavior, and Android/iOS add-to-home-screen smoke tests are required.
 
-#### Response headers
-
-Both origins send the same header classes, described once here and implemented twice: in `packages/app-v3`'s `_headers` for the hosted origin (§3.5), and in the embedded UI handler for the server-embedded one.
-
-| Class                                | Header                                            |
-| ------------------------------------ | ------------------------------------------------- |
-| Hashed build assets (`assets/*`)     | `Cache-Control: public, max-age=31536000, immutable` |
-| `index.html`, service worker, manifest | `Cache-Control: no-cache`                        |
-| API, SSE, content, OAuth, bootstrap  | `Cache-Control: no-store` (§5.6)                  |
-
-The embedded origin currently sends a content type and nothing else, which leaves browsers applying heuristic caching. That is tolerable for hashed assets and unacceptable for a service worker: a heuristically cached `sw.js` produces an application that cannot be updated and that a user has no way to repair. Explicit headers are a correctness requirement, not an optimization.
-
-Embedded responses are also served uncompressed, because the compression middleware only handles `Uint8Array` bodies while the embedded handler emits raw ones. Compression is extended to cover raw bodies. Loopback makes this invisible locally, but the multi-server model actively encourages reaching servers over a tunnel or LAN, where it is not.
-
 ### 10.2 Desktop
-
-The packaged Electron origin is deferred (§3.4) and is not part of the first V3 release. This section describes it when it lands; nothing in it gates the hosted or embedded origins.
 
 The Electron shell consumes a versioned built renderer artifact with a checksum/build step but no TypeScript import from `@hena/app-v3`. The app still has a packaging dependency on that artifact; "no build-time coupling" means no shared renderer Vite configuration or source imports, not no delivery contract.
 
@@ -1035,51 +836,11 @@ Electron persistence uses the browser OPFS adapter only if Milestone 0 proves a 
 
 ### 10.3 Connectivity and credentials
 
-Manual server entry accepts an address, an optional display name, and an optional username and password. The address is canonicalized per §6.2. Input without a scheme is completed to `https://`, never `http://`.
+Manual server entry accepts a canonical HTTPS URL, username, and password. Loopback HTTP is allowed for local development; non-loopback HTTP is rejected, with no override in either runtime, per §5.6. The UI explains certificate, CORS, local-network permission, authentication, and reachability failures separately.
 
-#### Transport by origin class
+Browser credentials default to memory-only. "Remember on this device" requires an explicit warning and uses the narrowest available protected storage, never localStorage, OPFS collection rows, outbox, or BroadcastChannel. Electron stores secrets in main-process OS-backed storage and injects authorization only for the exact canonical origin.
 
-| Target                            | Hosted `app.hena.dev`     | Server-embedded (`http://host:port`) |
-| --------------------------------- | ------------------------- | ------------------------------------- |
-| The serving origin itself         | n/a                       | allowed, same-origin                  |
-| Loopback plain HTTP               | **rejected**              | allowed                               |
-| Non-loopback plain HTTP           | rejected                  | rejected                              |
-| HTTPS, any host                   | allowed                   | allowed                               |
-
-The hosted origin rejects loopback plain HTTP as a rule, not an oversight, because the browser behavior underneath it is neither uniform nor stable:
-
-- Chrome and Firefox treat `http://localhost` and `http://127.0.0.1` as potentially trustworthy, so mixed-content blocking does not apply. **Safari blocks it outright with no override**, so the same setup would work for some users and not others with no way to tell them apart in advance.
-- Chromium's Local Network Access preflight expects `Access-Control-Allow-Private-Network: true`, which the Hena server does not send. Support that depends on an unshipped server header would break on a browser update, not on a change of ours.
-
-The user this rule affects — someone running `hena serve` on their own machine — is served by the server-embedded origin, where the page and the server are the same origin and none of the above applies. That is why §3.4 keeps the embedded origin rather than shipping hosted-only: without it, this rule would be a product hole instead of a correct per-origin constraint.
-
-#### Diagnosing failures
-
-§5.6 requires certificate, CORS, local-network, authentication, and reachability failures to be explained separately, and the platform actively prevents it: a CORS rejection, a DNS failure, an expired certificate, and an LNA block are one indistinguishable `TypeError`. Only an HTTP status is legible. The connect flow therefore diagnoses in three stages:
-
-1. **Static, before any request.** Scheme mismatch against the origin class, and a private or loopback address targeted from a public page, are pure functions of the two URLs. These produce exact messages with no network involved.
-2. **The real probe.** `GET /api/collection/capabilities` with CORS. A `401` means authentication and shows the credential form. Any HTTP status means the server is reachable.
-3. **The `no-cors` retry.** On an opaque failure, repeat the request with `mode: "no-cors"`. Success means the server is reachable but **CORS-rejecting**, and the message names the exact origin to add and the `--cors` flag or `server.cors` config key that adds it. This is the single most likely real failure and the one a user has no chance of guessing; without this retry it is indistinguishable from a wrong address.
-
-When both probes fail the cause is unreachable-or-certificate, which cannot be narrowed further from script. The remedy offered is to open the address in a new tab so the browser presents its own certificate interstitial or DNS error.
-
-#### Credentials
-
-The password is **never persisted**. It is typed once and exchanged for a named, revocable **device token**; short-lived access tokens derived from it live in memory only. The device token is stored in IndexedDB, encrypted under a non-extractable `CryptoKey`.
-
-The reasoning is stated plainly because the wrapping is easy to oversell. No browser storage on a static origin is safe from cross-site scripting on that origin: an attacker who can run script can call `subtle.decrypt`. What the non-extractable key does buy is protection against a profile-directory read, a backup, or a trivial storage dump. What the **token** buys is the part that matters — a lost laptop is one revocation, not a password rotation that signs out every other device.
-
-This requires server endpoints that do not exist: token issue, list, and revoke. Until they do, credential entry works but persistence across a browser restart does not, and the UI says so rather than implying otherwise. §14 item 6 is resolved by this decision and closed.
-
-Electron, when it lands, stores tokens in main-process OS-backed storage and injects authorization only for the exact canonical origin.
-
-#### Bootstrap
-
-The legacy `?auth_token=` form is **removed**, not merely deprecated. It is base64 of `username:password` in a query string, which survives in browser history, referrers, and proxy logs on what is about to become the primary UI origin. Leaving it alive alongside a replacement would keep the hole open.
-
-Its replacement: when a password is configured, `hena serve` prints its URL with a single-use code in the **fragment** (`http://localhost:4096/#code=...`). A fragment is never sent to the server and never appears in a proxy log. The client exchanges it immediately for a device token and strips it from the URL. The code is single-use with a short expiry, recorded in a server-side ledger so a replay is refused rather than silently honored.
-
-Auth is skipped entirely when no password is configured, so the common zero-password local server needs no bootstrap at all. Password entry remains available for any server reached by address.
+The legacy `?auth_token=` form is replaced with a short-lived single-use bootstrap code. Prefer a URL fragment so it is not sent during shell navigation; exchange it immediately over HTTPS. Query compatibility, if temporarily required, uses `no-store`, `Referrer-Policy: no-referrer`, no third-party resources, pre-log redaction, short expiry, and one-time exchange.
 
 ### 10.4 Notifications and badges
 
@@ -1089,15 +850,13 @@ One elected tab/window notifies for a fresh event ID. Hydration, snapshot, repla
 
 ### 10.5 V2 migration
 
-**There is no V2 migration.** V3 starts with an empty registry and the user adds their servers. This is a deliberate reversal of an earlier plan to import V2's connection records, and the tradeoff is recorded in §13: a user with several servers re-adds them once, and in exchange no first-load path ever decodes, holds, or re-transmits a V2 credential.
+Migration reads versioned fixtures from both browser localStorage and Electron stores. The inventory includes connection records and credentials, default server, language, desktop WSL/default-server state, and any renamed storage namespaces discovered in the implementation audit.
 
-What V3 does do is **delete V2's storage keys silently on first load**, because V3 takes V2's exact origin (§3.2) and V2's connection blob contains **plaintext passwords** (`packages/app/src/context/server.tsx`). Left alone, that blob would sit on a live origin indefinitely, read by nothing, deleted by nobody, and readable by any cross-site scripting on the origin. The keys removed are `hena.global.dat:server`, the legacy unprefixed `server.v3`, and `hena.settings.dat:defaultServerUrl`.
+Migration runs per profile, and completion is recorded per origin (§3.4). A user who reached V2 from two server origins has two migrations; neither one's completion record implies the other ran, and the UI never reports "migration complete" for a profile that has not migrated.
 
-The deletion is unconditional and produces no UI. Nothing in the blob is decoded into application state, rendered, or logged; V3 removes the keys without reading their contents. Deletion is idempotent and recorded so it runs once per origin.
+Migration is one-way, idempotent, and records completion only after verifying V3 output. It never mutates malformed input silently or logs secrets. Duplicate canonical connections merge deterministically. Electron credentials move to protected main-process storage; legacy plaintext retention or deletion is an explicit user-visible security decision.
 
-The consequence for §3.2's rollback is explicit: a rollback to V2 finds an empty connection list, and the runbook says so rather than assuming V2's state survived.
-
-Theme, closed tabs, layout, drafts, and per-Session settings do not migrate either.
+Theme, closed tabs, layout, and per-Session settings do not migrate. Drafts are either migrated with a tested schema or explicitly exported before cutover; they are not silently lost if the cutover checklist claims no user-work loss.
 
 ### 10.6 Deep links
 
@@ -1127,13 +886,9 @@ Deep links use an allowlisted grammar, strict parser, bounded lengths, replay de
 - Multi-tab different-Session subscriptions, follower mutation, leader handoff, delta relay, notification election, and pinned eviction
 - IME, keyboard, mobile viewport, draft conflict/quota, attachment restoration, routing/Back, deep links, and focus
 - PWA install, direct offline routes, waiting-worker activation, cache cleanup, stale worker compatibility, and rollback
-- V2 storage-key deletion: keys removed, contents never decoded or logged, idempotent across reloads
-- Connection identity: canonicalization, base64url round-trip with the re-encode canonicality check, slug resolution across registered, tombstoned, unknown, and malformed cases, and Move re-keying with matching and mismatched `feedId`
-- Transport verdicts per origin class, and the static, CORS-probe, and `no-cors`-retry diagnosis ladder
+- Web and Electron V2 migration fixtures, malformed records, duplicate connections, and credential secrecy
 - XSS corpus, CSP, Trusted Types, unsafe URL schemes, diagnostics canary secrets, and IPC validation
 - Locale parity and visual smoke for every release locale
-
-Connection identity, slug encoding, transport verdicts, and tombstone precedence are pure functions, and they are where a wrong answer silently merges or orphans real user data. They get dense table-driven unit tests with no DOM. Slug resolution is covered by route tests over the real route tree and a memory history, following the pattern already in `packages/app-v3/src/app.test.tsx`. The management surface gets one React Testing Library test per distinct state, not a permutation matrix.
 
 Tests use real implementations where practical. Recorded frame fixtures supplement but do not replace server integration. No cutover test may be quarantined. Runner-level retries may exist for infrastructure faults, but a test that only passes on retry is a cutover blocker: retries may not be used to mask known instability, and a flaky suite is treated as a failing suite in §12.4.
 
@@ -1190,8 +945,6 @@ Build the complete protocol and data layer behind a deliberately plain read-only
 
 - Generated collection manifest and public row schemas
 - Server protocol additions the manifest depends on: durable todo IDs, a V2 MCP group, `locations`, and queued-input cancel/reorder with a queue revision
-- Server additions the connection model depends on: the `GET /capabilities` response shape in §5.1, device-token issue/list/revoke, the single-use bootstrap-code exchange and its replay ledger, and removal of `?auth_token=`
-- Server behavior changes in §3.4 and §10.1: the UI proxy fallback deleted, the silent port fallback removed, explicit response-header classes, and compression extended to raw bodies
 - Feed metadata, transactional changelog coverage, receipts, and idempotency ledger
 - Capability, stream resource, snapshot, rows, delta, reconnect, retention, and content endpoints
 - Client connection agent, scoped cursors, multi-tab relay, persistence, eviction, and in-memory degradation
@@ -1214,15 +967,11 @@ If any foundation fails, Milestone 1 does not start. The persistence/transport d
 
 ### 12.2 Milestone 1: product surface
 
-Ship transcript, reader mode, composer/drafts, Session inputs, permissions/questions, project/Session navigation, search, attachments, review/files, settings, command/keybinding system, fork/revert/compaction/share, i18n, accessibility, notifications, diagnostics, and PWA install/update/offline shell.
-
-The server-connection surface of §8.1 ships ahead of this milestone against a real persisted registry and a mocked probe, because the slug in §7.1 is a permanent URL contract and every other surface is built on top of it. Milestone 1 replaces the mock probe with the real §5.1 capabilities call and the real device-token flow; it does not revisit the identity, slug, or route decisions.
-
-i18n arrives as one pass across the whole package rather than per feature. `packages/app-v3` is entirely hardcoded English today, and translating one feature would leave a single translated island while its copy — particularly the transport diagnostics of §10.3 — is still being reworded against real probe results. §12.4's parity gate is unaffected, since it fires before stable rather than before any individual slice.
+Ship transcript, reader mode, composer/drafts, Session inputs, permissions/questions, Inbox, project/Session navigation, search, attachments, review/files, settings, command/keybinding system, fork/revert/compaction/share, i18n, accessibility, notifications, diagnostics, PWA install/update/offline shell, and migration.
 
 ### 12.3 Milestone 2: terminal and desktop completion
 
-Ship terminal lifecycle, PTY ticket transport, desktop bridge disposition, native menus, deep links, updater, WSL, file capabilities, protected credential storage, packaged smoke tests, and the deferred packaged Electron origin (§3.4, §10.2).
+Ship terminal lifecycle, PTY ticket transport, desktop bridge disposition, native menus, deep links, updater, WSL, file capabilities, protected credential storage, packaged smoke tests, and desktop migration.
 
 ### 12.4 Stable cutover gate
 
@@ -1232,15 +981,13 @@ Ship terminal lifecycle, PTY ticket transport, desktop bridge disposition, nativ
 - Protocol, persistence, outbox, routing, migration, browser E2E, accessibility, security, performance, and packaged desktop suites green
 - All release locales at key/placeholder parity with visual smoke
 - Real-device mobile keyboard, install, notification, and offline smoke complete
-- V2 storage-key deletion verified against production-like fixtures, including malformed and absent blobs
+- V2 web and Electron migration rehearsal complete using production-like fixtures
 - Mixed-version, service-worker update, upgrade, and rollback drills complete with pending work
-- Hosted and server-embedded origins both verified against a real server, including the transport matrix in §10.3 on Chrome, Firefox, and Safari
 - In-app diagnostics and report-a-problem path complete
+- Preview-channel feedback window complete with no unresolved cutover blocker
 - Named release owner approves the runbook and rollback artifact
 
-There is no preview-channel feedback window, because §3.2 removed the preview channel. That gate line is deleted and not replaced; the remaining gates are the only thing between V3 and every user, and they are treated accordingly.
-
-Only then does V3 replace V2 — taking `app.hena.dev` and the embed slot in one change per §3.2 — and delete `packages/app`, plus `packages/session-ui` once §3.2's dispositions for `packages/enterprise` and `packages/storybook` have landed.
+Only then does V3 replace V2 and delete `packages/app`, plus `packages/session-ui` once §3.2's dispositions for `packages/enterprise` and `packages/storybook` have landed.
 
 ---
 
@@ -1249,18 +996,12 @@ Only then does V3 replace V2 — taking `app.hena.dev` and the embed slot in one
 | Decision                         | Cost and mitigation                                                                               |
 | -------------------------------- | ------------------------------------------------------------------------------------------------- |
 | No tabs                          | Loses multi-Session keep-alive; fast list switching and explicit PTY detach remain                |
-| Hard cutover, no preview channel  | Nothing softens the switch at `app.hena.dev`; §12.4's gates are the sole defense and the rollback artifact is rehearsed |
-| Address as connection identity   | A server that moves changes its key; Move (§6.2) re-keys transactionally and refuses on a `feedId` mismatch |
-| Base64url slug                   | URLs are unreadable; in exchange they are self-describing and resolve on a device that has never seen the server |
-| Hosted origin rejects loopback HTTP | A laptop server is unreachable from `app.hena.dev`; the server-embedded origin serves that user instead |
-| No V2 migration                  | Servers are re-added once; in exchange no first-load path ever decodes a V2 credential, and the plaintext blob is deleted |
-| No Inbox                         | Cross-server pending work has no aggregate view; each route answers only to the server it names   |
-| Rail scoped to one server        | Other servers' activity is not visible at a glance; they stay live and the connection control carries aggregate status |
+| Stable hard cutover              | No stable dual UI; preview artifacts provide feedback and rollback is rehearsed                   |
 | No crash reporting               | Field discovery depends on reports; diagnostics are local, safe, and required                     |
 | Pre-1.0 persistence              | Foundation is version-fragile; exact pins and Milestone 0 gates block product work                |
 | SQLite/OPFS                      | Adds worker/WASM cold cost; measured as durability-ready, not hidden from budgets                 |
 | Offline-transactions dependency  | Wrapper owns isolation, typed retry, expiry, and dead letters around upstream rough edges         |
-| Manual server entry              | Phone onboarding is rough; §10.3's diagnosis ladder makes errors specific rather than generic     |
+| Manual server entry              | Phone onboarding is rough; errors are specific and credentials can be remembered explicitly       |
 | Local notifications only         | Suspended PWA is silent; no promise of background delivery                                        |
 | RTL deferred                     | Arabic is beta, bidi content handling is still required, and the limitation is disclosed          |
 | Curated themes                   | V2 custom themes are lost; QA surface remains bounded                                             |
@@ -1284,12 +1025,9 @@ These are experiments with explicit gates, not unspecified product behavior:
 3. Select and record changelog retention age/size from measured update volume.
 4. Record Streamdown and `@streamdown/code` frame-time results under the fastest supported model stream.
 5. Record the final reference device/profile, the reference frame interval, and approved performance numbers.
-6. ~~Decide the exact browser protected-credential mechanism.~~ **Resolved in §10.3:** a revocable server-issued device token in IndexedDB under a non-extractable `CryptoKey`; the password is never persisted. The residual risk against live cross-site scripting is stated in §10.3 rather than hidden.
+6. Decide the exact browser protected-credential mechanism; if none meets the threat model, browser "remember" remains unavailable.
 7. Decide whether full RTL graduates into V3 stable; otherwise keep Arabic explicitly beta.
 8. Record `ghostty-web` commit pin, bundle and WASM cost, CSP interaction with §9.6, and resize/serialization behavior before Milestone 2 commits to it.
 9. Decide whether V3 stable ships an attachment upload endpoint or keeps bounded inlining (§4.4); record the measured cost of inlined attachments in outbox and draft storage.
-10. Verify that Cloudflare Workers Static Assets serves `index.html` for a base64url first segment under `not_found_handling: "single-page-application"`, and that `_headers` delivers the §9.6 CSP and the §10.1 cache classes unmodified.
-11. Record device-token lifetime, refresh behavior, and revocation semantics, including what happens to a token whose server was reached by an address that later fails Move verification.
-12. Record the measured false-positive rate of the `no-cors` reachability retry in §10.3 across Chrome, Firefox, and Safari, since an opaque success is inferred rather than observed.
 
 Any change to a normative protocol, collection key, persistence version, mutation policy, or security boundary updates this document and its Korean translation in the same change.

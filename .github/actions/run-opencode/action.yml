@@ -33,7 +33,7 @@ inputs:
     required: false
     default: ""
   command:
-    description: Slash command passed to opencode run --command.
+    description: Thermo-nuclear review command passed to opencode run --command.
     required: false
     default: ""
   command-arguments:

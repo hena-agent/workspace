@@ -24,7 +24,7 @@ on:
         default: ""
         type: string
       command:
-        description: Slash command passed to `opencode run --command`
+        description: Thermo-nuclear review command passed to `opencode run --command`
         required: false
         default: ""
         type: string

@@ -21,6 +21,10 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "@hena/app-v3#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
     "@hena/ui#test": {
       "dependsOn": ["^build"],
       "outputs": []

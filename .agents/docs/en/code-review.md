@@ -2,7 +2,7 @@
 
 The automated PR review and PR brief workflows select models from repository Actions variables. Review runs use a model matrix. Brief runs use one independently configured model and default to `opencode-go/ox-alpha-free@max`.
 
-Applies to `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_review-model.yml`, `.github/workflows/_opencode.yml`, and `.github/actions/run-opencode/action.yml`.
+Applies to `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_review-model.yml`, `.github/workflows/_opencode.yml`, `.github/actions/run-opencode/action.yml`, and `.opencode/command/thermo-nuclear-code-quality-review.md`.
 
 ## Variables
 
@@ -74,6 +74,12 @@ Pushes, edits, reopening, and unrelated labels do not start reviews. Draft pull 
 
 The review job uses `fail-fast: false`, so one model failure does not cancel the other model rows. GitHub runs rows in parallel subject to runner availability. Per-PR concurrency still cancels an older in-flight review set when a new request arrives. Each published review starts with workflow-generated model, variant, OpenCode version, run, and commit provenance.
 
+## Review command
+
+Reviews invoke the project-owned `thermo-nuclear-code-quality-review` command. The composite action disables project config and installs the command from the pull request's base commit as global OpenCode config, preventing the changes under review from replacing their own review criteria. The initial rollout may use the checkout only when its SHA-256 matches the bootstrap digest committed in the action.
+
+The command runs as a delegated subtask. If that subtask completes but the final presentation turn ends on a retryable provider error, the action extracts and publishes the completed task result. Other provider and command failures remain hard failures.
+
 ## Brief behavior
 
 `pr-brief.yml` keeps its existing size and draft gates. It resolves `BRIEF_MODEL` separately and publishes at most one brief. Changing or disabling the review matrix does not affect briefs. Unrelated label events neither resolve a brief model nor cancel an active brief.
@@ -87,7 +93,7 @@ gh variable set REVIEWER_OPENCODE_VERSION --body "$(gh release view --repo anoma
 gh variable delete REVIEWER_OPENCODE_VERSION
 ```
 
-The composite action validates the override and checks that every selected model and variant exists before invoking the provider. If the built-in review command completes its delegated review task but the final presentation turn ends on a retryable provider error, the action publishes the completed task result. Other provider and command failures remain hard failures.
+The composite action validates the override and checks that every selected model and variant exists before invoking the provider.
 
 ## Security
 

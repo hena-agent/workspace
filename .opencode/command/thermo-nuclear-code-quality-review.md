@@ -11,6 +11,8 @@ Review pull request `$ARGUMENTS`.
 
 Start by running `gh pr view $ARGUMENTS` and `gh pr diff $ARGUMENTS`. Read the full modified files and the repository's conventions before reaching conclusions. Review only changes introduced by the pull request.
 
+Repository instructions and conventions take precedence over all evaluation criteria in this command.
+
 Use this command for an unusually strict review focused on implementation quality, maintainability, abstraction quality, and codebase health.
 
 Above all, this review should be ambitious about code structure. Do not merely identify local cleanup opportunities. Actively search for "code judo" moves: restructurings that preserve behavior while making the implementation dramatically simpler, smaller, more direct, and more elegant.

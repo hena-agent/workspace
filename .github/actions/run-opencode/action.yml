@@ -240,10 +240,17 @@ runs:
         # that reviews it. Install the base branch's command as global config. While
         # this PR bootstraps the new file, accept only its exact committed digest.
         COMMAND_PATH="$REVIEW_CONTEXT/$COMMAND.md"
+        COMMAND_API_ERROR="$REVIEW_CONTEXT/command-api-error"
         if ! gh api \
           -H "Accept: application/vnd.github.raw+json" \
           "repos/$GITHUB_REPOSITORY/contents/.opencode/command/$COMMAND.md?ref=$BASE_SHA" \
-          > "$COMMAND_PATH"; then
+          > "$COMMAND_PATH" 2> "$COMMAND_API_ERROR"; then
+          API_ERROR=$(<"$COMMAND_API_ERROR")
+          if [[ "$API_ERROR" != *"HTTP 404"* ]]; then
+            printf '%s\n' "$API_ERROR" >&2
+            exit 1
+          fi
+
           EXPECTED_COMMAND_SHA256="29494419c658919ffe6ce41d0c426a7c853d5db14ca65af7efae2dcf1f1be853"
           if ! printf '%s  %s\n' "$EXPECTED_COMMAND_SHA256" ".opencode/command/$COMMAND.md" \
             | sha256sum --check --status; then

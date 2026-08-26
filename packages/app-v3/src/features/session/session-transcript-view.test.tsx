@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
 import { render, screen } from "@/test/test-utils"
 import { SessionTranscriptView } from "./session-transcript-view"
-import { agents, models, sessions } from "@/mock/fixtures"
-import { getPermissionRequest, getQuestionRequest, listMessages, listTodos } from "@/mock/queries"
+import { agents, models, sessions } from "@/test/fixtures"
+import { getPermissionRequest, getQuestionRequest, listMessages, listTodos } from "@/test/queries"
 
 function noop() {}
 

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createApp } from "../src/app"
+import { realpath } from "node:fs/promises"
+import { homedir } from "node:os"
 import type { CoreDomain } from "../src/core/domain"
 import type { SyncDatabase } from "../src/storage/database"
 import { createTestDatabase } from "./fixture"
@@ -21,6 +23,25 @@ describe("filesystem reads", () => {
     expect(await response.json()).toEqual({ data: [{ path: "src/main.ts", type: "file" }] })
   })
 
+  test("resolves a home-relative directory on the server", async () => {
+    database = createTestDatabase().database
+    const response = await createApp({ database, domain: fileDomain() }).request("/api/fs/resolve?path=~%2F")
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ directory: await realpath(homedir()) })
+  })
+
+  test("rejects relative and missing directories", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database, domain: fileDomain() })
+    const responses = await Promise.all([
+      app.request("/api/fs/resolve?path=relative"),
+      app.request("/api/fs/resolve?path=%2Fdefinitely%2Fmissing%2Fhena-project"),
+    ])
+
+    expect(responses.map((response) => response.status)).toEqual([400, 404])
+  })
+
   test("bounds directory listings", async () => {
     database = createTestDatabase().database
     const domain = fileDomain()
@@ -31,6 +52,28 @@ describe("filesystem reads", () => {
     expect(
       (await createApp({ database, domain }).request("/api/fs/list?directory=%2Ftmp%2Fproject&limit=1001")).status,
     ).toBe(400)
+  })
+
+  test("reads bounded text files", async () => {
+    database = createTestDatabase().database
+    const domain = fileDomain()
+    const response = await createApp({ database, domain }).request(
+      "/api/fs/read?directory=%2Ftmp%2Fproject&path=src%2Fmain.ts&offset=2&limit=12",
+    )
+
+    expect(response.status).toBe(200)
+    expect(domain.reads).toEqual([{ directory: "/tmp/project", path: "src/main.ts", offset: 2, limit: 12 }])
+    expect(await response.json()).toEqual({ text: "hello", totalBytes: 5, truncated: false })
+  })
+
+  test("rejects unsafe or oversized file reads", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database, domain: fileDomain() })
+    const responses = await Promise.all([
+      app.request("/api/fs/read?directory=%2Ftmp%2Fproject&path=..%2Fsecret"),
+      app.request("/api/fs/read?directory=%2Ftmp%2Fproject&path=src%2Fmain.ts&limit=262145"),
+    ])
+    expect(responses.map((response) => response.status)).toEqual([400, 400])
   })
 
   test("requires a location", async () => {
@@ -104,16 +147,19 @@ describe("filesystem reads", () => {
   })
 })
 
-function fileDomain(): CoreDomain & { finds: unknown[]; lists: unknown[] } {
+function fileDomain(): CoreDomain & { finds: unknown[]; lists: unknown[]; reads: unknown[] } {
   const finds: unknown[] = []
   const lists: unknown[] = []
+  const reads: unknown[] = []
   const unavailable = () => Promise.reject(new Error("unused"))
   return {
     finds,
     lists,
+    reads,
     ready: async () => {},
     createSession: unavailable,
     admitPrompt: unavailable,
+    archiveSession: unavailable,
     interrupt: unavailable,
     cancelInput: unavailable,
     reorderInputs: unavailable,
@@ -124,6 +170,10 @@ function fileDomain(): CoreDomain & { finds: unknown[]; lists: unknown[] } {
     findFiles: async (input) => {
       finds.push(input)
       return [{ path: "src/main.ts", type: "file" }]
+    },
+    readFile: async (input) => {
+      reads.push(input)
+      return { text: "hello", totalBytes: 5, truncated: false }
     },
     replyPermission: async () => ({ outcome: "applied", resolution: {} }),
     replyQuestion: async () => ({ outcome: "applied", resolution: {} }),

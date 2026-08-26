@@ -1,604 +1,304 @@
 import { afterEach, describe, expect, test } from "bun:test"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router"
 import userEvent from "@testing-library/user-event"
 import { ThemeProvider } from "@/components/theme-provider"
-import { MockServerProvider } from "@/features/server/mock-server-provider"
+import { ConnectionProvider } from "@/connection/provider"
 import { encodeServerSlug } from "@/lib/server-url"
-import type { Connection } from "@/lib/types"
-import { connections } from "@/mock/fixtures"
 import { mockMatchMedia } from "@/test/mock-match-media"
-import { act, render, screen, waitFor, within } from "@/test/test-utils"
+import { fireEvent, render, screen, within } from "@/test/test-utils"
 import { routeTree } from "./routeTree.gen"
 
-const originalMatchMedia = window.matchMedia
-const originalHistoryBack = window.history.back.bind(window.history)
-const LOCAL_SLUG = encodeServerSlug("http://localhost:4096")
-const STAGING_SLUG = encodeServerSlug("https://staging.hena.dev")
-
+const origin = "http://localhost:4096"
+const slug = encodeServerSlug(origin)
 afterEach(() => {
-  window.matchMedia = originalMatchMedia
-  window.history.back = originalHistoryBack
-  window.history.replaceState(null, "", "/")
-  localStorage.removeItem("theme")
-  localStorage.removeItem("density")
-  localStorage.removeItem("font-size")
-  localStorage.removeItem("reduced-motion")
-  delete document.documentElement.dataset.density
-  delete document.documentElement.dataset.fontSize
-  delete document.documentElement.dataset.reducedMotion
-  document.documentElement.classList.remove("light", "dark")
+  localStorage.removeItem("hena.connections.v1")
+  localStorage.removeItem("hena.tombstones.v1")
 })
 
-function renderApp(
-  initialPath: string,
-  initialConnections?: Connection[],
-  pageOrigin = "http://localhost:4096",
-  embeddedOrigin?: string,
-) {
+function renderApp(initialPath: string, fetcher = collectionFetcher()) {
+  mockMatchMedia(true)
   const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [initialPath] }) })
   render(
-    <ThemeProvider>
-      <MockServerProvider
-        initialConnections={initialConnections}
-        pageOrigin={pageOrigin}
-        embeddedOrigin={embeddedOrigin}
-      >
-        <RouterProvider router={router} />
-      </MockServerProvider>
-    </ThemeProvider>,
+    <QueryClientProvider client={new QueryClient()}>
+      <ThemeProvider>
+        <ConnectionProvider embeddedOrigin={origin} fetcher={fetcher}>
+          <RouterProvider router={router} />
+        </ConnectionProvider>
+      </ThemeProvider>
+    </QueryClientProvider>,
   )
   return router
 }
 
-describe("app routing (real routeTree, memory history)", () => {
-  test("/ redirects to the default server slug", async () => {
-    mockMatchMedia(false)
-    const router = renderApp("/")
+type StoredRow = { key: string; revision: string; row: unknown }
+type PushedChange = {
+  seq: number
+  collection: string
+  scopeKey: string
+  rowKey: string | readonly string[]
+  op: "insert" | "update" | "delete"
+  row: unknown
+  rowRevision?: string
+  txid?: string
+}
 
-    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Open menu" })).toBeInTheDocument()
-    const serverButton = screen.getByRole("button", { name: "Manage servers. Current server: Local" })
-    expect(serverButton.querySelector("svg")).toBeInTheDocument()
-    expect(serverButton).not.toHaveTextContent("Local")
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
-  })
+// Mimics a real server's durable collection storage: rows pushed while connected are
+// remembered so a *reconnect* (which happens whenever the client re-subscribes, e.g. after
+// `agent.claim` fires again) still sees them in its fresh snapshot, exactly like server-v3's
+// SQLite-backed `collection_row` table would.
+function collectionDatabase() {
+  const repoProject = { id: "global", worktree: "/repo", name: "Repo", time: { created: 1, updated: 1 } }
+  const repoLocationKey = JSON.stringify({ directory: "/repo" })
+  const liveSession = {
+    id: "ses_live",
+    projectID: "global",
+    title: "Live session",
+    location: { directory: "/repo" },
+    working: false,
+    time: { created: 1, updated: 1 },
+  }
+  const collections: Record<string, Map<string, StoredRow>> = {
+    projects: new Map([["global", { key: "global", revision: "1", row: repoProject }]]),
+    locations: new Map([[repoLocationKey, { key: repoLocationKey, revision: "1", row: { directory: "/repo" } }]]),
+    sessions: new Map([["ses_live", { key: "ses_live", revision: "1", row: liveSession }]]),
+    permissions: new Map(),
+    questions: new Map(),
+  }
+  const controllers = new Set<(changes: readonly PushedChange[]) => void>()
+  return {
+    snapshot(collection: string) {
+      return Array.from(collections[collection]?.values() ?? [])
+    },
+    subscribe(push: (changes: readonly PushedChange[]) => void) {
+      controllers.add(push)
+      return () => controllers.delete(push)
+    },
+    push(changes: readonly PushedChange[]) {
+      changes.forEach((change) => {
+        const key = typeof change.rowKey === "string" ? change.rowKey : JSON.stringify(change.rowKey)
+        collections[change.collection]?.set(key, { key, revision: change.rowRevision ?? "1", row: change.row })
+      })
+      controllers.forEach((push) => push(changes))
+    },
+  }
+}
 
-  test("seeded connections obey the current origin transport rules", async () => {
-    mockMatchMedia(true)
-    const router = renderApp("/", undefined, "https://app.hena.dev")
-
-    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe(`/${STAGING_SLUG}`)
-    expect(
-      screen.getByRole("button", { name: "Manage servers. Current server: staging.hena.dev" }),
-    ).toBeInTheDocument()
-  })
-
-  test("an embedded HTTP origin is the first seeded server", async () => {
-    mockMatchMedia(true)
-    const origin = "http://server.local:4096"
-    const router = renderApp("/", undefined, origin, origin)
-
-    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe(`/${encodeServerSlug(origin)}`)
-    expect(
-      screen.getByRole("button", { name: "Manage servers. Current server: server.local:4096" }),
-    ).toBeInTheDocument()
-  })
-
-  test("the Vite development origin is not seeded as a server", async () => {
-    mockMatchMedia(true)
-    const router = renderApp("/", undefined, "http://localhost:5173")
-
-    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
-    expect(screen.getByRole("button", { name: "Manage servers. Current server: Local" })).toBeInTheDocument()
-  })
-
-  test("an embedded path prefix remains part of the server identity", async () => {
-    mockMatchMedia(true)
-    const origin = "https://server.example.com"
-    const serverUrl = `${origin}/hena`
-    const router = renderApp("/", [], origin, serverUrl)
-
-    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe(`/${encodeServerSlug(serverUrl)}`)
-  })
-
-  test("an empty hosted profile redirects to the connect route", async () => {
-    mockMatchMedia(true)
-    const router = renderApp("/", [], "https://app.hena.dev")
-
-    expect(await screen.findByRole("heading", { name: "Connect to Hena" })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe("/connect")
-    expect(screen.getByText("https://app.hena.dev")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Open menu" })).not.toBeInTheDocument()
-  })
-
-  test("the connect route adds the first server", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp("/connect", [], "https://app.hena.dev")
-
-    await user.type(await screen.findByLabelText("Server URL"), "box.example.com")
-    await user.click(screen.getByRole("button", { name: "Add server" }))
-
-    expect(router.state.location.pathname).toBe(`/${encodeServerSlug("https://box.example.com")}`)
-    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
-  })
-
-  test("an unknown route inside a project falls back rather than crashing the shell", async () => {
-    mockMatchMedia(true)
-    renderApp(`/${LOCAL_SLUG}/proj-hena`)
-
-    expect(
-      within(await screen.findByRole("navigation", { name: "Projects" })).getByRole("button", { name: /^hena(?:,|$)/ }),
-    ).toHaveAttribute("aria-pressed", "true")
-  })
-
-  test("registering a server from a fresh profile resumes its deep link", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const initialPath = `/${LOCAL_SLUG}/proj-hena/session/sess-transcript`
-    const router = renderApp(initialPath, [], "http://server.local:4096")
-
-    expect(await screen.findByText("Session not found.")).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: /^Manage servers/ }))
-    expect(screen.getByLabelText("Add a mock server")).toHaveValue("http://localhost:4096")
-    await user.click(screen.getByRole("button", { name: "Add server" }))
-
-    expect(router.state.location.pathname).toBe(initialPath)
-    expect(await screen.findByRole("heading", { name: "Wire the collection stream protocol" })).toBeInTheDocument()
-  })
-
-  test("a hosted profile rejects loopback HTTP registration", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    renderApp(`/${LOCAL_SLUG}`, [], "https://app.hena.dev")
-
-    expect(await screen.findByText("Server not found.")).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: /^Manage servers/ }))
-    await user.click(screen.getByRole("button", { name: "Add server" }))
-
-    expect(screen.getByText("Enter an HTTP or HTTPS server URL allowed from this origin.")).toBeInTheDocument()
-    expect(screen.queryByRole("heading", { name: "Recent projects" })).not.toBeInTheDocument()
-  })
-
-  test("navigating rail -> session list -> transcript updates the URL and content", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp("/")
-
-    const projectRail = await screen.findByRole("navigation", { name: "Projects" })
-    await user.click(within(projectRail).getByRole("button", { name: /^hena(?:,|$)/ }))
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/proj-hena`)
-    expect(
-      within(await screen.findByRole("navigation", { name: "Projects" })).getByRole("button", { name: /^hena(?:,|$)/ }),
-    ).toHaveAttribute("aria-pressed", "true")
-
-    const sessionList = await screen.findByRole("navigation", { name: "Sessions" })
-    await user.click(within(sessionList).getByRole("button", { name: /Wire the collection stream protocol/ }))
-
-    expect(router.state.location.pathname).toMatch(new RegExp(`^/${LOCAL_SLUG}/proj-hena/session/`))
-    expect(await screen.findByRole("log", { name: "Messages" })).toBeInTheDocument()
-    expect(screen.getByLabelText("Message")).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Wire the collection stream protocol" })).toBeInTheDocument()
-  })
-
-  test("the mobile project root is the session list and selecting a session pushes detail", async () => {
-    mockMatchMedia(false)
-    const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}/proj-hena`)
-
-    const sessionList = await screen.findByRole("navigation", { name: "Sessions" })
-    await user.click(within(sessionList).getByRole("button", { name: /Wire the collection stream protocol/ }))
-
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/proj-hena/session/sess-transcript`)
-    expect(await screen.findByRole("log", { name: "Messages" })).toBeInTheDocument()
-    expect(screen.getByRole("heading", { name: "Wire the collection stream protocol" })).toHaveFocus()
-    await act(async () => {
-      router.history.back()
-      await router.load()
-    })
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/proj-hena`)
-    expect(
-      within(await screen.findByRole("navigation", { name: "Sessions" })).getByRole("button", {
-        name: /Wire the collection stream protocol/,
-      }),
-    ).toHaveFocus()
-  })
-
-  test("file selection is restored from URL search and recorded in history", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const firstPath = "packages/hena/src/server/collection/changelog.ts"
-    const nextPath = "packages/hena/src/server/collection/snapshot.ts"
-    const router = renderApp(
-      `/${LOCAL_SLUG}/proj-hena/session/sess-transcript/files?file=${encodeURIComponent(firstPath)}`,
-    )
-
-    expect(await screen.findByText(firstPath)).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "snapshot.ts" }))
-    expect(router.state.location.search.file).toBe(nextPath)
-    expect(await screen.findByText(nextPath)).toBeInTheDocument()
-    await act(async () => {
-      router.history.back()
-      await router.load()
-    })
-    expect(router.state.location.search.file).toBe(firstPath)
-    expect(await screen.findByText(firstPath)).toBeInTheDocument()
-  })
-
-  test("review selection is restored from URL search", async () => {
-    mockMatchMedia(true)
-    const selectedPath = "packages/hena/src/server/collection/snapshot.ts"
-    const router = renderApp(
-      `/${LOCAL_SLUG}/proj-hena/session/sess-transcript/review?file=${encodeURIComponent(selectedPath)}`,
-    )
-
-    expect((await screen.findAllByText(selectedPath)).length).toBeGreaterThan(0)
-    expect(router.state.location.search.file).toBe(selectedPath)
-  })
-
-  test("Mod+K opens the command palette and selecting a project navigates to it", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp("/")
-
-    await screen.findByRole("heading", { name: "Recent projects" })
-    await user.keyboard("{Meta>}k{/Meta}")
-    await user.click(within(await screen.findByRole("dialog")).getByText("hena"))
-
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/proj-hena`)
-  })
-
-  test("command-palette navigation closes an open mobile drawer before navigating", async () => {
-    mockMatchMedia(false)
-    window.history.back = () => {
-      window.history.replaceState({}, "")
-      window.dispatchEvent(new PopStateEvent("popstate", { state: {} }))
+function collectionFetcher(options: {
+  onCreateSession?: (request: Request, push: ReturnType<typeof collectionDatabase>["push"]) => Promise<Response>
+} = {}) {
+  const database = collectionDatabase()
+  return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = input instanceof Request ? input : new Request(input, init)
+    const path = new URL(request.url).pathname
+    if (path === "/api/collection/capabilities")
+      return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
+    if (path === "/api/collection/streams" && request.method === "POST")
+      return Response.json({ streamId: "stream", generation: 1, expiresAt: Date.now() + 300_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
+    if (path === "/api/collection/streams/stream/subscription")
+      return Response.json({ generation: 1, revision: 1 })
+    if (path === "/api/collection/streams/stream/events") return eventResponse(request.signal, database)
+    if (path === "/api/catalog")
+      return Response.json({
+        agents: [{ id: "build", description: "Builds things" }],
+        models: [{ id: "gpt", providerID: "openai", name: "GPT", limit: {} }],
+        providers: [{ id: "openai", name: "OpenAI" }],
+      })
+    if (path === "/api/fs/resolve") {
+      const input = new URL(request.url).searchParams.get("path")
+      return Response.json({ directory: input?.startsWith("~/") ? `/Users/server/${input.slice(2)}` : input })
     }
+    if (path === "/api/fs/list") return Response.json({ data: [{ path: "README.md", type: "file" }] })
+    if (path === "/api/fs/read") return Response.json({ text: "# Repo", totalBytes: 6 })
+    if (path === "/api/session" && request.method === "POST" && options.onCreateSession)
+      return options.onCreateSession(request, (changes) => database.push(changes))
+    return Response.json({ error: { code: "not_found", message: "Not found" } }, { status: 404 })
+  }
+}
+
+function eventResponse(signal: AbortSignal, database: ReturnType<typeof collectionDatabase>) {
+  const scopeNames = ["projects", "locations", "sessions", "permissions", "questions"]
+  const common = { protocolVersion: 1, feedId: "feed", runtimeId: "runtime", streamId: "stream", generation: 1, subscriptionRevision: 1 }
+  const frames = scopeNames.flatMap((collection, index) => {
+    const rows = database.snapshot(collection)
+    const scope = { collection, scopeKey: "" }
+    const snapshotId = `snapshot-${index}`
+    return [
+      { ...common, type: "snapshot.begin", snapshotId, baseSeq: 0, replace: true, scope },
+      { ...common, type: "snapshot.page", snapshotId, scope, rows },
+      { ...common, type: "snapshot.end", snapshotId, scope, keyCount: rows.length, throughSeq: 0 },
+    ]
+  })
+  return new Response(new ReadableStream({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")))
+      const unsubscribe = database.subscribe((changes) => {
+        const affectedScopes = [{ collection: "sessions", scopeKey: "" }, { collection: "projects", scopeKey: "" }]
+        const frame = { ...common, type: "rows", affectedScopes, fromSeq: 1, throughSeq: 101, changes }
+        try {
+          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(frame)}\n\n`))
+        } catch {
+          unsubscribe()
+        }
+      })
+      signal.addEventListener("abort", () => {
+        unsubscribe()
+        controller.close()
+      }, { once: true })
+    },
+  }), { headers: { "content-type": "text/event-stream" } })
+}
+
+describe("adding a project through the rail", () => {
+  test("the new project appears in the rail and its session appears in the sidebar", async () => {
     const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}/proj-hena`)
-
-    await user.click(await screen.findByRole("button", { name: "Open menu" }))
-    await user.keyboard("{Meta>}k{/Meta}")
-    await user.click(within(await screen.findByRole("dialog")).getByText("marketing-site"))
-
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/proj-marketing`)
-    expect(window.history.state?.henaMobileNavigation).not.toBe(true)
-    expect(screen.queryByRole("navigation", { name: "Projects and sessions" })).not.toBeInTheDocument()
-  })
-
-  test("appearance settings apply density, font size, motion, and browser chrome color", async () => {
-    const media = mockMatchMedia(false)
-    const themeColor = document.createElement("meta")
-    themeColor.name = "theme-color"
-    document.head.appendChild(themeColor)
-    const user = userEvent.setup()
-    renderApp(`/${LOCAL_SLUG}/settings/general`)
-
-    await waitFor(() => expect(themeColor).toHaveAttribute("content", "#fafafa"))
-    act(() => media.change(true))
-    await waitFor(() => expect(themeColor).toHaveAttribute("content", "#080808"))
-    expect(document.documentElement).toHaveClass("dark")
-
-    await user.click(await screen.findByLabelText("Theme"))
-    await user.click(screen.getByRole("option", { name: "Light" }))
-    await waitFor(() => expect(themeColor).toHaveAttribute("content", "#fafafa"))
-    expect(document.documentElement).toHaveClass("light")
-
-    await user.click(screen.getByLabelText("Density"))
-    await user.click(screen.getByRole("option", { name: "Comfortable" }))
-    expect(document.documentElement).toHaveAttribute("data-density", "comfortable")
-
-    await user.click(screen.getByRole("button", { name: "Appearance" }))
-    await user.click(screen.getByLabelText("Font size"))
-    await user.click(screen.getByRole("option", { name: "Large" }))
-    await user.click(screen.getByRole("switch", { name: "Reduce motion" }))
-
-    expect(document.documentElement).toHaveAttribute("data-font-size", "large")
-    expect(document.documentElement).toHaveAttribute("data-reduced-motion", "true")
-    expect(localStorage.getItem("font-size")).toBe("large")
-    expect(localStorage.getItem("reduced-motion")).toBe("true")
-    themeColor.remove()
-  })
-
-  test("the project rail only shows projects from the current server", async () => {
-    mockMatchMedia(true)
-    renderApp(`/${LOCAL_SLUG}/proj-hena`)
-
-    const projectRail = await screen.findByRole("navigation", { name: "Projects" })
-    expect(within(projectRail).getByRole("button", { name: /^hena(?:,|$)/ })).toBeInTheDocument()
-    expect(within(projectRail).queryByRole("button", { name: /^docs(?:,|$)/ })).not.toBeInTheDocument()
-  })
-
-  test("session routes reject mismatched project and connection ownership", async () => {
-    mockMatchMedia(true)
-    renderApp(`/${STAGING_SLUG}/proj-hena/session/sess-transcript`)
-
-    expect(await screen.findByText("Session not found.")).toBeInTheDocument()
-    expect(screen.queryByRole("log", { name: "Messages" })).not.toBeInTheDocument()
-  })
-
-  test("review routes reject mismatched session ownership", async () => {
-    mockMatchMedia(true)
-    renderApp(`/${LOCAL_SLUG}/proj-marketing/session/sess-transcript/review`)
-
-    expect(await screen.findByText("Session not found.")).toBeInTheDocument()
-    expect(screen.queryByText("src/collection/sync.ts")).not.toBeInTheDocument()
-  })
-
-  test("file routes reject mismatched session ownership", async () => {
-    mockMatchMedia(true)
-    renderApp(`/${LOCAL_SLUG}/proj-marketing/session/sess-transcript/files`)
-
-    expect(await screen.findByText("Session not found.")).toBeInTheDocument()
-    expect(screen.queryByText("src")).not.toBeInTheDocument()
-  })
-
-  test("switching sessions clears route-owned composer state", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}/proj-hena/session/sess-transcript`)
-
-    const composer = await screen.findByLabelText("Message")
-    await user.type(composer, "unsent draft")
-    await user.click(
-      within(screen.getByRole("navigation", { name: "Sessions" })).getByRole("button", {
-        name: /Rotate the OAuth client secret/,
-      }),
-    )
-
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/proj-hena/session/sess-permission`)
-    expect(await screen.findByRole("heading", { name: "Rotate the OAuth client secret" })).toBeInTheDocument()
-    expect(screen.getByLabelText("Message")).toHaveValue("")
-  })
-
-  test("changing a session owner tuple remounts route-owned state", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}/proj-hena/session/sess-transcript`)
-
-    await user.type(await screen.findByLabelText("Message"), "owner-scoped draft")
-    await act(() =>
-      router.navigate({
-        to: "/$connectionId/$projectId/session/$sessionId",
-        params: { connectionId: STAGING_SLUG, projectId: "proj-hena", sessionId: "sess-transcript" },
-      }),
-    )
-    expect(await screen.findByText("Session not found.")).toBeInTheDocument()
-    await act(() =>
-      router.navigate({
-        to: "/$connectionId/$projectId/session/$sessionId",
-        params: { connectionId: LOCAL_SLUG, projectId: "proj-hena", sessionId: "sess-transcript" },
-      }),
-    )
-
-    expect(await screen.findByLabelText("Message")).toHaveValue("")
-  })
-
-  test("new draft ids do not collide with a deep-linked draft after reload", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const initialPath = `/${LOCAL_SLUG}/proj-hena/new/draft-1`
-    const router = renderApp(initialPath)
-
-    await user.type(await screen.findByLabelText("Message"), "old draft")
-    await user.click(screen.getByRole("button", { name: "New session" }))
-
-    expect(router.state.location.pathname).not.toBe(initialPath)
-    expect(await screen.findByLabelText("Message")).toHaveValue("")
-  })
-
-  test("a direct settings entry closes to the current server home", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}/settings/general`)
-
-    expect(await screen.findByLabelText("Theme")).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Close settings" }))
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
-    await act(async () => {
-      router.history.back()
-      await router.load()
+    const fetcher = collectionFetcher({
+      onCreateSession: async (request, push) => {
+        const body = (await request.json()) as { sessionID: string; location: { directory: string } }
+        const newSession = {
+          id: body.sessionID,
+          projectID: "new_proj",
+          title: "New project session",
+          location: body.location,
+          working: false,
+          time: { created: 2, updated: 2 },
+        }
+        const newProject = {
+          id: "new_proj",
+          worktree: body.location.directory,
+          name: "MyNewProject",
+          time: { created: 2, updated: 2 },
+        }
+        push([
+          {
+            seq: 100,
+            collection: "sessions",
+            scopeKey: "",
+            rowKey: body.sessionID,
+            op: "insert",
+            txid: "tx-new-project",
+            row: newSession,
+          },
+          {
+            seq: 101,
+            collection: "projects",
+            scopeKey: "",
+            rowKey: "new_proj",
+            op: "insert",
+            txid: "tx-new-project",
+            row: newProject,
+          },
+        ])
+        return Response.json({
+          session: { id: body.sessionID, projectID: "new_proj" },
+          admitted: {
+            id: "msg_1",
+            sessionID: body.sessionID,
+            prompt: { text: "" },
+            delivery: "steer",
+            admittedSeq: 1,
+            queuePosition: 0,
+            timeCreated: 2,
+          },
+          receipt: {
+            txid: "tx-new-project",
+            outcome: "applied",
+            through: { feedId: "feed", seq: 101 },
+            affectedScopes: [{ collection: "sessions", scopeKey: "" }, { collection: "projects", scopeKey: "" }],
+          },
+        })
+      },
     })
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
+    renderApp(`/${slug}`, fetcher)
+
+    await user.click(await screen.findByRole("button", { name: "Open project" }))
+    const dialog = screen.getByRole("dialog")
+    await user.type(within(dialog).getByLabelText("Directory path"), "~/git/ysmdev/sessions{Enter}")
+
+    const pendingRail = screen.getAllByRole("navigation", { name: "Projects" })[0]
+    expect(await within(pendingRail).findByRole("button", { name: /sessions/i })).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getAllByText("sessions").length).toBeGreaterThan(0)
+
+    await user.type(await screen.findByRole("textbox", { name: "Message" }), "hello from a new project")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+
+    const rail = screen.getAllByRole("navigation", { name: "Projects" })[0]
+    const selectedProject = await within(rail).findByRole("button", { name: /MyNewProject/ })
+    expect(selectedProject.getAttribute("aria-pressed")).toBe("true")
+    expect(selectedProject).toHaveClass("border-2", "border-[var(--legacy-icon-strong)]")
+    expect(within(rail).getByRole("button", { name: /Repo/ }).getAttribute("aria-pressed")).toBe("false")
+    const sessions = screen.getAllByRole("navigation", { name: "Sessions" })[0]
+    expect(await within(sessions).findByText("New project session")).toBeInTheDocument()
+  })
+})
+
+describe("app routing against server-v3", () => {
+  test("redirects the root to the registered server", async () => {
+    const router = renderApp("/")
+
+    expect(await screen.findByRole("heading", { name: "Recent projects" })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/${slug}`)
   })
 
-  test("the settings index redirects to general settings", async () => {
-    mockMatchMedia(true)
-    const router = renderApp(`/${LOCAL_SLUG}/settings`)
-
-    expect(await screen.findByLabelText("Theme")).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/settings/general`)
-  })
-
-  test("settings sections close back to the route that opened them", async () => {
-    mockMatchMedia(true)
+  test("opens a synced project and starts a new session draft", async () => {
     const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}/proj-hena/session/sess-transcript`)
+    renderApp(`/${slug}/global`)
 
-    await screen.findByRole("heading", { name: "Wire the collection stream protocol" })
-    await user.click(screen.getByRole("button", { name: "Settings" }))
-    await user.click(await screen.findByRole("button", { name: "Appearance" }))
-    await user.click(screen.getByRole("button", { name: "Close settings" }))
-
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/proj-hena/session/sess-transcript`)
+    const buttons = await screen.findAllByRole("button", { name: "New session" })
+    await user.click(buttons.at(-1)!)
+    expect(await screen.findByRole("heading", { name: "New session" })).toBeInTheDocument()
+    expect(screen.getByRole("textbox", { name: "Message" })).toBeInTheDocument()
   })
 
-  test("server settings reject unknown connections", async () => {
-    mockMatchMedia(true)
-    renderApp(`/${encodeServerSlug("https://does-not-exist.example")}/settings/providers`)
+  test("redirects legacy review URLs to the centered transcript", async () => {
+    const router = renderApp(`/${slug}/global/session/ses_live/review`)
 
-    expect(await screen.findByText("Connection not found.")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Providers" })).not.toBeInTheDocument()
+    expect(await screen.findByRole("heading", { name: "Live session" })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`)
+    expect(screen.queryByRole("navigation", { name: "Session views" })).not.toBeInTheDocument()
   })
 
-  test("changing the settings connection resets server-owned state", async () => {
-    mockMatchMedia(true)
+  test("opens resizable preview and tree panels from the titlebar", async () => {
     const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}/settings/providers`)
+    renderApp(`/${slug}/global/session/ses_live`)
 
-    await user.click(await screen.findByRole("button", { name: "Disconnect Anthropic" }))
-    expect(screen.getByRole("button", { name: "Connect Anthropic" })).toBeInTheDocument()
-    await act(() =>
-      router.navigate({
-        to: "/$connectionId/settings/$section",
-        params: { connectionId: STAGING_SLUG, section: "providers" },
-      }),
-    )
+    expect(await screen.findByRole("heading", { name: "Live session" })).toBeInTheDocument()
+    const serverButton = screen.getByRole("button", { name: /Manage servers/ })
+    const toggle = screen.getByRole("button", { name: "Toggle file tree" })
+    expect(serverButton.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
-    expect(await screen.findByRole("button", { name: "Disconnect Anthropic" })).toBeInTheDocument()
+    await user.click(toggle)
+    const tree = await screen.findByRole("complementary", { name: "File tree" })
+    expect(toggle).toHaveAttribute("aria-expanded", "true")
+    const treeResize = screen.getByRole("separator", { name: "Resize file tree" })
+    const treeWidth = Number(treeResize.getAttribute("aria-valuenow"))
+    fireEvent.keyDown(treeResize, { key: "ArrowLeft" })
+    expect(treeResize).toHaveAttribute("aria-valuenow", String(treeWidth + 10))
+
+    await user.click(within(tree).getByRole("button", { name: "README.md" }))
+    const preview = await screen.findByRole("complementary", { name: "File preview" })
+    expect(preview.compareDocumentPosition(tree) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const previewResize = screen.getByRole("separator", { name: "Resize file preview" })
+    const previewWidth = Number(previewResize.getAttribute("aria-valuenow"))
+    fireEvent.keyDown(previewResize, { key: "ArrowRight" })
+    expect(previewResize).toHaveAttribute("aria-valuenow", String(previewWidth - 10))
+    expect(await within(preview).findByText("# Repo")).toBeInTheDocument()
+
+    await user.click(within(preview).getByRole("button", { name: "Close file preview" }))
+    expect(screen.queryByRole("complementary", { name: "File preview" })).not.toBeInTheDocument()
+    await user.click(toggle)
+    expect(screen.queryByRole("complementary", { name: "File tree" })).not.toBeInTheDocument()
   })
 
-  test("storage settings are scoped to the route server", async () => {
-    mockMatchMedia(true)
-    const router = renderApp(`/${LOCAL_SLUG}/settings/storage`)
-
-    expect(await screen.findByText("18 MiB of 50 MiB")).toBeInTheDocument()
-    await act(() =>
-      router.navigate({
-        to: "/$connectionId/settings/$section",
-        params: { connectionId: STAGING_SLUG, section: "storage" },
-      }),
-    )
-
-    expect(await screen.findByText("7 MiB of 50 MiB")).toBeInTheDocument()
-    expect(screen.queryByText("18 MiB of 50 MiB")).not.toBeInTheDocument()
+  test("renders registered servers from the real connection registry", async () => {
+    renderApp(`/${slug}/settings/server-connections`)
+    expect(await screen.findByText(origin)).toBeInTheDocument()
   })
 
-  test("settings navigation crosses profile and server ownership", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}/settings/general`)
+  test("shows real agent and model options for a directory with no project yet", async () => {
+    renderApp(`/${slug}/new/draft-1?directory=${encodeURIComponent("/tmp/brand-new-project")}`)
 
-    await user.click(await screen.findByRole("button", { name: "Storage" }))
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/settings/storage`)
-    expect(await screen.findByText("18 MiB of 50 MiB")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Storage" })).toHaveFocus()
-
-    await user.click(screen.getByRole("button", { name: "General" }))
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}/settings/general`)
-    expect(await screen.findByLabelText("Theme")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "General" })).toHaveFocus()
-  })
-
-  test("the documented server-connections settings slug renders its section", async () => {
-    mockMatchMedia(true)
-    renderApp(`/${LOCAL_SLUG}/settings/server-connections`)
-
-    expect(await screen.findByText("http://localhost:4096")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Server connections" })).toHaveAttribute("aria-current", "true")
-  })
-
-  test("selecting a server updates the URL slug", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}`)
-
-    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
-    const dialog = await screen.findByRole("dialog", { name: "Servers" })
-    await user.click(within(dialog).getByRole("button", { name: /staging\.hena\.dev/ }))
-
-    expect(router.state.location.pathname).toBe(`/${STAGING_SLUG}`)
-  })
-
-  test("selecting a server closes an open mobile drawer before navigating", async () => {
-    mockMatchMedia(false)
-    window.history.back = () => {
-      window.history.replaceState({}, "")
-      window.dispatchEvent(new PopStateEvent("popstate", { state: {} }))
-    }
-    const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}`)
-
-    await user.click(await screen.findByRole("button", { name: "Open menu" }))
-    await user.click(screen.getByRole("button", { name: /^Manage servers/ }))
-    await user.click(
-      within(await screen.findByRole("dialog", { name: "Servers" })).getByRole("button", {
-        name: /staging\.hena\.dev/,
-      }),
-    )
-
-    expect(router.state.location.pathname).toBe(`/${STAGING_SLUG}`)
-    expect(window.history.state?.henaMobileNavigation).not.toBe(true)
-    expect(screen.queryByRole("navigation", { name: "Projects and sessions" })).not.toBeInTheDocument()
-  })
-
-  test("selecting an existing server clears stale add-server state", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    renderApp(`/${LOCAL_SLUG}`, undefined, "https://app.hena.dev")
-
-    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
-    expect(screen.getByLabelText("Add a mock server")).toHaveValue("http://localhost:4096")
-    await user.click(screen.getByRole("button", { name: "Add server" }))
-    expect(screen.getByText("Enter an HTTP or HTTPS server URL allowed from this origin.")).toBeInTheDocument()
-    await user.click(
-      within(screen.getByRole("dialog", { name: "Servers" })).getByRole("button", { name: /staging\.hena\.dev/ }),
-    )
-
-    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
-    expect(screen.getByLabelText("Add a mock server")).toHaveValue("")
-    expect(screen.queryByText("Enter an HTTP or HTTPS server URL allowed from this origin.")).not.toBeInTheDocument()
-  })
-
-  test("offline servers remain visible but cannot be selected", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp(
-      `/${LOCAL_SLUG}`,
-      connections.map((connection) =>
-        connection.id === "conn-staging" ? { ...connection, status: "offline" } : connection,
-      ),
-    )
-
-    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
-    const dialog = await screen.findByRole("dialog", { name: "Servers" })
-    const offline = within(dialog).getByRole("button", { name: /staging\.hena\.dev/ })
-
-    expect(offline).toBeDisabled()
-    await user.click(offline)
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
-    expect(dialog).toBeInTheDocument()
-  })
-
-  test("offline servers cannot be selected through the add form", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp(
-      `/${LOCAL_SLUG}`,
-      connections.map((connection) =>
-        connection.id === "conn-staging" ? { ...connection, status: "offline" } : connection,
-      ),
-    )
-
-    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
-    await user.type(screen.getByLabelText("Add a mock server"), "https://staging.hena.dev")
-    await user.click(screen.getByRole("button", { name: "Add server" }))
-
-    expect(screen.getByText("This server is offline and available only for diagnostics.")).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe(`/${LOCAL_SLUG}`)
-    expect(screen.getByRole("dialog", { name: "Servers" })).toBeInTheDocument()
-  })
-
-  test("the titlebar reports the worst registered server status", async () => {
-    mockMatchMedia(true)
-    renderApp(`/${LOCAL_SLUG}`)
-
-    expect(await screen.findByTitle("Connecting")).toBeInTheDocument()
-  })
-
-  test("adding a mock server routes to its URL slug", async () => {
-    mockMatchMedia(true)
-    const user = userEvent.setup()
-    const router = renderApp(`/${LOCAL_SLUG}`)
-
-    await user.click(await screen.findByRole("button", { name: /^Manage servers/ }))
-    await user.type(screen.getByLabelText("Add a mock server"), "box.example.com")
-    await user.click(screen.getByRole("button", { name: "Add server" }))
-
-    expect(router.state.location.pathname).toBe(`/${encodeServerSlug("https://box.example.com")}`)
+    expect(await screen.findByLabelText("Agent")).toHaveTextContent("build")
+    expect(screen.getByLabelText("Model")).toHaveTextContent("GPT")
   })
 })

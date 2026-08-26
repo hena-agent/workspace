@@ -11,9 +11,9 @@ export function SessionTranscriptHeader({
   onArchive,
 }: {
   session: Session
-  onShare: () => void
-  onFork: () => void
-  onArchive: () => void
+  onShare?: () => void
+  onFork?: () => void
+  onArchive?: () => void
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
 
@@ -30,24 +30,24 @@ export function SessionTranscriptHeader({
       >
         {session.title}
       </h1>
-      <DropdownMenu>
+      {onShare || onFork || onArchive ? <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" aria-label="Session actions" className="legacy-small-icon-button">
             <MoreHorizontal className="size-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={onShare}>
+          {onShare ? <DropdownMenuItem onSelect={onShare}>
             <Share2 /> {session.shared ? "Copy share link" : "Share"}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onFork}>
+          </DropdownMenuItem> : null}
+          {onFork ? <DropdownMenuItem onSelect={onFork}>
             <GitFork /> Fork
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={onArchive}>
+          </DropdownMenuItem> : null}
+          {onArchive ? <DropdownMenuItem onSelect={onArchive}>
             <Archive /> Archive
-          </DropdownMenuItem>
+          </DropdownMenuItem> : null}
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu> : null}
     </div>
   )
 }

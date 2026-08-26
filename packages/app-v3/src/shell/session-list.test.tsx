@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
-import { sessions } from "@/mock/fixtures"
+import { sessions } from "@/test/fixtures"
 import { render, screen } from "@/test/test-utils"
 import { SessionList } from "./session-list"
 

@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
 import { render, screen } from "@/test/test-utils"
 import { CommandPalette } from "./command-palette"
-import { projects, serverCommands, sessions } from "@/mock/fixtures"
+import { projects, serverCommands, sessions } from "@/test/fixtures"
 
 const henaProjects = projects.filter((p) => p.connectionId === "conn-local")
 const henaSessions = sessions.filter((s) => s.projectId === "proj-hena" && !s.archived)

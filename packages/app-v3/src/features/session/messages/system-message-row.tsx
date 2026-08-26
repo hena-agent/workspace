@@ -1,14 +1,15 @@
 import { Info } from "lucide-react"
 import type { SyntheticMessage, SystemMessage } from "@/lib/types"
+import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker"
 
 export function SystemMessageRow({ message }: { message: SystemMessage | SyntheticMessage }) {
   return (
-    <div
+    <Marker
       data-role={message.role}
-      className="mx-4 my-1 flex items-center gap-1.5 px-2 text-xs text-muted-foreground italic md:mx-5"
+      className="my-1 px-6 text-xs italic md:px-7"
     >
-      <Info aria-hidden className="size-3.5 shrink-0" />
-      {message.text}
-    </div>
+      <MarkerIcon><Info /></MarkerIcon>
+      <MarkerContent>{message.text}</MarkerContent>
+    </Marker>
   )
 }

@@ -10,6 +10,7 @@ import { createSessionRoutes } from "./routes/session"
 import { exactOriginCors } from "./http/cors"
 import { createStaticRoutes } from "./http/static"
 import { createFileSystemRoutes } from "./routes/filesystem"
+import { createCatalogRoutes } from "./routes/catalog"
 import { createContentRoutes } from "./routes/content"
 import { createDeltaHub, type DeltaHub } from "./stream/delta"
 import { createOnlineRequestStore, type OnlineRequestStore } from "./core/online-requests"
@@ -82,6 +83,7 @@ export function createApp(input: {
     .route("/api", createSettingRoutes(input.database))
     .route("/api", createSessionRoutes(domain))
     .route("/api", createFileSystemRoutes(domain))
+    .route("/api", createCatalogRoutes(domain))
     .route("/api", createContentRoutes(input.database))
     .route("/api", createOnlineRoutes(domain))
   if (!input.publicDir) return api

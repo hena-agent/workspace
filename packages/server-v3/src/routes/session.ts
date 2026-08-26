@@ -58,6 +58,12 @@ export function createSessionRoutes(domain: CoreDomain) {
       },
     )
     .post(
+      "/session/:sessionId/archive",
+      sValidator("param", Schema.toStandardSchemaV1(SessionParams), validationHook),
+      sValidator("json", Schema.toStandardSchemaV1(Sync.ArchiveSession), validationHook),
+      async (c) => c.json(await domain.archiveSession(c.req.valid("param").sessionId, c.req.valid("json"))),
+    )
+    .post(
       "/session/:sessionId/interrupt",
       sValidator("param", Schema.toStandardSchemaV1(SessionParams), validationHook),
       async (c) => {

@@ -11,9 +11,9 @@ import { Global } from "@hena/core/global"
 import { ConfigV1 } from "@hena/core/v1/config/config"
 import { Option, Schema } from "effect"
 
-if (import.meta.main) await start()
-
 export const Hostname = "127.0.0.1"
+
+if (import.meta.main) await start()
 
 export async function start(input?: { port?: number; publicDir?: string; corsOrigins?: readonly string[] }) {
   assertNoPassword()

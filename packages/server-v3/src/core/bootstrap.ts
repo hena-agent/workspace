@@ -7,8 +7,10 @@ import { preview } from "../storage/content"
 import { fingerprint } from "../storage/fingerprint"
 import type { SyncDatabase } from "../storage/database"
 import { SessionCollections } from "../collection/manifest"
+import { catalogView } from "./catalog-view"
 import type { CoreDomain } from "./domain"
 import type { OnlineRequestStore } from "./online-requests"
+import { resetWorkingSessions } from "./collection-projector"
 
 type ProjectRow = {
   id: string
@@ -60,6 +62,7 @@ const encodeMessage = Schema.encodeSync(SessionMessage.Message)
 const encodeSession = Schema.encodeUnknownSync(Session.Info)
 
 export function bootstrapCollections(database: SyncDatabase) {
+  resetWorkingSessions()
   database.raw.exec(`UPDATE todo SET id = 'todo_' || lower(hex(randomblob(16))) WHERE id IS NULL`)
   const projects = database.raw.query<ProjectRow, []>("SELECT * FROM project ORDER BY id").all()
   const projectsChanged = database.collections.hydrate(
@@ -98,7 +101,8 @@ export function bootstrapCollections(database: SyncDatabase) {
     "",
     sessions.map((session) => {
       const row = sessionRow(session)
-      return { key: session.id, revision: fingerprint(row), row }
+      const projected = { ...row, working: false }
+      return { key: session.id, revision: fingerprint(projected), row: projected }
     }),
   )
   const messages = database.raw
@@ -388,22 +392,13 @@ export async function bootstrapLocationCollections(
   const results = await Promise.allSettled(
     locations.map(async (location) => {
       const ref = location.row as { directory: string; workspaceID?: string }
-      const catalog = await domain.catalog(ref)
+      const catalog = catalogView(await domain.catalog(ref))
       online.replace(
         "agents",
         location.key,
         catalog.agents.map((agent) => ({
           key: agent.id,
-          row: {
-            id: agent.id,
-            model: agent.model,
-            description: agent.description,
-            mode: agent.mode,
-            hidden: agent.hidden,
-            color: agent.color,
-            steps: agent.steps,
-            permissions: agent.permissions,
-          },
+          row: agent,
         })),
       )
       online.replace(
@@ -411,19 +406,7 @@ export async function bootstrapLocationCollections(
         location.key,
         catalog.models.map((model) => ({
           key: JSON.stringify([model.providerID, model.id]),
-          row: {
-            id: model.id,
-            providerID: model.providerID,
-            family: model.family,
-            name: model.name,
-            capabilities: model.capabilities,
-            variants: model.variants.map((variant) => ({ id: variant.id })),
-            time: model.time,
-            cost: model.cost,
-            status: model.status,
-            enabled: model.enabled,
-            limit: model.limit,
-          },
+          row: model,
         })),
       )
       online.replace(
@@ -431,12 +414,7 @@ export async function bootstrapLocationCollections(
         location.key,
         catalog.providers.map((provider) => ({
           key: provider.id,
-          row: {
-            id: provider.id,
-            integrationID: provider.integrationID,
-            name: provider.name,
-            disabled: provider.disabled,
-          },
+          row: provider,
         })),
       )
     }),

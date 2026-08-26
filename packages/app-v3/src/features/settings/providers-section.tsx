@@ -7,7 +7,7 @@ export function ProvidersSection({
   onToggleConnection,
 }: {
   providers: Provider[]
-  onToggleConnection: (providerId: string) => void
+  onToggleConnection?: (providerId: string) => void
 }) {
   return (
     <div className="divide-y">
@@ -17,15 +17,17 @@ export function ProvidersSection({
           label={provider.name}
           description={provider.connected ? "Connected" : "Not connected"}
         >
-          <Button
-            variant={provider.connected ? "outline" : "default"}
-            size="sm"
-            onClick={() => onToggleConnection(provider.id)}
-            aria-label={`${provider.connected ? "Disconnect" : "Connect"} ${provider.name}`}
-            className="hit-area"
-          >
-            {provider.connected ? "Disconnect" : "Connect"}
-          </Button>
+          {onToggleConnection ? (
+            <Button
+              variant={provider.connected ? "outline" : "default"}
+              size="sm"
+              onClick={() => onToggleConnection(provider.id)}
+              aria-label={`${provider.connected ? "Disconnect" : "Connect"} ${provider.name}`}
+              className="hit-area"
+            >
+              {provider.connected ? "Disconnect" : "Connect"}
+            </Button>
+          ) : <span className="text-xs text-muted-foreground">Read only</span>}
         </SettingsRow>
       ))}
     </div>

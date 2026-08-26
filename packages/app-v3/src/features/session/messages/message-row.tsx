@@ -25,6 +25,8 @@ export function MessageRow({ message }: { message: SessionMessage }) {
     case "agent-switched":
     case "model-switched":
       return <SwitchedMessageRow message={message} />
+    case "unknown":
+      return <SystemMessageRow message={{ ...message, role: "system", text: `${message.type}: ${message.summary}` }} />
     default: {
       const exhaustive: never = message
       return exhaustive

@@ -60,6 +60,20 @@ describe("session mutations", () => {
     ])
   })
 
+  test("archives a session", async () => {
+    database = createTestDatabase().database
+    const domain = recordingDomain()
+    const sessionID = Session.ID.create()
+    const response = await createApp({ database, domain }).request(`/api/session/${sessionID}/archive`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID() }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(domain.calls).toEqual([`archive:${sessionID}`])
+  })
+
   test("accepts prompt bodies above the control-plane limit", async () => {
     database = createTestDatabase().database
     const domain = recordingDomain()
@@ -319,6 +333,10 @@ function recordingDomain(): CoreDomain & { calls: string[] } {
       calls.push(`prompt:${sessionID}:${messageID}`)
       return { admitted: { id: messageID, sessionID }, receipt: receipt() }
     },
+    archiveSession: async (sessionID) => {
+      calls.push(`archive:${sessionID}`)
+      return { receipt: receipt(1) }
+    },
     interrupt: async (sessionID) => { calls.push(`interrupt:${sessionID}`) },
     cancelInput: async (sessionID, messageID, input) => {
       calls.push(`cancel:${sessionID}:${messageID}:${input.expectedRevision}`)
@@ -330,6 +348,7 @@ function recordingDomain(): CoreDomain & { calls: string[] } {
     },
     listFiles: async () => [],
     findFiles: async () => [],
+    readFile: async () => ({ text: "", totalBytes: 0, truncated: false }),
     replyPermission: async () => ({ outcome: "applied", resolution: {} }),
     replyQuestion: async () => ({ outcome: "applied", resolution: {} }),
     catalog: async () => ({ agents: [], models: [], providers: [] }),

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
 import { render, screen } from "@/test/test-utils"
 import { NewSessionView } from "./new-session-view"
-import { agents, models, projects } from "@/mock/fixtures"
+import { agents, models, projects } from "@/test/fixtures"
 
 describe("NewSessionView", () => {
   test("renders the target project", () => {
@@ -43,6 +43,25 @@ describe("NewSessionView", () => {
     )
 
     await user.type(screen.getByLabelText("Message"), "Run next{Control>}{Shift>}{Enter}{/Shift}{/Control}")
+    expect(delivery).toBe("queue")
+  })
+
+  test("uses the synchronized queue delivery default for a normal send", async () => {
+    const user = userEvent.setup()
+    let delivery: "send" | "queue" | undefined
+    render(
+      <NewSessionView
+        project={projects[0]}
+        agents={agents}
+        models={models}
+        defaultDelivery="queue"
+        onStart={(params) => (delivery = params.delivery)}
+      />,
+    )
+
+    await user.type(screen.getByLabelText("Message"), "Run after current work")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+
     expect(delivery).toBe("queue")
   })
 })

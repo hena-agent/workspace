@@ -114,6 +114,7 @@ describe("collection bootstrap", () => {
     expect(database.collections.snapshot("sessions", "").rows[0]?.row).toMatchObject({
       id: "ses_1",
       queueRevision: 2,
+      working: false,
       model: { id: "model", providerID: "provider", variant: "default" },
     })
     expect(database.collections.snapshot("sessions", "").rows[0]?.row).not.toHaveProperty("subpath")
@@ -259,6 +260,7 @@ describe("collection bootstrap", () => {
           {
             id: "provider-1",
             name: "Provider",
+            connected: true,
             api: {},
             request: { headers: { Authorization: "secret" }, body: { apiKey: "secret" } },
           } as never,
@@ -276,6 +278,7 @@ describe("collection bootstrap", () => {
     ]
     expect(rows).toHaveLength(3)
     expect(JSON.stringify(rows)).not.toContain("secret")
+    expect(online.snapshot("providers", '{"directory":"/repo"}').rows[0]?.row).toMatchObject({ connected: true })
     expect(database.changes.current()).toBe(0)
   })
 

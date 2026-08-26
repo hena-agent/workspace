@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { fireEvent, render, screen } from "@/test/test-utils"
+import { render, screen } from "@/test/test-utils"
 import { MessageList } from "./message-list"
-import { listMessages } from "@/mock/queries"
+import { listMessages } from "@/test/queries"
 
 describe("MessageList", () => {
   test("shows an empty state when there are no messages", () => {
@@ -18,31 +18,20 @@ describe("MessageList", () => {
     render(<MessageList messages={messages} />)
 
     const log = screen.getByRole("log", { name: "Messages" })
-    expect(log.firstElementChild?.children).toHaveLength(messages.length)
+    expect(log.querySelectorAll("[data-message-id]")).toHaveLength(messages.length)
   })
 
-  test("opens at the latest message and only follows updates while near the bottom", () => {
+  test("marks user messages as turn anchors and exposes a latest-message control", () => {
     const messages = listMessages({
       sessionId: "sess-transcript",
       connectionId: "conn-local",
       projectId: "proj-hena",
     })
-    const result = render(<MessageList messages={[]} />)
+    render(<MessageList messages={messages} />)
     const log = screen.getByRole("log", { name: "Messages" })
-    Object.defineProperty(log, "scrollHeight", { configurable: true, value: 1_000 })
-    Object.defineProperty(log, "clientHeight", { configurable: true, value: 400 })
-
-    result.rerender(<MessageList messages={messages} />)
-    expect(log.scrollTop).toBe(1_000)
-
-    log.scrollTop = 200
-    fireEvent.scroll(log)
-    result.rerender(<MessageList messages={[...messages]} />)
-    expect(log.scrollTop).toBe(200)
-
-    log.scrollTop = 590
-    fireEvent.scroll(log)
-    result.rerender(<MessageList messages={[...messages]} />)
-    expect(log.scrollTop).toBe(1_000)
+    expect(log.querySelectorAll('[data-scroll-anchor="true"]')).toHaveLength(
+      messages.filter((message) => message.role === "user").length,
+    )
+    expect(screen.getByRole("button", { name: "Scroll to end" })).toBeInTheDocument()
   })
 })

@@ -14,7 +14,7 @@ function SessionStatusIndicator({ session }: { session: Session }) {
   if (session.status === "error") {
     return <span aria-label="Error" className="size-1.5 rounded-full bg-[var(--legacy-critical)]" />
   }
-  if (session.unseenCount > 0) {
+  if (session.unread) {
     return <span aria-label="Unread" className="size-1.5 rounded-full bg-[var(--legacy-text-interactive)]" />
   }
   return null
@@ -33,9 +33,9 @@ export function SessionListItem({
   autoFocus?: boolean
   mobile: boolean
   onSelect: () => void
-  onArchive: () => void
+  onArchive?: () => void
 }) {
-  const hasStatus = session.status !== "idle" || session.unseenCount > 0
+  const hasStatus = session.status !== "idle" || session.unread
 
   return (
     <div
@@ -61,7 +61,7 @@ export function SessionListItem({
             {session.title}
           </span>
         </button>
-        <div
+        {onArchive ? <div
           className={cn(
             "shrink-0 overflow-hidden transition-[width,opacity]",
             mobile
@@ -81,7 +81,7 @@ export function SessionListItem({
           >
             <LegacyIcon name="archive" className="size-4" />
           </Button>
-        </div>
+        </div> : null}
       </div>
     </div>
   )

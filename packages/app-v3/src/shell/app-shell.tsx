@@ -3,12 +3,14 @@ import {
   type PointerEvent,
   type ReactNode,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useRef,
   useState,
 } from "react"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { loadSidebarOpen, saveSidebarOpen } from "@/local-state/sidebar"
 import type { Project } from "@/lib/types"
 import { MobileNavDrawer } from "./mobile-nav-drawer"
 import { Rail } from "./rail"
@@ -39,9 +41,10 @@ export function AppShell({
   const projectKey = sidebarPanel.project
     ? `${sidebarPanel.project.connectionId}:${sidebarPanel.project.id}`
     : undefined
+  const defaultSidebarOpen = () => loadSidebarOpen() ?? Boolean(sidebarPanel.project)
   const [sidebarState, setSidebarState] = useState(() => ({
     projectKey,
-    open: Boolean(sidebarPanel.project),
+    open: defaultSidebarOpen(),
   }))
   const [mobileNavOpen, setMobileNavOpen] = useState(() => Boolean(window.history.state?.henaMobileNavigation))
   const [panelWidth, setPanelWidth] = useState(280)
@@ -51,64 +54,13 @@ export function AppShell({
   const mobileNavRef = useRef<HTMLElement>(null)
   const mainRef = useRef<HTMLElement>(null)
   const pendingMobileNavActionRef = useRef<(() => void) | null>(null)
+  // Only a fresh mount (e.g. a page refresh, same project) should restore the saved
+  // preference. Switching to a *different* project while already mounted keeps the existing
+  // "default to open" behavior below, matching `selectProject`'s explicit open-on-switch.
   if (sidebarState.projectKey !== projectKey) {
     setSidebarState({ projectKey, open: Boolean(sidebarPanel.project) })
   }
   const sidebarOpen = sidebarState.projectKey === projectKey ? sidebarState.open : Boolean(sidebarPanel.project)
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Tab" && mobileNavOpen) {
-        const items = [
-          mobileNavButtonRef.current,
-          ...Array.from(mobileNavRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href]") ?? []),
-        ].filter((item): item is HTMLElement => Boolean(item))
-        const first = items[0]
-        const last = items.at(-1)
-        if (event.shiftKey && (document.activeElement === first || document.activeElement === mobileNavRef.current)) {
-          event.preventDefault()
-          last?.focus()
-          return
-        }
-        if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault()
-          first?.focus()
-          return
-        }
-      }
-      if (event.key === "Escape" && mobileNavOpen && !event.defaultPrevented) {
-        closeMobileNav()
-        return
-      }
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b") return
-      event.preventDefault()
-      if (isDesktop) {
-        setSidebarState({ projectKey, open: !sidebarOpen })
-        return
-      }
-      if (mobileNavOpen) {
-        closeMobileNav()
-        return
-      }
-      openMobileNav()
-    }
-    function onPopState(event: PopStateEvent) {
-      if (event.state?.henaMobileNavigation) {
-        if (!mobileNavOpenRef.current) {
-          mobileNavOpenRef.current = true
-          setMobileNavOpen(true)
-        }
-        return
-      }
-      if (mobileNavOpenRef.current) finishMobileNavClose()
-    }
-    window.addEventListener("keydown", onKeyDown)
-    window.addEventListener("popstate", onPopState)
-    return () => {
-      window.removeEventListener("keydown", onKeyDown)
-      window.removeEventListener("popstate", onPopState)
-    }
-  }, [isDesktop, mobileNavOpen, projectKey, sidebarOpen])
 
   useEffect(() => {
     if (!isDesktop || !mobileNavOpen) return
@@ -139,15 +91,6 @@ export function AppShell({
     setMobileNavOpen(true)
   }
 
-  function closeMobileNav(action?: () => void) {
-    pendingMobileNavActionRef.current = action ?? null
-    if (window.history.state?.henaMobileNavigation) {
-      window.history.back()
-      return
-    }
-    finishMobileNavClose()
-  }
-
   function finishMobileNavClose() {
     mobileNavOpenRef.current = false
     setMobileNavOpen(false)
@@ -161,6 +104,15 @@ export function AppShell({
     queueMicrotask(() => mainRef.current?.focus())
   }
 
+  function closeMobileNav(action?: () => void) {
+    pendingMobileNavActionRef.current = action ?? null
+    if (window.history.state?.henaMobileNavigation) {
+      window.history.back()
+      return
+    }
+    finishMobileNavClose()
+  }
+
   function runAfterMobileNavClose(action: () => void) {
     if (mobileNavOpen) {
       closeMobileNav(action)
@@ -170,7 +122,9 @@ export function AppShell({
   }
 
   function toggleSidebar() {
-    setSidebarState({ projectKey, open: !sidebarOpen })
+    const open = !sidebarOpen
+    saveSidebarOpen(open)
+    setSidebarState({ projectKey, open })
   }
 
   function selectProject(project: Project) {
@@ -199,13 +153,15 @@ export function AppShell({
       setPanelWidth(Math.min(panelMaxWidth(), Math.max(PANEL_MIN, startWidth + nextEvent.clientX - startX)))
     }
 
-    function onPointerUp() {
+    function stopResize() {
       window.removeEventListener("pointermove", onPointerMove)
-      window.removeEventListener("pointerup", onPointerUp)
+      window.removeEventListener("pointerup", stopResize)
+      window.removeEventListener("pointercancel", stopResize)
     }
 
     window.addEventListener("pointermove", onPointerMove)
-    window.addEventListener("pointerup", onPointerUp)
+    window.addEventListener("pointerup", stopResize)
+    window.addEventListener("pointercancel", stopResize)
   }
 
   function resizeWithKeyboard(event: { key: string; preventDefault: () => void }) {
@@ -218,6 +174,62 @@ export function AppShell({
       return Math.min(max, Math.max(PANEL_MIN, current + (event.key === "ArrowLeft" ? -10 : 10)))
     })
   }
+
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key === "Tab" && mobileNavOpen) {
+      const items = [
+        mobileNavButtonRef.current,
+        ...Array.from(mobileNavRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href]") ?? []),
+      ].filter((item): item is HTMLElement => Boolean(item))
+      const first = items[0]
+      const last = items.at(-1)
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === mobileNavRef.current)) {
+        event.preventDefault()
+        last?.focus()
+        return
+      }
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first?.focus()
+        return
+      }
+    }
+    if (event.key === "Escape" && mobileNavOpen && !event.defaultPrevented) {
+      closeMobileNav()
+      return
+    }
+    if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b") return
+    event.preventDefault()
+    if (isDesktop) {
+      toggleSidebar()
+      return
+    }
+    if (mobileNavOpen) {
+      closeMobileNav()
+      return
+    }
+    openMobileNav()
+  })
+
+  const onPopState = useEffectEvent((event: PopStateEvent) => {
+    if (event.state?.henaMobileNavigation) {
+      if (!mobileNavOpenRef.current) {
+        mobileNavOpenRef.current = true
+        setMobileNavOpen(true)
+      }
+      return
+    }
+    if (mobileNavOpenRef.current) finishMobileNavClose()
+  })
+
+  useEffect(() => {
+    window.addEventListener("keydown", onKeyDown)
+    window.addEventListener("popstate", onPopState)
+    return () => {
+      window.removeEventListener("keydown", onKeyDown)
+      window.removeEventListener("popstate", onPopState)
+    }
+  }, [])
 
   const routedRail = {
     ...rail,

@@ -1,0 +1,340 @@
+import { createCollection } from "@tanstack/db"
+
+type Row = Record<string, unknown>
+type StoredRow = { __key: string; __revision?: string; row: Row }
+type ScopeControl = {
+  begin: () => void
+  write: (change:
+    | { type: "insert"; value: StoredRow }
+    | { type: "update"; key: string; value: StoredRow }
+    | { type: "delete"; key: string }) => void
+  commit: () => void
+  markReady: () => void
+}
+export type DeltaIdentity = {
+  sessionId: string
+  messageId: string
+  partId: string
+  partKind: "text" | "reasoning" | "tool-input" | "compaction"
+}
+export type ScopeRef = { collection: string; scopeKey: string }
+export type Change = {
+  seq: number
+  collection: string
+  scopeKey: string
+  rowKey: string | readonly string[]
+  op: "insert" | "update" | "delete" | "reset"
+  row: Row | null
+  rowRevision?: string
+  txid?: string
+}
+
+type StoreOptions = {
+  onTxidTimeout?: (scopes: readonly ScopeRef[] | undefined) => void
+  scheduleFrame?: (callback: () => void) => void
+}
+
+export function createConnectionStore(options: StoreOptions = {}) {
+  const scopes = new Map<string, ReturnType<typeof createScope>>()
+  const listeners = new Set<() => void>()
+  const waiters = new Map<string, Set<{ resolve: () => void; timer: ReturnType<typeof setTimeout> }>>()
+  const recentTxids = new Set<string>()
+  const deltas = new Map<string, { text: string; bytes: number; incomplete: boolean; snapshot: { text: string; incomplete: boolean } }>()
+  const deltaListeners = new Map<string, Set<() => void>>()
+  const pendingDeltaNotifications = new Set<string>()
+  let deltaFrameScheduled = false
+
+  const getScope = (collection: string, scopeKey: string) => {
+    const key = scopeIdentity(collection, scopeKey)
+    const existing = scopes.get(key)
+    if (existing) return existing
+    const created = createScope(key)
+    scopes.set(key, created)
+    return created
+  }
+  const notify = () => listeners.forEach((listener) => listener())
+  const notifyDelta = (key: string) => {
+    pendingDeltaNotifications.add(key)
+    if (deltaFrameScheduled) return
+    deltaFrameScheduled = true
+    ;(options.scheduleFrame ?? scheduleAnimationFrame)(() => {
+      deltaFrameScheduled = false
+      const pending = Array.from(pendingDeltaNotifications)
+      pendingDeltaNotifications.clear()
+      pending.forEach((item) => deltaListeners.get(item)?.forEach((listener) => listener()))
+      notify()
+    })
+  }
+  const clearDelta = (key: string) => {
+    if (!deltas.delete(key)) return
+    notifyDelta(key)
+  }
+  const finalize = (collection: string, scopeKey: string, rowKey: string | readonly string[], row: Row | null) => {
+    if (collection === "parts" && Array.isArray(rowKey) && rowKey.length === 3) {
+      const partKind = rowKey[1] === "tool" ? "tool-input" : rowKey[1]
+      if (["text", "reasoning", "tool-input"].includes(partKind))
+        clearDelta(deltaKey({ sessionId: scopeKey, messageId: rowKey[0], partKind: partKind as DeltaIdentity["partKind"], partId: rowKey[2] }))
+      return
+    }
+    if (collection !== "messages" || row?.type !== "compaction") return
+    const messageId = typeof row.id === "string" ? row.id : typeof rowKey === "string" ? rowKey : rowKey[0]
+    const prefix = `${scopeKey}\u0000${messageId}\u0000compaction\u0000`
+    Array.from(deltas.keys()).filter((key) => key.startsWith(prefix)).forEach(clearDelta)
+  }
+
+  return {
+    collection: (collection: string, scopeKey = "") => getScope(collection, scopeKey).collection,
+    rows(collection: string, scopeKey = "") {
+      return getScope(collection, scopeKey).collection.toArray.map((item) => item.row)
+    },
+    authoritativeRows(collection: string, scopeKey = "") {
+      return Array.from(getScope(collection, scopeKey).authoritative.values(), (item) => item.row)
+    },
+    cursor: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.cursor ?? 0,
+    isReady: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.ready ?? false,
+    scopeRefs: () => Array.from(scopes.values(), (scope) => scope.ref),
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    applySnapshot(collection: string, scopeKey: string, rows: ReadonlyArray<{ key: string | readonly string[]; row: Row; revision?: string }>, throughSeq: number, replace = true) {
+      const scope = getScope(collection, scopeKey)
+      scope.control.begin()
+      if (replace) {
+        scope.authoritative.clear()
+        for (const key of Array.from(scope.collection.keys())) scope.control.write({ type: "delete", key })
+      }
+      rows.forEach((item) => {
+        finalize(collection, scopeKey, item.key, item.row)
+        const key = wireKey(item.key)
+        const value = stored(item.key, item.row, item.revision)
+        scope.authoritative.set(key, value)
+        scope.control.write(scope.collection.has(key) && !replace
+          ? { type: "update", key, value }
+          : { type: "insert", value })
+      })
+      scope.control.commit()
+      if (!scope.ready) {
+        scope.ready = true
+        scope.control.markReady()
+      }
+      scope.cursor = throughSeq
+      notify()
+    },
+    applyRows(frame: { throughSeq: number; changes: readonly Change[] }) {
+      const affected = new Map<string, ReturnType<typeof createScope>>()
+      const resetScopes = new Map<string, ScopeRef>()
+      frame.changes.forEach((change) => {
+        const scope = getScope(change.collection, change.scopeKey)
+        if (change.seq <= scope.cursor) return
+        affected.set(scopeIdentity(change.collection, change.scopeKey), scope)
+        if (!scope.open) {
+          scope.control.begin()
+          scope.open = true
+        }
+        if (change.op === "reset") {
+          scope.authoritative.clear()
+          for (const key of Array.from(scope.collection.keys())) scope.control.write({ type: "delete", key })
+          resetScopes.set(scopeIdentity(change.collection, change.scopeKey), scope.ref)
+          return
+        }
+        const key = wireKey(change.rowKey)
+        finalize(change.collection, change.scopeKey, change.rowKey, change.row)
+        if (change.op === "delete") {
+          scope.authoritative.delete(key)
+          scope.control.write({ type: "delete", key })
+          return
+        }
+        const value = stored(key, change.row ?? {}, change.rowRevision)
+        scope.authoritative.set(key, value)
+        scope.control.write({
+          type: scope.collection.has(key) ? "update" : "insert",
+          key,
+          value,
+        })
+      })
+      affected.forEach((scope, key) => {
+        scope.control.commit()
+        scope.open = false
+        if (!resetScopes.has(key)) scope.cursor = Math.max(scope.cursor, frame.throughSeq)
+      })
+      if (affected.size > 0) notify()
+      frame.changes.flatMap((change) => change.txid ? [change.txid] : []).forEach((txid) => {
+        recentTxids.add(txid)
+        waiters.get(txid)?.forEach((waiter) => {
+          clearTimeout(waiter.timer)
+          waiter.resolve()
+        })
+        waiters.delete(txid)
+      })
+      while (recentTxids.size > 256) recentTxids.delete(recentTxids.values().next().value!)
+      return { resetScopes: Array.from(resetScopes.values()) }
+    },
+    awaitTxid(txid: string, timeoutMs = 10_000, affectedScopes?: readonly ScopeRef[]) {
+      if (recentTxids.has(txid)) return Promise.resolve()
+      return new Promise<void>((resolve) => {
+        const waiter = {
+          resolve,
+          timer: setTimeout(() => {
+            const pending = waiters.get(txid)
+            pending?.delete(waiter)
+            if (pending?.size === 0) waiters.delete(txid)
+            options.onTxidTimeout?.(affectedScopes)
+            resolve()
+          }, timeoutMs),
+        }
+        const pending = waiters.get(txid) ?? new Set()
+        pending.add(waiter)
+        waiters.set(txid, pending)
+      })
+    },
+    awaitAuthoritativeState(input: {
+      collection: string
+      scopeKey: string
+      timeoutMs: number
+      predicate: (rows: Row[]) => boolean
+    }) {
+      const rows = () => Array.from(getScope(input.collection, input.scopeKey).authoritative.values(), (item) => item.row)
+      if (input.predicate(rows())) return Promise.resolve()
+      return new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          unsubscribe()
+          reject(new Error("Authoritative state did not update before the deadline"))
+        }, input.timeoutMs)
+        const unsubscribe = this.subscribe(() => {
+          if (!input.predicate(rows())) return
+          clearTimeout(timer)
+          unsubscribe()
+          resolve()
+        })
+      })
+    },
+    applyDelta(input: DeltaIdentity & { offset: number; text: string }) {
+      const key = deltaKey(input)
+      const current = deltas.get(key) ?? { text: "", bytes: 0, incomplete: false, snapshot: { text: "", incomplete: false } }
+      const encoded = new TextEncoder().encode(input.text)
+      if (input.offset + encoded.byteLength <= current.bytes) return
+      if (input.offset > current.bytes) {
+        const next = { ...current, incomplete: true, snapshot: { text: current.text, incomplete: true } }
+        deltas.set(key, next)
+        notifyDelta(key)
+        return
+      }
+      const suffix = input.offset < current.bytes
+        ? new TextDecoder().decode(encoded.subarray(current.bytes - input.offset))
+        : input.text
+      const text = current.text + suffix
+      const bytes = Math.max(current.bytes, input.offset + encoded.byteLength)
+      deltas.set(key, { text, bytes, incomplete: current.incomplete, snapshot: { text, incomplete: current.incomplete } })
+      notifyDelta(key)
+    },
+    delta(identity: DeltaIdentity) {
+      return deltas.get(deltaKey(identity))?.snapshot
+    },
+    subscribeDelta(identity: DeltaIdentity, listener: () => void) {
+      const key = deltaKey(identity)
+      const scoped = deltaListeners.get(key) ?? new Set()
+      scoped.add(listener)
+      deltaListeners.set(key, scoped)
+      return () => {
+        scoped.delete(listener)
+        if (scoped.size === 0) deltaListeners.delete(key)
+      }
+    },
+    clearSessionDeltas(sessionId: string) {
+      const prefix = `${sessionId}\u0000`
+      Array.from(deltas.keys()).filter((key) => key.startsWith(prefix)).forEach(clearDelta)
+    },
+    dropCursors(targets?: readonly ScopeRef[]) {
+      const identities = targets && new Set(targets.map((scope) => scopeIdentity(scope.collection, scope.scopeKey)))
+      scopes.forEach((scope, key) => {
+        if (!identities || identities.has(key)) scope.cursor = 0
+      })
+    },
+    dropScope(collection: string, scopeKey: string) {
+      const key = scopeIdentity(collection, scopeKey)
+      const scope = scopes.get(key)
+      if (!scope) return
+      scopes.delete(key)
+      void scope.collection.cleanup()
+      notify()
+    },
+    dropSession(sessionId: string) {
+      ;["messages", "parts", "sessionInputs", "todos"].forEach((collection) => {
+        const key = scopeIdentity(collection, sessionId)
+        const scope = scopes.get(key)
+        if (!scope) return
+        scopes.delete(key)
+        void scope.collection.cleanup()
+      })
+      this.clearSessionDeltas(sessionId)
+      notify()
+    },
+    clear() {
+      scopes.forEach((scope) => void scope.collection.cleanup())
+      scopes.clear()
+      Array.from(deltas.keys()).forEach(clearDelta)
+      notify()
+    },
+    dispose() {
+      waiters.forEach((pending) => pending.forEach((waiter) => {
+        clearTimeout(waiter.timer)
+        waiter.resolve()
+      }))
+      waiters.clear()
+      this.clear()
+      listeners.clear()
+      deltaListeners.clear()
+    },
+  }
+}
+
+function createScope(id: string) {
+  let control: ScopeControl | undefined
+  const collection = createCollection<StoredRow, string>({
+    id: `hena:${id}`,
+    getKey: (item) => item.__key,
+    sync: {
+      sync: (input) => {
+        control = input
+      },
+      rowUpdateMode: "full",
+    },
+  })
+  void collection.preload()
+  if (!control) throw new Error(`Collection sync did not start for ${id}`)
+  const separator = id.indexOf("\u0000")
+  return {
+    collection,
+    control,
+    cursor: 0,
+    open: false,
+    ready: false,
+    authoritative: new Map<string, StoredRow>(),
+    ref: { collection: id.slice(0, separator), scopeKey: id.slice(separator + 1) },
+  }
+}
+
+function stored(key: string | readonly string[], row: Row, revision?: string): StoredRow {
+  return { __key: wireKey(key), __revision: revision, row }
+}
+
+function wireKey(key: string | readonly string[]) {
+  return typeof key === "string" ? key : JSON.stringify(key)
+}
+
+function scopeIdentity(collection: string, scopeKey: string) {
+  return `${collection}\u0000${scopeKey}`
+}
+
+function deltaKey(identity: DeltaIdentity) {
+  return `${identity.sessionId}\u0000${identity.messageId}\u0000${identity.partKind}\u0000${identity.partId}`
+}
+
+function scheduleAnimationFrame(callback: () => void) {
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(callback)
+    return
+  }
+  setTimeout(callback, 0)
+}

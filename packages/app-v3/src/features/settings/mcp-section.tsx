@@ -5,6 +5,9 @@ const STATUS_VARIANT = { connected: "default", disconnected: "secondary", error:
 const STATUS_LABEL = { connected: "Connected", disconnected: "Disconnected", error: "Error" } as const
 
 export function McpSection({ servers }: { servers: McpServer[] }) {
+  if (servers.length === 0)
+    return <div className="py-6 text-sm text-muted-foreground">MCP servers are not supported by this server yet.</div>
+
   return (
     <div className="divide-y">
       {servers.map((server) => (

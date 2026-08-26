@@ -17,7 +17,7 @@ import { Catalog } from "@hena/core/catalog"
 import type { DeltaHub } from "../stream/delta"
 import { publishDelta } from "./delta-events"
 import { CollectionProjector } from "./collection-projector"
-import { MutationTxid } from "./collection-projector"
+import { MutationTxid, setSessionArchived, setSessionWorking } from "./collection-projector"
 import type { CoreDomain } from "./domain"
 import { OnlineRequestConflict, type OnlineRequestStore } from "./online-requests"
 import { Database } from "@hena/core/database/database"
@@ -181,10 +181,12 @@ export function createCoreDomain(
           operation: "session.create",
           key: input.idempotencyKey,
           payload: input,
-          execute: SessionV2.Service.use((service) =>
-            Effect.gen(function* () {
-              const session = yield* service.create({ id: input.sessionID, location: input.location })
-              const admitted = yield* service.prompt({
+           execute: SessionV2.Service.use((service) =>
+             Effect.gen(function* () {
+               const session = yield* service.create({ id: input.sessionID, location: input.location })
+               if (input.agent) yield* service.switchAgent({ sessionID: session.id, agent: input.agent })
+               if (input.model) yield* service.switchModel({ sessionID: session.id, model: input.model })
+               const admitted = yield* service.prompt({
                 id: input.messageID,
                 sessionID: session.id,
                 prompt: input.prompt,
@@ -213,21 +215,43 @@ export function createCoreDomain(
           key: input.idempotencyKey,
           payload: { sessionID, ...input },
           execute: SessionV2.Service.use((service) =>
-            service.prompt({
+            Effect.gen(function* () {
+              const id = SessionV2.ID.make(sessionID)
+              if (input.agent) yield* service.switchAgent({ sessionID: id, agent: input.agent })
+              if (input.model) yield* service.switchModel({ sessionID: id, model: input.model })
+              return yield* service.prompt({
               id: input.messageID,
-              sessionID: SessionV2.ID.make(sessionID),
+              sessionID: id,
               prompt: input.prompt,
               delivery: input.delivery,
               resume: false,
+              })
             }),
           ),
           response: (admitted, receipt) => ({ admitted: encodeAdmitted(admitted), receipt }),
           persist: compactAdmissionResponse,
         }).pipe(Effect.tap(() => SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(sessionID))))),
       ),
+    archiveSession: (sessionID, input) =>
+      runtime.runPromise(
+        mutation({
+          operation: "session.archive",
+          key: input.idempotencyKey,
+          payload: { sessionID, ...input },
+          execute: Database.Service.use((database) =>
+            Effect.gen(function* () {
+              const txid = yield* MutationTxid
+              yield* setSessionArchived(database.db, sessionID, Date.now(), txid!)
+            }),
+          ),
+          response: (_, receipt) => ({ receipt }),
+        }),
+      ),
     interrupt: async (sessionID) => {
       await runtime.runPromise(SessionV2.Service.use((service) => service.interrupt(SessionV2.ID.make(sessionID))))
+      await runtime.runPromise(Database.Service.use((database) => setSessionWorking(database.db, sessionID, false, crypto.randomUUID())))
       online?.interrupt(sessionID)
+      publishPersisted?.()
     },
     cancelInput: (sessionID, messageID, input) =>
       runtime.runPromise(
@@ -282,6 +306,17 @@ export function createCoreDomain(
                 limit: input.limit,
               }),
             ).pipe(Effect.provide(LocationServiceMap.Service.get(ref))),
+          ),
+        ),
+      ),
+    readFile: (input) =>
+      runtime.runPromise(
+        exposedLocation(input).pipe(
+          Effect.flatMap((ref) =>
+            FileSystem.Service.use((fs) => fs.read({ path: input.path })).pipe(
+              Effect.provide(LocationServiceMap.Service.get(ref)),
+              Effect.map(({ content }) => pageFile(content, input.offset ?? 0, input.limit ?? 256 * 1024)),
+            ),
           ),
         ),
       ),
@@ -359,10 +394,14 @@ export function createCoreDomain(
         Effect.gen(function* () {
           const agents = yield* AgentV2.Service
           const catalog = yield* Catalog.Service
+          const connected = new Set((yield* catalog.provider.available()).map((provider) => provider.id))
           return {
             agents: yield* agents.all(),
-            models: yield* catalog.model.all(),
-            providers: yield* catalog.provider.all(),
+            models: yield* catalog.model.available(),
+            providers: (yield* catalog.provider.all()).map((provider) => ({
+              ...provider,
+              connected: connected.has(provider.id),
+            })),
           }
         }).pipe(Effect.provide(LocationServiceMap.Service.get(location(input)))),
       ),
@@ -371,6 +410,17 @@ export function createCoreDomain(
       if (unsubscribe) await Effect.runPromise(unsubscribe)
       await runtime.dispose()
     },
+  }
+}
+
+function pageFile(content: Uint8Array, offset: number, limit: number) {
+  const totalBytes = content.byteLength
+  const page = content.subarray(offset, Math.min(offset + limit, totalBytes))
+  if (page.includes(0)) return { binary: true as const, totalBytes }
+  try {
+    return { text: new TextDecoder("utf-8", { fatal: true }).decode(page), totalBytes, truncated: offset + page.byteLength < totalBytes }
+  } catch {
+    return { binary: true as const, totalBytes }
   }
 }
 

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { fireEvent, render, screen } from "@/test/test-utils"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { Composer } from "./composer"
-import { agents, models } from "@/mock/fixtures"
+import { agents, models } from "@/test/fixtures"
 
 const originalMatchMedia = window.matchMedia
 afterEach(() => {

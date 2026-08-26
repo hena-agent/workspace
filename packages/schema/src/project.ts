@@ -30,7 +30,7 @@ export interface Time extends Schema.Schema.Type<typeof Time> {}
 
 export const Info = Schema.Struct({
   id: ID,
-  worktree: Schema.String,
+  worktree: Schema.NullOr(Schema.String),
   vcs: optional(Vcs),
   name: optional(Schema.String),
   icon: optional(Icon),

@@ -27,7 +27,7 @@ import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
 import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "@hena/core/session/sql"
-import { hasWorktree, ProjectTable } from "@hena/core/project/sql"
+import { ProjectTable } from "@hena/core/project/sql"
 import { MessageV2 } from "./message-v2"
 import type { InstanceContext } from "../project/instance-context"
 import { InstanceState } from "@/effect/instance-state"
@@ -247,7 +247,7 @@ export type Info = Types.DeepMutable<Schema.Schema.Type<typeof Info>>
 export const ProjectInfo = Schema.Struct({
   id: ProjectV2.ID,
   name: optional(Schema.String),
-  worktree: Schema.String,
+  worktree: Schema.NullOr(Schema.String),
 }).annotate({ identifier: "ProjectSummary" })
 export type ProjectInfo = Types.DeepMutable<Schema.Schema.Type<typeof ProjectInfo>>
 
@@ -533,7 +533,9 @@ const layer: Layer.Layer<
         },
       }
       yield* Effect.logInfo("created", result)
+
       yield* events.publish(SessionV1.Event.Created, { sessionID: result.id, info: result })
+
       return result
     })
 
@@ -579,12 +581,10 @@ const layer: Layer.Layer<
         const items = yield* db
           .select({ id: ProjectTable.id, name: ProjectTable.name, worktree: ProjectTable.worktree })
           .from(ProjectTable)
-          .where(and(inArray(ProjectTable.id, ids), hasWorktree))
+          .where(inArray(ProjectTable.id, ids))
           .all()
           .pipe(Effect.orDie)
         for (const item of items) {
-          // The query enforces policy; this check narrows the nullable column.
-          if (!item.worktree) continue
           projects.set(item.id, {
             id: item.id,
             name: item.name ?? undefined,
@@ -592,7 +592,6 @@ const layer: Layer.Layer<
           })
         }
       }
-      // Sessions in a folderless project keep the legacy project: null rendering.
       return rows.map((row) => ({ ...fromRow(row), project: projects.get(row.project_id) ?? null }))
     })
 

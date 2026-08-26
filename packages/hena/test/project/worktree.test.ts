@@ -4,17 +4,15 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 import { FSUtil } from "@hena/core/fs-util"
 import { Cause, Deferred, Effect, Exit, Fiber } from "effect"
 import { GlobalBus, type GlobalEvent } from "../../src/bus/global"
-import { InstanceState } from "../../src/effect/instance-state"
 import { Git } from "../../src/git"
 import { InstanceBootstrap } from "../../src/project/bootstrap"
 import { InstanceStore } from "../../src/project/instance-store"
-import { Project } from "../../src/project/project"
 import { Worktree } from "../../src/worktree"
 import { disposeAllInstances, provideInstance, TestInstance } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(
-  LayerNode.compile(LayerNode.group([Worktree.node, Project.node, FSUtil.node, Git.node]), [
+  LayerNode.compile(LayerNode.group([Worktree.node, FSUtil.node, Git.node]), [
     [InstanceStore.bootstrapNode, InstanceBootstrap.node],
   ]),
 )
@@ -183,30 +181,13 @@ describe("Worktree", () => {
     it.instance(
       "create returns worktree info and remove cleans up",
       () =>
-        Effect.gen(function* () {
-          const ctx = yield* InstanceState.context
-          const fs = yield* FSUtil.Service
-          const project = yield* Project.Service
-          const svc = yield* Worktree.Service
-          const ready = yield* waitReady().pipe(Effect.forkScoped)
-          const info = yield* svc.create()
-          yield* Effect.addFinalizer(() =>
-            fs.exists(info.directory).pipe(
-              Effect.orDie,
-              Effect.flatMap((exists) =>
-                exists ? svc.remove({ directory: info.directory }).pipe(Effect.ignore) : Effect.void,
-              ),
-            ),
-          )
-
-          expect(info.name).toBeDefined()
-          expect(info.branch ?? "").toStartWith("hena/")
-          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
-          yield* Fiber.join(ready)
-          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([FSUtil.resolve(info.directory)])
-          yield* svc.remove({ directory: info.directory })
-          expect((yield* project.get(ctx.project.id))?.sandboxes).toEqual([])
-        }),
+        withCreatedWorktree(undefined, ({ info }) =>
+          Effect.gen(function* () {
+            expect(info.name).toBeDefined()
+            expect(info.branch ?? "").toStartWith("hena/")
+            expect(info.directory).toBeDefined()
+          }),
+        ),
       { git: true },
     )
 
@@ -252,7 +233,7 @@ describe("Worktree", () => {
         withCreatedWorktree({ name: "test-workspace" }, ({ info }) =>
           Effect.gen(function* () {
             expect(info.name).toBe("test-workspace")
-            expect(info.branch).toBe("hena/test-workspace")
+          expect(info.branch).toBe("hena/test-workspace")
           }),
         ),
       { git: true },

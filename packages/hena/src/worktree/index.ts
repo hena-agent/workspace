@@ -3,6 +3,9 @@ import { path } from "@hena/core/effect/app-node-platform"
 import { Global } from "@/global"
 import { InstanceStore } from "@/project/instance-store"
 import { Project } from "@/project/project"
+import { Database } from "@hena/core/database/database"
+import { eq } from "drizzle-orm"
+import { ProjectTable } from "@hena/core/project/sql"
 import type { ProjectV2 } from "@hena/core/project"
 import { Slug } from "@hena/core/util/slug"
 import { errorMessage } from "../util/error"
@@ -14,7 +17,6 @@ import { FSUtil } from "@hena/core/fs-util"
 import { AppProcess } from "@hena/core/process"
 import { InstanceState } from "@/effect/instance-state"
 import { WorktreeEvent } from "@hena/schema/worktree-event"
-import { AbsolutePath } from "@hena/core/schema"
 
 export const Event = WorktreeEvent
 
@@ -130,7 +132,13 @@ type GitResult = { code: number; text: string; stderr: string }
 const layer: Layer.Layer<
   Service,
   never,
-  FSUtil.Service | Path.Path | AppProcess.Service | Git.Service | Project.Service | InstanceStore.Service
+  | FSUtil.Service
+  | Path.Path
+  | AppProcess.Service
+  | Git.Service
+  | Project.Service
+  | InstanceStore.Service
+  | Database.Service
 > = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -138,6 +146,7 @@ const layer: Layer.Layer<
     const fs = yield* FSUtil.Service
     const pathSvc = yield* Path.Path
     const appProcess = yield* AppProcess.Service
+    const { db } = yield* Database.Service
     const gitSvc = yield* Git.Service
     const project = yield* Project.Service
     const store = yield* InstanceStore.Service
@@ -215,9 +224,8 @@ const layer: Layer.Layer<
           message: created.stderr || created.text || "Failed to create git worktree",
         })
       }
-      yield* project
-        .addSandbox(ctx.project.id, info.directory)
-        .pipe(Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("worktree sandbox failed", error)))
+
+      yield* project.addSandbox(ctx.project.id, info.directory).pipe(Effect.catch(() => Effect.void))
     })
 
     const boot = Effect.fnUntraced(function* (info: Info, startCommand?: string) {
@@ -333,7 +341,7 @@ const layer: Layer.Layer<
         return yield* new ListFailedError({ message: result.stderr || result.text || "Failed to read git worktrees" })
       }
 
-      const primary = yield* canonical(ctx.project.worktree)
+      const primary = yield* canonical(ctx.project.worktree ?? ctx.worktree)
       const primaryName = pathSvc.basename(primary).toLowerCase()
       return yield* Effect.forEach(parseWorktreeList(result.text), (entry) =>
         Effect.gen(function* () {
@@ -383,7 +391,6 @@ const layer: Layer.Layer<
         return yield* new NotGitError({ message: "Worktrees are only supported for git projects" })
       }
 
-      const sandbox = AbsolutePath.make(FSUtil.resolve(input.directory))
       const directory = yield* canonical(input.directory)
 
       // Preserve the loaded path casing for the store cache; `directory` is lowercased on Windows.
@@ -403,9 +410,6 @@ const layer: Layer.Layer<
           yield* stopFsmonitor(directory)
           yield* cleanDirectory(directory)
         }
-        yield* project
-          .removeSandbox(ctx.project.id, sandbox)
-          .pipe(Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("sandbox removal failed", error)))
         return true
       }
 
@@ -441,9 +445,6 @@ const layer: Layer.Layer<
         }
       }
 
-      yield* project
-        .removeSandbox(ctx.project.id, sandbox)
-        .pipe(Effect.catchTag("Project.NotFoundError", (error) => Effect.logWarning("sandbox removal failed", error)))
       return true
     })
 
@@ -481,8 +482,14 @@ const layer: Layer.Layer<
       directory: string,
       input: { projectID: ProjectV2.ID; extra?: string },
     ) {
-      const info = yield* project.get(input.projectID)
-      const startup = info?.commands?.start?.trim() ?? ""
+      const row = yield* db
+        .select()
+        .from(ProjectTable)
+        .where(eq(ProjectTable.id, input.projectID))
+        .get()
+        .pipe(Effect.orDie)
+      const project = row ? Project.fromRow(row) : undefined
+      const startup = project?.commands?.start?.trim() ?? ""
       const ok = yield* runStartScript(directory, startup, "project")
       if (!ok) return false
       yield* runStartScript(directory, input.extra ?? "", "worktree")
@@ -610,7 +617,7 @@ const layer: Layer.Layer<
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [FSUtil.node, path, AppProcess.node, Git.node, Project.node, InstanceStore.node],
+  deps: [FSUtil.node, path, AppProcess.node, Git.node, Project.node, InstanceStore.node, Database.node],
 })
 
 export * as Worktree from "."

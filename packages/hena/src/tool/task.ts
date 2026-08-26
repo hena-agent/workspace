@@ -96,7 +96,9 @@ export const TaskTool = Tool.define(
       const cfg = yield* config.get()
       const runInBackground = params.background === true
       if (runInBackground && !flags.experimentalBackgroundSubagents) {
-        return yield* Effect.fail(new Error("Background subagents require HENA_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true"))
+        return yield* Effect.fail(
+          new Error("Background subagents require HENA_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true"),
+        )
       }
 
       const parent = yield* sessions.get(ctx.sessionID)
@@ -168,6 +170,7 @@ export const TaskTool = Tool.define(
             ),
           ],
         }))
+
       const msg = yield* MessageV2.get({ sessionID: ctx.sessionID, messageID: ctx.messageID }).pipe(
         Effect.provideService(Database.Service, database),
         Effect.orDie,

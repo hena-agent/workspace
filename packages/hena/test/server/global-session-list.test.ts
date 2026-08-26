@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { SessionProjector } from "@hena/core/session/projector"
-import { Deferred, Effect } from "effect"
+import { Deferred, Effect, Layer } from "effect"
 import { Project } from "@/project/project"
 import { Session as SessionNs } from "@/session/session"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
@@ -24,7 +24,7 @@ const withSession = (input?: Parameters<SessionNs.Interface["create"]>[0]) =>
 
 describe("session.listGlobal", () => {
   it.instance(
-    "renders rooted project metadata and folderless projects as null",
+    "lists rooted and folderless project metadata",
     () =>
       Effect.gen(function* () {
         const first = yield* TestInstance
@@ -44,13 +44,24 @@ describe("session.listGlobal", () => {
           .pipe(Effect.orDie)
 
         const sessions = yield* SessionNs.Service.use((session) => session.listGlobal({ limit: 200 }))
+        const ids = sessions.map((session) => session.id)
+
+        expect(ids).toContain(firstSession.id)
+        expect(ids).toContain(secondSession.id)
+
+        const firstProject = yield* Project.use.get(firstSession.projectID)
+        const secondProject = yield* Project.use.get(secondSession.projectID)
+
         const firstItem = sessions.find((session) => session.id === firstSession.id)
         const secondItem = sessions.find((session) => session.id === secondSession.id)
         const thirdItem = sessions.find((session) => session.id === thirdSession.id)
 
-        expect(firstItem?.project).toMatchObject({ id: firstSession.projectID, worktree: first.directory })
-        expect(secondItem?.project).toMatchObject({ id: secondSession.projectID, worktree: second })
-        expect(thirdItem?.project).toBeNull()
+        expect(firstItem?.project?.id).toBe(firstProject?.id)
+        expect(firstItem?.project?.worktree).toBe(firstProject?.worktree)
+        expect(secondItem?.project?.id).toBe(secondProject?.id)
+        expect(secondItem?.project?.worktree).toBe(secondProject?.worktree)
+        expect(thirdItem?.project).toMatchObject({ id: thirdSession.projectID, worktree: null })
+        expect(first.directory).not.toBe(second)
       }),
     { git: true },
   )

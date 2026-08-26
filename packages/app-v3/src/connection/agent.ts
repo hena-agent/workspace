@@ -396,9 +396,8 @@ async function loadDecoders() {
 }
 
 async function getJson(response: Response) {
-  const value = await response.json() as unknown
   if (!response.ok) throw new Error(`Request failed with ${response.status}`)
-  return value
+  return await response.json() as unknown
 }
 
 function scopeIdentity(scope: ScopeRef) {

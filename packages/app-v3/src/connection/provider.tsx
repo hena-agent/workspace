@@ -1,11 +1,12 @@
-import { createContext, use, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
+import { createContext, use, useEffect, useEffectEvent, useState, useSyncExternalStore, type ReactNode } from "react"
 import { encodeServerSlug, normalizeServerUrl } from "@/lib/server-url"
 import type { Connection } from "@/lib/types"
 import { createConnectionAgent, type ConnectionAgent, type Fetcher } from "./agent"
 import { probeServer, type ProbeResult } from "./probe"
 import { createConnectionRegistry, type ConnectionRecord, type SlugResolution } from "./registry"
 
-type FocusedAgent = { url: string; agent: ConnectionAgent; unsubscribe: () => void }
+type FocusedAgent = { url: string; agent: ConnectionAgent }
+const emptyFocusedAgentSnapshot = { focused: undefined as FocusedAgent | undefined, version: 0 }
 export type AddServerResult = { connection?: Connection; probe: ProbeResult }
 type ConnectionContextValue = {
   connections: Connection[]
@@ -18,6 +19,7 @@ type ConnectionContextValue = {
   diagnoseServer: (url: string) => Promise<ProbeResult>
   probeConnections: () => Promise<void>
   agent: (slug: string | undefined) => ConnectionAgent | undefined
+  focusAgent: (slug: string | undefined) => void
 }
 
 const ConnectionContext = createContext<ConnectionContextValue | undefined>(undefined)
@@ -25,37 +27,21 @@ const ConnectionContext = createContext<ConnectionContextValue | undefined>(unde
 export function ConnectionProvider({ children, embeddedOrigin, fetcher = fetch }: { children: ReactNode; embeddedOrigin?: string; fetcher?: Fetcher }) {
   const profileOrigin = window.location.origin
   const ownUrl = embeddedOrigin ? normalizeServerUrl(embeddedOrigin) : import.meta.env.DEV ? profileOrigin : undefined
-  const registry = useRef(createConnectionRegistry({ ownUrl })).current
-  const focused = useRef<FocusedAgent | undefined>(undefined)
+  const [registry] = useState(() => createConnectionRegistry({ ownUrl }))
+  const [agentManager] = useState(createFocusedAgentManager)
+  const focused = useSyncExternalStore(agentManager.subscribe, agentManager.getSnapshot, agentManager.getServerSnapshot).focused
   const [probes, setProbes] = useState<Record<string, ProbeResult>>({})
   const [, rerender] = useState(0)
-  const records = registry.list()
-
-  useEffect(() => {
-    void probeConnections()
-    const onFocus = () => void probeConnections()
-    window.addEventListener("focus", onFocus)
-    return () => {
-      window.removeEventListener("focus", onFocus)
-      focused.current?.unsubscribe()
-      focused.current?.agent.dispose()
-    }
-  }, [])
 
   function agent(slug: string | undefined) {
     const resolution = registry.resolveSlug(slug)
     if (resolution.kind !== "registered") return
-    if (focused.current?.url === resolution.url) return focused.current.agent
-    focused.current?.unsubscribe()
-    focused.current?.agent.dispose()
-    const created = createConnectionAgent(resolution.url, fetcher)
-    focused.current = {
-      url: resolution.url,
-      agent: created,
-      unsubscribe: created.subscribe(() => rerender((version) => version + 1)),
-    }
-    queueMicrotask(() => void created.start())
-    return created
+    if (focused?.url === resolution.url) return focused.agent
+  }
+
+  function focusAgent(slug: string | undefined) {
+    const resolution = registry.resolveSlug(slug)
+    agentManager.focus(resolution.kind === "registered" ? resolution.url : undefined, fetcher)
   }
 
   async function diagnose(input: string) {
@@ -74,31 +60,39 @@ export function ConnectionProvider({ children, embeddedOrigin, fetcher = fetch }
     if (!record) return { probe: { ...probe, status: "invalid", message: "This profile has reached its server limit." } }
     setProbes((current) => ({ ...current, [record.url]: probe }))
     rerender((version) => version + 1)
-    return { connection: connection(record, focused.current, probe, ownUrl), probe }
+    return { connection: connection(record, focused, probe, ownUrl), probe }
   }
 
   async function probeConnections() {
     await Promise.all(registry.list().flatMap(async (record) => {
-      if (record.url === focused.current?.url) return []
+      if (record.url === focused?.url) return []
       const probe = await diagnose(record.url)
       setProbes((current) => ({ ...current, [record.url]: probe }))
       return [probe]
     }))
   }
 
+  const probeOnFocus = useEffectEvent(probeConnections)
+
+  useEffect(() => () => agentManager.dispose(), [agentManager])
+
+  useEffect(() => {
+    void probeOnFocus()
+    const onFocus = () => void probeOnFocus()
+    window.addEventListener("focus", onFocus)
+    return () => window.removeEventListener("focus", onFocus)
+  }, [])
+
+  const records = registry.list()
+
   const value: ConnectionContextValue = {
-    connections: records.map((record) => connection(record, focused.current, probes[record.url], ownUrl)),
+    connections: records.map((record) => connection(record, focused, probes[record.url], ownUrl)),
     profileOrigin,
     addServer,
     removeServer: (url) => {
       const removed = registry.remove(url)
       if (!removed) return false
-      if (focused.current?.url === url) {
-        const removedAgent = focused.current
-        focused.current = undefined
-        removedAgent.unsubscribe()
-        setTimeout(() => removedAgent.agent.dispose(), 10_000)
-      }
+      if (focused?.url === url) agentManager.focus(undefined, fetcher)
       setProbes((current) => Object.fromEntries(Object.entries(current).filter(([key]) => key !== url)))
       rerender((version) => version + 1)
       return true
@@ -107,13 +101,14 @@ export function ConnectionProvider({ children, embeddedOrigin, fetcher = fetch }
     getServerBySlug: (slug) => {
       const resolution = registry.resolveSlug(slug)
       return resolution.kind === "registered"
-        ? connection(resolution.connection, focused.current, probes[resolution.url], ownUrl)
+        ? connection(resolution.connection, focused, probes[resolution.url], ownUrl)
         : undefined
     },
     getSlug: (server) => encodeServerSlug(server.url),
     diagnoseServer: diagnose,
     probeConnections,
     agent,
+    focusAgent,
   }
 
   return <ConnectionContext value={value}>{children}</ConnectionContext>
@@ -128,11 +123,7 @@ export function useServers() {
 export function useConnectionAgent(slug: string | undefined): ConnectionAgent | undefined {
   const context = useServers()
   const current = context.agent(slug)
-  useSyncExternalStore(
-    current ? current.subscribe : emptySubscribe,
-    () => `${current?.status ?? "idle"}:${current?.lastSyncAt ?? 0}`,
-    () => "idle:0",
-  )
+  useEffect(() => context.focusAgent(slug), [context.focusAgent, slug])
   return current
 }
 
@@ -165,6 +156,52 @@ function connection(record: ConnectionRecord, focused: FocusedAgent | undefined,
   }
 }
 
-function emptySubscribe() {
-  return () => {}
+function createFocusedAgentManager() {
+  const listeners = new Set<() => void>()
+  let currentFetcher: Fetcher | undefined
+  let unsubscribe = () => {}
+  let snapshot = { focused: undefined as FocusedAgent | undefined, version: 0 }
+
+  function publish(focused = snapshot.focused) {
+    snapshot = { focused, version: snapshot.version + 1 }
+    listeners.forEach((listener) => listener())
+  }
+
+  function release() {
+    unsubscribe()
+    unsubscribe = () => {}
+    snapshot.focused?.agent.dispose()
+  }
+
+  return {
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    getSnapshot() {
+      return snapshot
+    },
+    getServerSnapshot() {
+      return emptyFocusedAgentSnapshot
+    },
+    focus(url: string | undefined, fetcher: Fetcher) {
+      if (!url && !snapshot.focused) return
+      if (snapshot.focused?.url === url && currentFetcher === fetcher) return
+      release()
+      currentFetcher = url ? fetcher : undefined
+      if (!url) {
+        publish(undefined)
+        return
+      }
+      const agent = createConnectionAgent(url, fetcher)
+      const focused = { url, agent }
+      unsubscribe = agent.subscribe(() => publish(focused))
+      publish(focused)
+      void agent.start()
+    },
+    dispose() {
+      release()
+      listeners.clear()
+    },
+  }
 }

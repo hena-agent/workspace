@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { createApp } from "../src/app"
+import { realpath } from "node:fs/promises"
+import { homedir } from "node:os"
 import type { CoreDomain } from "../src/core/domain"
 import type { SyncDatabase } from "../src/storage/database"
 import { createTestDatabase } from "./fixture"
@@ -19,6 +21,25 @@ describe("filesystem reads", () => {
     expect(response.status).toBe(200)
     expect(domain.finds).toEqual([{ directory: "/tmp/project", query: "src", type: "file", limit: 20 }])
     expect(await response.json()).toEqual({ data: [{ path: "src/main.ts", type: "file" }] })
+  })
+
+  test("resolves a home-relative directory on the server", async () => {
+    database = createTestDatabase().database
+    const response = await createApp({ database, domain: fileDomain() }).request("/api/fs/resolve?path=~%2F")
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ directory: await realpath(homedir()) })
+  })
+
+  test("rejects relative and missing directories", async () => {
+    database = createTestDatabase().database
+    const app = createApp({ database, domain: fileDomain() })
+    const responses = await Promise.all([
+      app.request("/api/fs/resolve?path=relative"),
+      app.request("/api/fs/resolve?path=%2Fdefinitely%2Fmissing%2Fhena-project"),
+    ])
+
+    expect(responses.map((response) => response.status)).toEqual([400, 404])
   })
 
   test("bounds directory listings", async () => {
@@ -138,6 +159,7 @@ function fileDomain(): CoreDomain & { finds: unknown[]; lists: unknown[]; reads:
     ready: async () => {},
     createSession: unavailable,
     admitPrompt: unavailable,
+    archiveSession: unavailable,
     interrupt: unavailable,
     cancelInput: unavailable,
     reorderInputs: unavailable,

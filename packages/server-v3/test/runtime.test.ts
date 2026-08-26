@@ -11,6 +11,23 @@ import { createOnlineRequestStore } from "../src/core/online-requests"
 import { createSyncDatabase } from "../src/storage/database"
 
 describe("core runtime", () => {
+  test("projects only available models and reports provider connection state", async () => {
+    const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
+    const domain = createCoreDomain(undefined, undefined, undefined, filename)
+    await domain.ready()
+
+    try {
+      const catalog = await domain.catalog({ directory: process.cwd() })
+      const providers = new Map(catalog.providers.map((provider) => [provider.id, provider]))
+      expect(catalog.models.length).toBeGreaterThan(0)
+      expect(catalog.models.every((model) => model.enabled && providers.get(model.providerID)?.connected)).toBe(true)
+      expect(catalog.providers.some((provider) => provider.connected)).toBe(true)
+    } finally {
+      await domain.dispose()
+      await Bun.file(filename).delete()
+    }
+  })
+
   test("encodes mutation timestamps as epoch milliseconds", async () => {
     const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
     const bootstrap = createCoreDomain(undefined, undefined, undefined, filename)
@@ -46,6 +63,44 @@ describe("core runtime", () => {
       expect(created.session).toMatchObject({ agent: "build", model: { id: "alpha", providerID: "opencode-go" } })
       expect(typeof created.admitted.timeCreated).toBe("number")
       expect(typeof admitted.admitted.timeCreated).toBe("number")
+    } finally {
+      await domain.dispose()
+      await Bun.file(filename).delete()
+    }
+  })
+
+  test("archives sessions in storage and the synchronized collection", async () => {
+    const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
+    const bootstrap = createCoreDomain(undefined, undefined, undefined, filename)
+    await bootstrap.ready()
+    await bootstrap.dispose()
+    createSyncDatabase(new Database(filename, { create: true })).close()
+    const domain = createCoreDomain(undefined, undefined, undefined, filename)
+    await domain.ready()
+    const sessionID = Session.ID.create()
+
+    try {
+      await domain.createSession({
+        idempotencyKey: crypto.randomUUID(),
+        sessionID,
+        messageID: SessionMessage.ID.create(),
+        location: Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() }),
+        prompt: { text: "archive me" },
+        delivery: "queue",
+      })
+      const result = await domain.archiveSession(sessionID, { idempotencyKey: crypto.randomUUID() })
+      const database = new Database(filename)
+      const stored = database.query<{ time_archived: number | null }, [string]>(
+        "SELECT time_archived FROM session WHERE id = ?",
+      ).get(sessionID)
+      const projected = database.query<{ archived: number | null }, [string]>(
+        "SELECT json_extract(row, '$.time.archived') AS archived FROM collection_row WHERE collection = 'sessions' AND row_key = ?",
+      ).get(sessionID)
+      database.close()
+
+      expect(result.receipt.affectedScopes).toContainEqual({ collection: "sessions", scopeKey: "" })
+      expect(stored?.time_archived).toBeNumber()
+      expect(projected?.archived).toBe(stored?.time_archived)
     } finally {
       await domain.dispose()
       await Bun.file(filename).delete()

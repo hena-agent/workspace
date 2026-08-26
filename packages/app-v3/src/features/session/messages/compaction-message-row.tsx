@@ -1,14 +1,18 @@
 import type { CompactionMessage } from "@/lib/types"
+import { Marker, MarkerContent } from "@/components/ui/marker"
 
 export function CompactionMessageRow({ message }: { message: CompactionMessage }) {
   return (
-    <div
+    <Marker
+      variant="border"
       data-role="compaction"
-      className="mx-4 my-2 rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground md:mx-5"
+      className="my-2 px-6 pb-2 text-xs md:px-7"
     >
-      <span className="font-medium text-foreground">Compacted history · </span>
-      {message.summary}
-      {!message.final ? <span className="ml-1 italic">summarizing…</span> : null}
-    </div>
+      <MarkerContent>
+        <span className="font-medium text-foreground">Compacted history · </span>
+        {message.summary}
+        {!message.final ? <span className="ml-1 italic">summarizing…</span> : null}
+      </MarkerContent>
+    </Marker>
   )
 }

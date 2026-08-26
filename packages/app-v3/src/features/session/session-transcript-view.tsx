@@ -71,7 +71,12 @@ export function SessionTranscriptView({
 }) {
   return (
     <div className="flex h-full w-full min-w-0 flex-col">
-      <SessionTranscriptHeader session={session} onShare={onShare} onFork={onFork} onArchive={onArchive} />
+      <SessionTranscriptHeader
+        session={session}
+        onShare={onShare}
+        onFork={onFork}
+        onArchive={onArchive}
+      />
       <MessageList messages={messages} working={session.status === "working"} />
       <div className="flex flex-col gap-2 border-t p-3">
         <TodoDock todos={todos} />

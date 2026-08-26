@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { SessionTranscriptView } from "@/features/session/session-transcript-view"
-import { SessionNavigation } from "@/features/session/session-navigation"
+import { SessionFilesPanel, useSessionFiles } from "@/features/session/session-files-panel"
 import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
 import { loadFileMatches, useCatalog, useCollectionReady, useMessages, usePendingRequest, usePermission, useQuestion, useQueuedInputs, useSession, useSessionLocation, useSettings, useTodos } from "@/data/queries"
@@ -32,6 +32,7 @@ function SessionTranscriptRoute() {
   const questionWire = usePendingRequest(agent, "questions", sessionId)
   const queue = useQueuedInputs(agent, sessionId)
   const sessionsReady = useCollectionReady(agent, "sessions")
+  const sessionFiles = useSessionFiles()
   const [agentId, setAgentId] = useState("")
   const [modelId, setModelId] = useState("")
   const [mutationNotice, setMutationNotice] = useState("")
@@ -59,34 +60,34 @@ function SessionTranscriptRoute() {
   }
 
   return (
-    <div className="flex h-full w-full min-w-0 flex-col">
-      <SessionNavigation connectionId={connectionId} projectId={projectId} sessionId={sessionId} />
-      <SessionTranscriptView
-      session={session}
-      messages={messages}
-      todos={todos}
-      permissionRequest={permission}
-      questionRequest={question}
-      agents={catalog.agents}
-      models={catalog.models}
-      agentId={selectedAgentId}
-      modelId={selectedModelId}
-      onChangeAgent={setAgentId}
-      onChangeModel={setModelId}
-      draft={draft}
-      onDraftChange={(value) => {
-        if (agent) saveDraft(agent.url, draftKey, `/${connectionId}/${projectId}/session/${sessionId}`, value)
-      }}
-      onFindFiles={(query, signal) => {
-        if (!agent || !location) return Promise.resolve([])
-        return queryClient.fetchQuery({
-          queryKey: [agent.url, "fs.find", location.directory, location.workspaceID, query],
-          queryFn: () => loadFileMatches(agent, location, query, signal),
-        })
-      }}
-      stopping={isSessionStopping(agent, sessionId)}
-      mutationNotice={mutationNotice}
-      onSend={(text, files) => {
+    <div className="flex h-full w-full min-w-0">
+      <div className="min-w-0 flex-1">
+        <SessionTranscriptView
+          session={session}
+          messages={messages}
+          todos={todos}
+          permissionRequest={permission}
+          questionRequest={question}
+          agents={catalog.agents}
+          models={catalog.models}
+          agentId={selectedAgentId}
+          modelId={selectedModelId}
+          onChangeAgent={setAgentId}
+          onChangeModel={setModelId}
+          draft={draft}
+          onDraftChange={(value) => {
+            if (agent) saveDraft(agent.url, draftKey, `/${connectionId}/${projectId}/session/${sessionId}`, value)
+          }}
+          onFindFiles={(query, signal) => {
+            if (!agent || !location) return Promise.resolve([])
+            return queryClient.fetchQuery({
+              queryKey: [agent.url, "fs.find", location.directory, location.workspaceID, query],
+              queryFn: () => loadFileMatches(agent, location, query, signal),
+            })
+          }}
+          stopping={isSessionStopping(agent, sessionId)}
+          mutationNotice={mutationNotice}
+          onSend={(text, files) => {
         if (!agent) return Promise.reject(new Error("Server is unavailable"))
         const result = admitPromptOptimistically(agent, {
           sessionID: sessionId,
@@ -97,8 +98,8 @@ function SessionTranscriptRoute() {
           model: selectedModel(catalog.models, selectedModelId),
         }).transaction.isPersisted.promise
         return result.then(() => removeDraft(agent.url, draftKey))
-      }}
-      onQueue={(text, files) => {
+          }}
+          onQueue={(text, files) => {
         if (!agent) return Promise.reject(new Error("Server is unavailable"))
         const result = admitPromptOptimistically(agent, {
           sessionID: sessionId,
@@ -109,17 +110,17 @@ function SessionTranscriptRoute() {
           model: selectedModel(catalog.models, selectedModelId),
         }).transaction.isPersisted.promise
         return result.then(() => removeDraft(agent.url, draftKey))
-      }}
-      queuedInputs={queue.items}
-      onCancelInput={(messageID) => {
+          }}
+          queuedInputs={queue.items}
+          onCancelInput={(messageID) => {
         if (!agent) return
         setMutationNotice("")
         return cancelInputOptimistically(agent, { sessionID: sessionId, messageID, expectedRevision: queue.revision })
           .catch((cause) => {
             setMutationNotice(cause instanceof Error ? `Queue restored: ${cause.message}` : "Queue restored after a conflict.")
           })
-      }}
-      onMoveInput={(messageID, direction) => {
+          }}
+          onMoveInput={(messageID, direction) => {
         if (!agent) return
         const index = queue.items.findIndex((item) => item.id === messageID)
         const target = index + direction
@@ -131,18 +132,18 @@ function SessionTranscriptRoute() {
           .catch((cause) => {
             setMutationNotice(cause instanceof Error ? `Queue order restored: ${cause.message}` : "Queue order restored after a conflict.")
           })
-      }}
-      onStop={() => {
+          }}
+          onStop={() => {
         if (!agent) return
         setMutationNotice("")
         return interruptOptimistically(agent, sessionId).catch((cause) => {
           setMutationNotice(cause instanceof Error ? cause.message : "The session could not be stopped.")
         })
-      }}
-      onDenyPermission={() => replyPermission("reject")}
-      onAllowPermissionOnce={() => replyPermission("once")}
-      onAllowPermissionAlways={() => replyPermission("always")}
-      onAnswerQuestion={(choiceId) => {
+          }}
+          onDenyPermission={() => replyPermission("reject")}
+          onAllowPermissionOnce={() => replyPermission("once")}
+          onAllowPermissionAlways={() => replyPermission("always")}
+          onAnswerQuestion={(choiceId) => {
         if (!agent || !location || !questionWire || typeof questionWire.id !== "string" || typeof questionWire.nonce !== "string") return
         const label = question?.choices.find((choice) => choice.id === choiceId)?.label
         if (!label) return
@@ -154,8 +155,10 @@ function SessionTranscriptRoute() {
           }).catch((cause) => {
             setMutationNotice(cause instanceof Error ? cause.message : "The answer could not be saved.")
           })
-      }}
-      />
+          }}
+        />
+      </div>
+      {sessionFiles.open ? <SessionFilesPanel connectionId={connectionId} sessionId={sessionId} /> : null}
     </div>
   )
 

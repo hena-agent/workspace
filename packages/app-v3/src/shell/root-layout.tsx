@@ -1,14 +1,18 @@
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react"
 import { Outlet, useLocation, useNavigate, useParams } from "@tanstack/react-router"
+import { PanelRightClose, PanelRightOpen } from "lucide-react"
 import { CommandPalette } from "@/features/command-palette/command-palette"
 import { useConnectionAgent, useServers } from "@/connection/provider"
 import type { ProbeResult } from "@/connection/probe"
 import { ConnectionStateBanner } from "@/connection/route-state"
 import { Button } from "@/components/ui/button"
+import { AddProjectModal } from "@/features/project/add-project-modal"
+import { SessionFilesProvider, useSessionFiles } from "@/features/session/session-files-panel"
 import { ServerSelectionModal } from "@/features/server/server-selection-modal"
 import { decodeServerSlug } from "@/lib/server-url"
 import type { Project } from "@/lib/types"
 import { projectNotification, useProject, useProjects, useSessions } from "@/data/queries"
+import { archiveSessionOptimistically } from "@/mutations/session"
 import { AppShell } from "./app-shell"
 
 const DRAFT_INSTANCE_ID = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) => value.toString(36)).join(
@@ -18,7 +22,7 @@ const DRAFT_INSTANCE_ID = Array.from(crypto.getRandomValues(new Uint32Array(4)),
 export function RootLayout() {
   const pathname = useLocation({ select: (location) => location.pathname })
   if (pathname === "/connect") return <Outlet />
-  return <ConnectionGate><ShellLayout /></ConnectionGate>
+  return <SessionFilesProvider><ConnectionGate><ShellLayout /></ConnectionGate></SessionFilesProvider>
 }
 
 function ConnectionGate({ children }: { children: ReactNode }) {
@@ -78,15 +82,19 @@ function ConnectionGateState({ title, detail, action }: { title: string; detail:
 
 function ShellLayout() {
   const navigate = useNavigate()
+  const search = useLocation({ select: (location) => location.search })
   const params = useParams({ strict: false }) as {
     connectionId?: string
     projectId?: string
     sessionId?: string
+    draftId?: string
   }
   const servers = useServers()
   const agent = useConnectionAgent(params.connectionId)
   const connection = servers.getServerBySlug(params.connectionId)
+  const sessionFiles = useSessionFiles()
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [addProjectOpen, setAddProjectOpen] = useState(false)
   const [now] = useState(Date.now)
   const draftSequence = useRef(0)
 
@@ -101,17 +109,63 @@ function ShellLayout() {
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [])
 
-  const projects = useProjects(agent).map((project) => ({ ...project, connectionId: connection?.url ?? "" }))
-  const project = useProject(agent, params.projectId)
+  const syncedProjects = useProjects(agent)
+  const draftDirectory = !params.projectId && params.draftId && typeof search.directory === "string"
+    ? search.directory
+    : undefined
+  const draftProject = draftDirectory && connection
+    ? {
+        id: `draft:${params.draftId}`,
+        connectionId: connection.url,
+        name: draftDirectory.split(/[\\/]/).filter(Boolean).at(-1) || draftDirectory,
+        path: draftDirectory,
+        updatedAt: now,
+      }
+    : undefined
+  const projects = draftProject ? [...syncedProjects, draftProject] : syncedProjects
+  const project = useProject(agent, params.projectId) ?? draftProject
   const serverSessions = useSessions(agent)
   const projectSessions = serverSessions.filter((session) => session.projectId === project?.id)
 
   function goToProject(target: Project) {
+    if (target.id === draftProject?.id) return
     const server = servers.connections.find((candidate) => candidate.url === target.connectionId)
     if (!server) return
     void navigate({
       to: "/$connectionId/$projectId",
       params: { connectionId: servers.getSlug(server), projectId: target.id },
+    })
+  }
+
+  async function startNewProject(input: string) {
+    if (!params.connectionId || !agent) throw new Error("The server is unavailable.")
+    const response = await agent.client.api.fs.resolve.$get({ query: { path: input } })
+    const result = await response.json()
+    if (!response.ok) {
+      const message = "error" in result && "message" in result.error && typeof result.error.message === "string"
+        ? result.error.message
+        : "The directory could not be opened."
+      throw new Error(message)
+    }
+    if (!("directory" in result) || typeof result.directory !== "string")
+      throw new Error("The server returned an invalid directory.")
+    draftSequence.current += 1
+    const existing = syncedProjects.find((candidate) => candidate.path === result.directory)
+    if (existing) {
+      await navigate({
+        to: "/$connectionId/$projectId/new/$draftId",
+        params: {
+          connectionId: params.connectionId,
+          projectId: existing.id,
+          draftId: `draft-${DRAFT_INSTANCE_ID}-${draftSequence.current}`,
+        },
+      })
+      return
+    }
+    await navigate({
+      to: "/$connectionId/new/$draftId",
+      params: { connectionId: params.connectionId, draftId: `draft-${DRAFT_INSTANCE_ID}-${draftSequence.current}` },
+      search: { directory: result.directory },
     })
   }
 
@@ -133,7 +187,7 @@ function ShellLayout() {
         })),
         selectedProject: project,
         onSelectProject: goToProject,
-        onAddProject: () => {},
+        onAddProject: () => setAddProjectOpen(true),
         onOpenSettings: () => {
           if (!params.connectionId) return
           void navigate({
@@ -152,6 +206,15 @@ function ShellLayout() {
           void navigate({
             to: "/$connectionId/$projectId/session/$sessionId",
             params: { connectionId: params.connectionId, projectId: params.projectId, sessionId: id },
+          })
+        },
+        onArchiveSession: (id) => {
+          if (!agent) return
+          void archiveSessionOptimistically(agent, id).catch(() => {})
+          if (params.sessionId !== id || !params.connectionId || !params.projectId) return
+          void navigate({
+            to: "/$connectionId/$projectId",
+            params: { connectionId: params.connectionId, projectId: params.projectId },
           })
         },
         onNewSession: () => {
@@ -174,19 +237,33 @@ function ShellLayout() {
         },
       }}
       titlebarActions={
-        <ServerSelectionModal
-          current={connection}
-          pendingUrl={connection ? undefined : decodeServerSlug(params.connectionId ?? "")}
-          onSelect={(server) => {
-            const connectionId = servers.getSlug(server)
-            if (params.connectionId === connectionId) return
-            void navigate({ to: "/$connectionId", params: { connectionId } })
-          }}
-        />
+        <>
+          <ServerSelectionModal
+            current={connection}
+            pendingUrl={connection ? undefined : decodeServerSlug(params.connectionId ?? "")}
+            onSelect={(server) => {
+              const connectionId = servers.getSlug(server)
+              if (params.connectionId === connectionId) return
+              void navigate({ to: "/$connectionId", params: { connectionId } })
+            }}
+          />
+          {params.sessionId ? <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Toggle file tree"
+            aria-expanded={sessionFiles.open}
+            aria-controls="file-tree-panel"
+            onClick={() => sessionFiles.setOpen(!sessionFiles.open)}
+            className="legacy-titlebar-button hidden md:inline-flex"
+          >
+            {sessionFiles.open ? <PanelRightClose /> : <PanelRightOpen />}
+          </Button> : null}
+        </>
       }
     >
       <ConnectionStateBanner agent={agent} />
       <Outlet />
+      <AddProjectModal open={addProjectOpen} onOpenChange={setAddProjectOpen} onSubmit={startNewProject} />
       <CommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}

@@ -260,6 +260,7 @@ describe("collection bootstrap", () => {
           {
             id: "provider-1",
             name: "Provider",
+            connected: true,
             api: {},
             request: { headers: { Authorization: "secret" }, body: { apiKey: "secret" } },
           } as never,
@@ -277,6 +278,7 @@ describe("collection bootstrap", () => {
     ]
     expect(rows).toHaveLength(3)
     expect(JSON.stringify(rows)).not.toContain("secret")
+    expect(online.snapshot("providers", '{"directory":"/repo"}').rows[0]?.row).toMatchObject({ connected: true })
     expect(database.changes.current()).toBe(0)
   })
 

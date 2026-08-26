@@ -9,6 +9,7 @@ import {
 } from "react"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { loadSidebarOpen, saveSidebarOpen } from "@/local-state/sidebar"
 import type { Project } from "@/lib/types"
 import { MobileNavDrawer } from "./mobile-nav-drawer"
 import { Rail } from "./rail"
@@ -39,9 +40,10 @@ export function AppShell({
   const projectKey = sidebarPanel.project
     ? `${sidebarPanel.project.connectionId}:${sidebarPanel.project.id}`
     : undefined
+  const defaultSidebarOpen = () => loadSidebarOpen() ?? Boolean(sidebarPanel.project)
   const [sidebarState, setSidebarState] = useState(() => ({
     projectKey,
-    open: Boolean(sidebarPanel.project),
+    open: defaultSidebarOpen(),
   }))
   const [mobileNavOpen, setMobileNavOpen] = useState(() => Boolean(window.history.state?.henaMobileNavigation))
   const [panelWidth, setPanelWidth] = useState(280)
@@ -51,6 +53,9 @@ export function AppShell({
   const mobileNavRef = useRef<HTMLElement>(null)
   const mainRef = useRef<HTMLElement>(null)
   const pendingMobileNavActionRef = useRef<(() => void) | null>(null)
+  // Only a fresh mount (e.g. a page refresh, same project) should restore the saved
+  // preference. Switching to a *different* project while already mounted keeps the existing
+  // "default to open" behavior below, matching `selectProject`'s explicit open-on-switch.
   if (sidebarState.projectKey !== projectKey) {
     setSidebarState({ projectKey, open: Boolean(sidebarPanel.project) })
   }
@@ -83,7 +88,7 @@ export function AppShell({
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b") return
       event.preventDefault()
       if (isDesktop) {
-        setSidebarState({ projectKey, open: !sidebarOpen })
+        toggleSidebar()
         return
       }
       if (mobileNavOpen) {
@@ -170,7 +175,9 @@ export function AppShell({
   }
 
   function toggleSidebar() {
-    setSidebarState({ projectKey, open: !sidebarOpen })
+    const open = !sidebarOpen
+    saveSidebarOpen(open)
+    setSidebarState({ projectKey, open })
   }
 
   function selectProject(project: Project) {

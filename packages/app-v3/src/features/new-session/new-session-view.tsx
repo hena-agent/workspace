@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { Composer } from "@/features/session/composer/composer"
-import type { Agent, Model, Project } from "@/lib/types"
+import type { Agent, Model } from "@/lib/types"
 import type { DraftBody } from "@/local-state/drafts"
 
 export function NewSessionView({
@@ -15,7 +15,7 @@ export function NewSessionView({
   onDraftChange,
   onFindFiles,
 }: {
-  project: Project
+  project: { name: string; path: string }
   agents: Agent[]
   models: Model[]
   onStart: (params: { text: string; files?: { uri: string; name?: string }[]; agentId: string; modelId: string; delivery: "send" | "queue" }) => unknown

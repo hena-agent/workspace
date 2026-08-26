@@ -20,6 +20,7 @@ afterEach(() => {
   window.matchMedia = originalMatchMedia
   window.history.back = originalHistoryBack
   Object.defineProperty(window, "innerWidth", { configurable: true, value: originalInnerWidth })
+  localStorage.removeItem("hena.sidebar.v1")
 })
 
 function noop() {}
@@ -144,6 +145,27 @@ describe("AppShell", () => {
       </AppShell>,
     )
     expect(screen.getByRole("navigation", { name: "Sessions" })).toBeInTheDocument()
+  })
+
+  test("the sidebar toggle survives a fresh mount of the same project", async () => {
+    mockMatchMedia(true)
+    const user = userEvent.setup()
+    const view = renderWithProviders(
+      <AppShell rail={rail} sidebarPanel={sidebarPanel}>
+        <div>Page content</div>
+      </AppShell>,
+    )
+
+    await user.click(screen.getByRole("button", { name: "Toggle sidebar" }))
+    expect(screen.queryByRole("navigation", { name: "Sessions" })).not.toBeInTheDocument()
+    view.unmount()
+
+    renderWithProviders(
+      <AppShell rail={rail} sidebarPanel={sidebarPanel}>
+        <div>Page content</div>
+      </AppShell>,
+    )
+    expect(screen.queryByRole("navigation", { name: "Sessions" })).not.toBeInTheDocument()
   })
 
   test("the desktop sidebar toggle opens the empty project state", async () => {

@@ -1,16 +1,17 @@
 import { ArrowLeftRight } from "lucide-react"
 import type { AgentSwitchedMessage, ModelSwitchedMessage } from "@/lib/types"
+import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker"
 
 export function SwitchedMessageRow({ message }: { message: AgentSwitchedMessage | ModelSwitchedMessage }) {
   const label = message.role === "agent-switched" ? "Agent" : "Model"
 
   return (
-    <div
+    <Marker
       data-role={message.role}
-      className="mx-4 my-1 flex items-center gap-1.5 px-2 text-xs text-muted-foreground md:mx-5"
+      className="my-1 px-6 text-xs md:px-7"
     >
-      <ArrowLeftRight aria-hidden className="size-3 shrink-0" />
-      {label} changed: {message.from} → {message.to}
-    </div>
+      <MarkerIcon><ArrowLeftRight /></MarkerIcon>
+      <MarkerContent>{label} changed: {message.from} → {message.to}</MarkerContent>
+    </Marker>
   )
 }

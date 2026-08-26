@@ -213,6 +213,17 @@ export function setSessionWorking(database: DatabaseService, sessionID: string, 
   return refreshSession(database, sessionID, false, txid)
 }
 
+export function setSessionArchived(database: DatabaseService, sessionID: string, archivedAt: number, txid: string) {
+  return Effect.gen(function* () {
+    yield* database
+      .update(SessionTable)
+      .set({ time_archived: archivedAt })
+      .where(eq(SessionTable.id, Session.ID.make(sessionID)))
+      .run()
+    yield* refreshSession(database, sessionID, false, txid)
+  })
+}
+
 export function resetWorkingSessions() {
   workingSessions.clear()
 }

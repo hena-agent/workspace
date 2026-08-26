@@ -23,7 +23,9 @@ import { useSeenWatermarks, wasSeenAfter } from "@/local-state/seen"
 const emptyStore = createConnectionStore()
 
 export function useProjects(agent: ReturnTypeOfAgent | undefined) {
-  return useRows(agent, "projects", "").map(projectView).sort((left, right) => right.updatedAt - left.updatedAt)
+  return useRows(agent, "projects", "")
+    .map((row) => projectView(row, agent?.url ?? ""))
+    .sort((left, right) => right.updatedAt - left.updatedAt)
 }
 
 export function useCollectionReady(agent: ReturnTypeOfAgent | undefined, collection: string, scopeKey = "") {
@@ -156,6 +158,32 @@ export function useCatalog(agent: ReturnTypeOfAgent | undefined, location: { dir
   }
 }
 
+// The `agents`/`models`/`providers` collection scopes `useCatalog` reads only exist once a
+// directory is a known location (see server-v3's collection-projector `reconcileLocations`), so
+// they're empty for a directory that has never had a session. This fetches the same catalog
+// directly instead, for screens that need it *before* that first session exists.
+export function useLocationCatalog(
+  agent: ReturnTypeOfAgent | undefined,
+  location: { directory: string; workspaceID?: string } | undefined,
+) {
+  return useQuery({
+    queryKey: [agent?.url, "catalog", location?.directory, location?.workspaceID],
+    enabled: Boolean(agent && location),
+    queryFn: async () => {
+      const response = await agent!.client.api.catalog.$get({
+        query: { directory: location!.directory, workspaceID: location!.workspaceID },
+      })
+      if (!response.ok) throw new Error("Could not load the catalog")
+      const data = await response.json()
+      return {
+        agents: data.agents.map(agentView).filter((item) => item.id),
+        models: data.models.map(modelView).filter((item) => item.id),
+        providers: data.providers.map(providerView).filter((item) => item.id),
+      }
+    },
+  })
+}
+
 export function useSettings(agent: ReturnTypeOfAgent | undefined, scope: string) {
   return Object.fromEntries(useRows(agent, "settings", scope).map((item) => [string(item.key), item.value]))
 }
@@ -175,13 +203,13 @@ function useRows(agent: ReturnTypeOfAgent | undefined, collection: string, scope
   return (result.data ?? []).map((item) => item.row)
 }
 
-function projectView(row: Record<string, unknown>): Project {
+function projectView(row: Record<string, unknown>, connectionId: string): Project {
   const time = record(row.time)
   const icon = record(row.icon)
   const worktree = string(row.worktree)
   return {
     id: string(row.id),
-    connectionId: "",
+    connectionId,
     name: string(row.name) || worktree.split(/[\\/]/).filter(Boolean).at(-1) || worktree,
     path: worktree,
     color: avatarColor(icon.color),
@@ -306,7 +334,7 @@ function modelView(row: Record<string, unknown>): Model {
 }
 
 function providerView(row: Record<string, unknown>): Provider {
-  return { id: string(row.id), name: string(row.name) || string(row.id), connected: row.connected !== false }
+  return { id: string(row.id), name: string(row.name) || string(row.id), connected: row.connected === true }
 }
 
 function liveText(agent: ReturnTypeOfAgent | undefined, identity: Parameters<ReturnTypeOfAgent["store"]["delta"]>[0]) {

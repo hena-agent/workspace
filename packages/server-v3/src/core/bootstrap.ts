@@ -7,6 +7,7 @@ import { preview } from "../storage/content"
 import { fingerprint } from "../storage/fingerprint"
 import type { SyncDatabase } from "../storage/database"
 import { SessionCollections } from "../collection/manifest"
+import { catalogView } from "./catalog-view"
 import type { CoreDomain } from "./domain"
 import type { OnlineRequestStore } from "./online-requests"
 import { resetWorkingSessions } from "./collection-projector"
@@ -391,22 +392,13 @@ export async function bootstrapLocationCollections(
   const results = await Promise.allSettled(
     locations.map(async (location) => {
       const ref = location.row as { directory: string; workspaceID?: string }
-      const catalog = await domain.catalog(ref)
+      const catalog = catalogView(await domain.catalog(ref))
       online.replace(
         "agents",
         location.key,
         catalog.agents.map((agent) => ({
           key: agent.id,
-          row: {
-            id: agent.id,
-            model: agent.model,
-            description: agent.description,
-            mode: agent.mode,
-            hidden: agent.hidden,
-            color: agent.color,
-            steps: agent.steps,
-            permissions: agent.permissions,
-          },
+          row: agent,
         })),
       )
       online.replace(
@@ -414,19 +406,7 @@ export async function bootstrapLocationCollections(
         location.key,
         catalog.models.map((model) => ({
           key: JSON.stringify([model.providerID, model.id]),
-          row: {
-            id: model.id,
-            providerID: model.providerID,
-            family: model.family,
-            name: model.name,
-            capabilities: model.capabilities,
-            variants: model.variants.map((variant) => ({ id: variant.id })),
-            time: model.time,
-            cost: model.cost,
-            status: model.status,
-            enabled: model.enabled,
-            limit: model.limit,
-          },
+          row: model,
         })),
       )
       online.replace(
@@ -434,12 +414,7 @@ export async function bootstrapLocationCollections(
         location.key,
         catalog.providers.map((provider) => ({
           key: provider.id,
-          row: {
-            id: provider.id,
-            integrationID: provider.integrationID,
-            name: provider.name,
-            disabled: provider.disabled,
-          },
+          row: provider,
         })),
       )
     }),

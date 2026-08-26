@@ -17,7 +17,7 @@ import { Catalog } from "@hena/core/catalog"
 import type { DeltaHub } from "../stream/delta"
 import { publishDelta } from "./delta-events"
 import { CollectionProjector } from "./collection-projector"
-import { MutationTxid, setSessionWorking } from "./collection-projector"
+import { MutationTxid, setSessionArchived, setSessionWorking } from "./collection-projector"
 import type { CoreDomain } from "./domain"
 import { OnlineRequestConflict, type OnlineRequestStore } from "./online-requests"
 import { Database } from "@hena/core/database/database"
@@ -232,6 +232,21 @@ export function createCoreDomain(
           persist: compactAdmissionResponse,
         }).pipe(Effect.tap(() => SessionV2.Service.use((service) => service.wake(SessionV2.ID.make(sessionID))))),
       ),
+    archiveSession: (sessionID, input) =>
+      runtime.runPromise(
+        mutation({
+          operation: "session.archive",
+          key: input.idempotencyKey,
+          payload: { sessionID, ...input },
+          execute: Database.Service.use((database) =>
+            Effect.gen(function* () {
+              const txid = yield* MutationTxid
+              yield* setSessionArchived(database.db, sessionID, Date.now(), txid!)
+            }),
+          ),
+          response: (_, receipt) => ({ receipt }),
+        }),
+      ),
     interrupt: async (sessionID) => {
       await runtime.runPromise(SessionV2.Service.use((service) => service.interrupt(SessionV2.ID.make(sessionID))))
       await runtime.runPromise(Database.Service.use((database) => setSessionWorking(database.db, sessionID, false, crypto.randomUUID())))
@@ -379,10 +394,14 @@ export function createCoreDomain(
         Effect.gen(function* () {
           const agents = yield* AgentV2.Service
           const catalog = yield* Catalog.Service
+          const connected = new Set((yield* catalog.provider.available()).map((provider) => provider.id))
           return {
             agents: yield* agents.all(),
-            models: yield* catalog.model.all(),
-            providers: yield* catalog.provider.all(),
+            models: yield* catalog.model.available(),
+            providers: (yield* catalog.provider.all()).map((provider) => ({
+              ...provider,
+              connected: connected.has(provider.id),
+            })),
           }
         }).pipe(Effect.provide(LocationServiceMap.Service.get(location(input)))),
       ),

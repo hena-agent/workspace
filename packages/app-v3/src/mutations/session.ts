@@ -47,6 +47,7 @@ export function createSessionOptimistically(agent: Agent, input: {
   const created = Date.now()
   const idempotencyKey = crypto.randomUUID()
   const prompt = promptPayload(input.text, input.files)
+  const resolvedProjectID = Promise.withResolvers<string>()
   markPending(messageID, true)
   const transaction = createTransaction({
     mutationFn: async () => {
@@ -63,6 +64,7 @@ export function createSessionOptimistically(agent: Agent, input: {
           },
         }))
       await awaitReceipt(agent, result)
+      resolvedProjectID.resolve(projectID(result) ?? input.projectID)
     },
   })
   transaction.mutate(() => {
@@ -87,7 +89,7 @@ export function createSessionOptimistically(agent: Agent, input: {
     })
   })
   void transaction.isPersisted.promise.finally(() => markPending(messageID, false)).catch(() => {})
-  return { sessionID, messageID, transaction }
+  return { sessionID, messageID, transaction, projectID: resolvedProjectID.promise }
 }
 
 export function admitPromptOptimistically(agent: Agent, input: {
@@ -162,6 +164,25 @@ export function interruptOptimistically(agent: Agent, sessionID: string) {
   const persisted = transaction.isPersisted.promise.finally(() => setStopping(agent, sessionID, false))
   void persisted.catch(() => {})
   return persisted
+}
+
+export function archiveSessionOptimistically(agent: Agent, sessionID: string) {
+  const idempotencyKey = crypto.randomUUID()
+  const transaction = createTransaction({
+    mutationFn: async () => {
+      const result = await requestQueueable(() => agent.client.api.session[":sessionId"].archive.$post({
+        param: { sessionId: sessionID },
+        json: { idempotencyKey },
+      }))
+      await awaitReceipt(agent, result)
+    },
+  })
+  transaction.mutate(() => {
+    agent.store.collection("sessions", "").update(sessionID, (draft) => {
+      draft.row = { ...draft.row, time: { ...object(draft.row.time), archived: Date.now() } }
+    })
+  })
+  return transaction.isPersisted.promise
 }
 
 export function cancelInputOptimistically(agent: Agent, input: { sessionID: string; messageID: string; expectedRevision: number }) {
@@ -358,6 +379,11 @@ function inlinedBytes(uri: string) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function projectID(result: unknown) {
+  const session = isRecord(result) ? result.session : undefined
+  return isRecord(session) && typeof session.projectID === "string" ? session.projectID : undefined
 }
 
 function object(value: unknown): Record<string, unknown> {

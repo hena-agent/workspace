@@ -114,8 +114,10 @@ test("reorders and cancels queued inputs through authoritative mutations", async
   await page.request.post(`${server}/api/session/${sessionID}/interrupt`)
 })
 
-test("reads real files and renders phase-two empty states", async ({ page }) => {
+test("reads real files from the integrated panel and redirects legacy session views", async ({ page }) => {
   await page.goto(`${projectRoute}/session/${queuedSessionID}/files`)
+  await expect(page).toHaveURL(new RegExp(`/session/${queuedSessionID}/?$`))
+  await page.getByRole("button", { name: "Toggle file tree" }).click()
   const found = page.waitForResponse((response) => response.url().includes("/api/fs/find"))
   await page.getByRole("textbox", { name: "Find in project" }).fill("package.json")
   expect((await found).ok()).toBe(true)
@@ -123,7 +125,7 @@ test("reads real files and renders phase-two empty states", async ({ page }) => 
   await expect(page.getByText('"name": "hena"')).toBeVisible()
 
   await page.goto(`${projectRoute}/session/${queuedSessionID}/review`)
-  await expect(page.getByText("Review is not supported by this server yet.")).toBeVisible()
+  await expect(page).toHaveURL(new RegExp(`/session/${queuedSessionID}/?$`))
 
   const connectionRoute = new URL(projectRoute).pathname.split("/")[1]
   await page.goto(`/${connectionRoute}/settings/mcp`)

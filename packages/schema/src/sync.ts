@@ -238,6 +238,11 @@ export const AdmitPrompt = Schema.Struct({
   model: Model.Ref.pipe(optional),
 }).annotate({ identifier: "Sync.AdmitPrompt" })
 
+export interface ArchiveSession extends Schema.Schema.Type<typeof ArchiveSession> {}
+export const ArchiveSession = Schema.Struct({
+  idempotencyKey: IdempotencyKey,
+}).annotate({ identifier: "Sync.ArchiveSession" })
+
 export interface FileListQuery extends Schema.Schema.Type<typeof FileListQuery> {}
 export const FileListQuery = Schema.Struct({
   directory: AbsolutePath.check(Schema.isPattern(/^(?:\/|[A-Za-z]:[\\/]|\\\\)/)),
@@ -277,6 +282,12 @@ export const FileReadQuery = Schema.Struct({
     Schema.isLessThanOrEqualTo(256 * 1024),
   ).pipe(optional),
 }).annotate({ identifier: "Sync.FileReadQuery" })
+
+export interface CatalogQuery extends Schema.Schema.Type<typeof CatalogQuery> {}
+export const CatalogQuery = Schema.Struct({
+  directory: FileListQuery.fields.directory,
+  workspaceID: Location.Ref.fields.workspaceID,
+}).annotate({ identifier: "Sync.CatalogQuery" })
 
 export interface ContentQuery extends Schema.Schema.Type<typeof ContentQuery> {}
 export const ContentQuery = Schema.Struct({

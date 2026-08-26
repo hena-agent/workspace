@@ -30,7 +30,7 @@ export function Titlebar({
         aria-controls="mobile-navigation"
         aria-expanded={mobileNavOpen}
         onClick={onToggleMobileNav}
-        className="legacy-titlebar-button absolute top-1/2 left-4 -translate-y-1/2 xl:hidden"
+        className="legacy-titlebar-button absolute inset-y-0 left-4 my-auto xl:hidden"
       >
         <LegacyIcon name={mobileNavOpen ? "close" : "menu"} className="size-4" />
       </Button>
@@ -40,7 +40,7 @@ export function Titlebar({
         aria-label="Toggle sidebar"
         aria-expanded={sidebarOpen}
         onClick={onToggleSidebar}
-        className="legacy-titlebar-button absolute top-1/2 left-16 hidden -translate-y-1/2 xl:inline-flex"
+        className="legacy-titlebar-button absolute inset-y-0 left-16 my-auto hidden xl:inline-flex"
       >
         <LegacyIcon name={sidebarOpen ? "sidebar-active" : "sidebar"} className="size-4" />
       </Button>

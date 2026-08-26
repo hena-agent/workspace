@@ -92,7 +92,7 @@
       "ignoreUnresolved": ["@/context/global-sync"],
     },
     "packages/app-v3": {
-      "entry": ["public/theme-preload.js"],
+      "entry": ["public/theme-preload.js", "integration/**/*.test.ts", "e2e/server.ts"],
     },
     "packages/protocol": {
       "entry": ["**/*.test.{ts,tsx}"],

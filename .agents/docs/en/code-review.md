@@ -64,7 +64,7 @@ Fork PRs and PRs authored by Dependabot resolve as disabled because repository c
 
 ## Review triggers
 
-The base-owned `pr-review.yml` workflow starts reviews in three cases:
+The trusted `pr-review.yml` workflow starts reviews in three cases:
 
 1. A non-draft pull request is opened.
 2. A draft pull request is marked ready for review.
@@ -76,7 +76,7 @@ The review job uses `fail-fast: false`, so one model failure does not cancel the
 
 ## Review command
 
-Reviews invoke the project-owned `thermo-nuclear-code-quality-review` command through `pull_request_target`, so GitHub loads the caller, reusable workflow, and local composite action from the base commit. The workflow checks out the pull request under `.opencode-review-target` without persisted credentials and treats it only as review data. Before the model can read that checkout, the workflow renders symbolic links as plain link-target files and removes project instruction filenames. The action disables project config, installs the base command as global OpenCode config, and injects only approved plugins and base-owned instruction files. Instructions added or changed by the pull request remain visible in the diff but cannot override the command or base conventions.
+Reviews invoke the project-owned `thermo-nuclear-code-quality-review` command through `pull_request_target`, so GitHub loads the caller, reusable workflow, and local composite action from the trusted workflow commit. The workflow checks out the pull request under `.opencode-review-target` without persisted credentials and treats it only as review data. Before the model can read that checkout, the workflow renders symbolic links as plain link-target files and removes project instruction filenames. The action disables project config, installs the trusted command as global OpenCode config, and injects only approved plugins and trusted instruction files. Instructions added or changed by the pull request remain visible in the diff but cannot override the command or trusted conventions.
 
 The command runs as a delegated subtask. If that subtask completes but the final presentation turn ends on a retryable provider error, the action extracts and publishes the completed task result. Other provider and command failures remain hard failures.
 
@@ -98,6 +98,8 @@ The composite action validates the override and checks that every selected model
 ## Security
 
 Repository variable values are treated as untrusted input. The resolver trims them and applies strict allowlists before placing values in job names, outputs, or shell variables. Provider routing remains an inline code-owned map. Callers dereference only the selected secret names rather than inheriting every repository secret.
+
+For stacked pull requests, the pull request base is another unmerged branch rather than the default branch. GitHub still resolves `pull_request_target` workflow code from the trusted workflow commit, so `github.workflow_sha` anchors executable reviewer code while `pull_request.base.sha` remains only the review diff boundary.
 
 Review jobs never execute pull request code. OpenCode runs inside the credential-free pull request checkout with project config disabled, edit access denied, external-directory access denied, and shell access limited to a wrapper that returns preloaded `gh pr view` and `gh pr diff` output. Fork and Dependabot pull requests remain disabled before model credentials are passed to a job.
 

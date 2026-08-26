@@ -17,17 +17,20 @@ describe("run-opencode review action", () => {
     expect(action).toContain('-f "$GITHUB_ACTION_PATH/review-payload.jq"')
     expect(action).toContain('install -m 600 ".opencode/command/$COMMAND.md"')
     expect(action).toContain('[ "$GITHUB_EVENT_NAME" != "pull_request_target" ]')
+    expect(action).toContain('"$(git rev-parse HEAD)" != "$GITHUB_WORKFLOW_SHA"')
+    expect(action).toContain("workflow checkout does not match the trusted workflow commit")
     expect(action).toContain('cd "$REVIEW_DIRECTORY"')
     expect(action).toContain('OPENCODE_DISABLE_CLAUDE_CODE: "1"')
     expect(action).toContain('OPENCODE_DISABLE_EXTERNAL_SKILLS: "1"')
     expect(action).not.toContain("EXPECTED_COMMAND_SHA256")
   })
 
-  test("runs review commands from base-owned workflow code", async () => {
+  test("runs review commands from trusted workflow code", async () => {
     const workflow = await Bun.file(path.join(root, ".github/workflows/pr-review.yml")).text()
     const reusable = await Bun.file(path.join(root, ".github/workflows/_opencode.yml")).text()
     expect(workflow).toContain("pull_request_target:")
     expect(workflow).not.toMatch(/^\s+pull_request:$/m)
+    expect(reusable).toContain("ref: ${{ github.workflow_sha }}")
     expect(reusable).toContain("path: .opencode-review-target")
     expect(reusable).toContain("persist-credentials: false")
     expect(reusable).toContain("sanitize-review-checkout.sh .opencode-review-target")

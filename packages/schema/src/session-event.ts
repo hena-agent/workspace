@@ -417,6 +417,16 @@ export namespace Compaction {
   })
   export type Delta = typeof Delta.Type
 
+  export const Discarded = Event.define({
+    type: "session.next.compaction.discarded",
+    ...options,
+    schema: {
+      ...Base,
+      messageID: SessionMessage.ID,
+    },
+  })
+  export type Discarded = typeof Discarded.Type
+
   export const Ended = Event.define({
     type: "session.next.compaction.ended",
     ...options,
@@ -445,6 +455,18 @@ export namespace RevertEvent {
   })
 }
 
+export const InputCanceled = Event.define({
+  type: "session.next.input.canceled",
+  ...options,
+  schema: { ...Base, messageID: SessionMessage.ID, expectedRevision: NonNegativeInt },
+})
+
+export const InputReordered = Event.define({
+  type: "session.next.input.reordered",
+  ...options,
+  schema: { ...Base, messageIDs: Schema.Array(SessionMessage.ID), expectedRevision: NonNegativeInt },
+})
+
 export const DurableDefinitions = Event.inventory(
   AgentSwitched,
   ModelSwitched,
@@ -470,10 +492,13 @@ export const DurableDefinitions = Event.inventory(
   Reasoning.Ended,
   Retried,
   Compaction.Started,
+  Compaction.Discarded,
   Compaction.Ended,
   RevertEvent.Staged,
   RevertEvent.Cleared,
   RevertEvent.Committed,
+  InputCanceled,
+  InputReordered,
 )
 
 export const Definitions = Event.inventory(
@@ -505,10 +530,13 @@ export const Definitions = Event.inventory(
   Retried,
   Compaction.Started,
   Compaction.Delta,
+  Compaction.Discarded,
   Compaction.Ended,
   RevertEvent.Staged,
   RevertEvent.Cleared,
   RevertEvent.Committed,
+  InputCanceled,
+  InputReordered,
 )
 
 export const Durable = Schema.Union(DurableDefinitions, { mode: "oneOf" })

@@ -1275,7 +1275,12 @@ const scenarios: Scenario[] = [
       headers: ctx.headers(),
     }))
     .json(200, (body, ctx) => {
-      check(stable(body) === stable(ctx.state.todos), "todos should match seeded state")
+      check(Array.isArray(body) && body.length === ctx.state.todos.length, "todos should match seeded state")
+      check(
+        isRecord(body[0]) && typeof body[0].id === "string" && body[0].id.startsWith("todo_") &&
+          body[0].content === ctx.state.todos[0]?.content,
+        "todos should expose stable IDs",
+      )
     }),
   http.protected
     .get("/session/{sessionID}/diff", "session.diff")

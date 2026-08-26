@@ -1,6 +1,6 @@
 export * as SessionProjector from "./projector"
 
-import { and, desc, eq, gt, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm"
 import { DateTime, Effect, Layer, Schema } from "effect"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
@@ -13,8 +13,11 @@ import { SessionMessageUpdater } from "./message-updater"
 import { SessionInput } from "./input"
 import { WorkspaceV2 } from "../workspace"
 import { SessionContextEpoch } from "./context-epoch"
-import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, SessionTable } from "./sql"
+import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "./sql"
 import type { DeepMutable } from "../schema"
+import { SessionSchema } from "./schema"
+import { SessionTodo } from "@hena/schema/session-todo"
+import { QueueRevisionConflictError, QueueStateConflictError, TodoConflictError } from "./error"
 
 type DatabaseService = Database.Interface["db"]
 
@@ -212,6 +215,32 @@ const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const events = yield* EventV2.Service
     const { db } = yield* Database.Service
+    yield* SessionInput.normalizeQueuePositions(db)
+    yield* events.project(SessionTodo.Event.Updated, (event) =>
+      Effect.gen(function* () {
+        const todos = event.data.todos.filter(
+          (todo): todo is typeof todo & { id: SessionTodo.ID } => todo.id !== undefined,
+        )
+        if (todos.length !== event.data.todos.length) yield* Effect.die("Projected todos require IDs")
+        yield* validateTodoIDs(db, event.data.sessionID, todos)
+        yield* db.delete(TodoTable).where(eq(TodoTable.session_id, event.data.sessionID)).run().pipe(Effect.orDie)
+        if (todos.length > 0)
+          yield* db
+            .insert(TodoTable)
+            .values(
+              todos.map((todo, position) => ({
+                id: todo.id,
+                session_id: event.data.sessionID,
+                content: todo.content,
+                status: todo.status,
+                priority: todo.priority,
+                position,
+              })),
+            )
+            .run()
+            .pipe(Effect.orDie)
+      }),
+    )
     yield* events.project(SessionV1.Event.Created, (event) =>
       Effect.gen(function* () {
         const stored = yield* db
@@ -359,6 +388,7 @@ const layer = Layer.effectDiscard(
           promotedSeq: event.durable.seq,
         })
         yield* run(db, event)
+        yield* incrementQueueRevision(db, event.data.sessionID)
       }),
     )
     yield* events.project(SessionEvent.PromptAdmitted, (event) =>
@@ -372,6 +402,66 @@ const layer = Layer.effectDiscard(
           delivery: event.data.delivery,
           timeCreated: event.data.timestamp,
         })
+        yield* incrementQueueRevision(db, event.data.sessionID)
+      }),
+    )
+    yield* events.project(SessionEvent.InputCanceled, (event) =>
+      Effect.gen(function* () {
+        const revision = yield* requireQueueRevision(db, event.data.sessionID, event.data.expectedRevision)
+        const deleted = yield* db
+          .delete(SessionInputTable)
+          .where(
+            and(
+              eq(SessionInputTable.session_id, event.data.sessionID),
+              eq(SessionInputTable.id, event.data.messageID),
+              isNull(SessionInputTable.promoted_seq),
+            ),
+          )
+          .returning({ id: SessionInputTable.id })
+          .get()
+          .pipe(Effect.orDie)
+        if (!deleted) yield* queueStateConflict(db, event.data.sessionID, revision)
+        yield* incrementQueueRevision(db, event.data.sessionID)
+      }),
+    )
+    yield* events.project(SessionEvent.InputReordered, (event) =>
+      Effect.gen(function* () {
+        const revision = yield* requireQueueRevision(db, event.data.sessionID, event.data.expectedRevision)
+        const pending = yield* db
+          .select({ id: SessionInputTable.id })
+          .from(SessionInputTable)
+          .where(
+            and(
+              eq(SessionInputTable.session_id, event.data.sessionID),
+              eq(SessionInputTable.delivery, "queue"),
+              isNull(SessionInputTable.promoted_seq),
+            ),
+          )
+          .orderBy(asc(SessionInput.queueOrder), asc(SessionInputTable.admitted_seq))
+          .all()
+          .pipe(Effect.orDie)
+        if (
+          pending.length !== event.data.messageIDs.length ||
+          pending.some((row) => !event.data.messageIDs.includes(row.id))
+        )
+          yield* Effect.die(
+            new QueueStateConflictError({
+              sessionID: event.data.sessionID,
+              revision,
+              messageIDs: pending.map((row) => row.id),
+            }),
+          )
+        yield* Effect.forEach(
+          event.data.messageIDs.map((id, queue_position) => ({ id, queue_position })),
+          (input) =>
+            db
+              .update(SessionInputTable)
+              .set({ queue_position: input.queue_position })
+              .where(and(eq(SessionInputTable.session_id, event.data.sessionID), eq(SessionInputTable.id, input.id)))
+              .run()
+              .pipe(Effect.orDie),
+        )
+        yield* incrementQueueRevision(db, event.data.sessionID)
       }),
     )
     yield* events.project(SessionEvent.ContextUpdated, (event) => run(db, event))
@@ -450,9 +540,89 @@ const layer = Layer.effectDiscard(
           .run()
           .pipe(Effect.orDie)
         yield* SessionContextEpoch.reset(db, event.data.sessionID)
+        yield* incrementQueueRevision(db, event.data.sessionID)
       }),
     )
   }),
 )
 
 export const node = makeGlobalNode({ name: "session-projector", layer, deps: [EventV2.node, Database.node] })
+
+function incrementQueueRevision(db: DatabaseService, sessionID: SessionSchema.ID) {
+  return db
+    .update(SessionTable)
+    .set({ queue_revision: sql`${SessionTable.queue_revision} + 1` })
+    .where(eq(SessionTable.id, sessionID))
+    .run()
+    .pipe(Effect.orDie)
+}
+
+function requireQueueRevision(db: DatabaseService, sessionID: SessionSchema.ID, expected: number) {
+  return Effect.gen(function* () {
+    const row = yield* db
+      .select({ revision: SessionTable.queue_revision })
+      .from(SessionTable)
+      .where(eq(SessionTable.id, sessionID))
+      .get()
+      .pipe(Effect.orDie)
+    if (row?.revision === expected) return row.revision
+    const pending = yield* pendingQueue(db, sessionID)
+    return yield* Effect.die(
+      new QueueRevisionConflictError({
+        sessionID,
+        expected,
+        actual: row?.revision ?? 0,
+        messageIDs: pending.map((input) => input.id),
+      }),
+    )
+  })
+}
+
+function queueStateConflict(db: DatabaseService, sessionID: SessionSchema.ID, revision: number) {
+  return pendingQueue(db, sessionID).pipe(
+    Effect.flatMap((pending) =>
+      Effect.die(new QueueStateConflictError({ sessionID, revision, messageIDs: pending.map((row) => row.id) })),
+    ),
+  )
+}
+
+function pendingQueue(db: DatabaseService, sessionID: SessionSchema.ID) {
+  return db
+    .select({ id: SessionInputTable.id })
+    .from(SessionInputTable)
+    .where(
+      and(
+        eq(SessionInputTable.session_id, sessionID),
+        eq(SessionInputTable.delivery, "queue"),
+        isNull(SessionInputTable.promoted_seq),
+      ),
+    )
+    .orderBy(asc(SessionInput.queueOrder), asc(SessionInputTable.admitted_seq))
+    .all()
+    .pipe(Effect.orDie)
+}
+
+function validateTodoIDs(
+  db: DatabaseService,
+  sessionID: SessionSchema.ID,
+  todos: ReadonlyArray<SessionTodo.Info & { id: SessionTodo.ID }>,
+) {
+  return Effect.gen(function* () {
+    const duplicate = todos.find((todo, index) => todos.findIndex((candidate) => candidate.id === todo.id) !== index)
+    if (duplicate)
+      yield* Effect.die(new TodoConflictError({ sessionID, todoID: duplicate.id, reason: "duplicate" }))
+    const owned = todos.length === 0
+      ? []
+      : yield* db
+        .select({ id: TodoTable.id, sessionID: TodoTable.session_id })
+        .from(TodoTable)
+        .where(inArray(TodoTable.id, todos.map((todo) => todo.id)))
+        .all()
+        .pipe(Effect.orDie)
+    const foreign = owned.find((todo) => todo.sessionID !== sessionID)
+    if (foreign)
+      yield* Effect.die(
+        new TodoConflictError({ sessionID, todoID: foreign.id, reason: "owned_by_another_session" }),
+      )
+  })
+}

@@ -1,4 +1,3 @@
-import { NodeFileSystem } from "@effect/platform-node"
 import { dirname, isAbsolute, join, relative, resolve as pathResolve, sep } from "path"
 import { realpathSync } from "fs"
 import * as NFS from "fs/promises"
@@ -38,6 +37,11 @@ export namespace FSUtil {
     readonly ensureDir: (path: string) => Effect.Effect<void, Error>
     readonly writeWithDirs: (path: string, content: string | Uint8Array, mode?: number) => Effect.Effect<void, Error>
     readonly readDirectoryEntries: (path: string) => Effect.Effect<DirEntry[], Error>
+    readonly reduceDirectoryEntries: <A>(
+      path: string,
+      initial: A,
+      reduce: (result: A, entry: DirEntry) => A,
+    ) => Effect.Effect<A, Error>
     readonly resolve: (path: string) => Effect.Effect<string>
     readonly findUp: (target: string, start: string, stop?: string) => Effect.Effect<string[], Error>
     readonly up: (options: { targets: string[]; start: string; stop?: string }) => Effect.Effect<string[], Error>
@@ -90,6 +94,27 @@ export namespace FSUtil {
           catch: (cause) => new FileSystemError({ method: "readDirectoryEntries", cause }),
         })
       })
+
+      const reduceDirectoryEntries = <A>(dirPath: string, initial: A, reduce: (result: A, entry: DirEntry) => A) =>
+        Effect.tryPromise({
+          try: async () => {
+            const directory = await NFS.opendir(dirPath)
+            let result = initial
+            for await (const entry of directory)
+              result = reduce(result, {
+                name: entry.name,
+                type: entry.isDirectory()
+                  ? "directory"
+                  : entry.isSymbolicLink()
+                    ? "symlink"
+                    : entry.isFile()
+                      ? "file"
+                      : "other",
+              })
+            return result
+          },
+          catch: (cause) => new FileSystemError({ method: "reduceDirectoryEntries", cause }),
+        })
 
       const resolve = Effect.fn("FileSystem.resolve")(function* (path: string) {
         const resolved = pathResolve(windowsPath(path))
@@ -204,6 +229,7 @@ export namespace FSUtil {
         isDir,
         isFile,
         readDirectoryEntries,
+        reduceDirectoryEntries,
         resolve,
         readJson,
         writeJson,

@@ -2,11 +2,12 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 import { SessionID } from "./schema"
 import { Effect, Layer, Context } from "effect"
 import { Database } from "@hena/core/database/database"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { asc } from "drizzle-orm"
 import { TodoTable } from "@hena/core/session/sql"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { SessionTodo } from "@hena/schema/session-todo"
+import { SessionProjector } from "@hena/core/session/projector"
 
 export const Info = SessionTodo.Info
 export type Info = SessionTodo.Info
@@ -14,7 +15,7 @@ export type Info = SessionTodo.Info
 export const Event = SessionTodo.Event
 
 export interface Interface {
-  readonly update: (input: { sessionID: SessionID; todos: ReadonlyArray<Info> }) => Effect.Effect<void>
+  readonly update: (input: { sessionID: SessionID; todos: ReadonlyArray<Info> }) => Effect.Effect<Info[]>
   readonly get: (sessionID: SessionID) => Effect.Effect<Info[]>
 }
 
@@ -27,30 +28,17 @@ const layer = Layer.effect(
     const { db } = yield* Database.Service
 
     const update = Effect.fn("Todo.update")(function* (input: { sessionID: SessionID; todos: ReadonlyArray<Info> }) {
-      yield* db
-        .transaction((tx) =>
-          Effect.gen(function* () {
-            yield* tx.delete(TodoTable).where(eq(TodoTable.session_id, input.sessionID)).run()
-            if (input.todos.length === 0) return
-            yield* tx
-              .insert(TodoTable)
-              .values(
-                input.todos.map((todo, position) => ({
-                  session_id: input.sessionID,
-                  content: todo.content,
-                  status: todo.status,
-                  priority: todo.priority,
-                  position,
-                })),
-              )
-              .run()
-          }),
-        )
-        .pipe(Effect.orDie)
-      yield* events.publish(Event.Updated, input)
+      yield* repairMissingIDs(db, input.sessionID)
+      const todos = input.todos.map((todo) => ({
+        ...todo,
+        id: todo.id ?? SessionTodo.ID.create(),
+      }))
+      yield* events.publish(Event.Updated, { ...input, todos })
+      return todos
     })
 
     const get = Effect.fn("Todo.get")(function* (sessionID: SessionID) {
+      yield* repairMissingIDs(db, sessionID)
       const rows = yield* db
         .select()
         .from(TodoTable)
@@ -59,6 +47,7 @@ const layer = Layer.effect(
         .all()
         .pipe(Effect.orDie)
       return rows.map((row) => ({
+        id: row.id,
         content: row.content,
         status: row.status,
         priority: row.priority,
@@ -69,6 +58,21 @@ const layer = Layer.effect(
   }),
 )
 
-export const node = LayerNode.make({ service: Service, layer: layer, deps: [EventV2Bridge.node, Database.node] })
+export const node = LayerNode.make({
+  service: Service,
+  layer: layer,
+  deps: [EventV2Bridge.node, Database.node, SessionProjector.node],
+})
+
+function repairMissingIDs(db: Database.Interface["db"], sessionID: SessionID) {
+  return db
+    .run(
+      sql`
+    UPDATE todo SET id = 'todo_' || lower(hex(randomblob(16)))
+    WHERE session_id = ${sessionID} AND id IS NULL
+  `,
+    )
+    .pipe(Effect.orDie)
+}
 
 export * as Todo from "./todo"

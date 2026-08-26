@@ -41,12 +41,7 @@ import { AgentV2 } from "@hena/core/agent"
 import { Config } from "@hena/core/config"
 import { ConfigCompaction } from "@hena/core/config/compaction"
 import { Tool } from "@hena/core/tool/tool"
-import {
-  SessionContextEpochTable,
-  SessionInputTable,
-  SessionMessageTable,
-  SessionTable,
-} from "@hena/core/session/sql"
+import { SessionContextEpochTable, SessionInputTable, SessionMessageTable, SessionTable } from "@hena/core/session/sql"
 import { SessionStore } from "@hena/core/session/store"
 import { SystemContext } from "@hena/core/system-context"
 import { SystemContextRegistry } from "@hena/core/system-context/registry"
@@ -1248,6 +1243,12 @@ describe("SessionRunnerLLM", () => {
   it.effect("interrupts overflow recovery while the summary provider is running", () =>
     Effect.gen(function* () {
       const session = yield* setupOverflowRecovery
+      const events = yield* EventV2.Service
+      const discarded = yield* Deferred.make<void>()
+      const unsubscribe = yield* events.listen((event) =>
+        event.type === SessionEvent.Compaction.Discarded.type ? Deferred.succeed(discarded, undefined) : Effect.void,
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
       responses = [
         [LLMEvent.providerError({ message: "prompt too long", classification: "context-overflow" })],
         fragmentFixture("text", "text-summary", ["## Objective\n- Interrupted"]).completeEvents,
@@ -1264,6 +1265,7 @@ describe("SessionRunnerLLM", () => {
 
       yield* session.interrupt(sessionID)
       expect(yield* Fiber.await(run)).toMatchObject({ _tag: "Failure" })
+      yield* Deferred.await(discarded)
       streamGate = undefined
       expect(requests).toHaveLength(2)
       expect((yield* session.context(sessionID)).some((message) => message.type === "compaction")).toBe(false)

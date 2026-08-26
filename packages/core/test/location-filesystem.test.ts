@@ -56,6 +56,60 @@ describe("FileSystem", () => {
     ),
   )
 
+  it.live("applies list limits after sorting", () =>
+    withTmp((directory) =>
+      Effect.gen(function* () {
+        yield* Effect.promise(() => fs.writeFile(path.join(directory, "a"), "file"))
+        yield* Effect.promise(() => fs.mkdir(path.join(directory, "dir")))
+
+        const entries = yield* (yield* FileSystem.Service).list({ limit: 1 })
+
+        expect(entries.map((entry) => ({ path: entry.path, type: entry.type }))).toEqual([
+          { path: RelativePath.make("dir" + path.sep), type: "directory" },
+        ])
+      }).pipe(provide(directory)),
+    ),
+  )
+
+  it.live("retains the earliest entries while applying list limits", () =>
+    withTmp((directory) =>
+      Effect.gen(function* () {
+        yield* Effect.forEach(
+          ["z-dir", "a-dir", "m-dir"],
+          (name) => Effect.promise(() => fs.mkdir(path.join(directory, name))),
+          { discard: true },
+        )
+        yield* Effect.forEach(
+          ["z-file", "a-file", "m-file"],
+          (name) => Effect.promise(() => fs.writeFile(path.join(directory, name), "file")),
+          { discard: true },
+        )
+
+        const entries = yield* (yield* FileSystem.Service).list({ limit: 3 })
+
+        expect(entries.map((entry) => entry.path)).toEqual(
+          ["a-dir", "m-dir", "z-dir"].map((name) => RelativePath.make(name + path.sep)),
+        )
+      }).pipe(provide(directory)),
+    ),
+  )
+
+  it.live("lists every direct child when no limit is supplied", () =>
+    withTmp((directory) =>
+      Effect.gen(function* () {
+        yield* Effect.forEach(
+          Array.from({ length: 1_001 }, (_, index) => index),
+          (index) => Effect.promise(() => fs.writeFile(path.join(directory, `file-${index}`), "file")),
+          { concurrency: 16, discard: true },
+        )
+
+        const entries = yield* (yield* FileSystem.Service).list()
+
+        expect(entries).toHaveLength(1_001)
+      }).pipe(provide(directory)),
+    ),
+  )
+
   it.live("rejects lexical escapes", () =>
     withTmp((directory) =>
       Effect.gen(function* () {

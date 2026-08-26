@@ -1,0 +1,11 @@
+{
+  "extends": "@tsconfig/bun/tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM"],
+    "types": ["bun"],
+    "noUncheckedIndexedAccess": false,
+    "noEmit": true,
+    "strict": true
+  },
+  "include": ["src", "test"]
+}

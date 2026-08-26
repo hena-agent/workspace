@@ -84,6 +84,28 @@ const it = testEffect(
 const itWithoutLocation = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, EventV2.node])))
 
 describe("EventV2", () => {
+  it.effect("defers durable notifications until the surrounding transaction commits", () =>
+    Effect.gen(function* () {
+      const events = yield* EventV2.Service
+      const deferred: Effect.Effect<void>[] = []
+      const received: string[] = []
+      const unsubscribe = yield* events.listen((event) =>
+        Effect.sync(() => {
+          received.push(event.type)
+        }),
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
+
+      yield* events.publish(SyncMessage, { id: "aggregate", text: "message" }).pipe(
+        Effect.provideService(EventV2.DeferredNotifications, (notification) => deferred.push(notification)),
+      )
+
+      expect(received).toEqual([])
+      yield* Effect.forEach(deferred, (notification) => notification, { discard: true })
+      expect(received).toEqual([SyncMessage.type])
+    }),
+  )
+
   it.effect("publishes events with the current location", () =>
     Effect.gen(function* () {
       const events = yield* EventV2.Service
@@ -435,6 +457,40 @@ describe("EventV2", () => {
       expect(Array.from(yield* Fiber.join(fiber)).map((event) => [event.durable?.seq, event.data])).toEqual([
         [1, durableData(aggregateID, "one")],
         [2, durableData(aggregateID, "two")],
+      ])
+    }),
+  )
+
+  it.effect("skips durable event types unknown to this binary", () =>
+    Effect.gen(function* () {
+      const events = yield* EventV2.Service
+      const { db } = yield* Database.Service
+      const aggregateID = Session.ID.create()
+      yield* events.publish(DurableMessage, durableData(aggregateID, "known-before"))
+      yield* db
+        .insert(EventTable)
+        .values({
+          id: EventV2.ID.create(),
+          aggregate_id: aggregateID,
+          seq: 1,
+          type: "future.event.1",
+          data: {},
+        })
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .update(EventSequenceTable)
+        .set({ seq: 1 })
+        .where(eq(EventSequenceTable.aggregate_id, aggregateID))
+        .run()
+        .pipe(Effect.orDie)
+      yield* events.publish(DurableMessage, durableData(aggregateID, "known-after"))
+
+      const received = yield* events.durable({ aggregateID }).pipe(Stream.take(2), Stream.runCollect)
+
+      expect(Array.from(received).map((event) => [event.durable?.seq, event.data])).toEqual([
+        [0, durableData(aggregateID, "known-before")],
+        [2, durableData(aggregateID, "known-after")],
       ])
     }),
   )

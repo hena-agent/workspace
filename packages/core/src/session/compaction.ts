@@ -1,7 +1,7 @@
 export * as SessionCompaction from "./compaction"
 
 import { LLM, LLMError, LLMEvent, Message, type LLMRequest, type Model } from "@hena/llm"
-import { DateTime, Effect, Stream } from "effect"
+import { DateTime, Effect, Exit, Stream } from "effect"
 import type { Config } from "../config"
 import type { EventV2 } from "../event"
 import { SessionEvent } from "./event"
@@ -183,44 +183,69 @@ export const make = (dependencies: Dependencies) => {
     const summaryOutput = Math.min(output || SUMMARY_OUTPUT_TOKENS, SUMMARY_OUTPUT_TOKENS)
     if (Token.estimate(summaryPrompt) > context - summaryOutput) return false
     const messageID = SessionMessage.ID.create()
-    yield* dependencies.events.publish(SessionEvent.Compaction.Started, {
-      sessionID: input.sessionID,
-      messageID,
-      timestamp: yield* DateTime.now,
-      reason: "auto",
-    })
-
-    const chunks: string[] = []
-    let failed = false
-    const summarized = yield* dependencies.llm
-      .stream(
-        LLM.request({
-          model: input.model,
-          messages: [Message.user(summaryPrompt)],
-          tools: [],
-          generation: { maxTokens: summaryOutput },
-        }),
-      )
-      .pipe(
-        Stream.runForEach((event) => {
-          if (LLMEvent.is.providerError(event)) failed = true
-          if (LLMEvent.is.textDelta(event)) chunks.push(event.text)
-          return Effect.void
-        }),
-        Effect.as(true),
-        Effect.catchTag("LLM.Error", () => Effect.succeed(false)),
-      )
-    const summary = chunks.join("")
-    if (!summarized || failed || !summary.trim()) return false
-    yield* dependencies.events.publish(SessionEvent.Compaction.Ended, {
-      sessionID: input.sessionID,
-      messageID,
-      timestamp: yield* DateTime.now,
-      reason: "auto",
-      text: summary,
-      recent: selected.recent,
-    })
-    return true
+    let committed = false
+    return yield* Effect.gen(function* () {
+      yield* dependencies.events.publish(SessionEvent.Compaction.Started, {
+        sessionID: input.sessionID,
+        messageID,
+        timestamp: yield* DateTime.now,
+        reason: "auto",
+      })
+      const chunks: string[] = []
+      let failed = false
+      const summarized = yield* dependencies.llm
+        .stream(
+          LLM.request({
+            model: input.model,
+            messages: [Message.user(summaryPrompt)],
+            tools: [],
+            generation: { maxTokens: summaryOutput },
+          }),
+        )
+        .pipe(
+          Stream.runForEach((event) =>
+            Effect.gen(function* () {
+              if (LLMEvent.is.providerError(event)) failed = true
+              if (!LLMEvent.is.textDelta(event)) return
+              chunks.push(event.text)
+              yield* dependencies.events.publish(SessionEvent.Compaction.Delta, {
+                sessionID: input.sessionID,
+                messageID,
+                timestamp: yield* DateTime.now,
+                text: event.text,
+              })
+            }),
+          ),
+          Effect.as(true),
+          Effect.catchTag("LLM.Error", () => Effect.succeed(false)),
+        )
+      const summary = chunks.join("")
+      if (!summarized || failed || !summary.trim()) return false
+      yield* Effect.gen(function* () {
+        yield* dependencies.events.publish(SessionEvent.Compaction.Ended, {
+          sessionID: input.sessionID,
+          messageID,
+          timestamp: yield* DateTime.now,
+          reason: "auto",
+          text: summary,
+          recent: selected.recent,
+        })
+        committed = true
+      }).pipe(Effect.uninterruptible)
+      return true
+    }).pipe(
+      Effect.onExit((exit) =>
+        committed || (Exit.isSuccess(exit) && exit.value)
+          ? Effect.void
+          : Effect.gen(function* () {
+              yield* dependencies.events.publish(SessionEvent.Compaction.Discarded, {
+                sessionID: input.sessionID,
+                messageID,
+                timestamp: yield* DateTime.now,
+              })
+            }),
+      ),
+    )
   })
   const compactIfNeeded = Effect.fn("SessionCompaction.compactIfNeeded")(function* (input: Input) {
     if (!config.auto) return false

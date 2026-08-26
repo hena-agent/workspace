@@ -24,6 +24,7 @@ import { AbsolutePath } from "@hena/core/schema"
 import { SessionSchema } from "@hena/core/session/schema"
 import { SessionTable } from "@hena/core/session/sql"
 import sessionMetadataMigration from "@hena/core/database/migration/20260511173437_session-metadata"
+import serverV3SyncMigration from "@hena/core/database/migration/20260823094804_server-v3-sync"
 import type { SqlClient as SqlClientService } from "effect/unstable/sql/SqlClient"
 import { Database } from "@hena/core/database/database"
 import { SessionProjector } from "@hena/core/session/projector"
@@ -76,6 +77,9 @@ describe("DatabaseMigration", () => {
           yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_context_epoch'`),
         ).toEqual({ name: "session_context_epoch" })
         expect(
+          yield* db.get(sql`SELECT dflt_value FROM pragma_table_info('session_input') WHERE name = 'queue_position'`),
+        ).toEqual({ dflt_value: String(Number.MAX_SAFE_INTEGER) })
+        expect(
           yield* db.get(
             sql`SELECT name FROM pragma_table_info('session_context_epoch') WHERE name IN ('agent', 'replacement_seq', 'revision')`,
           ),
@@ -83,11 +87,12 @@ describe("DatabaseMigration", () => {
         expect(yield* db.get(sql`SELECT count(*) as count FROM migration`)).toEqual({ count: migrations.length })
         expect(
           yield* db.all(
-            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('event_aggregate_seq_idx', 'event_aggregate_type_seq_idx', 'session_input_session_pending_seq_idx', 'session_input_session_pending_delivery_seq_idx', 'session_input_session_admitted_seq_idx', 'session_input_session_promoted_seq_idx', 'session_message_session_idx', 'session_message_session_type_idx', 'session_message_session_seq_idx', 'session_message_session_type_seq_idx', 'session_message_session_time_created_id_idx') ORDER BY name`,
+            sql`SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('event_aggregate_seq_idx', 'event_aggregate_type_seq_idx', 'event_type_message_id_idx', 'session_input_session_pending_seq_idx', 'session_input_session_pending_delivery_seq_idx', 'session_input_session_admitted_seq_idx', 'session_input_session_promoted_seq_idx', 'session_message_session_idx', 'session_message_session_type_idx', 'session_message_session_seq_idx', 'session_message_session_type_seq_idx', 'session_message_session_time_created_id_idx') ORDER BY name`,
           ),
         ).toEqual([
           { name: "event_aggregate_seq_idx" },
           { name: "event_aggregate_type_seq_idx" },
+          { name: "event_type_message_id_idx" },
           { name: "session_input_session_admitted_seq_idx" },
           { name: "session_input_session_pending_delivery_seq_idx" },
           { name: "session_input_session_promoted_seq_idx" },
@@ -95,6 +100,59 @@ describe("DatabaseMigration", () => {
           { name: "session_message_session_time_created_id_idx" },
           { name: "session_message_session_type_seq_idx" },
         ])
+      }),
+    )
+  })
+
+  test("backfills queue positions and stable todo IDs", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* DatabaseMigration.applyOnly(
+          db,
+          migrations.slice(0, migrations.findIndex((migration) => migration.id === serverV3SyncMigration.id)),
+        )
+        yield* db.run(sql`
+          INSERT INTO project (id, worktree, time_created, time_updated, sandboxes)
+          VALUES ('global', '/repo', 1, 1, '[]')
+        `)
+        yield* db.run(sql`
+          INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
+          VALUES ('ses_1', 'global', 'session', '/repo', 'Session', '1', 1, 1)
+        `)
+        yield* db.run(sql`
+          INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, time_created)
+          VALUES ('msg_1', 'ses_1', '{}', 'queue', 42, 1)
+        `)
+        yield* db.run(sql`INSERT INTO event_sequence (aggregate_id, seq) VALUES ('ses_1', 2)`)
+        yield* db.run(sql`
+          INSERT INTO event (id, aggregate_id, seq, type, data) VALUES
+            ('evt_admitted', 'ses_1', 0, 'session.next.prompt.admitted.1', '{}'),
+            ('evt_prompted', 'ses_1', 1, 'session.next.prompted.1', '{}'),
+            ('evt_reverted', 'ses_1', 2, 'session.next.revert.committed.1', '{}')
+        `)
+        yield* db.run(sql`
+          INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated)
+          VALUES ('ses_1', 'Task', 'pending', 'high', 0, 1, 1)
+        `)
+
+        yield* DatabaseMigration.applyOnly(db, [serverV3SyncMigration])
+
+        expect(yield* db.get<{ queue_position: number }>(sql`SELECT queue_position FROM session_input`)).toEqual({
+          queue_position: 42,
+        })
+        expect(yield* db.get(sql`SELECT queue_revision FROM session WHERE id = 'ses_1'`)).toEqual({
+          queue_revision: 3,
+        })
+        expect((yield* db.get<{ id: string }>(sql`SELECT id FROM todo`))?.id).toStartWith("todo_")
+        yield* db.run(sql`
+          INSERT INTO todo (session_id, content, status, priority, position, time_created, time_updated)
+          VALUES ('ses_1', 'After rollback', 'pending', 'high', 1, 2, 2)
+        `)
+        expect(yield* db.get(sql`SELECT content FROM todo WHERE position = 1`)).toEqual({ content: "After rollback" })
+        expect(
+          yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'collection_change'`),
+        ).toEqual({ name: "collection_change" })
       }),
     )
   })
@@ -258,7 +316,7 @@ describe("DatabaseMigration", () => {
           sql`INSERT INTO event (id, aggregate_id, seq, type, data) VALUES ('event', 'session', 9, 'session.updated.1', '{}')`,
         )
         yield* db.run(
-          sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, time_created) VALUES ('input', 'session', '{}', 'steer', 9, 1)`,
+          sql`INSERT INTO session_input (id, session_id, prompt, delivery, admitted_seq, queue_position, time_created) VALUES ('input', 'session', '{}', 'steer', 9, 9, 1)`,
         )
         yield* db.run(
           sql`INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data) VALUES ('projected', 'session', 'user', 9, 1, 1, '{}')`,

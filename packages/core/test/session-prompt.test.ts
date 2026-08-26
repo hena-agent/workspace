@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { DateTime, Effect, Fiber, Layer, Stream } from "effect"
-import { eq } from "drizzle-orm"
+import { asc, eq, sql } from "drizzle-orm"
 import { Database } from "@hena/core/database/database"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
@@ -99,6 +99,200 @@ const eventCount = (type: string) =>
   )
 
 describe("SessionV2.prompt", () => {
+  it.effect("uses admission order when rollback-created queue positions tie", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const events = yield* EventV2.Service
+      const first = SessionMessage.ID.make("msg_rollback_first")
+      const second = SessionMessage.ID.make("msg_rollback_second")
+      yield* db
+        .insert(SessionInputTable)
+        .values([
+          {
+            id: second,
+            session_id: sessionID,
+            prompt: Prompt.make({ text: "second" }),
+            delivery: "queue",
+            admitted_seq: 2,
+            queue_position: 0,
+          },
+          {
+            id: first,
+            session_id: sessionID,
+            prompt: Prompt.make({ text: "first" }),
+            delivery: "queue",
+            admitted_seq: 1,
+            queue_position: 0,
+          },
+        ])
+        .run()
+        .pipe(Effect.orDie)
+
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
+      expect(yield* admitted(first)).toMatchObject({ id: first, promotedSeq: 0 })
+      expect((yield* admitted(second))?.promotedSeq).toBeUndefined()
+    }),
+  )
+
+  it.effect("keeps rollback-created inputs ahead of newer inputs", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const events = yield* EventV2.Service
+      const first = SessionMessage.ID.make("msg_before_rollback")
+      const rollback = SessionMessage.ID.make("msg_from_rollback")
+      const newer = SessionMessage.ID.make("msg_after_upgrade")
+      yield* db
+        .insert(SessionInputTable)
+        .values([
+          {
+            id: first,
+            session_id: sessionID,
+            prompt: Prompt.make({ text: "first" }),
+            delivery: "queue",
+            admitted_seq: 1,
+            queue_position: 1,
+          },
+          {
+            id: rollback,
+            session_id: sessionID,
+            prompt: Prompt.make({ text: "rollback" }),
+            delivery: "queue",
+            admitted_seq: 2,
+          },
+        ])
+        .run()
+        .pipe(Effect.orDie)
+      expect(
+        yield* db
+          .select({ queuePosition: SessionInputTable.queue_position })
+          .from(SessionInputTable)
+          .where(eq(SessionInputTable.id, rollback))
+          .get()
+          .pipe(Effect.orDie),
+      ).toEqual({ queuePosition: Number.MAX_SAFE_INTEGER })
+      yield* SessionInput.normalizeQueuePositions(db)
+      expect(
+        yield* db
+          .select({ queuePosition: SessionInputTable.queue_position })
+          .from(SessionInputTable)
+          .where(eq(SessionInputTable.id, rollback))
+          .get()
+          .pipe(Effect.orDie),
+      ).toEqual({ queuePosition: 2 })
+      yield* db
+        .insert(SessionInputTable)
+        .values({
+          id: newer,
+          session_id: sessionID,
+          prompt: Prompt.make({ text: "newer" }),
+          delivery: "queue",
+          admitted_seq: 3,
+          queue_position: 3,
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
+      expect(
+        (yield* db
+          .select({ id: SessionInputTable.id })
+          .from(SessionInputTable)
+          .orderBy(asc(SessionInputTable.promoted_seq))
+          .all()
+          .pipe(Effect.orDie)).map((row) => row.id),
+      ).toEqual([first, rollback, newer])
+    }),
+  )
+
+  it.effect("reorders and cancels pending queue inputs with revisions", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const first = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "first" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const second = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "second" }),
+        delivery: "queue",
+        resume: false,
+      })
+
+      expect((yield* session.get(sessionID)).queueRevision).toBe(2)
+      expect(
+        yield* session.reorderInputs({
+          sessionID,
+          messageIDs: [second.id, first.id],
+          expectedRevision: 2,
+        }),
+      ).toBe(3)
+      const { db } = yield* Database.Service
+      expect(
+        (yield* db
+          .select({ id: SessionInputTable.id })
+          .from(SessionInputTable)
+          .orderBy(asc(SessionInputTable.queue_position))
+          .all()
+          .pipe(Effect.orDie)).map((row) => row.id),
+      ).toEqual([second.id, first.id])
+      expect(yield* session.cancelInput({ sessionID, messageID: first.id, expectedRevision: 3 })).toBe(4)
+      expect(yield* admitted(first.id)).toBeUndefined()
+
+      const events = yield* EventV2.Service
+      const defect = yield* events
+        .publish(SessionEvent.InputCanceled, {
+          sessionID,
+          messageID: second.id,
+          expectedRevision: 3,
+          timestamp: yield* DateTime.now,
+        })
+        .pipe(Effect.catchDefect(Effect.succeed))
+      expect(defect).toBeInstanceOf(SessionV2.QueueRevisionConflictError)
+      expect(defect).toMatchObject({ expected: 3, actual: 4, messageIDs: [second.id] })
+      expect(
+        yield* db.get<{ count: number }>(sql`
+          SELECT COUNT(*) AS count FROM event
+          WHERE type IN ('session.next.input.canceled.1', 'session.next.input.reordered.1')
+        `),
+      ).toEqual({ count: 2 })
+
+      const conflict = yield* session
+        .cancelInput({
+          sessionID,
+          messageID: second.id,
+          expectedRevision: 3,
+        })
+        .pipe(Effect.flip)
+      expect(conflict).toBeInstanceOf(SessionV2.QueueRevisionConflictError)
+      expect(conflict).toMatchObject({ expected: 3, actual: 4, messageIDs: [second.id] })
+
+      const canceled = yield* session
+        .cancelInput({ sessionID, messageID: first.id, expectedRevision: 4 })
+        .pipe(Effect.flip)
+      expect(canceled).toMatchObject({
+        _tag: "Session.QueueStateConflictError",
+        revision: 4,
+        messageIDs: [second.id],
+      })
+
+      const reordered = yield* session
+        .reorderInputs({ sessionID, messageIDs: [], expectedRevision: 4 })
+        .pipe(Effect.flip)
+      expect(reordered).toMatchObject({
+        _tag: "Session.QueueStateConflictError",
+        revision: 4,
+        messageIDs: [second.id],
+      })
+    }),
+  )
+
   it.effect("exposes the execution registry", () =>
     Effect.gen(function* () {
       activeSessions.add(sessionID)
@@ -339,6 +533,51 @@ describe("SessionV2.prompt", () => {
     }),
   )
 
+  it.effect("reconciles canceled prompt IDs only for exact retries", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const original = yield* session.prompt({
+        id: messageID,
+        sessionID,
+        prompt: Prompt.make({ text: "Original" }),
+        delivery: "queue",
+        resume: false,
+      })
+      yield* session.cancelInput({ sessionID, messageID, expectedRevision: 1 })
+
+      expect(
+        yield* session.prompt({
+          id: messageID,
+          sessionID,
+          prompt: Prompt.make({ text: "Original" }),
+          delivery: "queue",
+          resume: false,
+        }),
+      ).toEqual(original)
+      const conflict = yield* session
+        .prompt({
+          id: messageID,
+          sessionID,
+          prompt: Prompt.make({ text: "Different" }),
+          delivery: "queue",
+          resume: false,
+        })
+        .pipe(Effect.flip)
+
+      expect(conflict._tag).toBe("Session.PromptConflictError")
+      expect(yield* admitted(messageID)).toBeUndefined()
+      expect(yield* eventCount(EventV2.versionedType(SessionEvent.PromptAdmitted.type, 1))).toBe(1)
+      const { db } = yield* Database.Service
+      const plan = yield* db.all<{ detail: string }>(sql`
+        EXPLAIN QUERY PLAN SELECT seq, data FROM event
+        WHERE type = ${EventV2.versionedType(SessionEvent.PromptAdmitted.type, 1)}
+          AND json_extract(data, '$.messageID') = ${messageID}
+      `)
+      expect(plan.some((row) => row.detail.includes("event_type_message_id_idx"))).toBe(true)
+    }),
+  )
+
   it.effect("returns one recorded message to concurrent exact retries", () =>
     Effect.gen(function* () {
       yield* setup
@@ -380,6 +619,115 @@ describe("SessionV2.prompt", () => {
       expect(yield* session.messages({ sessionID })).toMatchObject([
         { id: messageID, type: "user", text: "Promote once" },
       ])
+    }),
+  )
+
+  it.effect("does not promote an input canceled after queue selection", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const input = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "Cancel during promotion" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const racingEvents = EventV2.Service.of({
+        ...events,
+        publish: (definition, data, options) =>
+          Effect.gen(function* () {
+            if (definition.type === SessionEvent.Prompted.type)
+              yield* events.publish(SessionEvent.InputCanceled, {
+                sessionID,
+                messageID: input.id,
+                expectedRevision: 1,
+                timestamp: yield* DateTime.now,
+              })
+            return yield* events.publish(definition, data, options)
+          }),
+      })
+
+      expect(yield* SessionInput.promoteNextQueued(db, racingEvents, sessionID)).toBe(false)
+      expect(yield* admitted(input.id)).toBeUndefined()
+      expect(yield* session.messages({ sessionID })).toEqual([])
+    }),
+  )
+
+  it.effect("promotes the reordered first input when ordering changes after selection", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const first = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "First before reorder" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const second = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "First after reorder" }),
+        delivery: "queue",
+        resume: false,
+      })
+      const state = { reordered: false }
+      const racingEvents = EventV2.Service.of({
+        ...events,
+        publish: (definition, data, options) =>
+          Effect.gen(function* () {
+            if (definition.type === SessionEvent.Prompted.type && !state.reordered) {
+              state.reordered = true
+              yield* events.publish(SessionEvent.InputReordered, {
+                sessionID,
+                messageIDs: [second.id, first.id],
+                expectedRevision: 2,
+                timestamp: yield* DateTime.now,
+              })
+            }
+            return yield* events.publish(definition, data, options)
+          }),
+      })
+
+      expect(yield* SessionInput.promoteNextQueued(db, racingEvents, sessionID)).toBe(true)
+      expect(yield* admitted(first.id)).not.toHaveProperty("promotedSeq")
+      expect(yield* admitted(second.id)).toHaveProperty("promotedSeq")
+      expect(yield* session.messages({ sessionID })).toMatchObject([
+        { id: second.id, type: "user", text: "First after reorder" },
+      ])
+    }),
+  )
+
+  it.effect("counts steers promoted before a later selected input is canceled", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const first = yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Promote" }), resume: false })
+      const second = yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Cancel" }), resume: false })
+      const state = { prompted: 0 }
+      const racingEvents = EventV2.Service.of({
+        ...events,
+        publish: (definition, data, options) =>
+          Effect.gen(function* () {
+            if (definition.type === SessionEvent.Prompted.type) state.prompted++
+            if (definition.type === SessionEvent.Prompted.type && state.prompted === 2)
+              yield* events.publish(SessionEvent.InputCanceled, {
+                sessionID,
+                messageID: second.id,
+                expectedRevision: 3,
+                timestamp: yield* DateTime.now,
+              })
+            return yield* events.publish(definition, data, options)
+          }),
+      })
+
+      expect(yield* SessionInput.promoteSteers(db, racingEvents, sessionID, Number.MAX_SAFE_INTEGER)).toBe(1)
+      expect(yield* admitted(first.id)).toHaveProperty("promotedSeq")
+      expect(yield* admitted(second.id)).toBeUndefined()
     }),
   )
 

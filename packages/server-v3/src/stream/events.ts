@@ -1,0 +1,814 @@
+import { streamSSE } from "hono/streaming"
+import type { Context } from "hono"
+import { requestedScopes } from "../collection/manifest"
+import { error } from "../http/error"
+import type { SyncDatabase } from "../storage/database"
+import { createFrameFactory } from "./frame"
+import type { StreamRegistry } from "../routes/streams"
+import type { Delta, DeltaHub } from "./delta"
+import type { OnlineRequestStore, VolatileCollection } from "../core/online-requests"
+import { fitsPage, pages } from "./pages"
+import type { Change } from "../storage/changes"
+import type { Database } from "bun:sqlite"
+
+type StoredChange = {
+  seq: number
+  collection: string
+  scope_key: string
+  row_key: string
+  op: Change["op"]
+  row: string | null
+  row_revision: string | null
+  txid: string | null
+  runtime_id: string
+  created_at: number
+}
+
+const MaxConcurrentSnapshots = 8
+const WriteTimeoutMs = 30_000
+let activeSnapshots = 0
+
+export function events(
+  c: Context,
+  database: SyncDatabase,
+  streams: StreamRegistry,
+  deltas: DeltaHub,
+  online: OnlineRequestStore,
+) {
+  const streamID = c.req.param("streamId")
+  if (!streamID) return error(c, 404, "not_found", "Stream not found")
+  const existing = streams.get("local", streamID)
+  if (!existing) return error(c, 404, "not_found", "Stream not found")
+  if (!existing.subscription) return error(c, 409, "conflict", "Subscribe before attaching")
+  const resource = streams.attach("local", existing.id)
+  if (!resource) return error(c, 404, "not_found", "Stream not found")
+  const subscription = existing.subscription
+  const frame = createFrameFactory({ database, streamId: resource.id, generation: resource.generation, subscription })
+
+  c.header("Cache-Control", "no-store")
+  c.header("X-Accel-Buffering", "no")
+  return streamSSE(c, async (stream) => {
+    let writes = Promise.resolve()
+    let unsubscribe = () => {}
+    let unsubscribeOnline = () => {}
+    let unsubscribeDeltas: Array<() => void> = []
+    let heartbeat: ReturnType<typeof setInterval> | undefined
+    let disposed = false
+    const dispose = async () => {
+      if (disposed) return
+      disposed = true
+      if (heartbeat) clearInterval(heartbeat)
+      streams.detach("local", resource.id, resource.generation)
+      unsubscribe()
+      unsubscribeOnline()
+      unsubscribeDeltas.forEach((remove) => remove())
+      await writes
+    }
+    await using _ = { [Symbol.asyncDispose]: dispose }
+    const currentLocations = database.collections.snapshot("locations", "").rows.map((row) => row.key)
+    const cursorLocations = Object.keys(subscription.cursors).flatMap((cursor) => {
+      const separator = cursor.indexOf(":")
+      const collection = cursor.slice(0, separator)
+      const scopeKey = cursor.slice(separator + 1)
+      return separator !== -1 &&
+        scopeKey !== "profile" &&
+        (collection === "settings" || collection === "agents" || collection === "models" || collection === "providers")
+        ? [scopeKey]
+        : []
+    })
+    const scopes = requestedScopes(subscription, Array.from(new Set([...currentLocations, ...cursorLocations])))
+    const initialScopes = [...scopes]
+    const deletedLocations = new Set(cursorLocations.filter((location) => !currentLocations.includes(location)))
+    const through = new Map<string, number>()
+    const recoveredThrough = new Map<string, number>()
+    type BufferedEvent =
+      | { readonly type: "changes"; readonly changes: readonly Change[] }
+      | { readonly type: "delta"; readonly delta: Delta }
+    const bufferedEvents = new Array<BufferedEvent>()
+    const replayCursors = new Map<string, number>()
+    let live = false
+    let volatileLive = false
+    let deltaLive = false
+    const pendingVolatile = new Set<string>()
+    type Recovery = { scope: (typeof scopes)[number]; fromSeq: number; throughSeq: number; changes: Change[] }
+    type RecoveryJob = { started: boolean; recoveries: Map<string, Recovery>; promise?: Promise<void> }
+    let recoveryJob: RecoveryJob | undefined
+    let queuedBytes = 0
+    let bufferedBytes = 0
+    let ending = false
+    const disconnected = Promise.withResolvers<void>()
+    const disconnect = () => {
+      if (ending) return
+      ending = true
+      stream.abort()
+      disconnected.resolve()
+    }
+    const writeEvent = async (event: Parameters<typeof stream.writeSSE>[0]) => {
+      if (ending) return
+      const timeout = setTimeout(disconnect, WriteTimeoutMs)
+      timeout.unref()
+      try {
+        await Promise.race([stream.writeSSE(event), disconnected.promise])
+      } finally {
+        clearTimeout(timeout)
+      }
+    }
+    const reserveSnapshot = async () => {
+      if (activeSnapshots < MaxConcurrentSnapshots) {
+        activeSnapshots++
+        return true
+      }
+      await writeEvent({
+        event: "error",
+        data: JSON.stringify(frame({ type: "error", code: "stream_limit_exceeded" })),
+      })
+      ending = true
+      disconnected.resolve()
+      return false
+    }
+    streams.bind("local", resource.id, resource.generation, disconnect)
+    stream.onAbort(disconnect)
+    const slowConsumer = () => {
+      if (ending) return
+      ending = true
+      void stream.writeSSE({
+        event: "error",
+        data: JSON.stringify(frame({ type: "error", code: "slow_consumer" })),
+      })
+      stream.abort()
+      disconnected.resolve()
+    }
+    const reserveBuffer = (value: unknown) => {
+      const size = new TextEncoder().encode(JSON.stringify(value)).byteLength
+      if (queuedBytes + bufferedBytes + size > 4 * 1024 * 1024) {
+        slowConsumer()
+        return false
+      }
+      bufferedBytes += size
+      return true
+    }
+    const enqueue = (event: string, value: Record<string, unknown>) => {
+      if (ending) return
+      const data = JSON.stringify(frame(value))
+      const size = new TextEncoder().encode(data).byteLength
+      if (queuedBytes + bufferedBytes + size > 4 * 1024 * 1024) {
+        slowConsumer()
+        return
+      }
+      queuedBytes += size
+      writes = writes
+        .then(() => writeEvent({ event, data }))
+        .catch(disconnected.resolve)
+        .finally(() => {
+          queuedBytes -= size
+        })
+    }
+    const rowsValue = (changes: readonly Change[]) => ({
+      type: "rows",
+      affectedScopes: Array.from(
+        new Map(
+          changes.map((change) => {
+            const scope = { collection: change.collection, scopeKey: change.scopeKey }
+            return [scopeKey(scope), scope]
+          }),
+        ).values(),
+      ),
+      fromSeq: changes[0].seq,
+      throughSeq: changes.at(-1)!.seq,
+      changes: changes.map((change) => ({ ...change, rowKey: wireKey(change.collection, change.rowKey) })),
+    })
+    const enqueueRows = (changes: readonly Change[]) => {
+      if (ending) return
+      const initial = JSON.stringify(frame(rowsValue(changes)))
+      const size = new TextEncoder().encode(initial).byteLength
+      if (queuedBytes + bufferedBytes + size > 4 * 1024 * 1024) {
+        slowConsumer()
+        return
+      }
+      queuedBytes += size
+      writes = writes
+        .then(async () => {
+          if (ending) return
+          const pending = changes.filter((change) => change.seq > (recoveredThrough.get(scopeKey(change)) ?? 0))
+          if (pending.length === 0) return
+          await writeEvent({
+            event: "rows",
+            data: pending.length === changes.length ? initial : JSON.stringify(frame(rowsValue(pending))),
+          })
+        })
+        .catch(disconnected.resolve)
+        .finally(() => {
+          queuedBytes -= size
+        })
+    }
+    unsubscribeDeltas = Array.from(new Set(subscription.sessions), (sessionID) =>
+      deltas.subscribe(sessionID, (delta) => {
+        if (!deltaLive) {
+          if (!reserveBuffer(delta)) return
+          bufferedEvents.push({ type: "delta", delta })
+          return
+        }
+        splitDelta(delta, frame).forEach((item) => enqueue("delta", { type: "delta", ...item }))
+      }),
+    )
+    const updateLocations = (changes: readonly Change[], removeOnline: boolean) => {
+      changes
+        .filter((change) => change.collection === "locations" && (change.op === "insert" || change.op === "update"))
+        .forEach((change) => addLocation(change.rowKey))
+      changes
+        .filter((change) => change.collection === "locations" && change.op === "delete")
+        .forEach((change) => removeLocation(change.rowKey, removeOnline))
+    }
+    const publish = (changes: readonly Change[]) => {
+      updateLocations(changes, true)
+      const visible = changes.filter(
+        (change) =>
+          scopes.some((scope) => scope.collection === change.collection && scope.scopeKey === change.scopeKey) &&
+          change.seq > (through.get(scopeKey(change)) ?? 0),
+      )
+      if (visible.length === 0) return
+      if (!live) {
+        if (!reserveBuffer(visible)) return
+        bufferedEvents.push({ type: "changes", changes: visible })
+        return
+      }
+      enqueueChanges(visible)
+    }
+    unsubscribe = database.changes.subscribeTransactions(publish)
+    function addLocation(locationKey: string) {
+      if (!subscription.lists) return
+      const restoring = deletedLocations.delete(locationKey)
+      const settings = { collection: "settings" as const, scopeKey: locationKey }
+      if (!scopes.some((scope) => scope.collection === settings.collection && scope.scopeKey === locationKey)) {
+        scopes.push(settings)
+        enqueueSnapshot(settings)
+      } else if (restoring) {
+        enqueueSnapshot(settings)
+      }
+      for (const collection of ["agents", "models", "providers"] as const) {
+        if (scopes.some((scope) => scope.collection === collection && scope.scopeKey === locationKey)) {
+          if (restoring) {
+            if (volatileLive) enqueueVolatile({ collection, scopeKey: locationKey })
+            else pendingVolatile.add(`${collection}\u0000${locationKey}`)
+          }
+          continue
+        }
+        const scope = { collection, scopeKey: locationKey }
+        scopes.push(scope)
+        if (volatileLive) enqueueVolatile(scope)
+        else pendingVolatile.add(`${collection}\u0000${locationKey}`)
+      }
+    }
+    function removeLocation(locationKey: string, removeOnline: boolean) {
+      if (!subscription.lists) return
+      for (const collection of ["settings", "agents", "models", "providers"] as const) {
+        const index = scopes.findIndex((scope) => scope.collection === collection && scope.scopeKey === locationKey)
+        if (index === -1) continue
+        const scope = scopes[index]
+        scopes.splice(index, 1)
+        pendingVolatile.delete(`${collection}\u0000${locationKey}`)
+        recoveryJob?.recoveries.delete(scopeKey(scope))
+        through.delete(scopeKey(scope))
+        bufferedEvents.splice(
+          0,
+          bufferedEvents.length,
+          ...bufferedEvents.flatMap<BufferedEvent>((event) => {
+            if (event.type === "delta") return [event]
+            const changes = event.changes.filter((change) => scopeKey(change) !== scopeKey(scope))
+            return changes.length > 0 ? [{ type: "changes" as const, changes }] : []
+          }),
+        )
+        enqueueEmptySnapshot(scope)
+      }
+      if (removeOnline)
+        for (const collection of ["agents", "models", "providers"] as const) online.remove(collection, locationKey)
+    }
+    const enqueueVolatile = (scope: { collection: VolatileCollection; scopeKey: string }) => {
+      volatileFrames(scope).forEach((item) => enqueue(item.event, item.value))
+    }
+    const volatileFrames = (scope: { collection: VolatileCollection; scopeKey: string }) => {
+      const snapshot = online.snapshot(scope.collection, scope.scopeKey)
+      const snapshotId = crypto.randomUUID()
+      const baseSeq = database.changes.current()
+      return [
+        {
+          event: "snapshot.begin",
+          value: {
+            type: "snapshot.begin",
+            scope,
+            snapshotId,
+            baseSeq,
+            replace: true,
+            sourceRevision: snapshot.revision,
+          },
+        },
+        ...pages(
+          snapshot.rows.map((row) => ({ ...row, key: wireKey(scope.collection, row.key) })),
+          (rows) => frame({ type: "snapshot.page", scope, snapshotId, rows }),
+        ).map((rows) => ({
+          event: "snapshot.page",
+          value: { type: "snapshot.page", scope, snapshotId, rows },
+        })),
+        {
+          event: "snapshot.end",
+          value: { type: "snapshot.end", scope, snapshotId, keyCount: snapshot.rows.length, throughSeq: baseSeq },
+        },
+      ]
+    }
+    unsubscribeOnline = online.subscribe((collection, scopeKey) => {
+      if (!scopes.some((scope) => scope.collection === collection && scope.scopeKey === scopeKey)) return
+      if (!volatileLive) {
+        pendingVolatile.add(`${collection}\u0000${scopeKey}`)
+        return
+      }
+      enqueueVolatile({ collection, scopeKey })
+    })
+    const snapshotFrames = (
+      scope: (typeof scopes)[number],
+      snapshot = database.collections.snapshot(scope.collection, scope.scopeKey),
+    ) => {
+      through.set(scopeKey(scope), snapshot.throughSeq)
+      const snapshotId = crypto.randomUUID()
+      return [
+        {
+          event: "snapshot.begin",
+          value: { type: "snapshot.begin", scope, snapshotId, baseSeq: snapshot.throughSeq, replace: true },
+        },
+        ...pages(
+          snapshot.rows.map((row) => ({ ...row, key: wireKey(scope.collection, row.key) })),
+          (rows) => frame({ type: "snapshot.page", scope, snapshotId, rows }),
+        ).map((rows) => ({
+          event: "snapshot.page",
+          value: { type: "snapshot.page", scope, snapshotId, rows },
+        })),
+        {
+          event: "snapshot.end",
+          value: {
+            type: "snapshot.end",
+            scope,
+            snapshotId,
+            keyCount: snapshot.rows.length,
+            throughSeq: snapshot.throughSeq,
+          },
+        },
+      ]
+    }
+    const enqueueSnapshot = (scope: (typeof scopes)[number]) => {
+      snapshotFrames(scope).forEach((item) => enqueue(item.event, item.value))
+    }
+    const writeFrames = async (
+      frames: ReadonlyArray<{ event: string; value: Record<string, unknown> }>,
+      activeScope?: (typeof scopes)[number],
+    ) => {
+      for (const item of frames) {
+        if (activeScope && !scopes.some((scope) => scopeKey(scope) === scopeKey(activeScope))) return
+        enqueue(item.event, item.value)
+        await writes
+      }
+    }
+    const writeSnapshot = async (scope: (typeof scopes)[number], source: Database, throughSeq: number) => {
+      const snapshotId = crypto.randomUUID()
+      let keyCount = 0
+      let after = ""
+      through.set(scopeKey(scope), throughSeq)
+      await writeEvent({
+        event: "snapshot.begin",
+        data: JSON.stringify(frame({ type: "snapshot.begin", scope, snapshotId, baseSeq: throughSeq, replace: true })),
+      })
+      const query = source.query<{ row_key: string; row: string; row_revision: string }, [string, string, string]>(`
+        SELECT row_key, row, row_revision FROM collection_row
+        WHERE collection = ? AND scope_key = ? AND row_key > ?
+        ORDER BY row_key LIMIT 4
+      `)
+      while (true) {
+        if (ending) break
+        const rows = query.all(scope.collection, scope.scopeKey, after)
+        if (rows.length === 0) break
+        after = rows.at(-1)!.row_key
+        const projected = rows.map((row) => ({
+          key: wireKey(scope.collection, row.row_key),
+          row: JSON.parse(row.row),
+          revision: row.row_revision,
+        }))
+        keyCount += projected.length
+        for (const page of pages(projected, (rows) => frame({ type: "snapshot.page", scope, snapshotId, rows })))
+          await writeEvent({
+            event: "snapshot.page",
+            data: JSON.stringify(frame({ type: "snapshot.page", scope, snapshotId, rows: page })),
+          })
+      }
+      if (ending) return
+      await writeEvent({
+        event: "snapshot.end",
+        data: JSON.stringify(frame({ type: "snapshot.end", scope, snapshotId, keyCount, throughSeq })),
+      })
+    }
+    const writeRecoveries = async (recoveries: readonly Recovery[], source: Database, throughSeq: number) => {
+      await writeEvent({
+        event: "rows",
+        data: JSON.stringify(
+          frame({
+            type: "rows",
+            affectedScopes: recoveries.map((recovery) => recovery.scope),
+            fromSeq: Math.min(...recoveries.map((recovery) => recovery.fromSeq)),
+            throughSeq,
+            changes: recoveries.flatMap((recovery) =>
+              recovery.changes.map((change) => ({ ...change, seq: throughSeq })),
+            ),
+          }),
+        ),
+      })
+      for (const recovery of recoveries) {
+        if (ending) return
+        await writeSnapshot(recovery.scope, source, throughSeq)
+      }
+    }
+    const scheduleRecoveries = (
+      incoming: ReadonlyArray<{
+        scope: (typeof scopes)[number]
+        fromSeq: number
+        throughSeq: number
+        change: Change
+      }>,
+    ) => {
+      const active = recoveryJob
+      const recoveries =
+        active && !active.started && writes === active.promise ? active.recoveries : new Map<string, Recovery>()
+      const mergeable = recoveries === active?.recoveries
+      incoming.forEach((recovery) => {
+        const pending = recoveries.get(scopeKey(recovery.scope))
+        recoveries.set(scopeKey(recovery.scope), {
+          scope: recovery.scope,
+          fromSeq: pending ? Math.min(pending.fromSeq, recovery.fromSeq) : recovery.fromSeq,
+          throughSeq: recovery.throughSeq,
+          changes: [...(pending?.changes ?? []), recovery.change],
+        })
+      })
+      if (mergeable) return
+      const job: RecoveryJob = { started: false, recoveries }
+      const promise = writes
+        .then(async () => {
+          job.started = true
+          if (ending) return
+          const batch = Array.from(job.recoveries.values()).filter((recovery) =>
+            scopes.some((scope) => scopeKey(scope) === scopeKey(recovery.scope)),
+          )
+          job.recoveries.clear()
+          if (batch.length === 0) return
+          if (!(await reserveSnapshot())) return
+          try {
+            const { Database } = await import("bun:sqlite")
+            const source = new Database(database.raw.filename, { readonly: true })
+            try {
+              source.exec("BEGIN")
+              const throughSeq = source
+                .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
+                .get()!.seq
+              await writeRecoveries(batch, source, throughSeq)
+              batch.forEach((recovery) => {
+                const key = scopeKey(recovery.scope)
+                recoveredThrough.set(key, Math.max(recoveredThrough.get(key) ?? 0, throughSeq))
+              })
+            } finally {
+              try {
+                if (source.inTransaction) source.exec("ROLLBACK")
+              } finally {
+                source.close()
+              }
+            }
+          } finally {
+            activeSnapshots--
+          }
+        })
+        .catch(disconnected.resolve)
+      job.promise = promise
+      recoveryJob = job
+      writes = promise
+    }
+    const enqueueEmptySnapshot = (scope: (typeof scopes)[number]) => {
+      const snapshotId = crypto.randomUUID()
+      const throughSeq = database.changes.current()
+      enqueue("snapshot.begin", { type: "snapshot.begin", scope, snapshotId, baseSeq: throughSeq, replace: true })
+      enqueue("snapshot.end", { type: "snapshot.end", scope, snapshotId, keyCount: 0, throughSeq })
+    }
+    const enqueueChanges = (changes: readonly Change[]) => {
+      if (changes.length === 0) return
+      const affectedScopes = Array.from(
+        new Map(
+          changes.map((change) => {
+            const scope = { collection: change.collection, scopeKey: change.scopeKey }
+            return [scopeKey(scope), scope]
+          }),
+        ).values(),
+      )
+      const fromSeq = changes[0].seq
+      const throughSeq = changes.at(-1)!.seq
+      affectedScopes.forEach((scope) => through.set(scopeKey(scope), throughSeq))
+      if (!fitsPage(changes, (items) => frame(rowsValue(items))) || changes.some((change) => change.op === "reset")) {
+        scheduleRecoveries(
+          affectedScopes.map((scope) => {
+            const last = changes.findLast(
+              (change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey,
+            )!
+            return {
+              scope,
+              fromSeq,
+              throughSeq,
+              change: { ...last, rowKey: "", op: "reset", row: null, rowRevision: undefined },
+            }
+          }),
+        )
+        return
+      }
+      enqueueRows(changes)
+    }
+    enqueue("stream.ready", { type: "stream.ready" })
+    await writes
+    if (ending) return
+    if (!(await reserveSnapshot())) return
+    try {
+      const { Database } = await import("bun:sqlite")
+      const snapshotDatabase = new Database(database.raw.filename, { readonly: true })
+      try {
+        snapshotDatabase.exec("BEGIN")
+        const feed = snapshotDatabase
+          .query<
+            { feed_id: string; retained_floor: number },
+            []
+          >("SELECT feed_id, retained_floor FROM collection_feed WHERE id = 1")
+          .get()!
+        const baseSeq = Math.max(
+          snapshotDatabase
+            .query<{ seq: number }, []>("SELECT COALESCE(MAX(seq), 0) AS seq FROM collection_change")
+            .get()!.seq,
+          feed.retained_floor,
+        )
+        // Collection rows are individually bounded below 1 MiB, so four rows cap each decoded read near 4 MiB.
+        const snapshotRows = snapshotDatabase.query<
+          { row_key: string; row: string; row_revision: string },
+          [string, string, string]
+        >(`
+        SELECT row_key, row, row_revision FROM collection_row
+        WHERE collection = ? AND scope_key = ? AND row_key > ?
+        ORDER BY row_key LIMIT 4
+      `)
+        const replayNext = snapshotDatabase.query<StoredChange, [number, number]>(`
+        SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
+        FROM collection_change
+        WHERE seq > ? AND seq <= ?
+        ORDER BY seq LIMIT 1
+      `)
+        const replayTransactionEnd = snapshotDatabase.query<{ seq: number }, [number, string]>(`
+        SELECT COALESCE(
+          (SELECT seq - 1 FROM collection_change WHERE seq > ? AND txid IS NOT ? ORDER BY seq LIMIT 1),
+          (SELECT MAX(seq) FROM collection_change)
+        ) AS seq
+      `)
+        const replayTransactionSize = snapshotDatabase.query<{ bytes: number }, [number, number]>(`
+        SELECT COALESCE(SUM(LENGTH(CAST(collection AS BLOB)) + LENGTH(CAST(scope_key AS BLOB)) +
+          LENGTH(CAST(row_key AS BLOB)) + COALESCE(LENGTH(CAST(row AS BLOB)), 0) + 128), 0) AS bytes
+        FROM collection_change
+        WHERE seq >= ? AND seq <= ?
+      `)
+        const replayTransaction = snapshotDatabase.query<StoredChange, [number, number]>(`
+        SELECT seq, collection, scope_key, row_key, op, row, row_revision, txid, runtime_id, created_at
+        FROM collection_change
+        WHERE seq >= ? AND seq <= ?
+        ORDER BY seq
+      `)
+        const replayTransactionScopes = snapshotDatabase.query<StoredChange, [number, number, number, number]>(`
+        SELECT seq, collection, scope_key, '' AS row_key, 'reset' AS op, NULL AS row, NULL AS row_revision,
+          txid, runtime_id, created_at
+        FROM collection_change
+        WHERE seq >= ? AND seq <= ? AND (collection || char(0) || scope_key || char(0) || seq) IN (
+          SELECT collection || char(0) || scope_key || char(0) || MAX(seq)
+          FROM collection_change
+          WHERE seq >= ? AND seq <= ?
+          GROUP BY collection, scope_key
+        )
+        ORDER BY seq
+      `)
+
+        for (const scope of initialScopes) {
+          if (ending) break
+          if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) continue
+          if (deletedLocations.has(scope.scopeKey)) {
+            const snapshotId = crypto.randomUUID()
+            await writeFrames([
+              {
+                event: "snapshot.begin",
+                value: { type: "snapshot.begin", scope, snapshotId, baseSeq, replace: true },
+              },
+              {
+                event: "snapshot.end",
+                value: { type: "snapshot.end", scope, snapshotId, keyCount: 0, throughSeq: baseSeq },
+              },
+            ])
+            continue
+          }
+          if (isVolatile(scope.collection)) {
+            await writeFrames(volatileFrames({ collection: scope.collection, scopeKey: scope.scopeKey }), scope)
+            continue
+          }
+          const cursor = subscription.cursors[`${scope.collection}:${scope.scopeKey}`]
+          if (
+            !deletedLocations.has(scope.scopeKey) &&
+            cursor?.feedId === feed.feed_id &&
+            cursor.seq >= feed.retained_floor &&
+            cursor.seq <= baseSeq
+          ) {
+            through.set(scopeKey(scope), cursor.seq)
+            replayCursors.set(scopeKey(scope), cursor.seq)
+            continue
+          }
+
+          through.set(scopeKey(scope), baseSeq)
+          const snapshotId = crypto.randomUUID()
+          await writeFrames([
+            {
+              event: "snapshot.begin",
+              value: { type: "snapshot.begin", scope, snapshotId, baseSeq, replace: true },
+            },
+          ])
+          let keyCount = 0
+          let after = ""
+          while (true) {
+            if (ending) break
+            const rows = snapshotRows.all(scope.collection, scope.scopeKey, after)
+            if (rows.length === 0) break
+            if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) break
+            const projected = rows.map((row) => ({
+              key: wireKey(scope.collection, row.row_key),
+              row: JSON.parse(row.row),
+              revision: row.row_revision,
+            }))
+            keyCount += projected.length
+            after = rows.at(-1)!.row_key
+            await writeFrames(
+              pages(projected, (rows) => frame({ type: "snapshot.page", scope, snapshotId, rows })).map((page) => ({
+                event: "snapshot.page",
+                value: { type: "snapshot.page", scope, snapshotId, rows: page },
+              })),
+            )
+          }
+          if (ending) break
+          if (!scopes.some((current) => scopeKey(current) === scopeKey(scope))) continue
+          await writeFrames([
+            {
+              event: "snapshot.end",
+              value: { type: "snapshot.end", scope, snapshotId, keyCount, throughSeq: baseSeq },
+            },
+          ])
+        }
+        scopes.splice(0, scopes.length, ...scopes.filter((scope) => !deletedLocations.has(scope.scopeKey)))
+
+        const replayFrom = Math.min(...replayCursors.values(), baseSeq)
+        let replayAfter = replayFrom
+        while (replayAfter < baseSeq) {
+          if (ending) break
+          const next = replayNext.get(replayAfter, baseSeq)
+          if (!next) break
+          const throughSeq = next.txid === null ? next.seq : replayTransactionEnd.get(next.seq, next.txid)!.seq
+          const oversized =
+            next.txid !== null && replayTransactionSize.get(next.seq, throughSeq)!.bytes > 4 * 1024 * 1024
+          const pending = (
+            oversized
+              ? replayTransactionScopes.all(next.seq, throughSeq, next.seq, throughSeq)
+              : next.txid === null
+                ? [next]
+                : replayTransaction.all(next.seq, throughSeq)
+          )
+            .filter((row) => {
+              const cursor = replayCursors.get(`${row.collection}\u0000${row.scope_key}`)
+              return cursor !== undefined && row.seq > cursor
+            })
+            .map(storedChange)
+          replayAfter = throughSeq
+          if (pending.length === 0) continue
+          updateLocations(pending, false)
+          if (
+            oversized ||
+            !fitsPage(pending, (items) => frame(rowsValue(items))) ||
+            pending.some((change) => change.op === "reset")
+          ) {
+            const affectedScopes = Array.from(
+              new Map(
+                pending.map((change) => {
+                  const scope = { collection: change.collection, scopeKey: change.scopeKey }
+                  return [scopeKey(scope), scope]
+                }),
+              ).values(),
+            )
+            await writeRecoveries(
+              affectedScopes.map((scope) => ({
+                scope,
+                fromSeq: next.seq,
+                throughSeq,
+                changes: [
+                  {
+                    ...pending.findLast(
+                      (change) => change.collection === scope.collection && change.scopeKey === scope.scopeKey,
+                    )!,
+                    rowKey: "",
+                    op: "reset",
+                    row: null,
+                    rowRevision: undefined,
+                  },
+                ],
+              })),
+              snapshotDatabase,
+              baseSeq,
+            )
+          } else {
+            enqueueChanges(pending)
+            await writes
+          }
+        }
+      } finally {
+        try {
+          if (snapshotDatabase.inTransaction) snapshotDatabase.exec("ROLLBACK")
+        } finally {
+          snapshotDatabase.close()
+        }
+      }
+    } finally {
+      activeSnapshots--
+    }
+
+    if (ending) return
+    live = true
+    volatileLive = true
+    deltaLive = true
+    bufferedBytes = 0
+    bufferedEvents.forEach((event) => {
+      if (event.type === "delta") {
+        splitDelta(event.delta, frame).forEach((item) => enqueue("delta", { type: "delta", ...item }))
+        return
+      }
+      const changes = event.changes.filter((change) => change.seq > (through.get(scopeKey(change)) ?? 0))
+      if (changes.length > 0) enqueueChanges(changes)
+    })
+    bufferedEvents.length = 0
+    pendingVolatile.forEach((key) => {
+      const [collection, scopeKey] = key.split("\u0000") as [VolatileCollection, string]
+      enqueueVolatile({ collection, scopeKey })
+    })
+    pendingVolatile.clear()
+    heartbeat = setInterval(() => {
+      enqueue("heartbeat", { type: "heartbeat", time: Date.now() })
+    }, 15_000)
+    await disconnected.promise
+  })
+}
+
+function isVolatile(collection: string): collection is VolatileCollection {
+  return (
+    collection === "permissions" ||
+    collection === "questions" ||
+    collection === "agents" ||
+    collection === "models" ||
+    collection === "providers"
+  )
+}
+
+function scopeKey(scope: { collection: string; scopeKey: string }) {
+  return `${scope.collection}\u0000${scope.scopeKey}`
+}
+
+function storedChange(row: StoredChange): Change {
+  return {
+    seq: row.seq,
+    collection: row.collection,
+    scopeKey: row.scope_key,
+    rowKey: row.row_key,
+    op: row.op,
+    row: row.row === null ? null : JSON.parse(row.row),
+    rowRevision: row.row_revision ?? undefined,
+    txid: row.txid ?? undefined,
+    runtimeId: row.runtime_id,
+    createdAt: row.created_at,
+  }
+}
+
+function splitDelta(delta: Delta, frame: (value: Record<string, unknown>) => Record<string, unknown>) {
+  if (fitsPage([delta], ([item]) => frame({ type: "delta", ...item }))) return [delta]
+  const bytes = new TextEncoder().encode(delta.text)
+  const decoder = new TextDecoder()
+  const chunks: Delta[] = []
+  for (let start = 0; start < bytes.length; ) {
+    let end = Math.min(start + 512 * 1024, bytes.length)
+    while (end < bytes.length && (bytes[end] & 0xc0) === 0x80) end--
+    chunks.push({ ...delta, offset: delta.offset + start, text: decoder.decode(bytes.subarray(start, end)) })
+    start = end
+  }
+  return chunks
+}
+
+function wireKey(collection: string, key: string) {
+  const length = collection === "parts" ? 3 : collection === "models" ? 2 : undefined
+  if (length === undefined || !key.startsWith("[")) return key
+  const decoded = JSON.parse(key) as unknown
+  return Array.isArray(decoded) && decoded.length === length && decoded.every((item) => typeof item === "string")
+    ? decoded
+    : key
+}

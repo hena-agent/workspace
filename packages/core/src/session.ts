@@ -29,7 +29,7 @@ import { SessionStore } from "./session/store"
 import { SessionExecution } from "./session/execution"
 import { makeGlobalNode } from "./effect/app-node"
 import { LocationServiceMap } from "./location-service-map"
-import { MessageDecodeError } from "./session/error"
+import { MessageDecodeError, QueueRevisionConflictError, QueueStateConflictError } from "./session/error"
 import { SessionEvent } from "./session/event"
 import { SessionInput } from "./session/input"
 import { Snapshot } from "./snapshot"
@@ -99,7 +99,7 @@ export class OperationUnavailableError extends Schema.TaggedErrorClass<Operation
   },
 ) {}
 
-export { ContextSnapshotDecodeError, MessageDecodeError } from "./session/error"
+export { ContextSnapshotDecodeError, MessageDecodeError, QueueRevisionConflictError, QueueStateConflictError } from "./session/error"
 
 export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictError>()("Session.PromptConflictError", {
   sessionID: SessionSchema.ID,
@@ -108,7 +108,13 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
 export const MessageNotFoundError = SessionRevert.MessageNotFoundError
 export type MessageNotFoundError = SessionRevert.MessageNotFoundError
 
-export type Error = NotFoundError | MessageDecodeError | OperationUnavailableError | PromptConflictError
+export type Error =
+  | NotFoundError
+  | MessageDecodeError
+  | OperationUnavailableError
+  | PromptConflictError
+  | QueueRevisionConflictError
+  | QueueStateConflictError
 
 export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
@@ -151,6 +157,16 @@ export interface Interface {
     delivery?: SessionInput.Delivery
     resume?: boolean
   }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
+  readonly cancelInput: (input: {
+    sessionID: SessionSchema.ID
+    messageID: SessionMessage.ID
+    expectedRevision: number
+  }) => Effect.Effect<number, NotFoundError | QueueRevisionConflictError | QueueStateConflictError>
+  readonly reorderInputs: (input: {
+    sessionID: SessionSchema.ID
+    messageIDs: ReadonlyArray<SessionMessage.ID>
+    expectedRevision: number
+  }) => Effect.Effect<number, NotFoundError | QueueRevisionConflictError | QueueStateConflictError>
   readonly shell: (input: {
     id?: EventV2.ID
     sessionID: SessionSchema.ID
@@ -166,6 +182,7 @@ export interface Interface {
   readonly compact: (input: CompactInput) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly active: Effect.Effect<ReadonlySet<SessionSchema.ID>>
+  readonly wake: (sessionID: SessionSchema.ID) => Effect.Effect<void>
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
   readonly revert: {
@@ -384,6 +401,38 @@ const layer = Layer.effect(
           }),
         ),
       ),
+      cancelInput: Effect.fn("V2Session.cancelInput")(function* (input) {
+        yield* result.get(input.sessionID)
+        yield* events
+          .publish(SessionEvent.InputCanceled, {
+            ...input,
+            timestamp: yield* DateTime.now,
+          })
+          .pipe(
+            Effect.catchDefect((defect) =>
+              defect instanceof QueueRevisionConflictError || defect instanceof QueueStateConflictError
+                ? Effect.fail(defect)
+                : Effect.die(defect),
+            ),
+          )
+        return input.expectedRevision + 1
+      }),
+      reorderInputs: Effect.fn("V2Session.reorderInputs")(function* (input) {
+        yield* result.get(input.sessionID)
+        yield* events
+          .publish(SessionEvent.InputReordered, {
+            ...input,
+            timestamp: yield* DateTime.now,
+          })
+          .pipe(
+            Effect.catchDefect((defect) =>
+              defect instanceof QueueRevisionConflictError || defect instanceof QueueStateConflictError
+                ? Effect.fail(defect)
+                : Effect.die(defect),
+            ),
+          )
+        return input.expectedRevision + 1
+      }),
       shell: Effect.fn("V2Session.shell")(function* () {
         return yield* new OperationUnavailableError({ operation: "shell" })
       }),
@@ -423,6 +472,7 @@ const layer = Layer.effect(
         return yield* new OperationUnavailableError({ operation: "wait" })
       }),
       active: execution.active,
+      wake: Effect.fn("V2Session.wake")((sessionID) => Effect.uninterruptible(execution.wake(sessionID))),
       resume: Effect.fn("V2Session.resume")(function* (sessionID) {
         yield* result.get(sessionID)
         yield* execution.resume(sessionID)

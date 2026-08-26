@@ -347,6 +347,10 @@ exports[`tool parameters JSON Schema (wire shape) todo 1`] = `
             "description": "Brief description of the task",
             "type": "string",
           },
+          "id": {
+            "pattern": "^todo_",
+            "type": "string",
+          },
           "priority": {
             "description": "Priority level of the task: high, medium, low",
             "type": "string",

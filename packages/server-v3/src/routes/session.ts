@@ -1,0 +1,121 @@
+import { Sync } from "@hena/schema/sync"
+import { PromptInput } from "@hena/schema/prompt-input"
+import { Session } from "@hena/schema/session"
+import { SessionMessage } from "@hena/schema/session-message"
+import { sValidator } from "@hono/standard-validator"
+import { Schema } from "effect"
+import { Hono } from "hono"
+import type { CoreDomain } from "../core/domain"
+import { error, validationHook } from "../http/error"
+import { preview } from "../storage/content"
+import { fitsCollectionRow } from "../stream/pages"
+
+const SessionParams = Schema.Struct({ sessionId: Session.ID })
+const InputParams = Schema.Struct({ sessionId: Session.ID, inputId: SessionMessage.ID })
+
+export function createSessionRoutes(domain: CoreDomain) {
+  return new Hono()
+    .post(
+      "/session",
+      sValidator("json", Schema.toStandardSchemaV1(Sync.CreateSession), validationHook),
+      async (c) => {
+        const input = c.req.valid("json")
+        if (oversizedSessionID(input.sessionID))
+          return error(c, 413, "payload_too_large", "Session ID exceeds the supported size")
+        if (oversizedPrompt(input.prompt, input.sessionID, input.messageID))
+          return error(c, 413, "payload_too_large", "Prompt exceeds the supported size")
+        return c.json(await domain.createSession(input))
+      },
+    )
+    .post(
+      "/session/:sessionId/input/:inputId/cancel",
+      sValidator("param", Schema.toStandardSchemaV1(InputParams), validationHook),
+      sValidator("json", Schema.toStandardSchemaV1(Sync.CancelInput), validationHook),
+      async (c) => c.json(await domain.cancelInput(
+          c.req.valid("param").sessionId,
+          c.req.valid("param").inputId,
+          c.req.valid("json"),
+        )),
+    )
+    .put(
+      "/session/:sessionId/input-order",
+      sValidator("param", Schema.toStandardSchemaV1(SessionParams), validationHook),
+      sValidator("json", Schema.toStandardSchemaV1(Sync.ReorderInputs), validationHook),
+      async (c) => c.json(await domain.reorderInputs(
+          c.req.valid("param").sessionId,
+          c.req.valid("json"),
+        )),
+    )
+    .post(
+      "/session/:sessionId/prompt",
+      sValidator("param", Schema.toStandardSchemaV1(SessionParams), validationHook),
+      sValidator("json", Schema.toStandardSchemaV1(Sync.AdmitPrompt), validationHook),
+      async (c) => {
+        const input = c.req.valid("json")
+        if (oversizedPrompt(input.prompt, c.req.valid("param").sessionId, input.messageID))
+          return error(c, 413, "payload_too_large", "Prompt exceeds the supported size")
+        return c.json(await domain.admitPrompt(c.req.valid("param").sessionId, input))
+      },
+    )
+    .post(
+      "/session/:sessionId/interrupt",
+      sValidator("param", Schema.toStandardSchemaV1(SessionParams), validationHook),
+      async (c) => {
+        await domain.interrupt(c.req.valid("param").sessionId)
+        return c.json({ outcome: "applied" as const })
+      },
+    )
+}
+
+function oversizedSessionID(sessionID?: string) {
+  return sessionID !== undefined && new TextEncoder().encode(sessionID).byteLength > 64 * 1024
+}
+
+function oversizedPrompt(prompt: PromptInput.Prompt, sessionID = "x".repeat(64), messageID = "x".repeat(64)) {
+  const sizes = prompt.files?.map((file) => inlinedBytes(file.uri)) ?? []
+  if (sizes.some((size) => size > 5 * 1024 * 1024) || sizes.reduce((total, size) => total + size, 0) > 20 * 1024 * 1024)
+    return true
+  const projected = {
+    ...prompt,
+    files: prompt.files?.map((file, index) => {
+      const uri = preview(file.uri)
+      const dataMime = file.uri.match(/^data:([^;,]+)[;,]/i)?.[1]
+      const normalized = dataMime ? { ...file, mime: dataMime } : file
+      if (!uri.truncated) return normalized
+      return {
+        ...normalized,
+        uri: uri.text,
+        truncated: true,
+        content: { id: `${messageID}_attachment_${index}`, revision: "x".repeat(64), bytes: uri.totalBytes },
+      }
+    }),
+  }
+  return !fitsCollectionRow(
+    "sessionInputs",
+    sessionID,
+    {
+      key: messageID,
+      revision: "x".repeat(64),
+      row: {
+        id: messageID,
+        sessionID,
+        prompt: projected,
+        delivery: "queue",
+        admittedSeq: Number.MAX_SAFE_INTEGER,
+        promotedSeq: Number.MAX_SAFE_INTEGER,
+        queuePosition: Number.MAX_SAFE_INTEGER,
+        timeCreated: Number.MAX_SAFE_INTEGER,
+      },
+    },
+  )
+}
+
+function inlinedBytes(uri: string) {
+  if (!/^data:/i.test(uri)) return 0
+  const separator = uri.indexOf(",")
+  if (separator === -1) return Number.POSITIVE_INFINITY
+  const data = uri.slice(separator + 1)
+  if (!uri.slice(0, separator).endsWith(";base64")) return new TextEncoder().encode(data).byteLength
+  const padding = data.endsWith("==") ? 2 : data.endsWith("=") ? 1 : 0
+  return Math.floor(data.length * 3 / 4) - padding
+}

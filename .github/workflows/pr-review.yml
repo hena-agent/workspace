@@ -3,7 +3,10 @@ name: pr-review
 # Runs once when a PR is opened or marked ready for review; adding the
 # `pr-review` label re-runs it on demand.
 on:
-  pull_request:
+  # Run the workflow and all local reusable actions from the base commit. The
+  # pull request checkout is passive review data and never supplies executable
+  # workflow code to jobs that hold reviewer credentials.
+  pull_request_target:
     types: [opened, ready_for_review, labeled]
 
 # A called (reusable) workflow cannot exceed the caller's token scopes, and this

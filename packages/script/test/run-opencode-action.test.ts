@@ -18,7 +18,7 @@ describe("run-opencode review action", () => {
     expect(action).toContain('install -m 600 ".opencode/command/$COMMAND.md"')
     expect(action).toContain('[ "$GITHUB_EVENT_NAME" != "pull_request_target" ]')
     expect(action).toContain('"$(git rev-parse HEAD)" != "$GITHUB_WORKFLOW_SHA"')
-    expect(action).not.toContain("workflow checkout does not match the pull request base commit")
+    expect(action).toContain("workflow checkout does not match the trusted workflow commit")
     expect(action).toContain('cd "$REVIEW_DIRECTORY"')
     expect(action).toContain('OPENCODE_DISABLE_CLAUDE_CODE: "1"')
     expect(action).toContain('OPENCODE_DISABLE_EXTERNAL_SKILLS: "1"')

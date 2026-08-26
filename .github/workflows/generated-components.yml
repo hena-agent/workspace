@@ -1,0 +1,54 @@
+name: generated components
+
+on:
+  # Run the base branch's workflow so a pull request cannot weaken this guard.
+  # The job only reads pull request metadata and never checks out or runs its code.
+  pull_request_target:
+    branches: [develop]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  unchanged:
+    name: generated components are unchanged
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check generated components
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          file_count=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" --jq '.changed_files')
+          if (( file_count > 3000 )); then
+            echo "::error::Cannot verify generated components in a pull request with more than 3,000 changed files."
+            exit 1
+          fi
+
+          changed="$RUNNER_TEMP/generated-components-changed"
+          gh api --paginate "repos/$GH_REPO/pulls/$PR_NUMBER/files?per_page=100" --jq '
+            .[] |
+            select(
+              (.filename | startswith("packages/app-v3/src/components/ui/")) or
+              (.filename | startswith("packages/app-v3/src/components/ai-elements/")) or
+              ((.previous_filename // "") | startswith("packages/app-v3/src/components/ui/")) or
+              ((.previous_filename // "") | startswith("packages/app-v3/src/components/ai-elements/"))
+            ) |
+            if .previous_filename then
+              "\(.previous_filename) -> \(.filename)"
+            else
+              .filename
+            end
+          ' > "$changed"
+
+          if [[ ! -s "$changed" ]]; then
+            exit 0
+          fi
+
+          echo "::error::Generated component files must not be modified. Revert these changes:"
+          while IFS= read -r file; do
+            printf '  %q\n' "$file"
+          done < "$changed"
+          exit 1

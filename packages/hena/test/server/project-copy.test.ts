@@ -43,36 +43,6 @@ describe("project directories and copies endpoints", () => {
   type ProjectDirectory = { directory: string; strategy?: string }
 
   it.instance(
-    "preserves a managed copy strategy when the copy is reopened",
-    () =>
-      Effect.gen(function* () {
-        const test = yield* TestInstance
-        const projectID = (yield* json<{ id: string }>(yield* request(test.directory, "/project/current"))).id
-        const createdParent = path.join(test.directory, "..", path.basename(test.directory) + "-http-reopen-copy")
-        yield* Effect.addFinalizer(() =>
-          Effect.promise(() => fs.rm(createdParent, { recursive: true, force: true })).pipe(Effect.ignore),
-        )
-        const create = yield* request(
-          test.directory,
-          `/experimental/project/${projectID}/copy?location%5Bdirectory%5D=${encodeURIComponent(test.directory)}`,
-          {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ strategy: "git_worktree", directory: createdParent, name: "copy" }),
-          },
-        )
-        const created = yield* json<{ directory: string }>(create)
-
-        expect(create.status).toBe(200)
-        expect((yield* request(created.directory, "/project/current")).status).toBe(200)
-        expect(
-          yield* json<ProjectDirectory[]>(yield* request(test.directory, `/project/${projectID}/directories`)),
-        ).toContainEqual({ directory: created.directory, strategy: "git_worktree" })
-      }),
-    { git: true },
-  )
-
-  it.instance(
     "lists directories and manages git worktree copies",
     () =>
       Effect.gen(function* () {

@@ -1,5 +1,4 @@
 import { afterEach, describe, expect } from "bun:test"
-import { realpath } from "fs/promises"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { Deferred, Effect, Fiber, Layer } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/unstable/http"
@@ -277,7 +276,7 @@ describe("experimental HttpApi", () => {
           Effect.gen(function* () {
             const listed = yield* request(ExperimentalPaths.worktree, tmp.directory)
             expect(listed.status).toBe(200)
-            expect(yield* json(listed)).toContain(yield* Effect.promise(() => realpath(info.directory)))
+            expect(yield* json(listed)).toContain(info.directory)
 
             const reset = yield* request(ExperimentalPaths.worktreeReset, tmp.directory, {
               method: "POST",

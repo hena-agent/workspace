@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { FilesView } from "@/features/files/files-view"
+import { useMockServers } from "@/features/server/mock-server-provider"
 import { getFileTree, getSession } from "@/mock/queries"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/files")({
@@ -14,8 +15,9 @@ function FilesRoute() {
   const { connectionId, projectId, sessionId } = Route.useParams()
   const { file } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
+  const server = useMockServers().getServerBySlug(connectionId)
 
-  if (!getSession({ id: sessionId, connectionId, projectId })) {
+  if (!server || !getSession({ id: sessionId, connectionId: server.id, projectId })) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Session not found.</div>
     )

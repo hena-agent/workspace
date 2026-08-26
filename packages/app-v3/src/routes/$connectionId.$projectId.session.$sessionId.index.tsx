@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { SessionTranscriptView } from "@/features/session/session-transcript-view"
+import { useMockServers } from "@/features/server/mock-server-provider"
 import {
   getPermissionRequest,
   getQuestionRequest,
@@ -18,8 +19,8 @@ export const Route = createFileRoute("/$connectionId/$projectId/session/$session
 
 function SessionTranscriptRoute() {
   const { connectionId, projectId, sessionId } = Route.useParams()
-  const session = getSession({ id: sessionId, connectionId, projectId })
-  const sessionOwner = { sessionId, connectionId, projectId }
+  const server = useMockServers().getServerBySlug(connectionId)
+  const session = server ? getSession({ id: sessionId, connectionId: server.id, projectId }) : undefined
   const agents = listAgents()
   const models = listModels()
   const [agentId, setAgentId] = useState(agents[0].id)
@@ -30,6 +31,8 @@ function SessionTranscriptRoute() {
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Session not found.</div>
     )
   }
+
+  const sessionOwner = { sessionId, connectionId: session.connectionId, projectId }
 
   return (
     <SessionTranscriptView

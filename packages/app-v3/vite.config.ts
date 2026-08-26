@@ -7,6 +7,7 @@ import { defineConfig } from "vite"
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: process.env.HENA_APP_BASE_PATH ?? "/",
   plugins: [
     // Must run before the React plugin: it generates routeTree.gen.ts from
     // src/routes/** so the React plugin compiles routes with an up-to-date tree.
@@ -22,8 +23,9 @@ export default defineConfig({
   },
   server: {
     // Set this for non-loopback development hosts such as Tailscale MagicDNS names.
-    allowedHosts: process.env.HENA_VITE_ALLOWED_HOSTS?.split(",")
-      .map((host) => host.trim())
-      .filter(Boolean),
+    allowedHosts: [
+      ".ts.net",
+      ...(process.env.HENA_VITE_ALLOWED_HOSTS?.split(",").map((host) => host.trim()).filter(Boolean) ?? []),
+    ],
   },
 })

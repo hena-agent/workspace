@@ -24,7 +24,7 @@ on:
         default: ""
         type: string
       command:
-        description: Built-in slash command passed to `opencode run --command`; currently only review
+        description: Repository-owned review command passed to `opencode run --command`
         required: false
         default: ""
         type: string
@@ -82,13 +82,30 @@ jobs:
           permission-issues: read
           permission-pull-requests: read
 
-      - name: Checkout repository
+      - name: Checkout workflow workspace
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
+          persist-credentials: ${{ inputs.command == '' }}
           # Prompt agents retain the App's installation permissions for any
           # commit/push behavior; command reviews only receive read access.
           token: ${{ inputs.command != '' && steps.review-token.outputs.token || steps.publish-token.outputs.token }}
+
+      - name: Checkout pull request as review data
+        if: inputs.command != ''
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: .opencode-review-target
+          fetch-depth: 1
+          persist-credentials: false
+          token: ${{ steps.review-token.outputs.token }}
+
+      - name: Sanitize pull request review data
+        if: inputs.command != ''
+        shell: bash
+        run: bash .github/actions/run-opencode/sanitize-review-checkout.sh .opencode-review-target
 
       - name: Run ${{ inputs.model }} (${{ inputs.variant }})
         uses: ./.github/actions/run-opencode
@@ -102,5 +119,6 @@ jobs:
           prompt: ${{ inputs.prompt }}
           command: ${{ inputs.command }}
           command-arguments: ${{ inputs.command-arguments }}
+          review-directory: ${{ inputs.command != '' && '.opencode-review-target' || '' }}
           timeout-minutes: ${{ inputs.timeout-minutes }}
           opencode-version: ${{ inputs.opencode-version }}

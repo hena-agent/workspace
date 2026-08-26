@@ -26,18 +26,22 @@ inputs:
     description: Write-scoped token used to publish comments and reviews
     required: true
   review-token:
-    description: Read-only token used to collect built-in review context
+    description: Read-only token used to collect pull request review context
     required: true
   prompt:
     description: Final prompt passed to opencode github run.
     required: false
     default: ""
   command:
-    description: Built-in slash command passed to opencode run --command; currently only review.
+    description: Thermo-nuclear review command passed to opencode run --command.
     required: false
     default: ""
   command-arguments:
     description: Arguments passed to the slash command.
+    required: false
+    default: ""
+  review-directory:
+    description: Credential-free pull request checkout used as review data.
     required: false
     default: ""
 
@@ -49,7 +53,9 @@ runs:
       env:
         PROMPT: ${{ inputs.prompt }}
         COMMAND: ${{ inputs.command }}
+        REVIEW_DIRECTORY: ${{ inputs.review-directory }}
       run: |
+        set -euo pipefail
         if [ -n "$PROMPT" ] && [ -n "$COMMAND" ]; then
           echo "::error::prompt and command are mutually exclusive."
           exit 1
@@ -58,9 +64,33 @@ runs:
           echo "::error::either prompt or command is required."
           exit 1
         fi
-        if [ -n "$COMMAND" ] && [ "$COMMAND" != "review" ]; then
+        if [ -n "$COMMAND" ] && [ "$COMMAND" != "thermo-nuclear-code-quality-review" ]; then
           echo "::error::unsupported slash command '$COMMAND'."
           exit 1
+        fi
+        if [ -n "$COMMAND" ] && [ "$GITHUB_EVENT_NAME" != "pull_request_target" ]; then
+          echo "::error::Review commands require a base-owned pull_request_target workflow."
+          exit 1
+        fi
+        if [ -n "$COMMAND" ] && [ "$REVIEW_DIRECTORY" != ".opencode-review-target" ]; then
+          echo "::error::Review commands require the isolated .opencode-review-target checkout."
+          exit 1
+        fi
+        if [ -n "$COMMAND" ]; then
+          BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
+          HEAD_SHA=$(jq -r '.pull_request.head.sha // empty' "$GITHUB_EVENT_PATH")
+          if [ -z "$BASE_SHA" ] || [ -z "$HEAD_SHA" ]; then
+            echo "::error::Review commands require pull request base and head commits."
+            exit 1
+          fi
+          if [ "$(git rev-parse HEAD)" != "$BASE_SHA" ]; then
+            echo "::error::The workflow checkout does not match the pull request base commit."
+            exit 1
+          fi
+          if [ "$(git -C "$REVIEW_DIRECTORY" rev-parse HEAD)" != "$HEAD_SHA" ]; then
+            echo "::error::The review checkout does not match the pull request head commit."
+            exit 1
+          fi
         fi
 
     - name: Restore OpenCode auth.json
@@ -222,18 +252,28 @@ runs:
         VARIANT: ${{ inputs.variant }}
         COMMAND: ${{ inputs.command }}
         COMMAND_ARGUMENTS: ${{ inputs.command-arguments }}
+        REVIEW_DIRECTORY: ${{ inputs.review-directory }}
         GH_TOKEN: ${{ inputs.review-token }}
+        OPENCODE_DISABLE_CLAUDE_CODE: "1"
+        OPENCODE_DISABLE_EXTERNAL_SKILLS: "1"
         OPENCODE_DISABLE_PROJECT_CONFIG: "1"
         CODEX_WEB_SEARCH_AUTH_JSON: ${{ inputs.codex-web-search-auth-json }}
       run: |
         set -euo pipefail
         if ! [[ "$COMMAND_ARGUMENTS" =~ ^[1-9][0-9]*$ ]]; then
-          echo "::error::review requires one pull request number, got '$COMMAND_ARGUMENTS'."
+          echo "::error::$COMMAND requires one pull request number, got '$COMMAND_ARGUMENTS'."
           exit 1
         fi
 
         REVIEW_CONTEXT="$RUNNER_TEMP/opencode-review-context"
         install -d -m 700 "$REVIEW_CONTEXT/bin"
+        BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
+
+        # pull_request_target checks out the base commit at the workspace root.
+        # Install only that checkout's command as global config.
+        install -d -m 700 "$HOME/.config/opencode/command"
+        install -m 600 ".opencode/command/$COMMAND.md" "$HOME/.config/opencode/command/$COMMAND.md"
+
         gh pr view "$COMMAND_ARGUMENTS" > "$REVIEW_CONTEXT/view"
         if ! gh pr diff "$COMMAND_ARGUMENTS" > "$REVIEW_CONTEXT/diff" 2> "$REVIEW_CONTEXT/diff-error"; then
           DIFF_ERROR=$(<"$REVIEW_CONTEXT/diff-error")
@@ -243,12 +283,14 @@ runs:
           fi
 
           echo "::notice::GitHub could not render this PR's diff; using the local merge-base diff."
-          BASE_SHA=$(jq -r '.pull_request.base.sha' "$GITHUB_EVENT_PATH")
           HEAD_SHA=$(jq -r '.pull_request.head.sha' "$GITHUB_EVENT_PATH")
           MERGE_BASE_SHA=$(gh api \
             "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" \
             --jq '.merge_base_commit.sha')
-          git fetch --no-tags --depth=1 origin "$MERGE_BASE_SHA" "$HEAD_SHA"
+          GIT_AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.https://github.com/.extraheader="$GIT_AUTH_HEADER" \
+            fetch --no-tags --depth=1 origin "$MERGE_BASE_SHA" "$HEAD_SHA"
+          unset GIT_AUTH_HEADER
           git diff --no-ext-diff --find-renames "$MERGE_BASE_SHA" "$HEAD_SHA" > "$REVIEW_CONTEXT/diff"
         fi
 
@@ -284,13 +326,9 @@ runs:
         ')
         export OPENCODE_PERMISSION
 
-        # OPENCODE_DISABLE_PROJECT_CONFIG above intentionally excludes this
-        # checkout's own opencode.jsonc and .opencode/plugin/ from automatic
-        # discovery, so a PR cannot get its own modified plugin code loaded
-        # with this job's credentials by editing either. OPENCODE_CONFIG_CONTENT
-        # injects config independent of on-disk project config; use it to
-        # re-enable specific, individually-trusted plugins from the workflow
-        # itself, never by trusting the checkout wholesale.
+        # OPENCODE_DISABLE_PROJECT_CONFIG excludes the review checkout's config,
+        # plugins, and instruction files. OPENCODE_CONFIG_CONTENT restores only
+        # approved plugins and base-owned instruction files.
         PLUGINS='[]'
 
         # @ex-machina/opencode-anthropic-auth supplies the subscription-backed
@@ -303,25 +341,9 @@ runs:
           PLUGINS=$(jq -c '. + ["@ex-machina/opencode-anthropic-auth@1.8.1"]' <<< "$PLUGINS")
         fi
 
-        # .opencode/plugin/codex-web-search.ts is a generated bundle committed
-        # to this repository, so a PR can modify it. Loading the checkout's
-        # HEAD copy would let a PR execute its own code with this job's
-        # credentials while reviewing itself. Fetch the bundle from the PR's
-        # base commit instead, preserving the trust boundary this action used
-        # for the old custom review command. The bundle is self-contained, so
-        # it does not need package installation before OpenCode imports it.
-        # Reference it explicitly because OPENCODE_DISABLE_PROJECT_CONFIG also
-        # disables automatic .opencode/plugin discovery.
-        BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
-        if [ -n "$BASE_SHA" ] && (
-          set -e
-          gh api \
-            -H "Accept: application/vnd.github.raw+json" \
-            "repos/$GITHUB_REPOSITORY/contents/.opencode/plugin/codex-web-search.ts?ref=$BASE_SHA" \
-            > "$REVIEW_CONTEXT/codex-web-search.ts"
-          install -d -m 700 .opencode/plugin
-          install -m 600 "$REVIEW_CONTEXT/codex-web-search.ts" .opencode/plugin/codex-web-search.ts
-        ) 2>/dev/null; then
+        # Reference the base checkout's bundled plugin explicitly because
+        # project plugin discovery is disabled for review commands.
+        if [ -f ".opencode/plugin/codex-web-search.ts" ]; then
           PLUGINS=$(jq -c --arg path "file://$(pwd)/.opencode/plugin/codex-web-search.ts" '. + [$path]' <<< "$PLUGINS")
 
           # codex_web_search reads its OpenAI credential via
@@ -346,13 +368,19 @@ runs:
             chmod 600 "$AUTH_JSON"
           fi
         else
-          echo "::notice::Could not fetch the bundled .opencode/plugin/codex-web-search.ts from the base commit; codex_web_search will be unavailable this run."
+          echo "::notice::The base commit has no bundled codex_web_search plugin; web search will be unavailable this run."
         fi
 
-        if [ "$PLUGINS" != "[]" ]; then
-          OPENCODE_CONFIG_CONTENT=$(jq -cn --argjson plugins "$PLUGINS" '{plugin: $plugins}')
-          export OPENCODE_CONFIG_CONTENT
-        fi
+        INSTRUCTIONS=$(git ls-files -z -- \
+          ':(glob)**/AGENTS.md' \
+          ':(glob)**/CLAUDE.md' \
+          ':(glob)**/CONTEXT.md' \
+          | jq -Rsc --arg root "$PWD" 'split("\u0000") | map(select(length > 0) | $root + "/" + .)')
+        OPENCODE_CONFIG_CONTENT=$(jq -cn \
+          --argjson plugins "$PLUGINS" \
+          --argjson instructions "$INSTRUCTIONS" \
+          '{plugin: $plugins, instructions: $instructions}')
+        export OPENCODE_CONFIG_CONTENT
 
         export OPENCODE_REVIEW_PR="$COMMAND_ARGUMENTS"
         export OPENCODE_REVIEW_VIEW="$REVIEW_CONTEXT/view"
@@ -360,6 +388,7 @@ runs:
         export PATH="$REVIEW_CONTEXT/bin:$PATH"
         git config --local --unset-all http.https://github.com/.extraheader 2>/dev/null || true
         unset GH_TOKEN
+        cd "$REVIEW_DIRECTORY"
 
         COMMAND_STATUS=0
         opencode run \
@@ -374,17 +403,19 @@ runs:
         if [ "$COMMAND_STATUS" -eq 0 ]; then
           jq -jrs \
             --arg operation "final-text" \
+            --arg command "$COMMAND" \
             -f "$GITHUB_ACTION_PATH/extract-review.jq" \
             "$RUNNER_TEMP/opencode-command.ndjson" \
             > "$RUNNER_TEMP/opencode-command-result.md"
           exit 0
         fi
 
-        # The review command delegates to a review task, then asks the parent
+        # Review commands delegate to a task, then ask the parent
         # model to present that result. Preserve the completed review when only
         # that final turn fails with a retryable provider error.
         if jq -jers \
           --arg operation "completed-review" \
+          --arg command "$COMMAND" \
           -f "$GITHUB_ACTION_PATH/extract-review.jq" \
           "$RUNNER_TEMP/opencode-command.ndjson" \
           > "$RUNNER_TEMP/opencode-command-result.md"; then

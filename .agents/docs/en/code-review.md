@@ -2,7 +2,7 @@
 
 The automated PR review and PR brief workflows select models from repository Actions variables. Review runs use a model matrix. Brief runs use one independently configured model and default to `opencode-go/ox-alpha-free@max`.
 
-Applies to `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_review-model.yml`, `.github/workflows/_opencode.yml`, and `.github/actions/run-opencode/action.yml`.
+Applies to `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_review-model.yml`, `.github/workflows/_opencode.yml`, `.github/actions/run-opencode/action.yml`, and `.opencode/command/thermo-nuclear-code-quality-review.md`.
 
 ## Variables
 
@@ -64,7 +64,7 @@ Fork PRs and PRs authored by Dependabot resolve as disabled because repository c
 
 ## Review triggers
 
-`pr-review.yml` starts reviews in three cases:
+The base-owned `pr-review.yml` workflow starts reviews in three cases:
 
 1. A non-draft pull request is opened.
 2. A draft pull request is marked ready for review.
@@ -73,6 +73,12 @@ Fork PRs and PRs authored by Dependabot resolve as disabled because repository c
 Pushes, edits, reopening, and unrelated labels do not start reviews. Draft pull requests otherwise do not start reviews. Unrelated label events use distinct concurrency groups, so they also cannot cancel an active review. To force another review, remove and add the `pr-review` label again.
 
 The review job uses `fail-fast: false`, so one model failure does not cancel the other model rows. GitHub runs rows in parallel subject to runner availability. Per-PR concurrency still cancels an older in-flight review set when a new request arrives. Each published review starts with workflow-generated model, variant, OpenCode version, run, and commit provenance.
+
+## Review command
+
+Reviews invoke the project-owned `thermo-nuclear-code-quality-review` command through `pull_request_target`, so GitHub loads the caller, reusable workflow, and local composite action from the base commit. The workflow checks out the pull request under `.opencode-review-target` without persisted credentials and treats it only as review data. Before the model can read that checkout, the workflow renders symbolic links as plain link-target files and removes project instruction filenames. The action disables project config, installs the base command as global OpenCode config, and injects only approved plugins and base-owned instruction files. Instructions added or changed by the pull request remain visible in the diff but cannot override the command or base conventions.
+
+The command runs as a delegated subtask. If that subtask completes but the final presentation turn ends on a retryable provider error, the action extracts and publishes the completed task result. Other provider and command failures remain hard failures.
 
 ## Brief behavior
 
@@ -87,10 +93,12 @@ gh variable set REVIEWER_OPENCODE_VERSION --body "$(gh release view --repo anoma
 gh variable delete REVIEWER_OPENCODE_VERSION
 ```
 
-The composite action validates the override and checks that every selected model and variant exists before invoking the provider. If the built-in review command completes its delegated review task but the final presentation turn ends on a retryable provider error, the action publishes the completed task result. Other provider and command failures remain hard failures.
+The composite action validates the override and checks that every selected model and variant exists before invoking the provider.
 
 ## Security
 
 Repository variable values are treated as untrusted input. The resolver trims them and applies strict allowlists before placing values in job names, outputs, or shell variables. Provider routing remains an inline code-owned map. Callers dereference only the selected secret names rather than inheriting every repository secret.
+
+Review jobs never execute pull request code. OpenCode runs inside the credential-free pull request checkout with project config disabled, edit access denied, external-directory access denied, and shell access limited to a wrapper that returns preloaded `gh pr view` and `gh pr diff` output. Fork and Dependabot pull requests remain disabled before model credentials are passed to a job.
 
 Reviewer and brief checks are advisory and must not be required branch-protection checks. Disabled or ineligible configurations skip the model jobs instead of emitting placeholder successful checks.

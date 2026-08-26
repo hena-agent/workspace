@@ -3,7 +3,6 @@ export const PROFILE_SETTINGS_SECTIONS = [
   { id: "appearance", label: "Appearance" },
   { id: "notifications", label: "Notifications" },
   { id: "keybindings", label: "Keybindings" },
-  { id: "storage", label: "Storage" },
 ] as const
 
 export type ProfileSettingsSection = (typeof PROFILE_SETTINGS_SECTIONS)[number]["id"]

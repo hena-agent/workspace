@@ -1,15 +1,11 @@
-import { useState } from "react"
 import { describe, expect, test } from "bun:test"
-import userEvent from "@testing-library/user-event"
 import { render, screen } from "@/test/test-utils"
 import { ProfileSettingsView, type ProfileSettingsSection } from "./profile-settings-view"
 
-function Harness({ initial }: { initial: ProfileSettingsSection }) {
-  const [section, setSection] = useState<ProfileSettingsSection>(initial)
+function view(section: ProfileSettingsSection) {
   return (
     <ProfileSettingsView
       section={section}
-      onSelectSection={setSection}
       theme="system"
       onChangeTheme={() => {}}
       density="comfortable"
@@ -20,31 +16,24 @@ function Harness({ initial }: { initial: ProfileSettingsSection }) {
       onChangeReducedMotion={() => {}}
       notifications={{ sound: true, desktop: false }}
       onChangeNotifications={() => {}}
-      storage={{ usedMib: 12, budgetMib: 50 }}
-      onClearCache={() => {}}
-      onRemoveAllData={() => {}}
     />
   )
 }
 
 describe("ProfileSettingsView", () => {
-  test("renders section-specific content and switches when navigating", async () => {
-    const user = userEvent.setup()
-    render(<Harness initial="general" />)
+  test("renders section-specific content", () => {
+    const result = render(view("general"))
 
     expect(screen.getByLabelText("Theme")).toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: "Notifications" }))
+    result.rerender(view("notifications"))
     expect(screen.getByLabelText("Sound")).toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: "Appearance" }))
+    result.rerender(view("appearance"))
     expect(screen.getByLabelText("Font size")).toBeInTheDocument()
 
-    await user.click(screen.getByRole("button", { name: "Keybindings" }))
+    result.rerender(view("keybindings"))
     expect(screen.getByText("Command palette")).toBeInTheDocument()
     expect(screen.queryByText("Mod+N")).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole("button", { name: "Storage" }))
-    expect(screen.getByText("Clear cached transcripts")).toBeInTheDocument()
   })
 })

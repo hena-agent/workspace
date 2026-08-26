@@ -4,14 +4,21 @@ import { RouterProvider } from "@tanstack/react-router"
 
 import "./index.css"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
+import { MockServerProvider } from "@/features/server/mock-server-provider"
 import { createAppRouter } from "./router"
 
 const router = createAppRouter()
+const embeddedOrigin =
+  import.meta.env.VITE_HENA_EMBEDDED === "true"
+    ? new URL(import.meta.env.BASE_URL, window.location.origin).toString()
+    : undefined
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ThemeProvider>
-      <RouterProvider router={router} />
+      <MockServerProvider embeddedOrigin={embeddedOrigin}>
+        <RouterProvider router={router} />
+      </MockServerProvider>
     </ThemeProvider>
   </StrictMode>,
 )

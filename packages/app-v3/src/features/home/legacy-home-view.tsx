@@ -1,29 +1,31 @@
 import { Button } from "@/components/ui/button"
 import { formatRelativeTime } from "@/lib/time"
-import type { Project } from "@/lib/types"
+import type { Connection, Project } from "@/lib/types"
 import { LegacyIcon } from "@/shell/legacy-icon"
 
 export function LegacyHomeView({
+  connection,
   projects,
   now,
   onOpenProject,
   onAddProject,
 }: {
+  connection: Connection
   projects: Project[]
   now: number
   onOpenProject: (project: Project) => void
   onAddProject: () => void
 }) {
   return (
-    <div className="h-full w-full overflow-y-auto">
-      <div className="mx-auto mt-[220px] w-full px-4 pb-8 md:w-auto">
+    <div className="h-full w-full overflow-y-auto px-4">
+      <div className="mx-auto mt-[220px] max-w-xl pb-8">
         <LegacyLogo />
         <Button
           variant="ghost"
           className="mx-auto mt-4 h-8 hit-area text-[14px] font-normal text-[var(--legacy-text-weak)]"
         >
           <span className="size-2 rounded-full bg-[var(--legacy-border-weak)]" />
-          Local
+          {connection.name}
         </Button>
         <div className="mt-20 flex w-full flex-col gap-4">
           <div className="flex items-center justify-between gap-2 pl-3">
@@ -56,7 +58,7 @@ export function LegacyHomeView({
 
 function LegacyLogo() {
   return (
-    <svg viewBox="0 0 114 42" fill="none" className="w-full opacity-12 md:w-xl" aria-label="Hena">
+    <svg viewBox="0 0 114 42" fill="none" className="w-full opacity-12" aria-label="Hena">
       <path d="M0 3H6V15H18V3H24V39H18V21H6V39H0V3Z" fill="var(--legacy-icon-base)" />
       <path d="M30 3H54V9H36V18H51V24H36V33H54V39H30V3Z" fill="var(--legacy-icon-base)" />
       <path d="M60 3H66L78 27V3H84V39H78L66 15V39H60V3Z" fill="var(--legacy-icon-strong)" />

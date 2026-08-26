@@ -1,27 +1,13 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { LegacyHomeView } from "@/features/home/legacy-home-view"
-import { MOCK_NOW } from "@/mock/fixtures"
-import { listProjects } from "@/mock/queries"
+import { createFileRoute, Navigate } from "@tanstack/react-router"
+import { useMockServers } from "@/features/server/mock-server-provider"
 
 export const Route = createFileRoute("/")({
   component: HomeRoute,
 })
 
 function HomeRoute() {
-  const navigate = useNavigate()
-  const projects = Array.from(listProjects()).sort((a, b) => b.updatedAt - a.updatedAt)
-
-  return (
-    <LegacyHomeView
-      projects={projects}
-      now={MOCK_NOW}
-      onOpenProject={(project) =>
-        void navigate({
-          to: "/$connectionId/$projectId",
-          params: { connectionId: project.connectionId, projectId: project.id },
-        })
-      }
-      onAddProject={() => {}}
-    />
-  )
+  const servers = useMockServers()
+  const server = servers.connections[0]
+  if (!server) return <Navigate to="/connect" replace />
+  return <Navigate to="/$connectionId" params={{ connectionId: servers.getSlug(server) }} replace />
 }

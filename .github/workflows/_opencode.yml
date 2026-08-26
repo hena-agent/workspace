@@ -85,6 +85,8 @@ jobs:
       - name: Checkout workflow workspace
         uses: actions/checkout@v6
         with:
+          # A stacked PR's base can differ from the trusted workflow commit.
+          ref: ${{ github.workflow_sha }}
           fetch-depth: 1
           persist-credentials: ${{ inputs.command == '' }}
           # Prompt agents retain the App's installation permissions for any

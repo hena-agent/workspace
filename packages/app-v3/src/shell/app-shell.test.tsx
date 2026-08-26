@@ -110,6 +110,24 @@ describe("AppShell", () => {
     expect(separator).toHaveAttribute("aria-valuenow", "364")
   })
 
+  test("stops resizing when the pointer is canceled", () => {
+    mockMatchMedia(true)
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1600 })
+    const view = renderWithProviders(
+      <AppShell rail={rail} sidebarPanel={sidebarPanel}>
+        <div>Page content</div>
+      </AppShell>,
+    )
+    const separator = screen.getByRole("separator", { name: "Resize sidebar" })
+
+    fireEvent.pointerDown(separator, { clientX: 0 })
+    fireEvent.pointerMove(window, { clientX: 100 })
+    expect(view.container.querySelector('[style*="width: 380px"]')).toBeInTheDocument()
+    fireEvent.pointerCancel(window)
+    fireEvent.pointerMove(window, { clientX: 200 })
+    expect(view.container.querySelector('[style*="width: 380px"]')).toBeInTheDocument()
+  })
+
   test("clicking the selected project collapses the sessions panel", async () => {
     mockMatchMedia(true)
     const user = userEvent.setup()
@@ -207,7 +225,7 @@ describe("AppShell", () => {
   test("Mod+B focuses mobile navigation and Escape restores trigger focus", async () => {
     mockMatchMedia(false)
     renderWithProviders(
-      <AppShell rail={rail} sidebarPanel={sidebarPanel}>
+      <AppShell rail={rail} sidebarPanel={sidebarPanel} titlebarActions={<button>Server selector</button>}>
         <div>Page content</div>
       </AppShell>,
     )
@@ -216,6 +234,7 @@ describe("AppShell", () => {
     const drawer = screen.getByRole("navigation", { name: "Projects and sessions" })
     expect(drawer).toHaveFocus()
     expect(screen.getByRole("main").hasAttribute("inert")).toBe(true)
+    expect(screen.getByText("Server selector").parentElement).toHaveAttribute("inert")
     fireEvent.keyDown(drawer, { key: "Tab", shiftKey: true })
     fireEvent.keyDown(document.activeElement!, { key: "Tab" })
     expect(screen.getByRole("button", { name: "Close menu" })).toHaveFocus()
@@ -223,6 +242,7 @@ describe("AppShell", () => {
 
     expect(screen.queryByRole("navigation", { name: "Projects and sessions" })).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Open menu" })).toHaveFocus()
+    expect(screen.getByText("Server selector").parentElement).not.toHaveAttribute("inert")
   })
 
   test("backdrop and routed rail actions close mobile navigation", async () => {

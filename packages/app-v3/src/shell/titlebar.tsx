@@ -47,7 +47,7 @@ export function Titlebar({
       <div className="pointer-events-none mx-auto max-w-[40vw] min-w-0 truncate text-[13px] font-medium text-[var(--legacy-text-strong)]">
         {title}
       </div>
-      <div className="absolute right-2 flex shrink-0 items-center gap-1">{children}</div>
+      <div inert={mobileNavOpen} className="absolute right-2 flex shrink-0 items-center gap-1">{children}</div>
     </header>
   )
 }

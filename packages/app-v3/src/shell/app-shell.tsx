@@ -3,6 +3,7 @@ import {
   type PointerEvent,
   type ReactNode,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useRef,
   useState,
@@ -62,60 +63,6 @@ export function AppShell({
   const sidebarOpen = sidebarState.projectKey === projectKey ? sidebarState.open : Boolean(sidebarPanel.project)
 
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Tab" && mobileNavOpen) {
-        const items = [
-          mobileNavButtonRef.current,
-          ...Array.from(mobileNavRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href]") ?? []),
-        ].filter((item): item is HTMLElement => Boolean(item))
-        const first = items[0]
-        const last = items.at(-1)
-        if (event.shiftKey && (document.activeElement === first || document.activeElement === mobileNavRef.current)) {
-          event.preventDefault()
-          last?.focus()
-          return
-        }
-        if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault()
-          first?.focus()
-          return
-        }
-      }
-      if (event.key === "Escape" && mobileNavOpen && !event.defaultPrevented) {
-        closeMobileNav()
-        return
-      }
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b") return
-      event.preventDefault()
-      if (isDesktop) {
-        toggleSidebar()
-        return
-      }
-      if (mobileNavOpen) {
-        closeMobileNav()
-        return
-      }
-      openMobileNav()
-    }
-    function onPopState(event: PopStateEvent) {
-      if (event.state?.henaMobileNavigation) {
-        if (!mobileNavOpenRef.current) {
-          mobileNavOpenRef.current = true
-          setMobileNavOpen(true)
-        }
-        return
-      }
-      if (mobileNavOpenRef.current) finishMobileNavClose()
-    }
-    window.addEventListener("keydown", onKeyDown)
-    window.addEventListener("popstate", onPopState)
-    return () => {
-      window.removeEventListener("keydown", onKeyDown)
-      window.removeEventListener("popstate", onPopState)
-    }
-  }, [isDesktop, mobileNavOpen, projectKey, sidebarOpen])
-
-  useEffect(() => {
     if (!isDesktop || !mobileNavOpen) return
     if (pendingMobileNavActionRef.current) return
     pendingMobileNavActionRef.current = () => mainRef.current?.focus()
@@ -144,15 +91,6 @@ export function AppShell({
     setMobileNavOpen(true)
   }
 
-  function closeMobileNav(action?: () => void) {
-    pendingMobileNavActionRef.current = action ?? null
-    if (window.history.state?.henaMobileNavigation) {
-      window.history.back()
-      return
-    }
-    finishMobileNavClose()
-  }
-
   function finishMobileNavClose() {
     mobileNavOpenRef.current = false
     setMobileNavOpen(false)
@@ -164,6 +102,15 @@ export function AppShell({
     }
     action()
     queueMicrotask(() => mainRef.current?.focus())
+  }
+
+  function closeMobileNav(action?: () => void) {
+    pendingMobileNavActionRef.current = action ?? null
+    if (window.history.state?.henaMobileNavigation) {
+      window.history.back()
+      return
+    }
+    finishMobileNavClose()
   }
 
   function runAfterMobileNavClose(action: () => void) {
@@ -206,13 +153,15 @@ export function AppShell({
       setPanelWidth(Math.min(panelMaxWidth(), Math.max(PANEL_MIN, startWidth + nextEvent.clientX - startX)))
     }
 
-    function onPointerUp() {
+    function stopResize() {
       window.removeEventListener("pointermove", onPointerMove)
-      window.removeEventListener("pointerup", onPointerUp)
+      window.removeEventListener("pointerup", stopResize)
+      window.removeEventListener("pointercancel", stopResize)
     }
 
     window.addEventListener("pointermove", onPointerMove)
-    window.addEventListener("pointerup", onPointerUp)
+    window.addEventListener("pointerup", stopResize)
+    window.addEventListener("pointercancel", stopResize)
   }
 
   function resizeWithKeyboard(event: { key: string; preventDefault: () => void }) {
@@ -225,6 +174,62 @@ export function AppShell({
       return Math.min(max, Math.max(PANEL_MIN, current + (event.key === "ArrowLeft" ? -10 : 10)))
     })
   }
+
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key === "Tab" && mobileNavOpen) {
+      const items = [
+        mobileNavButtonRef.current,
+        ...Array.from(mobileNavRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href]") ?? []),
+      ].filter((item): item is HTMLElement => Boolean(item))
+      const first = items[0]
+      const last = items.at(-1)
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === mobileNavRef.current)) {
+        event.preventDefault()
+        last?.focus()
+        return
+      }
+      if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first?.focus()
+        return
+      }
+    }
+    if (event.key === "Escape" && mobileNavOpen && !event.defaultPrevented) {
+      closeMobileNav()
+      return
+    }
+    if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "b") return
+    event.preventDefault()
+    if (isDesktop) {
+      toggleSidebar()
+      return
+    }
+    if (mobileNavOpen) {
+      closeMobileNav()
+      return
+    }
+    openMobileNav()
+  })
+
+  const onPopState = useEffectEvent((event: PopStateEvent) => {
+    if (event.state?.henaMobileNavigation) {
+      if (!mobileNavOpenRef.current) {
+        mobileNavOpenRef.current = true
+        setMobileNavOpen(true)
+      }
+      return
+    }
+    if (mobileNavOpenRef.current) finishMobileNavClose()
+  })
+
+  useEffect(() => {
+    window.addEventListener("keydown", onKeyDown)
+    window.addEventListener("popstate", onPopState)
+    return () => {
+      window.removeEventListener("keydown", onKeyDown)
+      window.removeEventListener("popstate", onPopState)
+    }
+  }, [])
 
   const routedRail = {
     ...rail,

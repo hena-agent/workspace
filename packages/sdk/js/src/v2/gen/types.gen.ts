@@ -2127,7 +2127,7 @@ export type WorktreeResetInput = {
 export type ProjectSummary = {
   id: string
   name?: string
-  worktree: string | null
+  worktree: string
 }
 
 export type GlobalSession = {

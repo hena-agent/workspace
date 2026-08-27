@@ -457,7 +457,7 @@ export function reconcileLocations(database: DatabaseService, txid: string) {
       .all()
     const locations = new Map(
       [
-        ...projects.flatMap((project) => (project.directory ? [{ directory: project.directory }] : [])),
+        ...projects.map((project) => ({ directory: project.directory })),
         ...sessions.map((session) => ({
           directory: session.directory,
           ...(session.workspaceID ? { workspaceID: session.workspaceID } : {}),

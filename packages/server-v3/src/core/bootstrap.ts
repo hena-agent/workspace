@@ -14,7 +14,7 @@ import { resetWorkingSessions } from "./collection-projector"
 
 type ProjectRow = {
   id: string
-  worktree: string | null
+  worktree: string
   vcs: string | null
   name: string | null
   icon_url: string | null
@@ -145,10 +145,9 @@ export function bootstrapCollections(database: SyncDatabase) {
     return SessionCollections.map((collection) => database.collections.hydrate(collection, sessionID, []))
   })
   const locations = new Map(
-    projects.flatMap((project) => {
-      if (!project.worktree) return []
+    projects.map((project) => {
       const ref = { directory: project.worktree }
-      return [[JSON.stringify(ref), ref]]
+      return [JSON.stringify(ref), ref]
     }),
   )
   sessions.forEach((session) => {

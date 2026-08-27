@@ -250,10 +250,7 @@ export function createServerSessionEntries(props: {
     if (current.signal.aborted) return []
     const opened = props.opened()
     const openedByID = new Map(opened.flatMap((project) => (project.id ? [[project.id, project] as const] : [])))
-    const stored = props
-      .stored()
-      .filter((project): project is typeof project & { worktree: string } => project.worktree !== null)
-      .map((project) => ({ ...project, expanded: false }))
+    const stored = props.stored().map((project) => ({ ...project, expanded: false }))
     const storedByID = new Map(stored.map((project) => [project.id, project] as const))
     return props
       .load(search, current.signal)
@@ -262,8 +259,7 @@ export function createServerSessionEntries(props: {
           .filter((session) => !session.time.archived)
           .map((session) => {
             const project =
-              projectForSession<LocalProject>(session, opened, openedByID) ??
-              projectForSession<LocalProject>(session, stored, storedByID)
+              projectForSession(session, opened, openedByID) ?? projectForSession(session, stored, storedByID)
             return {
               id: `session:${props.server}:${session.id}`,
               type: "session" as const,

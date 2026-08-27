@@ -189,7 +189,7 @@ export default function NewSessionPage() {
                             setStore(
                               "worktree",
                               value === "main" && sync().project?.worktree !== sdk().directory
-                                ? (sync().project?.worktree ?? undefined)
+                                ? sync().project?.worktree
                                 : value,
                             )
                           }

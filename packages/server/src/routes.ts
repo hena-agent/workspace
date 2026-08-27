@@ -10,6 +10,7 @@ import { SessionV2 } from "@hena/core/session"
 import { SessionExecution } from "@hena/core/session/execution"
 import { LocationServiceMap } from "@hena/core/location-service-map"
 import { SessionExecutionLocal } from "@hena/core/session/execution/local"
+import { ProjectAttach } from "@hena/core/project/attach"
 import { ToolOutputStore } from "@hena/core/tool-output-store"
 import { HttpRouter, HttpServer } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
@@ -29,6 +30,7 @@ const applicationServices = LayerNode.group([
   httpClient,
   ToolOutputStore.cleanupNode,
   SessionV2.node,
+  ProjectAttach.node,
   PermissionSaved.node,
   PtyTicket.node,
   Credential.node,

@@ -60,6 +60,7 @@ import { Npm } from "@hena/core/npm"
 import { PermissionSaved } from "@hena/core/permission/saved"
 import { ProjectV2 } from "@hena/core/project"
 import { ProjectCopy } from "@hena/core/project/copy"
+import { ProjectAttach } from "@hena/core/project/attach"
 import { PtyTicket } from "@hena/core/pty/ticket"
 import { Ripgrep } from "@hena/core/ripgrep"
 import { SessionProjector } from "@hena/core/session/projector"
@@ -294,7 +295,7 @@ export function createRoutes(
     Layer.provide(locationLayer),
     Layer.provide(PtyEnvironment.layer),
     Layer.provide(
-      AppNodeBuilderV1.build(SessionV2.node, [
+      AppNodeBuilderV1.build(LayerNode.group([SessionV2.node, ProjectAttach.node]), [
         [LocationServiceMap.node, locationServiceMapV2],
         [SessionExecution.node, SessionExecutionLocal.node],
       ]),

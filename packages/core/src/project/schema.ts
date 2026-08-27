@@ -10,15 +10,6 @@ export type ID = typeof ID.Type
 export const Mode = Project.Mode
 export type Mode = Project.Mode
 
-export const AttachOperationID = Project.AttachOperationID
-export type AttachOperationID = Project.AttachOperationID
-
-export const AttachPhase = Project.AttachPhase
-export type AttachPhase = Project.AttachPhase
-
-export const AttachOperation = Project.AttachOperation
-export type AttachOperation = Project.AttachOperation
-
 export const Vcs = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("git"),

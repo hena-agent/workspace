@@ -650,30 +650,9 @@ type Endpoint17_0Input = {
 const Endpoint17_0 = (raw: RawClient["server.project"]) => (input: Endpoint17_0Input) =>
   raw["project.attach"]({ params: { projectID: input["projectID"] }, payload: { directory: input["directory"] } }).pipe(
     Effect.mapError(mapClientError),
-    Effect.map((value) => value.data),
   )
 
-type Endpoint17_1Request = Parameters<RawClient["server.project"]["project.attach.status"]>[0]
-type Endpoint17_1Input = { readonly projectID: Endpoint17_1Request["params"]["projectID"] }
-const Endpoint17_1 = (raw: RawClient["server.project"]) => (input: Endpoint17_1Input) =>
-  raw["project.attach.status"]({ params: { projectID: input["projectID"] } }).pipe(
-    Effect.mapError(mapClientError),
-    Effect.map((value) => value.data),
-  )
-
-type Endpoint17_2Request = Parameters<RawClient["server.project"]["project.attach.recover"]>[0]
-type Endpoint17_2Input = { readonly projectID: Endpoint17_2Request["params"]["projectID"] }
-const Endpoint17_2 = (raw: RawClient["server.project"]) => (input: Endpoint17_2Input) =>
-  raw["project.attach.recover"]({ params: { projectID: input["projectID"] } }).pipe(
-    Effect.mapError(mapClientError),
-    Effect.map((value) => value.data),
-  )
-
-const adaptGroup17 = (raw: RawClient["server.project"]) => ({
-  attach: Endpoint17_0(raw),
-  status: Endpoint17_1(raw),
-  recover: Endpoint17_2(raw),
-})
+const adaptGroup17 = (raw: RawClient["server.project"]) => ({ attach: Endpoint17_0(raw) })
 
 type Endpoint18_0Request = Parameters<RawClient["server.projectCopy"]["projectCopy.create"]>[0]
 type Endpoint18_0Input = {

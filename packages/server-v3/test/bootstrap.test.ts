@@ -17,7 +17,7 @@ describe("collection bootstrap", () => {
     database = createTestDatabase().database
     database.raw.exec(`
       CREATE TABLE project (
-        id TEXT PRIMARY KEY, worktree TEXT NOT NULL, vcs TEXT, name TEXT, icon_url TEXT,
+        id TEXT PRIMARY KEY, worktree TEXT, vcs TEXT, name TEXT, icon_url TEXT,
         icon_url_override TEXT, icon_color TEXT, time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL,
         time_initialized INTEGER, sandboxes TEXT NOT NULL, commands TEXT
       );
@@ -41,6 +41,7 @@ describe("collection bootstrap", () => {
         priority TEXT NOT NULL, position INTEGER NOT NULL, time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL
       );
       INSERT INTO project VALUES ('global', '/repo', 'git', 'Repo', NULL, NULL, NULL, 1, 2, NULL, '[]', NULL);
+      INSERT INTO project VALUES ('folderless', NULL, NULL, 'Folderless', NULL, NULL, NULL, 1, 2, NULL, '[]', NULL);
       INSERT INTO session VALUES ('ses_1', 'global', NULL, NULL, '/repo', NULL, 'Test', NULL, NULL, 0, 0, 0, 0, 0, 0, NULL, 3, 4, NULL, 2);
       INSERT INTO session_message VALUES (
         'msg_1', 'ses_1', 'assistant', 1, 5, 6,
@@ -110,7 +111,13 @@ describe("collection bootstrap", () => {
 
     expect(bootstrapCollections(database)).toBe(true)
 
-    expect(database.collections.snapshot("projects", "").rows[0]?.row).toMatchObject({ id: "global", name: "Repo" })
+    const projects = database.collections.snapshot("projects", "").rows
+    expect(projects.find((project) => project.key === "global")?.row).toMatchObject({ id: "global", name: "Repo" })
+    expect(projects.find((project) => project.key === "folderless")?.row).toMatchObject({
+      id: "folderless",
+      name: "Folderless",
+      worktree: null,
+    })
     expect(database.collections.snapshot("sessions", "").rows[0]?.row).toMatchObject({
       id: "ses_1",
       queueRevision: 2,
@@ -120,6 +127,7 @@ describe("collection bootstrap", () => {
     expect(database.collections.snapshot("sessions", "").rows[0]?.row).not.toHaveProperty("subpath")
     const sessionRevision = database.collections.snapshot("sessions", "").rows[0]?.revision
     expect(database.collections.snapshot("locations", "").rows[0]?.row).toEqual({ directory: "/repo" })
+    expect(database.collections.snapshot("locations", "").rows).toHaveLength(1)
     expect(database.collections.snapshot("messages", "ses_1").rows[0]?.row).toMatchObject({
       id: "msg_1",
       type: "assistant",

@@ -1469,7 +1469,7 @@ export type GlobalEvent = {
         type: "project.updated"
         properties: {
           id: string
-          worktree: string
+          worktree: string | null
           vcs?: ProjectVcs
           name?: string
           icon?: ProjectIcon
@@ -2177,7 +2177,7 @@ export type WorktreeResetInput = {
 export type ProjectSummary = {
   id: string
   name?: string
-  worktree: string
+  worktree: string | null
 }
 
 export type GlobalSession = {
@@ -2411,7 +2411,7 @@ export type McpServerNotFoundError = {
 
 export type Project = {
   id: string
-  worktree: string
+  worktree: string | null
   vcs?: ProjectVcs
   name?: string
   icon?: ProjectIcon
@@ -5841,7 +5841,7 @@ export type ProjectUpdated = {
   location?: LocationRef
   data: {
     id: string
-    worktree: string
+    worktree: string | null
     vcs?: ProjectVcs
     name?: string
     icon?: ProjectIcon
@@ -6901,7 +6901,7 @@ export type EventProjectUpdated = {
   type: "project.updated"
   properties: {
     id: string
-    worktree: string
+    worktree: string | null
     vcs?: ProjectVcs
     name?: string
     icon?: ProjectIcon

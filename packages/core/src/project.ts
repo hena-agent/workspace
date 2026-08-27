@@ -6,7 +6,6 @@ import path from "path"
 import { AbsolutePath } from "./schema"
 import { FSUtil } from "./fs-util"
 import { Git } from "./git"
-import { Global } from "./global"
 import { makeGlobalNode } from "./effect/app-node"
 import { Hash } from "./util/hash"
 import { ProjectDirectories } from "./project/directories"
@@ -36,7 +35,6 @@ export interface Resolved {
 }
 
 export interface Interface {
-  readonly create: () => Effect.Effect<Resolved>
   readonly directories: (input: DirectoriesInput) => Effect.Effect<Directories>
   readonly resolve: (input: AbsolutePath) => Effect.Effect<Resolved>
   /**
@@ -58,22 +56,7 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const git = yield* Git.Service
-    const global = yield* Global.Service
     const projectDirectories = yield* ProjectDirectories.Service
-
-    const projects = AbsolutePath.make(FSUtil.resolve(global.projects))
-
-    const create = Effect.fn("Project.create")(function* () {
-      yield* fs.ensureDir(projects, 0o700).pipe(Effect.orDie)
-      if (process.platform !== "win32") yield* fs.chmod(projects, 0o700).pipe(Effect.orDie)
-      const id = ID.create()
-      const directory = AbsolutePath.make(path.join(projects, id))
-      return yield* Effect.gen(function* () {
-        yield* fs.ensureDir(directory, 0o700).pipe(Effect.orDie)
-        if (process.platform !== "win32") yield* fs.chmod(directory, 0o700).pipe(Effect.orDie)
-        return { id, directory }
-      }).pipe(Effect.onError(() => fs.remove(directory, { recursive: true, force: true }).pipe(Effect.ignore)))
-    })
 
     const directories = Effect.fn("Project.directories")(function* (input: DirectoriesInput) {
       return yield* projectDirectories.list(input.projectID)
@@ -124,85 +107,30 @@ const layer = Layer.effect(
       return root ? ID.make(root) : undefined
     })
 
-    const managedProject = (directory: string) => {
-      const id = path.relative(projects, directory).split(path.sep)[0]
-      if (!id || !ID.isManaged(id)) return undefined
-      return { id: ID.make(id), directory: AbsolutePath.make(path.join(projects, id)) }
-    }
+    const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
+      const repo = yield* git.repo.discover(input)
+      if (!repo) return { id: ID.global, directory: AbsolutePath.make(path.parse(input).root), vcs: undefined }
 
-    const resolveRepository = Effect.fnUntraced(function* (repo: Git.Repository, fallback?: ID) {
-      const cachedID = yield* cached(repo.commonDirectory)
-      const id = (yield* remote(repo)) ?? cachedID ?? (yield* root(repo)) ?? fallback ?? ID.global
+      const previous = yield* cached(repo.commonDirectory)
+      const id = (yield* remote(repo)) ?? previous ?? (yield* root(repo))
       return {
-        previous: cachedID ?? (fallback !== id ? fallback : undefined),
-        id,
+        previous,
+        id: id ?? ID.global,
         directory: repo.worktree,
         vcs: { type: "git" as const, store: repo.commonDirectory },
       }
     })
 
-    const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
-      const directory = AbsolutePath.make(FSUtil.resolve(input))
-      const managed = managedProject(directory)
-      if (managed) {
-        const found = yield* git.repo.discover(managed.directory)
-        const repository = found?.worktree === managed.directory ? found : undefined
-        if (repository) return yield* resolveRepository(repository, managed.id)
-        return managed
-      }
-
-      const repo = yield* git.repo.discover(input)
-      const repositories = repo ? [repo] : []
-      let enclosing = repo
-      while (enclosing) {
-        const common = path.dirname(enclosing.commonDirectory)
-        const shared = managedProject(common)
-        if (shared?.directory === common) {
-          return yield* resolveRepository(enclosing, shared.id)
-        }
-        const parent = path.dirname(enclosing.worktree)
-        if (parent === enclosing.worktree) break
-        const outer = yield* git.repo.discover(AbsolutePath.make(parent))
-        if (outer?.worktree === enclosing.worktree) break
-        enclosing = outer
-        if (outer) repositories.push(outer)
-      }
-
-      if (!repo) return { id: ID.global, directory: AbsolutePath.make(path.parse(input).root), vcs: undefined }
-
-      const separate = yield* fs.glob("*/.git", { cwd: projects, absolute: true, include: "file" }).pipe(
-        Effect.flatMap((files) =>
-          Effect.forEach(files, (file) => git.repo.discover(AbsolutePath.make(path.dirname(file))), {
-            concurrency: 8,
-          }),
-        ),
-        Effect.catch(() => Effect.succeed([])),
-      )
-      const repository = repositories.find((repository) =>
-        separate.some((candidate) => candidate?.commonDirectory === repository.commonDirectory),
-      )
-      const managedRoot = repository
-        ? separate.find((candidate) => candidate?.commonDirectory === repository.commonDirectory)
-        : undefined
-      const shared = managedRoot ? managedProject(managedRoot.worktree) : undefined
-      if (repository && managedRoot && shared?.directory === managedRoot.worktree) {
-        return yield* resolveRepository(repository, shared.id)
-      }
-
-      return yield* resolveRepository(repo)
-    })
-
     const commit = Effect.fn("Project.commit")(function* (input: { store: AbsolutePath; id: ID }) {
-      if (ID.isManaged(input.id)) return
       yield* fs.writeFileString(path.join(input.store, "hena"), input.id).pipe(Effect.ignore)
     })
 
-    return Service.of({ create, directories, resolve, commit })
+    return Service.of({ directories, resolve, commit })
   }),
 )
 
 export const node = makeGlobalNode({
   service: Service,
   layer: layer,
-  deps: [FSUtil.node, Git.node, Global.node, ProjectDirectories.node],
+  deps: [FSUtil.node, Git.node, ProjectDirectories.node],
 })

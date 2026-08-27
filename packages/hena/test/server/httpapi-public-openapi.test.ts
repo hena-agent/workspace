@@ -84,6 +84,14 @@ describe("PublicApi OpenAPI v2 errors", () => {
     )
   })
 
+  test("preserves explicit null for required project worktrees", () => {
+    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
+    const worktree = spec.components.schemas.ProjectSummary?.properties?.worktree
+
+    expect(spec.components.schemas.ProjectSummary?.required).toContain("worktree")
+    expect(worktree?.anyOf).toEqual(expect.arrayContaining([{ type: "string" }, { type: "null" }]))
+  })
+
   test("documents nested legacy global sync events", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
     const schema = spec.components.schemas.SyncEventSessionCreated

@@ -1808,6 +1808,7 @@ export function LegacyHome() {
   const recent = createMemo(() => {
     return sync()
       .data.project.slice()
+      .filter((project): project is typeof project & { worktree: string } => project.worktree !== null)
       .sort((a, b) => (b.time.updated ?? b.time.created) - (a.time.updated ?? a.time.created))
       .slice(0, 5)
   })

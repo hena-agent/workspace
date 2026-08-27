@@ -151,6 +151,10 @@ describe("collection projector", () => {
           VALUES ('global', '/project', 1, 1, '[]')
         `)
         yield* database.run(sql`
+          INSERT INTO project (id, worktree, time_created, time_updated, sandboxes)
+          VALUES ('folderless', NULL, 1, 1, '[]')
+        `)
+        yield* database.run(sql`
           INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated)
           VALUES ('ses_1', 'global', 'session', '/new', 'Session', '1', 1, 1)
         `)

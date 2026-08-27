@@ -461,6 +461,7 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
     const roots = createMemo(() => {
       const map = new Map<string, string>()
       for (const project of serverSync().data.project) {
+        if (!project.worktree) continue
         const sandboxes = project.sandboxes ?? []
         for (const sandbox of sandboxes) {
           map.set(sandbox, project.worktree)
@@ -621,7 +622,9 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       projects: {
         list,
         recentlyClosed: createMemo(() => {
-          const known = new Set(serverSync().data.project.map((project) => pathKey(project.worktree)))
+          const known = new Set(
+            serverSync().data.project.flatMap((project) => (project.worktree ? [pathKey(project.worktree)] : [])),
+          )
           return server.projects
             .recentlyClosed()
             .filter((worktree) => known.has(pathKey(worktree)))

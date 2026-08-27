@@ -458,7 +458,7 @@ function fixSelfReferencingComponents(spec: OpenApiSpec) {
 }
 
 /** Strip `{type:"null"}` arms that Effect's `Schema.optional` adds to OpenAPI unions. */
-function stripOptionalNull(schema: OpenApiSchema): OpenApiSchema {
+function stripOptionalNull(schema: OpenApiSchema, stripNull = true): OpenApiSchema {
   if (schema.allOf?.length === 1) {
     const [constraint] = schema.allOf
     delete schema.allOf
@@ -467,13 +467,13 @@ function stripOptionalNull(schema: OpenApiSchema): OpenApiSchema {
   if (isEmptyObjectUnion(schema)) return { type: "object", properties: {} }
   const options = flattenOptions(schema.anyOf ?? schema.oneOf)
   if (options) {
-    const withoutNull = options.filter((item) => item.type !== "null")
-    if (withoutNull.length === 1) return stripOptionalNull(withoutNull[0])
-    if (schema.anyOf) schema.anyOf = withoutNull.map(stripOptionalNull)
-    if (schema.oneOf) schema.oneOf = withoutNull.map(stripOptionalNull)
+    const normalized = stripNull ? options.filter((item) => item.type !== "null") : options
+    if (stripNull && normalized.length === 1) return stripOptionalNull(normalized[0])
+    if (schema.anyOf) schema.anyOf = normalized.map((item) => stripOptionalNull(item))
+    if (schema.oneOf) schema.oneOf = normalized.map((item) => stripOptionalNull(item))
   }
   if (schema.allOf) {
-    const allOf = schema.allOf.map(stripOptionalNull)
+    const allOf = schema.allOf.map((item) => stripOptionalNull(item))
     if (schema.type) {
       delete schema.allOf
       for (const item of allOf) Object.assign(schema, item)
@@ -484,8 +484,9 @@ function stripOptionalNull(schema: OpenApiSchema): OpenApiSchema {
   if (schema.prefixItems && schema.items) delete schema.prefixItems
   if (schema.items) schema.items = stripOptionalNull(schema.items)
   if (schema.properties) {
+    const required = new Set(schema.required ?? [])
     for (const [key, value] of Object.entries(schema.properties)) {
-      schema.properties[key] = stripOptionalNull(value)
+      schema.properties[key] = stripOptionalNull(value, key !== "worktree" || !required.has(key))
     }
   }
   if (schema.additionalProperties && typeof schema.additionalProperties === "object") {

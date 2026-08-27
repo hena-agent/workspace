@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "9e0daf7e-5269-4e78-8188-e992bd9cf1bf",
+  "id": "2e7e93b7-b661-4aee-968e-8034e26ca42b",
   "prevIds": [
-    "2e7e93b7-b661-4aee-968e-8034e26ca42b"
+    "d95a221a-7bf8-485b-8086-0e13bd2b42b6"
   ],
   "ddl": [
     {
@@ -40,18 +40,6 @@
     },
     {
       "name": "permission",
-      "entityType": "tables"
-    },
-    {
-      "name": "project_attach_directory",
-      "entityType": "tables"
-    },
-    {
-      "name": "project_attach_operation",
-      "entityType": "tables"
-    },
-    {
-      "name": "project_attach_session",
       "entityType": "tables"
     },
     {
@@ -633,226 +621,6 @@
       "name": "time_updated",
       "entityType": "columns",
       "table": "permission"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "operation_id",
-      "entityType": "columns",
-      "table": "project_attach_directory"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "directory",
-      "entityType": "columns",
-      "table": "project_attach_directory"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "type",
-      "entityType": "columns",
-      "table": "project_attach_directory"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "strategy",
-      "entityType": "columns",
-      "table": "project_attach_directory"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "time_created",
-      "entityType": "columns",
-      "table": "project_attach_directory"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "id",
-      "entityType": "columns",
-      "table": "project_attach_operation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "project_id",
-      "entityType": "columns",
-      "table": "project_attach_operation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "source",
-      "entityType": "columns",
-      "table": "project_attach_operation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "target",
-      "entityType": "columns",
-      "table": "project_attach_operation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "staging",
-      "entityType": "columns",
-      "table": "project_attach_operation"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "target_existed",
-      "entityType": "columns",
-      "table": "project_attach_operation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "phase",
-      "entityType": "columns",
-      "table": "project_attach_operation"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "error",
-      "entityType": "columns",
-      "table": "project_attach_operation"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "time_created",
-      "entityType": "columns",
-      "table": "project_attach_operation"
-    },
-    {
-      "type": "integer",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "time_updated",
-      "entityType": "columns",
-      "table": "project_attach_operation"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "operation_id",
-      "entityType": "columns",
-      "table": "project_attach_session"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "session_id",
-      "entityType": "columns",
-      "table": "project_attach_session"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "directory",
-      "entityType": "columns",
-      "table": "project_attach_session"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "path",
-      "entityType": "columns",
-      "table": "project_attach_session"
-    },
-    {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "workspace_id",
-      "entityType": "columns",
-      "table": "project_attach_session"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "forward_event_id",
-      "entityType": "columns",
-      "table": "project_attach_session"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "rollback_event_id",
-      "entityType": "columns",
-      "table": "project_attach_session"
     },
     {
       "type": "text",
@@ -2146,36 +1914,6 @@
     },
     {
       "columns": [
-        "operation_id"
-      ],
-      "tableTo": "project_attach_operation",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_project_attach_directory_operation_id_project_attach_operation_id_fk",
-      "entityType": "fks",
-      "table": "project_attach_directory"
-    },
-    {
-      "columns": [
-        "operation_id"
-      ],
-      "tableTo": "project_attach_operation",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "nameExplicit": false,
-      "name": "fk_project_attach_session_operation_id_project_attach_operation_id_fk",
-      "entityType": "fks",
-      "table": "project_attach_session"
-    },
-    {
-      "columns": [
         "project_id"
       ],
       "tableTo": "project",
@@ -2321,26 +2059,6 @@
     },
     {
       "columns": [
-        "operation_id",
-        "directory"
-      ],
-      "nameExplicit": false,
-      "name": "project_attach_directory_pk",
-      "entityType": "pks",
-      "table": "project_attach_directory"
-    },
-    {
-      "columns": [
-        "operation_id",
-        "session_id"
-      ],
-      "nameExplicit": false,
-      "name": "project_attach_session_pk",
-      "entityType": "pks",
-      "table": "project_attach_session"
-    },
-    {
-      "columns": [
         "project_id",
         "directory"
       ],
@@ -2452,15 +2170,6 @@
       "nameExplicit": false,
       "name": "permission_pk",
       "table": "permission",
-      "entityType": "pks"
-    },
-    {
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "name": "project_attach_operation_pk",
-      "table": "project_attach_operation",
       "entityType": "pks"
     },
     {
@@ -2641,24 +2350,6 @@
       "name": "permission_project_action_resource_idx",
       "entityType": "indexes",
       "table": "permission"
-    },
-    {
-      "columns": [
-        {
-          "value": "project_id",
-          "isExpression": false
-        },
-        {
-          "value": "time_updated",
-          "isExpression": false
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "origin": "manual",
-      "name": "project_attach_operation_project_updated_idx",
-      "entityType": "indexes",
-      "table": "project_attach_operation"
     },
     {
       "columns": [

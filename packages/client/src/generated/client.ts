@@ -108,10 +108,6 @@ import type {
   ReferencesListOutput,
   ProjectsAttachInput,
   ProjectsAttachOutput,
-  ProjectsStatusInput,
-  ProjectsStatusOutput,
-  ProjectsRecoverInput,
-  ProjectsRecoverOutput,
   ProjectCopiesCreateInput,
   ProjectCopiesCreateOutput,
   ProjectCopiesRemoveInput,
@@ -956,39 +952,17 @@ export function make(options: ClientOptions) {
     },
     projects: {
       attach: (input: ProjectsAttachInput, requestOptions?: RequestOptions) =>
-        request<{ readonly data: ProjectsAttachOutput }>(
+        request<ProjectsAttachOutput>(
           {
             method: "POST",
             path: `/api/project/${encodeURIComponent(input.projectID)}/attach`,
             body: { directory: input["directory"] },
-            successStatus: 200,
+            successStatus: 204,
             declaredStatuses: [404, 409, 400, 500, 401],
-            empty: false,
+            empty: true,
           },
           requestOptions,
-        ).then((value) => value.data),
-      status: (input: ProjectsStatusInput, requestOptions?: RequestOptions) =>
-        request<{ readonly data: ProjectsStatusOutput }>(
-          {
-            method: "GET",
-            path: `/api/project/${encodeURIComponent(input.projectID)}/attach`,
-            successStatus: 200,
-            declaredStatuses: [404, 401, 400],
-            empty: false,
-          },
-          requestOptions,
-        ).then((value) => value.data),
-      recover: (input: ProjectsRecoverInput, requestOptions?: RequestOptions) =>
-        request<{ readonly data: ProjectsRecoverOutput }>(
-          {
-            method: "POST",
-            path: `/api/project/${encodeURIComponent(input.projectID)}/attach/recover`,
-            successStatus: 200,
-            declaredStatuses: [404, 409, 401, 400],
-            empty: false,
-          },
-          requestOptions,
-        ).then((value) => value.data),
+        ),
     },
     projectCopies: {
       create: (input: ProjectCopiesCreateInput, requestOptions?: RequestOptions) =>

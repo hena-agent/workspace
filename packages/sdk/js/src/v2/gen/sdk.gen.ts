@@ -277,11 +277,7 @@ import type {
   V2PermissionSavedRemoveErrors,
   V2PermissionSavedRemoveResponses,
   V2ProjectAttachErrors,
-  V2ProjectAttachRecoverErrors,
-  V2ProjectAttachRecoverResponses,
   V2ProjectAttachResponses,
-  V2ProjectAttachStatusErrors,
-  V2ProjectAttachStatusResponses,
   V2ProjectCopyCreateErrors,
   V2ProjectCopyCreateResponses,
   V2ProjectCopyRefreshErrors,
@@ -6403,50 +6399,6 @@ export class Reference extends HeyApiClient {
   }
 }
 
-export class Attach extends HeyApiClient {
-  /**
-   * Get project attach status
-   */
-  public status<ThrowOnError extends boolean = false>(
-    parameters: {
-      projectID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "projectID" }] }])
-    return (options?.client ?? this.client).get<
-      V2ProjectAttachStatusResponses,
-      V2ProjectAttachStatusErrors,
-      ThrowOnError
-    >({
-      url: "/api/project/{projectID}/attach",
-      ...options,
-      ...params,
-    })
-  }
-
-  /**
-   * Recover project attach
-   */
-  public recover<ThrowOnError extends boolean = false>(
-    parameters: {
-      projectID: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "projectID" }] }])
-    return (options?.client ?? this.client).post<
-      V2ProjectAttachRecoverResponses,
-      V2ProjectAttachRecoverErrors,
-      ThrowOnError
-    >({
-      url: "/api/project/{projectID}/attach/recover",
-      ...options,
-      ...params,
-    })
-  }
-}
-
 export class Project2 extends HeyApiClient {
   /**
    * Attach chat project
@@ -6481,11 +6433,6 @@ export class Project2 extends HeyApiClient {
         ...params.headers,
       },
     })
-  }
-
-  private _attach?: Attach
-  get attach2(): Attach {
-    return (this._attach ??= new Attach({ client: this.client }))
   }
 }
 

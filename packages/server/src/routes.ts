@@ -31,6 +31,7 @@ const applicationServices = LayerNode.group([
   ToolOutputStore.cleanupNode,
   SessionV2.node,
   ProjectAttach.node,
+  ProjectAttach.recoveryNode,
   PermissionSaved.node,
   PtyTicket.node,
   Credential.node,

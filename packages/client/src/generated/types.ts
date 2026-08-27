@@ -102,6 +102,18 @@ export type ProjectNotFoundError = {
 export const isProjectNotFoundError = (value: unknown): value is ProjectNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectNotFoundError"
 
+export type ProjectAttachRecoveryRequiredError = {
+  readonly _tag: "ProjectAttachRecoveryRequiredError"
+  readonly projectID: string
+  readonly operationID: string
+  readonly message: string
+}
+export const isProjectAttachRecoveryRequiredError = (value: unknown): value is ProjectAttachRecoveryRequiredError =>
+  typeof value === "object" &&
+  value !== null &&
+  "_tag" in value &&
+  value["_tag"] === "ProjectAttachRecoveryRequiredError"
+
 export type ProjectCopyError = {
   readonly name: "ProjectCopyError"
   readonly data: { readonly message: string; readonly forceRequired?: boolean | undefined }
@@ -2886,7 +2898,75 @@ export type ProjectsAttachInput = {
   readonly directory: { readonly directory: string }["directory"]
 }
 
-export type ProjectsAttachOutput = void
+export type ProjectsAttachOutput = {
+  readonly data: {
+    readonly id: string
+    readonly projectID: string
+    readonly source: string
+    readonly target: string
+    readonly phase:
+      | "prepared"
+      | "copied"
+      | "target_ready"
+      | "sessions_moved"
+      | "committed"
+      | "cleanup_pending"
+      | "completed"
+      | "rolling_back"
+      | "rolled_back"
+      | "recovery_required"
+    readonly error?: string
+    readonly time: { readonly created: number; readonly updated: number }
+  }
+}["data"]
+
+export type ProjectsStatusInput = { readonly projectID: { readonly projectID: string }["projectID"] }
+
+export type ProjectsStatusOutput = {
+  readonly data?: {
+    readonly id: string
+    readonly projectID: string
+    readonly source: string
+    readonly target: string
+    readonly phase:
+      | "prepared"
+      | "copied"
+      | "target_ready"
+      | "sessions_moved"
+      | "committed"
+      | "cleanup_pending"
+      | "completed"
+      | "rolling_back"
+      | "rolled_back"
+      | "recovery_required"
+    readonly error?: string
+    readonly time: { readonly created: number; readonly updated: number }
+  } | null
+}["data"]
+
+export type ProjectsRecoverInput = { readonly projectID: { readonly projectID: string }["projectID"] }
+
+export type ProjectsRecoverOutput = {
+  readonly data?: {
+    readonly id: string
+    readonly projectID: string
+    readonly source: string
+    readonly target: string
+    readonly phase:
+      | "prepared"
+      | "copied"
+      | "target_ready"
+      | "sessions_moved"
+      | "committed"
+      | "cleanup_pending"
+      | "completed"
+      | "rolling_back"
+      | "rolled_back"
+      | "recovery_required"
+    readonly error?: string
+    readonly time: { readonly created: number; readonly updated: number }
+  } | null
+}["data"]
 
 export type ProjectCopiesCreateInput = {
   readonly projectID: { readonly projectID: string }["projectID"]

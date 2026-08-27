@@ -45,5 +45,6 @@ export const migrations = (
     import("./migration/20260824024558_dapper_sasquatch"),
     import("./migration/20260824055522_rollback-queue-order"),
     import("./migration/20260827073015_project-mode"),
+    import("./migration/20260827094054_durable_project_attach"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

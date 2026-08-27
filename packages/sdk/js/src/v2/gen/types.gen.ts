@@ -2644,22 +2644,16 @@ export type SessionNotFoundError = {
   message: string
 }
 
-export type ConflictError = {
-  _tag: "ConflictError"
-  message: string
-  resource?: string
-}
-
-export type UnknownError1 = {
-  _tag: "UnknownError"
-  message: string
-  ref?: string
-}
-
 export type PromptInput = {
   text: string
   files?: Array<PromptInputFileAttachment>
   agents?: Array<PromptAgentAttachment>
+}
+
+export type ConflictError = {
+  _tag: "ConflictError"
+  message: string
+  resource?: string
 }
 
 export type ServiceUnavailableError = {
@@ -2673,6 +2667,12 @@ export type MessageNotFoundError = {
   sessionID: string
   messageID: string
   message: string
+}
+
+export type UnknownError1 = {
+  _tag: "UnknownError"
+  message: string
+  ref?: string
 }
 
 export type SessionDurableEvent =
@@ -11044,53 +11044,6 @@ export type V2SessionActiveResponses = {
 
 export type V2SessionActiveResponse = V2SessionActiveResponses[keyof V2SessionActiveResponses]
 
-export type V2SessionAttachData = {
-  body: {
-    directory: string
-  }
-  path: {
-    sessionID: string
-  }
-  query?: never
-  url: "/api/session/{sessionID}/attach"
-}
-
-export type V2SessionAttachErrors = {
-  /**
-   * InvalidRequestError
-   */
-  400: InvalidRequestError
-  /**
-   * UnauthorizedError
-   */
-  401: UnauthorizedError
-  /**
-   * SessionNotFoundError
-   */
-  404: SessionNotFoundError
-  /**
-   * ConflictError
-   */
-  409: ConflictError
-  /**
-   * UnknownError
-   */
-  500: UnknownError1
-}
-
-export type V2SessionAttachError = V2SessionAttachErrors[keyof V2SessionAttachErrors]
-
-export type V2SessionAttachResponses = {
-  /**
-   * Success
-   */
-  200: {
-    data: SessionV2Info
-  }
-}
-
-export type V2SessionAttachResponse = V2SessionAttachResponses[keyof V2SessionAttachResponses]
-
 export type V2SessionGetData = {
   body?: never
   path: {
@@ -13133,6 +13086,51 @@ export type V2ReferenceListResponses = {
 }
 
 export type V2ReferenceListResponse = V2ReferenceListResponses[keyof V2ReferenceListResponses]
+
+export type V2ProjectAttachData = {
+  body: {
+    directory: string
+  }
+  path: {
+    projectID: string
+  }
+  query?: never
+  url: "/api/project/{projectID}/attach"
+}
+
+export type V2ProjectAttachErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
+}
+
+export type V2ProjectAttachError = V2ProjectAttachErrors[keyof V2ProjectAttachErrors]
+
+export type V2ProjectAttachResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2ProjectAttachResponse = V2ProjectAttachResponses[keyof V2ProjectAttachResponses]
 
 export type V2ProjectCopyRemoveData = {
   body?: {

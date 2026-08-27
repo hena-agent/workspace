@@ -276,6 +276,8 @@ import type {
   V2PermissionSavedListResponses,
   V2PermissionSavedRemoveErrors,
   V2PermissionSavedRemoveResponses,
+  V2ProjectAttachErrors,
+  V2ProjectAttachResponses,
   V2ProjectCopyCreateErrors,
   V2ProjectCopyCreateResponses,
   V2ProjectCopyRefreshErrors,
@@ -306,8 +308,6 @@ import type {
   V2ReferenceListResponses,
   V2SessionActiveErrors,
   V2SessionActiveResponses,
-  V2SessionAttachErrors,
-  V2SessionAttachResponses,
   V2SessionCompactErrors,
   V2SessionCompactResponses,
   V2SessionContextErrors,
@@ -5046,41 +5046,6 @@ export class Session3 extends HeyApiClient {
   }
 
   /**
-   * Attach chat session
-   *
-   * Move a chat project's managed files into a new or empty workspace directory.
-   */
-  public attach<ThrowOnError extends boolean = false>(
-    parameters: {
-      sessionID: string
-      directory?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "path", key: "sessionID" },
-            { in: "body", key: "directory" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).post<V2SessionAttachResponses, V2SessionAttachErrors, ThrowOnError>({
-      url: "/api/session/{sessionID}/attach",
-      ...options,
-      ...params,
-      headers: {
-        "Content-Type": "application/json",
-        ...options?.headers,
-        ...params.headers,
-      },
-    })
-  }
-
-  /**
    * Get session
    *
    * Retrieve a session by ID.
@@ -6434,6 +6399,43 @@ export class Reference extends HeyApiClient {
   }
 }
 
+export class Project2 extends HeyApiClient {
+  /**
+   * Attach chat project
+   *
+   * Move a chat project's managed files and sessions into a new or empty workspace directory.
+   */
+  public attach<ThrowOnError extends boolean = false>(
+    parameters: {
+      projectID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "projectID" },
+            { in: "body", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2ProjectAttachResponses, V2ProjectAttachErrors, ThrowOnError>({
+      url: "/api/project/{projectID}/attach",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class ProjectCopy2 extends HeyApiClient {
   public remove<ThrowOnError extends boolean = false>(
     parameters: {
@@ -6629,6 +6631,11 @@ export class V2 extends HeyApiClient {
   private _reference?: Reference
   get reference(): Reference {
     return (this._reference ??= new Reference({ client: this.client }))
+  }
+
+  private _project?: Project2
+  get project(): Project2 {
+    return (this._project ??= new Project2({ client: this.client }))
   }
 
   private _projectCopy?: ProjectCopy2

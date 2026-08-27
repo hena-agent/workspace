@@ -21,7 +21,7 @@ import { AgentV2 } from "./agent"
 import { SessionV1 } from "./v1/session"
 import { InstallationVersion } from "./installation/version"
 import { Slug } from "./util/slug"
-import { ProjectDirectoryTable, ProjectTable } from "./project/sql"
+import { ProjectTable } from "./project/sql"
 import path from "path"
 import { fromRow } from "./session/info"
 import { SessionRunner } from "./session/runner/index"
@@ -99,10 +99,6 @@ export class OperationUnavailableError extends Schema.TaggedErrorClass<Operation
   },
 ) {}
 
-export class AttachError extends Schema.TaggedErrorClass<AttachError>()("Session.AttachError", {
-  reason: Schema.Literals(["not_chat", "invalid_target", "target_not_empty", "move_failed"]),
-}) {}
-
 export { ContextSnapshotDecodeError, MessageDecodeError, QueueRevisionConflictError, QueueStateConflictError } from "./session/error"
 
 export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictError>()("Session.PromptConflictError", {
@@ -123,10 +119,6 @@ export type Error =
 export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
   readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info>
-  readonly attach: (input: {
-    sessionID: SessionSchema.ID
-    directory: AbsolutePath
-  }) => Effect.Effect<SessionSchema.Info, NotFoundError | AttachError>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info, NotFoundError>
   readonly messages: (input: {
     sessionID: SessionSchema.ID
@@ -310,108 +302,6 @@ const layer = Layer.effect(
         if (projected.type === "existing") return projected.session
         // TODO: Restore recorded sessions onto replacement synchronized workspaces in a future API slice.
         return yield* result.get(sessionID).pipe(Effect.orDie)
-      }),
-      attach: Effect.fn("V2Session.attach")(function* (input) {
-        const session = yield* result.get(input.sessionID)
-        const project = yield* db
-          .select()
-          .from(ProjectTable)
-          .where(eq(ProjectTable.id, session.projectID))
-          .get()
-          .pipe(Effect.orDie)
-        if (!project || project.mode !== "chat") return yield* new AttachError({ reason: "not_chat" })
-
-        const source = project.worktree
-        const target = AbsolutePath.make(path.resolve(input.directory))
-        const relative = path.relative(source, target)
-        if (!relative || (!relative.startsWith("..") && !path.isAbsolute(relative)))
-          return yield* new AttachError({ reason: "invalid_target" })
-
-        const targetExists = yield* fs.exists(target).pipe(Effect.orDie)
-        if (targetExists) {
-          if (!(yield* fs.isDir(target).pipe(Effect.orDie))) return yield* new AttachError({ reason: "invalid_target" })
-          if ((yield* fs.readDirectory(target).pipe(Effect.orDie)).length > 0)
-            return yield* new AttachError({ reason: "target_not_empty" })
-          yield* fs.remove(target, { recursive: true }).pipe(Effect.orDie)
-        }
-        yield* fs.makeDirectory(path.dirname(target), { recursive: true }).pipe(Effect.orDie)
-
-        const sessions = yield* db
-          .select({ id: SessionTable.id, path: SessionTable.path })
-          .from(SessionTable)
-          .where(eq(SessionTable.project_id, project.id))
-          .all()
-          .pipe(Effect.orDie)
-        yield* Effect.forEach(sessions, (item) => execution.interrupt(item.id), { discard: true })
-        const move = (from: AbsolutePath, to: AbsolutePath) =>
-          fs.rename(from, to).pipe(
-            Effect.catch(() =>
-              Effect.tryPromise(async () => {
-                const { cp, rm } = await import("fs/promises")
-                await cp(from, to, { recursive: true, errorOnExist: true })
-                await rm(from, { recursive: true })
-              }),
-            ),
-          )
-        yield* move(source, target).pipe(
-          Effect.catch(() =>
-            fs.remove(target, { recursive: true, force: true }).pipe(
-              Effect.ignore,
-              Effect.andThen(
-                targetExists ? fs.makeDirectory(target, { recursive: true }).pipe(Effect.ignore) : Effect.void,
-              ),
-              Effect.andThen(Effect.fail(new AttachError({ reason: "move_failed" }))),
-            ),
-          ),
-        )
-
-        yield* db
-          .transaction((tx) =>
-            Effect.gen(function* () {
-              yield* tx
-                .update(ProjectTable)
-                .set({ worktree: target, mode: "workspace", time_updated: Date.now() })
-                .where(eq(ProjectTable.id, project.id))
-                .run()
-              yield* tx.delete(ProjectDirectoryTable).where(eq(ProjectDirectoryTable.project_id, project.id)).run()
-              yield* tx
-                .insert(ProjectDirectoryTable)
-                .values({ project_id: project.id, directory: target, strategy: "attach" })
-                .run()
-              yield* Effect.forEach(
-                sessions,
-                (item) =>
-                  tx
-                    .update(SessionTable)
-                    .set({ directory: AbsolutePath.make(path.join(target, item.path ?? "")), time_updated: Date.now() })
-                    .where(eq(SessionTable.id, item.id))
-                    .run(),
-                { discard: true },
-              )
-            }),
-          )
-          .pipe(
-            Effect.onError(() => move(target, source).pipe(Effect.orDie)),
-            Effect.mapError(() => new AttachError({ reason: "move_failed" })),
-          )
-        yield* Effect.forEach(
-          sessions,
-          (item) =>
-            Effect.gen(function* () {
-              yield* events.publish(
-                SessionEvent.Moved,
-                {
-                  sessionID: item.id,
-                  timestamp: yield* DateTime.now,
-                  location: Location.Ref.make({ directory: target }),
-                  subdirectory: item.path ? RelativePath.make(item.path) : undefined,
-                },
-                { location: Location.Ref.make({ directory: target }) },
-              )
-            }).pipe(Effect.ignore),
-          { discard: true },
-        )
-        return yield* result.get(input.sessionID)
       }),
       get: Effect.fn("V2Session.get")(function* (sessionID) {
         const session = yield* store.get(sessionID)

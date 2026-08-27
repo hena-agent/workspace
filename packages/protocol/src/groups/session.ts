@@ -157,22 +157,6 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
       ),
     )
     .add(
-      HttpApiEndpoint.post("session.attach", "/api/session/:sessionID/attach", {
-        params: { sessionID: Session.ID },
-        payload: Schema.Struct({ directory: AbsolutePath }),
-        success: Schema.Struct({ data: Session.Info }),
-        error: [SessionNotFoundError, ConflictError, InvalidRequestError, UnknownError],
-      })
-        .middleware(sessionLocationMiddleware)
-        .annotateMerge(
-          OpenApi.annotations({
-            identifier: "v2.session.attach",
-            summary: "Attach chat session",
-            description: "Move a chat project's managed files into a new or empty workspace directory.",
-          }),
-        ),
-    )
-    .add(
       HttpApiEndpoint.get("session.get", "/api/session/:sessionID", {
         params: { sessionID: Session.ID },
         success: Schema.Struct({ data: Session.Info }),

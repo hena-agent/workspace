@@ -26,7 +26,6 @@ import { SessionStore } from "@hena/core/session/store"
 import { WorkspaceV2 } from "@hena/core/workspace"
 import { testEffect } from "./lib/effect"
 import { tmpdir } from "./fixture/tmpdir"
-import { mkdir, readFile, unlink } from "fs/promises"
 
 const projects = Layer.succeed(
   ProjectV2.Service,
@@ -75,46 +74,6 @@ describe("SessionV2.create", () => {
         worktree: "/chat",
         mode: "chat",
       })
-    }),
-  )
-
-  it.effect("attaches a chat project to an empty workspace", () =>
-    Effect.gen(function* () {
-      const tmp = yield* Effect.acquireRelease(
-        Effect.promise(() => tmpdir()),
-        (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
-      )
-      const source = AbsolutePath.make(path.join(tmp.path, "managed"))
-      const target = AbsolutePath.make(path.join(tmp.path, "workspace"))
-      yield* Effect.promise(async () => {
-        await mkdir(source)
-        await mkdir(target)
-        await Bun.write(path.join(source, "notes.txt"), "chat")
-      })
-
-      const session = yield* SessionV2.Service
-      const created = yield* session.create({ location: Location.Ref.make({ directory: source }) })
-      const sibling = yield* session.create({ location: Location.Ref.make({ directory: source }) })
-      const { db } = yield* Database.Service
-      yield* db
-        .update(ProjectTable)
-        .set({ worktree: source, mode: "chat" })
-        .where(eq(ProjectTable.id, created.projectID))
-        .run()
-        .pipe(Effect.orDie)
-
-      yield* Effect.promise(() => Bun.write(path.join(target, "existing.txt"), "occupied"))
-      expect(yield* session.attach({ sessionID: created.id, directory: target }).pipe(Effect.flip)).toMatchObject({
-        reason: "target_not_empty",
-      })
-      yield* Effect.promise(() => unlink(path.join(target, "existing.txt")))
-      const attached = yield* session.attach({ sessionID: created.id, directory: target })
-      const project = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, created.projectID)).get()
-
-      expect(attached.location.directory).toBe(target)
-      expect((yield* session.get(sibling.id)).location.directory).toBe(target)
-      expect(project).toMatchObject({ worktree: target, mode: "workspace" })
-      expect(yield* Effect.promise(() => readFile(path.join(target, "notes.txt"), "utf8"))).toBe("chat")
     }),
   )
 

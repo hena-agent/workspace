@@ -60,6 +60,7 @@ import { Npm } from "@hena/core/npm"
 import { PermissionSaved } from "@hena/core/permission/saved"
 import { ProjectV2 } from "@hena/core/project"
 import { ProjectCopy } from "@hena/core/project/copy"
+import { ProjectAttach } from "@hena/core/project/attach"
 import { PtyTicket } from "@hena/core/pty/ticket"
 import { Ripgrep } from "@hena/core/ripgrep"
 import { SessionProjector } from "@hena/core/session/projector"
@@ -262,6 +263,7 @@ const app = LayerNode.group([
   httpClient,
   EventV2.node,
   ProjectV2.node,
+  ProjectAttach.node,
   ProjectCopy.node,
   PtyTicket.node,
 ])

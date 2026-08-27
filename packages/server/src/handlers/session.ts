@@ -86,29 +86,6 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         }),
       )
       .handle(
-        "session.attach",
-        Effect.fn(function* (ctx) {
-          return {
-            data: yield* session.attach({ sessionID: ctx.params.sessionID, directory: ctx.payload.directory }).pipe(
-              Effect.mapError((error) => {
-                if (error._tag === "Session.NotFoundError")
-                  return new SessionNotFoundError({
-                    sessionID: error.sessionID,
-                    message: `Session not found: ${error.sessionID}`,
-                  })
-                if (error.reason === "invalid_target")
-                  return new InvalidRequestError({ message: "Attach target must be outside the managed project" })
-                if (error.reason === "target_not_empty")
-                  return new ConflictError({ message: "Attach target must be empty", resource: ctx.payload.directory })
-                if (error.reason === "not_chat")
-                  return new ConflictError({ message: "Only chat projects can be attached" })
-                return new UnknownError({ message: "Failed to move the chat project" })
-              }),
-            ),
-          }
-        }),
-      )
-      .handle(
         "session.active",
         Effect.fn(function* () {
           return {

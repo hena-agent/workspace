@@ -9,8 +9,6 @@ import type {
   SessionsCreateInput,
   SessionsCreateOutput,
   SessionsActiveOutput,
-  SessionsAttachInput,
-  SessionsAttachOutput,
   SessionsGetInput,
   SessionsGetOutput,
   SessionsSwitchAgentInput,
@@ -108,6 +106,8 @@ import type {
   QuestionsRejectOutput,
   ReferencesListInput,
   ReferencesListOutput,
+  ProjectsAttachInput,
+  ProjectsAttachOutput,
   ProjectCopiesCreateInput,
   ProjectCopiesCreateOutput,
   ProjectCopiesRemoveInput,
@@ -331,18 +331,6 @@ export function make(options: ClientOptions) {
             path: `/api/session/active`,
             successStatus: 200,
             declaredStatuses: [401, 400],
-            empty: false,
-          },
-          requestOptions,
-        ).then((value) => value.data),
-      attach: (input: SessionsAttachInput, requestOptions?: RequestOptions) =>
-        request<{ readonly data: SessionsAttachOutput }>(
-          {
-            method: "POST",
-            path: `/api/session/${encodeURIComponent(input.sessionID)}/attach`,
-            body: { directory: input["directory"] },
-            successStatus: 200,
-            declaredStatuses: [404, 409, 400, 500, 401],
             empty: false,
           },
           requestOptions,
@@ -958,6 +946,20 @@ export function make(options: ClientOptions) {
             successStatus: 200,
             declaredStatuses: [401, 400],
             empty: false,
+          },
+          requestOptions,
+        ),
+    },
+    projects: {
+      attach: (input: ProjectsAttachInput, requestOptions?: RequestOptions) =>
+        request<ProjectsAttachOutput>(
+          {
+            method: "POST",
+            path: `/api/project/${encodeURIComponent(input.projectID)}/attach`,
+            body: { directory: input["directory"] },
+            successStatus: 204,
+            declaredStatuses: [404, 409, 400, 500, 401],
+            empty: true,
           },
           requestOptions,
         ),

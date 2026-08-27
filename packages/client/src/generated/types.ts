@@ -41,14 +41,6 @@ export type ConflictError = {
 export const isConflictError = (value: unknown): value is ConflictError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ConflictError"
 
-export type UnknownError = {
-  readonly _tag: "UnknownError"
-  readonly message: string
-  readonly ref?: string | undefined
-}
-export const isUnknownError = (value: unknown): value is UnknownError =>
-  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "UnknownError"
-
 export type ServiceUnavailableError = {
   readonly _tag: "ServiceUnavailableError"
   readonly message: string
@@ -65,6 +57,14 @@ export type MessageNotFoundError = {
 }
 export const isMessageNotFoundError = (value: unknown): value is MessageNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "MessageNotFoundError"
+
+export type UnknownError = {
+  readonly _tag: "UnknownError"
+  readonly message: string
+  readonly ref?: string | undefined
+}
+export const isUnknownError = (value: unknown): value is UnknownError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "UnknownError"
 
 export type ProviderNotFoundError = {
   readonly _tag: "ProviderNotFoundError"
@@ -93,6 +93,14 @@ export type QuestionNotFoundError = {
 }
 export const isQuestionNotFoundError = (value: unknown): value is QuestionNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "QuestionNotFoundError"
+
+export type ProjectNotFoundError = {
+  readonly _tag: "ProjectNotFoundError"
+  readonly projectID: string
+  readonly message: string
+}
+export const isProjectNotFoundError = (value: unknown): value is ProjectNotFoundError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectNotFoundError"
 
 export type ProjectCopyError = {
   readonly name: "ProjectCopyError"
@@ -341,46 +349,6 @@ export type SessionsCreateOutput = {
 }["data"]
 
 export type SessionsActiveOutput = { readonly data: { readonly [x: string]: { readonly type: "running" } } }["data"]
-
-export type SessionsAttachInput = {
-  readonly sessionID: { readonly sessionID: string }["sessionID"]
-  readonly directory: { readonly directory: string }["directory"]
-}
-
-export type SessionsAttachOutput = {
-  readonly data: {
-    readonly id: string
-    readonly parentID?: string
-    readonly projectID: string
-    readonly agent?: string
-    readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
-    readonly cost: number
-    readonly tokens: {
-      readonly input: number
-      readonly output: number
-      readonly reasoning: number
-      readonly cache: { readonly read: number; readonly write: number }
-    }
-    readonly time: { readonly created: number; readonly updated: number; readonly archived?: number }
-    readonly title: string
-    readonly location: { readonly directory: string; readonly workspaceID?: string }
-    readonly subpath?: string
-    readonly revert?: {
-      readonly messageID: string
-      readonly partID?: string
-      readonly snapshot?: string
-      readonly diff?: string
-      readonly files?: ReadonlyArray<{
-        readonly path: string
-        readonly status: "added" | "modified" | "deleted"
-        readonly additions: number
-        readonly deletions: number
-        readonly patch: string
-      }>
-    }
-    readonly queueRevision?: number
-  }
-}["data"]
 
 export type SessionsGetInput = { readonly sessionID: { readonly sessionID: string }["sessionID"] }
 
@@ -2912,6 +2880,13 @@ export type ReferencesListOutput = {
         }
   }>
 }
+
+export type ProjectsAttachInput = {
+  readonly projectID: { readonly projectID: string }["projectID"]
+  readonly directory: { readonly directory: string }["directory"]
+}
+
+export type ProjectsAttachOutput = void
 
 export type ProjectCopiesCreateInput = {
   readonly projectID: { readonly projectID: string }["projectID"]

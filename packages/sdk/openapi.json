@@ -8293,7 +8293,19 @@
         "parameters": [{ "name": "projectID", "in": "path", "schema": { "type": "string" }, "required": true }],
         "security": [],
         "responses": {
-          "204": { "description": "<No Content>" },
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/ProjectAttachOperation" } },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
           "400": {
             "description": "InvalidRequestError",
             "content": {
@@ -8316,8 +8328,17 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectNotFoundError" } } }
           },
           "409": {
-            "description": "ConflictError",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConflictError" } } }
+            "description": "ProjectAttachRecoveryRequiredError | ConflictError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/ProjectAttachRecoveryRequiredError" },
+                    { "$ref": "#/components/schemas/ConflictError" }
+                  ]
+                }
+              }
+            }
           },
           "500": {
             "description": "UnknownError",
@@ -8343,6 +8364,92 @@
           {
             "lang": "js",
             "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.project.attach({\n  ...\n})"
+          }
+        ]
+      },
+      "get": {
+        "tags": ["project"],
+        "operationId": "v2.project.attach.status",
+        "parameters": [{ "name": "projectID", "in": "path", "schema": { "type": "string" }, "required": true }],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/ProjectAttachOperation" } },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvalidRequestError" } } }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnauthorizedError" } } }
+          },
+          "404": {
+            "description": "ProjectNotFoundError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectNotFoundError" } } }
+          }
+        },
+        "summary": "Get project attach status",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.project.attach.status({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/project/{projectID}/attach/recover": {
+      "post": {
+        "tags": ["project"],
+        "operationId": "v2.project.attach.recover",
+        "parameters": [{ "name": "projectID", "in": "path", "schema": { "type": "string" }, "required": true }],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/ProjectAttachOperation" } },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvalidRequestError" } } }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnauthorizedError" } } }
+          },
+          "404": {
+            "description": "ProjectNotFoundError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectNotFoundError" } } }
+          },
+          "409": {
+            "description": "ProjectAttachRecoveryRequiredError",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/ProjectAttachRecoveryRequiredError" } }
+            }
+          }
+        },
+        "summary": "Recover project attach",
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.project.attach.recover({\n  ...\n})"
           }
         ]
       }
@@ -16581,6 +16688,54 @@
           "source": { "$ref": "#/components/schemas/ReferenceSource" }
         },
         "required": ["name", "path", "source"],
+        "additionalProperties": false
+      },
+      "ProjectAttachPhase": {
+        "type": "string",
+        "enum": [
+          "prepared",
+          "copied",
+          "target_ready",
+          "sessions_moved",
+          "committed",
+          "cleanup_pending",
+          "completed",
+          "rolling_back",
+          "rolled_back",
+          "recovery_required"
+        ]
+      },
+      "ProjectAttachOperation": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^pat_" },
+          "projectID": { "type": "string" },
+          "source": { "type": "string" },
+          "target": { "type": "string" },
+          "phase": { "$ref": "#/components/schemas/ProjectAttachPhase" },
+          "error": { "type": "string" },
+          "time": {
+            "type": "object",
+            "properties": {
+              "created": { "type": "integer", "minimum": 0 },
+              "updated": { "type": "integer", "minimum": 0 }
+            },
+            "required": ["created", "updated"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "projectID", "source", "target", "phase", "time"],
+        "additionalProperties": false
+      },
+      "ProjectAttachRecoveryRequiredError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["ProjectAttachRecoveryRequiredError"] },
+          "projectID": { "type": "string" },
+          "operationID": { "type": "string" },
+          "message": { "type": "string" }
+        },
+        "required": ["_tag", "projectID", "operationID", "message"],
         "additionalProperties": false
       },
       "ProjectCopyCopy": {

@@ -4994,6 +4994,38 @@ export type ReferenceInfo = {
   source: ReferenceSource
 }
 
+export type ProjectAttachPhase =
+  | "prepared"
+  | "copied"
+  | "target_ready"
+  | "sessions_moved"
+  | "committed"
+  | "cleanup_pending"
+  | "completed"
+  | "rolling_back"
+  | "rolled_back"
+  | "recovery_required"
+
+export type ProjectAttachOperation = {
+  id: string
+  projectID: string
+  source: string
+  target: string
+  phase: ProjectAttachPhase
+  error?: string
+  time: {
+    created: number
+    updated: number
+  }
+}
+
+export type ProjectAttachRecoveryRequiredError = {
+  _tag: "ProjectAttachRecoveryRequiredError"
+  projectID: string
+  operationID: string
+  message: string
+}
+
 export type ProjectCopyCopy = {
   directory: string
 }
@@ -13049,6 +13081,43 @@ export type V2ReferenceListResponses = {
 
 export type V2ReferenceListResponse = V2ReferenceListResponses[keyof V2ReferenceListResponses]
 
+export type V2ProjectAttachStatusData = {
+  body?: never
+  path: {
+    projectID: string
+  }
+  query?: never
+  url: "/api/project/{projectID}/attach"
+}
+
+export type V2ProjectAttachStatusErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
+}
+
+export type V2ProjectAttachStatusError = V2ProjectAttachStatusErrors[keyof V2ProjectAttachStatusErrors]
+
+export type V2ProjectAttachStatusResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data?: ProjectAttachOperation
+  }
+}
+
+export type V2ProjectAttachStatusResponse = V2ProjectAttachStatusResponses[keyof V2ProjectAttachStatusResponses]
+
 export type V2ProjectAttachData = {
   body: {
     directory: string
@@ -13074,9 +13143,9 @@ export type V2ProjectAttachErrors = {
    */
   404: ProjectNotFoundError
   /**
-   * ConflictError
+   * ProjectAttachRecoveryRequiredError | ConflictError
    */
-  409: ConflictError
+  409: ProjectAttachRecoveryRequiredError | ConflictError
   /**
    * UnknownError
    */
@@ -13087,12 +13156,55 @@ export type V2ProjectAttachError = V2ProjectAttachErrors[keyof V2ProjectAttachEr
 
 export type V2ProjectAttachResponses = {
   /**
-   * <No Content>
+   * Success
    */
-  204: void
+  200: {
+    data: ProjectAttachOperation
+  }
 }
 
 export type V2ProjectAttachResponse = V2ProjectAttachResponses[keyof V2ProjectAttachResponses]
+
+export type V2ProjectAttachRecoverData = {
+  body?: never
+  path: {
+    projectID: string
+  }
+  query?: never
+  url: "/api/project/{projectID}/attach/recover"
+}
+
+export type V2ProjectAttachRecoverErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
+  /**
+   * ProjectAttachRecoveryRequiredError
+   */
+  409: ProjectAttachRecoveryRequiredError
+}
+
+export type V2ProjectAttachRecoverError = V2ProjectAttachRecoverErrors[keyof V2ProjectAttachRecoverErrors]
+
+export type V2ProjectAttachRecoverResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data?: ProjectAttachOperation
+  }
+}
+
+export type V2ProjectAttachRecoverResponse = V2ProjectAttachRecoverResponses[keyof V2ProjectAttachRecoverResponses]
 
 export type V2ProjectCopyRemoveData = {
   body?: {

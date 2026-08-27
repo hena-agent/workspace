@@ -70,6 +70,16 @@ export class ProjectNotFoundError extends Schema.TaggedError<ProjectNotFoundErro
   { httpApiStatus: 404 },
 ) {}
 
+export class ProjectAttachRecoveryRequiredError extends Schema.TaggedError<ProjectAttachRecoveryRequiredError>()(
+  "ProjectAttachRecoveryRequiredError",
+  {
+    projectID: Schema.String,
+    operationID: Schema.String,
+    message: Schema.String,
+  },
+  { httpApiStatus: 409 },
+) {}
+
 export class MessageNotFoundError extends Schema.TaggedError<MessageNotFoundError>()(
   "MessageNotFoundError",
   {

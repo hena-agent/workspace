@@ -2,7 +2,7 @@ export * as Project from "./project"
 
 import { Schema } from "effect"
 import { define, inventory } from "./event"
-import { NonNegativeInt, optional } from "./schema"
+import { AbsolutePath, NonNegativeInt, optional, statics } from "./schema"
 import { ProjectID } from "./project-id"
 
 export const ID = ProjectID
@@ -11,6 +11,37 @@ export type ID = typeof ID.Type
 export const Vcs = Schema.Literal("git").annotate({ identifier: "Project.Vcs" })
 export const Mode = Schema.Literals(["chat", "workspace"]).annotate({ identifier: "Project.Mode" })
 export type Mode = typeof Mode.Type
+export const AttachOperationID = Schema.String.check(Schema.isStartsWith("pat_")).pipe(
+  Schema.brand("Project.AttachOperationID"),
+  statics((schema) => ({ create: () => schema.make(`pat_${crypto.randomUUID()}`) })),
+)
+export type AttachOperationID = typeof AttachOperationID.Type
+export const AttachPhase = Schema.Literals([
+  "prepared",
+  "copied",
+  "target_ready",
+  "sessions_moved",
+  "committed",
+  "cleanup_pending",
+  "completed",
+  "rolling_back",
+  "rolled_back",
+  "recovery_required",
+]).annotate({ identifier: "Project.AttachPhase" })
+export type AttachPhase = typeof AttachPhase.Type
+export interface AttachOperation extends Schema.Schema.Type<typeof AttachOperation> {}
+export const AttachOperation = Schema.Struct({
+  id: AttachOperationID,
+  projectID: ID,
+  source: AbsolutePath,
+  target: AbsolutePath,
+  phase: AttachPhase,
+  error: Schema.String.pipe(optional),
+  time: Schema.Struct({
+    created: NonNegativeInt,
+    updated: NonNegativeInt,
+  }),
+}).annotate({ identifier: "Project.AttachOperation" })
 export const Icon = Schema.Struct({
   url: optional(Schema.String),
   override: optional(Schema.String),

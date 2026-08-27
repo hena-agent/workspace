@@ -40,6 +40,10 @@ import { SessionTitle } from "./title"
 import { Snapshot } from "../../snapshot"
 import { makeLocationNode } from "../../effect/app-node"
 import { llmClient } from "../../effect/app-node-platform"
+import { ProjectTable } from "../../project/sql"
+import { eq } from "drizzle-orm"
+
+const chatTools = new Set(["question", "todowrite", "webfetch", "websearch"])
 
 /**
  * Runs one durable coding-agent Session until it settles.
@@ -205,7 +209,15 @@ const layer = Layer.effect(
       const context = entries.map((entry) => entry.message)
       yield* titles.start(session, context, model)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
-      const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions)
+      const project = yield* db
+        .select({ mode: ProjectTable.mode })
+        .from(ProjectTable)
+        .where(eq(ProjectTable.id, session.projectID))
+        .get()
+        .pipe(Effect.orDie)
+      const toolMaterialization = isLastStep
+        ? undefined
+        : yield* tools.materialize(agent.info?.permissions, project?.mode === "chat" ? chatTools : undefined)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
         model,

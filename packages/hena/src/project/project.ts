@@ -44,6 +44,7 @@ export function fromRow(row: Row): Info {
   return {
     id: row.id,
     worktree: row.worktree,
+    mode: row.mode,
     vcs: row.vcs ? Schema.decodeUnknownSync(Project.Vcs)(row.vcs) : undefined,
     name: row.name ?? undefined,
     icon,
@@ -225,6 +226,7 @@ const layer = Layer.effect(
         : {
             id: projectID,
             worktree,
+            mode: "workspace" as const,
             vcs: data.vcs?.type ?? fakeVcs,
             sandboxes: [] as string[],
             time: { created: Date.now(), updated: Date.now() },
@@ -232,10 +234,9 @@ const layer = Layer.effect(
 
       if (flags.experimentalIconDiscovery) yield* discover(existing).pipe(Effect.ignore, Effect.forkIn(scope))
 
-      const runtimeWorktree = projectID === ProjectV2.ID.global ? worktree : (existing.worktree ?? worktree)
       const result: Info = {
         ...existing,
-        worktree: runtimeWorktree,
+        worktree: projectID === ProjectV2.ID.global ? worktree : existing.worktree,
         vcs: data.vcs?.type ?? fakeVcs,
         time: { ...existing.time, updated: Date.now() },
       }
@@ -259,7 +260,8 @@ const layer = Layer.effect(
         .insert(ProjectTable)
         .values({
           id: result.id,
-          worktree: row?.worktree === null ? null : AbsolutePath.make(runtimeWorktree),
+          worktree: AbsolutePath.make(result.worktree),
+          mode: result.mode,
           vcs: result.vcs ?? null,
           name: result.name,
           icon_url: result.icon?.url,
@@ -274,7 +276,8 @@ const layer = Layer.effect(
         .onConflictDoUpdate({
           target: ProjectTable.id,
           set: {
-            worktree: row?.worktree === null ? null : AbsolutePath.make(runtimeWorktree),
+            worktree: AbsolutePath.make(result.worktree),
+            mode: result.mode,
             vcs: result.vcs ?? null,
             name: result.name,
             icon_url: result.icon?.url,
@@ -311,7 +314,6 @@ const layer = Layer.effect(
     })
 
     const discover = Effect.fn("Project.discover")(function* (input: Info) {
-      if (!input.worktree) return
       if (input.vcs !== "git") return
       if (input.icon?.override) return
       if (input.icon?.url) return

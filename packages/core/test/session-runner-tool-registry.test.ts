@@ -94,6 +94,20 @@ describe("ToolRegistry", () => {
     }),
   )
 
+  it.effect("only advertises and settles explicitly allowed tools", () =>
+    Effect.gen(function* () {
+      const service = yield* ToolRegistry.Service
+      yield* service.register({ question: make(), bash: make() })
+      const materialized = yield* service.materialize([], new Set(["question"]))
+
+      expect(materialized.definitions.map((tool) => tool.name)).toEqual(["question"])
+      expect((yield* materialized.settle(call("bash"))).result).toEqual({
+        type: "error",
+        value: "Unknown tool: bash",
+      })
+    }),
+  )
+
   it.effect("keeps permission decoration isolated between registrations", () =>
     Effect.gen(function* () {
       const service = yield* ToolRegistry.Service

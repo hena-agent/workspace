@@ -5295,14 +5295,23 @@
           },
           "400": {
             "description": "InvalidRequestError",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvalidRequestError" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/InvalidRequestError" },
+                    { "$ref": "#/components/schemas/InvalidRequestError" }
+                  ]
+                }
+              }
+            }
           },
           "401": {
             "description": "UnauthorizedError",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnauthorizedError" } } }
           }
         },
-        "description": "Create a session at the requested location.",
+        "description": "Create a workspace session at the requested location or a chat session in managed storage.",
         "summary": "Create session",
         "requestBody": {
           "content": {
@@ -5313,6 +5322,7 @@
                   "id": { "type": "string", "pattern": "^ses" },
                   "agent": { "type": "string" },
                   "model": { "$ref": "#/components/schemas/ModelRef" },
+                  "mode": { "$ref": "#/components/schemas/ProjectMode" },
                   "location": { "$ref": "#/components/schemas/LocationRef" }
                 },
                 "additionalProperties": false
@@ -5369,6 +5379,90 @@
           {
             "lang": "js",
             "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.session.active({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/session/{sessionID}/attach": {
+      "post": {
+        "tags": ["sessions"],
+        "operationId": "v2.session.attach",
+        "parameters": [
+          { "name": "sessionID", "in": "path", "schema": { "type": "string", "pattern": "^ses" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/SessionV2Info" } },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/InvalidRequestError" },
+                    { "$ref": "#/components/schemas/InvalidRequestError" }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnauthorizedError" } } }
+          },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/SessionNotFoundError" },
+                    { "$ref": "#/components/schemas/SessionNotFoundError" }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConflictError" } } }
+          },
+          "500": {
+            "description": "UnknownError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnknownError1" } } }
+          }
+        },
+        "description": "Move a chat project's managed files into a new or empty workspace directory.",
+        "summary": "Attach chat session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "directory": { "type": "string" } },
+                "required": ["directory"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.session.attach({\n  ...\n})"
           }
         ]
       }
@@ -10969,6 +11063,7 @@
                     "properties": {
                       "id": { "type": "string" },
                       "worktree": { "type": "string" },
+                      "mode": { "$ref": "#/components/schemas/ProjectMode" },
                       "vcs": { "$ref": "#/components/schemas/ProjectVcs" },
                       "name": { "type": "string" },
                       "icon": { "$ref": "#/components/schemas/ProjectIcon" },
@@ -10976,7 +11071,7 @@
                       "time": { "$ref": "#/components/schemas/ProjectTime" },
                       "sandboxes": { "type": "array", "items": { "type": "string" } }
                     },
-                    "required": ["id", "worktree", "time", "sandboxes"],
+                    "required": ["id", "worktree", "mode", "time", "sandboxes"],
                     "additionalProperties": false
                   }
                 },
@@ -12237,6 +12332,7 @@
         "properties": {
           "id": { "type": "string" },
           "worktree": { "type": "string" },
+          "mode": { "$ref": "#/components/schemas/ProjectMode" },
           "vcs": { "$ref": "#/components/schemas/ProjectVcs" },
           "name": { "type": "string" },
           "icon": { "$ref": "#/components/schemas/ProjectIcon" },
@@ -12244,7 +12340,7 @@
           "time": { "$ref": "#/components/schemas/ProjectTime" },
           "sandboxes": { "type": "array", "items": { "type": "string" } }
         },
-        "required": ["id", "worktree", "time", "sandboxes"],
+        "required": ["id", "worktree", "mode", "time", "sandboxes"],
         "additionalProperties": false
       },
       "QuestionRequest": {
@@ -12716,6 +12812,7 @@
         "additionalProperties": false
       },
       "QuestionV2Answer": { "type": "array", "items": { "type": "string" } },
+      "ProjectMode": { "type": "string", "enum": ["chat", "workspace"] },
       "ProjectVcs": { "type": "string", "enum": ["git"] },
       "ProjectIcon": {
         "type": "object",
@@ -14519,6 +14616,26 @@
         "required": ["_tag", "sessionID", "message"],
         "additionalProperties": false
       },
+      "ConflictError": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["ConflictError"] },
+          "message": { "type": "string" },
+          "resource": { "type": "string" }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
+      "UnknownError1": {
+        "type": "object",
+        "properties": {
+          "_tag": { "type": "string", "enum": ["UnknownError"] },
+          "message": { "type": "string" },
+          "ref": { "type": "string" }
+        },
+        "required": ["_tag", "message"],
+        "additionalProperties": false
+      },
       "PromptInputFileAttachment": {
         "type": "object",
         "properties": {
@@ -14544,16 +14661,6 @@
         "required": ["admittedSeq", "id", "sessionID", "prompt", "delivery", "timeCreated"],
         "additionalProperties": false
       },
-      "ConflictError": {
-        "type": "object",
-        "properties": {
-          "_tag": { "type": "string", "enum": ["ConflictError"] },
-          "message": { "type": "string" },
-          "resource": { "type": "string" }
-        },
-        "required": ["_tag", "message"],
-        "additionalProperties": false
-      },
       "ServiceUnavailableError": {
         "type": "object",
         "properties": {
@@ -14573,16 +14680,6 @@
           "message": { "type": "string" }
         },
         "required": ["_tag", "sessionID", "messageID", "message"],
-        "additionalProperties": false
-      },
-      "UnknownError1": {
-        "type": "object",
-        "properties": {
-          "_tag": { "type": "string", "enum": ["UnknownError"] },
-          "message": { "type": "string" },
-          "ref": { "type": "string" }
-        },
-        "required": ["_tag", "message"],
         "additionalProperties": false
       },
       "SessionMessageAgentSwitched": {
@@ -17962,6 +18059,7 @@
             "properties": {
               "id": { "type": "string" },
               "worktree": { "type": "string" },
+              "mode": { "$ref": "#/components/schemas/ProjectMode" },
               "vcs": { "$ref": "#/components/schemas/ProjectVcs" },
               "name": { "type": "string" },
               "icon": { "$ref": "#/components/schemas/ProjectIcon" },
@@ -17969,7 +18067,7 @@
               "time": { "$ref": "#/components/schemas/ProjectTime" },
               "sandboxes": { "type": "array", "items": { "type": "string" } }
             },
-            "required": ["id", "worktree", "time", "sandboxes"],
+            "required": ["id", "worktree", "mode", "time", "sandboxes"],
             "additionalProperties": false
           }
         },
@@ -19428,6 +19526,7 @@
             "properties": {
               "id": { "type": "string" },
               "worktree": { "type": "string" },
+              "mode": { "$ref": "#/components/schemas/ProjectMode" },
               "vcs": { "$ref": "#/components/schemas/ProjectVcs" },
               "name": { "type": "string" },
               "icon": { "$ref": "#/components/schemas/ProjectIcon" },
@@ -19435,7 +19534,7 @@
               "time": { "$ref": "#/components/schemas/ProjectTime" },
               "sandboxes": { "type": "array", "items": { "type": "string" } }
             },
-            "required": ["id", "worktree", "time", "sandboxes"],
+            "required": ["id", "worktree", "mode", "time", "sandboxes"],
             "additionalProperties": false
           }
         },

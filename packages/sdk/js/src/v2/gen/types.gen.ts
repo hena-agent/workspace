@@ -1509,6 +1509,7 @@ export type GlobalEvent = {
         properties: {
           id: string
           worktree: string
+          mode: ProjectMode
           vcs?: ProjectVcs
           name?: string
           icon?: ProjectIcon
@@ -2340,6 +2341,7 @@ export type McpStatus =
 export type Project = {
   id: string
   worktree: string
+  mode: ProjectMode
   vcs?: ProjectVcs
   name?: string
   icon?: ProjectIcon
@@ -2693,6 +2695,8 @@ export type QuestionV2Tool = {
 }
 
 export type QuestionV2Answer = Array<string>
+
+export type ProjectMode = "chat" | "workspace"
 
 export type ProjectVcs = "git"
 
@@ -3737,6 +3741,18 @@ export type SessionNotFoundError = {
   message: string
 }
 
+export type ConflictError = {
+  _tag: "ConflictError"
+  message: string
+  resource?: string
+}
+
+export type UnknownError1 = {
+  _tag: "UnknownError"
+  message: string
+  ref?: string
+}
+
 export type PromptInputFileAttachment = {
   uri: string
   name?: string
@@ -3754,12 +3770,6 @@ export type SessionInputAdmitted = {
   promotedSeq?: number
 }
 
-export type ConflictError = {
-  _tag: "ConflictError"
-  message: string
-  resource?: string
-}
-
 export type ServiceUnavailableError = {
   _tag: "ServiceUnavailableError"
   message: string
@@ -3771,12 +3781,6 @@ export type MessageNotFoundError = {
   sessionID: string
   messageID: string
   message: string
-}
-
-export type UnknownError1 = {
-  _tag: "UnknownError"
-  message: string
-  ref?: string
 }
 
 export type SessionMessageAgentSwitched = {
@@ -5816,6 +5820,7 @@ export type EventProjectUpdated = {
   properties: {
     id: string
     worktree: string
+    mode: ProjectMode
     vcs?: ProjectVcs
     name?: string
     icon?: ProjectIcon
@@ -6738,6 +6743,7 @@ export type ProjectUpdated = {
   data: {
     id: string
     worktree: string
+    mode: ProjectMode
     vcs?: ProjectVcs
     name?: string
     icon?: ProjectIcon
@@ -10935,6 +10941,7 @@ export type V2SessionCreateData = {
     id?: string
     agent?: string
     model?: ModelRef
+    mode?: ProjectMode
     location?: LocationRef
   }
   path?: never
@@ -10998,6 +11005,53 @@ export type V2SessionActiveResponses = {
 }
 
 export type V2SessionActiveResponse = V2SessionActiveResponses[keyof V2SessionActiveResponses]
+
+export type V2SessionAttachData = {
+  body: {
+    directory: string
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/attach"
+}
+
+export type V2SessionAttachErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
+}
+
+export type V2SessionAttachError = V2SessionAttachErrors[keyof V2SessionAttachErrors]
+
+export type V2SessionAttachResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: SessionV2Info
+  }
+}
+
+export type V2SessionAttachResponse = V2SessionAttachResponses[keyof V2SessionAttachResponses]
 
 export type V2SessionGetData = {
   body?: never

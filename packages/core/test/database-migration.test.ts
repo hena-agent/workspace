@@ -4,7 +4,7 @@ import { fileURLToPath } from "url"
 import path from "path"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
 import { EffectDrizzleSqlite } from "@hena/effect-drizzle-sqlite"
-import { Deferred, Effect, Fiber, Layer } from "effect"
+import { Effect, Layer } from "effect"
 import { eq, inArray, sql } from "drizzle-orm"
 import { DatabaseMigration } from "@hena/core/database/migration"
 import { migrations } from "@hena/core/database/migration.gen"
@@ -15,7 +15,7 @@ import eventSourcedSessionInputMigration from "@hena/core/database/migration/202
 import contextEpochAgentMigration from "@hena/core/database/migration/20260605042240_add_context_epoch_agent"
 import simplifyIntegrationCredentialsMigration from "@hena/core/database/migration/20260611192811_lush_chimera"
 import simplifySessionInputMigration from "@hena/core/database/migration/20260622202450_simplify_session_input"
-import folderlessProjectMigration from "@hena/core/database/migration/20260728080827_folderless-project"
+import projectModeMigration from "@hena/core/database/migration/20260827073015_project-mode"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { EventV2 } from "@hena/core/event"
@@ -215,7 +215,7 @@ describe("DatabaseMigration", () => {
     )
   })
 
-  test("preserves project dependents when making project worktrees nullable", async () => {
+  test("defaults existing projects to workspace mode", async () => {
     await run(
       Effect.gen(function* () {
         const db = yield* makeDb
@@ -223,31 +223,17 @@ describe("DatabaseMigration", () => {
         yield* db.run(
           sql`CREATE TABLE project (id text PRIMARY KEY, worktree text NOT NULL, vcs text, name text, icon_url text, icon_url_override text, icon_color text, time_created integer NOT NULL, time_updated integer NOT NULL, time_initialized integer, sandboxes text NOT NULL, commands text)`,
         )
-        const shapeBefore = yield* db.all<{ name: string; notnull: number }>(
-          sql`SELECT * FROM pragma_table_info('project')`,
-        )
-        yield* db.run(
-          sql`CREATE TABLE session (id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id) ON DELETE CASCADE)`,
-        )
-        yield* db.run(
-          sql`CREATE TABLE message (id text PRIMARY KEY, session_id text NOT NULL REFERENCES session(id) ON DELETE CASCADE)`,
-        )
-        yield* db.run(
-          sql`CREATE TABLE part (id text PRIMARY KEY, message_id text NOT NULL REFERENCES message(id) ON DELETE CASCADE)`,
-        )
         yield* db.run(
           sql`INSERT INTO project VALUES ('project', '/project', 'git', 'Name', 'u', 'o', '#fff', 1, 2, 3, '[]', '{"start":"bun dev"}')`,
         )
-        yield* db.run(sql`INSERT INTO session (id, project_id) VALUES ('session', 'project')`)
-        yield* db.run(sql`INSERT INTO message (id, session_id) VALUES ('message', 'session')`)
-        yield* db.run(sql`INSERT INTO part (id, message_id) VALUES ('part', 'message')`)
 
-        yield* DatabaseMigration.applyOnly(db, [folderlessProjectMigration])
+        yield* DatabaseMigration.applyOnly(db, [projectModeMigration])
 
         expect(yield* db.all(sql`SELECT * FROM project`)).toEqual([
           {
             id: "project",
             worktree: "/project",
+            mode: "workspace",
             vcs: "git",
             name: "Name",
             icon_url: "u",
@@ -260,85 +246,6 @@ describe("DatabaseMigration", () => {
             commands: '{"start":"bun dev"}',
           },
         ])
-        expect(yield* db.all(sql`SELECT * FROM pragma_table_info('project')`)).toEqual(
-          shapeBefore.map((column) => (column.name === "worktree" ? { ...column, notnull: 0 } : column)),
-        )
-        expect(yield* db.all(sql`SELECT id, project_id FROM session`)).toEqual([
-          { id: "session", project_id: "project" },
-        ])
-        expect(yield* db.all(sql`SELECT id, session_id FROM message`)).toEqual([
-          { id: "message", session_id: "session" },
-        ])
-        expect(yield* db.all(sql`SELECT id, message_id FROM part`)).toEqual([{ id: "part", message_id: "message" }])
-        expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
-        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
-
-        yield* db.run(
-          sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('folderless', NULL, 3, 3, '[]')`,
-        )
-        expect(yield* db.all(sql`SELECT id, worktree FROM project ORDER BY id`)).toEqual([
-          { id: "folderless", worktree: null },
-          { id: "project", worktree: "/project" },
-        ])
-      }),
-    )
-  })
-
-  test("restores foreign keys when a migration is interrupted", async () => {
-    await run(
-      Effect.gen(function* () {
-        const db = yield* makeDb
-        const started = yield* Deferred.make<void>()
-        yield* db.run(sql`PRAGMA foreign_keys = ON`)
-
-        const fiber = yield* DatabaseMigration.applyOnly(db, [
-          {
-            id: "interrupted",
-            up: (tx) =>
-              tx
-                .run(sql`CREATE TABLE rolled_back (id text)`)
-                .pipe(Effect.andThen(Deferred.succeed(started, undefined)), Effect.andThen(Effect.never)),
-          },
-        ]).pipe(Effect.forkChild)
-        yield* Deferred.await(started)
-        yield* Fiber.interrupt(fiber)
-
-        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
-        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE name = 'rolled_back'`)).toBeUndefined()
-        expect(yield* db.all(sql`SELECT id FROM migration`)).toEqual([])
-      }),
-    )
-  })
-
-  test("rebuilds tables with foreign keys disabled", async () => {
-    await run(
-      Effect.gen(function* () {
-        const db = yield* makeDb
-        yield* db.run(sql`CREATE TABLE project (id text PRIMARY KEY)`)
-        yield* db.run(
-          sql`CREATE TABLE workspace (id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id))`,
-        )
-        yield* db.run(sql`PRAGMA foreign_keys = OFF`)
-        yield* db.run(sql`INSERT INTO workspace VALUES ('workspace', 'missing')`)
-        yield* db.run(sql`PRAGMA foreign_keys = ON`)
-
-        yield* DatabaseMigration.applyOnly(db, [
-          {
-            id: "rebuild",
-            up: (tx) =>
-              Effect.gen(function* () {
-                yield* tx.run(
-                  sql`CREATE TABLE new_workspace (id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id))`,
-                )
-                yield* tx.run(sql`INSERT INTO new_workspace SELECT * FROM workspace`)
-                yield* tx.run(sql`DROP TABLE workspace`)
-                yield* tx.run(sql`ALTER TABLE new_workspace RENAME TO workspace`)
-              }),
-          },
-        ])
-
-        expect(yield* db.all(sql`SELECT * FROM workspace`)).toEqual([{ id: "workspace", project_id: "missing" }])
-        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
       }),
     )
   })

@@ -20,6 +20,7 @@ import { testEffect } from "../lib/effect"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
+import { AbsolutePath } from "@hena/core/schema"
 
 const encoder = new TextEncoder()
 
@@ -76,6 +77,7 @@ function projectV2FailureLayer() {
   return Layer.succeed(
     ProjectV2.Service,
     ProjectV2.Service.of({
+      create: () => Effect.succeed({ id: ProjectV2.ID.make("prj_test"), directory: AbsolutePath.make("/chat") }),
       directories: () => Effect.succeed([]),
       resolve: (input) =>
         Effect.succeed({
@@ -658,28 +660,6 @@ describe("Project.list and Project.get", () => {
     }),
   )
 
-  it.live("returns and updates folderless projects", () =>
-    Effect.gen(function* () {
-      const project = yield* Project.Service
-      const { db } = yield* Database.Service
-      const tmp = yield* tmpdirScoped({ git: true })
-      const created = yield* project.fromDirectory(tmp)
-      yield* db
-        .update(ProjectTable)
-        .set({ worktree: null })
-        .where(eq(ProjectTable.id, created.project.id))
-        .run()
-        .pipe(Effect.orDie)
-
-      expect(yield* project.get(created.project.id)).toMatchObject({ id: created.project.id, worktree: null })
-      expect(yield* project.list()).toContainEqual(expect.objectContaining({ id: created.project.id, worktree: null }))
-      expect(yield* project.update({ projectID: created.project.id, name: "Folderless" })).toMatchObject({
-        id: created.project.id,
-        worktree: null,
-        name: "Folderless",
-      })
-    }),
-  )
 })
 
 describe("Project.setInitialized", () => {

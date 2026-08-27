@@ -111,7 +111,8 @@ export default {
       yield* tx.run(`
         CREATE TABLE \`project\` (
           \`id\` text PRIMARY KEY,
-          \`worktree\` text,
+          \`worktree\` text NOT NULL,
+          \`mode\` text DEFAULT 'workspace' NOT NULL,
           \`vcs\` text,
           \`name\` text,
           \`icon_url\` text,

@@ -5,8 +5,8 @@ import { ProjectSchema } from "./schema"
 
 export const ProjectTable = sqliteTable("project", {
   id: text().$type<ProjectSchema.ID>().primaryKey(),
-  // Folderless projects have no attached worktree.
-  worktree: DatabasePath.absoluteColumn(),
+  worktree: DatabasePath.absoluteColumn().notNull(),
+  mode: text().$type<ProjectSchema.Mode>().notNull().default("workspace"),
   vcs: text(),
   name: text(),
   icon_url: text(),

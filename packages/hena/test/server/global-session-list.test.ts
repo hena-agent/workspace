@@ -5,15 +5,12 @@ import { Deferred, Effect, Layer } from "effect"
 import { Project } from "@/project/project"
 import { Session as SessionNs } from "@/session/session"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
-import { Database } from "@hena/core/database/database"
-import { ProjectTable } from "@hena/core/project/sql"
-import { eq } from "drizzle-orm"
 import { provideInstance, TestInstance, tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(
   LayerNode.compile(
-    LayerNode.group([SessionNs.node, SessionProjector.node, Project.node, CrossSpawnSpawner.node, Database.node]),
+    LayerNode.group([SessionNs.node, SessionProjector.node, Project.node, CrossSpawnSpawner.node]),
   ),
 )
 
@@ -24,24 +21,14 @@ const withSession = (input?: Parameters<SessionNs.Interface["create"]>[0]) =>
 
 describe("session.listGlobal", () => {
   it.instance(
-    "lists rooted and folderless project metadata",
+    "lists sessions across projects with project metadata",
     () =>
       Effect.gen(function* () {
         const first = yield* TestInstance
         const second = yield* tmpdirScoped({ git: true })
-        const third = yield* tmpdirScoped({ git: true })
 
         const firstSession = yield* withSession({ title: "first-session" })
         const secondSession = yield* withSession({ title: "second-session" }).pipe(provideInstance(second))
-        const thirdSession = yield* withSession({ title: "third-session" }).pipe(provideInstance(third))
-
-        const { db } = yield* Database.Service
-        yield* db
-          .update(ProjectTable)
-          .set({ worktree: null })
-          .where(eq(ProjectTable.id, thirdSession.projectID))
-          .run()
-          .pipe(Effect.orDie)
 
         const sessions = yield* SessionNs.Service.use((session) => session.listGlobal({ limit: 200 }))
         const ids = sessions.map((session) => session.id)
@@ -54,13 +41,11 @@ describe("session.listGlobal", () => {
 
         const firstItem = sessions.find((session) => session.id === firstSession.id)
         const secondItem = sessions.find((session) => session.id === secondSession.id)
-        const thirdItem = sessions.find((session) => session.id === thirdSession.id)
 
         expect(firstItem?.project?.id).toBe(firstProject?.id)
         expect(firstItem?.project?.worktree).toBe(firstProject?.worktree)
         expect(secondItem?.project?.id).toBe(secondProject?.id)
         expect(secondItem?.project?.worktree).toBe(secondProject?.worktree)
-        expect(thirdItem?.project).toMatchObject({ id: thirdSession.projectID, worktree: null })
         expect(first.directory).not.toBe(second)
       }),
     { git: true },

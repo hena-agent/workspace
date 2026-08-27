@@ -6,6 +6,7 @@ import { SessionsCursor } from "@hena/protocol/groups/session"
 import {
   ConflictError,
   InvalidCursorError,
+  InvalidRequestError,
   MessageNotFoundError,
   ServiceUnavailableError,
   SessionNotFoundError,
@@ -67,13 +68,43 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.create",
         Effect.fn(function* (ctx) {
+          if (ctx.payload.mode === "chat" && ctx.payload.location)
+            return yield* new InvalidRequestError({ message: "Chat sessions cannot specify a location" })
           return {
             data: yield* session.create({
               id: ctx.payload.id,
               agent: ctx.payload.agent,
               model: ctx.payload.model,
-              location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
+              ...(ctx.payload.mode === "chat"
+                ? { mode: "chat" }
+                : {
+                    mode: "workspace",
+                    location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
+                  }),
             }),
+          }
+        }),
+      )
+      .handle(
+        "session.attach",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session.attach({ sessionID: ctx.params.sessionID, directory: ctx.payload.directory }).pipe(
+              Effect.mapError((error) => {
+                if (error._tag === "Session.NotFoundError")
+                  return new SessionNotFoundError({
+                    sessionID: error.sessionID,
+                    message: `Session not found: ${error.sessionID}`,
+                  })
+                if (error.reason === "invalid_target")
+                  return new InvalidRequestError({ message: "Attach target must be outside the managed project" })
+                if (error.reason === "target_not_empty")
+                  return new ConflictError({ message: "Attach target must be empty", resource: ctx.payload.directory })
+                if (error.reason === "not_chat")
+                  return new ConflictError({ message: "Only chat projects can be attached" })
+                return new UnknownError({ message: "Failed to move the chat project" })
+              }),
+            ),
           }
         }),
       )

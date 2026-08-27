@@ -136,6 +136,7 @@ import type {
   ProjectInitGitResponses,
   ProjectListErrors,
   ProjectListResponses,
+  ProjectMode,
   ProjectUpdateErrors,
   ProjectUpdateResponses,
   PromptInput,
@@ -305,6 +306,8 @@ import type {
   V2ReferenceListResponses,
   V2SessionActiveErrors,
   V2SessionActiveResponses,
+  V2SessionAttachErrors,
+  V2SessionAttachResponses,
   V2SessionCompactErrors,
   V2SessionCompactResponses,
   V2SessionContextErrors,
@@ -4992,13 +4995,14 @@ export class Session3 extends HeyApiClient {
   /**
    * Create session
    *
-   * Create a session at the requested location.
+   * Create a workspace session at the requested location or a chat session in managed storage.
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
       id?: string
       agent?: string
       model?: ModelRef
+      mode?: ProjectMode
       location?: LocationRef
     },
     options?: Options<never, ThrowOnError>,
@@ -5011,6 +5015,7 @@ export class Session3 extends HeyApiClient {
             { in: "body", key: "id" },
             { in: "body", key: "agent" },
             { in: "body", key: "model" },
+            { in: "body", key: "mode" },
             { in: "body", key: "location" },
           ],
         },
@@ -5037,6 +5042,41 @@ export class Session3 extends HeyApiClient {
     return (options?.client ?? this.client).get<V2SessionActiveResponses, V2SessionActiveErrors, ThrowOnError>({
       url: "/api/session/active",
       ...options,
+    })
+  }
+
+  /**
+   * Attach chat session
+   *
+   * Move a chat project's managed files into a new or empty workspace directory.
+   */
+  public attach<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "body", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2SessionAttachResponses, V2SessionAttachErrors, ThrowOnError>({
+      url: "/api/session/{sessionID}/attach",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
     })
   }
 

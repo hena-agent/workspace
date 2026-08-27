@@ -247,7 +247,7 @@ export type Info = Types.DeepMutable<Schema.Schema.Type<typeof Info>>
 export const ProjectInfo = Schema.Struct({
   id: ProjectV2.ID,
   name: optional(Schema.String),
-  worktree: Schema.NullOr(Schema.String),
+  worktree: Schema.String,
 }).annotate({ identifier: "ProjectSummary" })
 export type ProjectInfo = Types.DeepMutable<Schema.Schema.Type<typeof ProjectInfo>>
 

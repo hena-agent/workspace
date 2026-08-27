@@ -131,14 +131,16 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
           id: Session.ID.pipe(Schema.optional),
           agent: Agent.ID.pipe(Schema.optional),
           model: Model.Ref.pipe(Schema.optional),
+          mode: Project.Mode.pipe(Schema.optional),
           location: Location.Ref.pipe(Schema.optional),
         }),
         success: Schema.Struct({ data: Session.Info }),
+        error: InvalidRequestError,
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "v2.session.create",
           summary: "Create session",
-          description: "Create a session at the requested location.",
+          description: "Create a workspace session at the requested location or a chat session in managed storage.",
         }),
       ),
     )
@@ -153,6 +155,22 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
             "Retrieve foreground Session drains currently owned by this Hena process. Sessions absent from the result are inactive.",
         }),
       ),
+    )
+    .add(
+      HttpApiEndpoint.post("session.attach", "/api/session/:sessionID/attach", {
+        params: { sessionID: Session.ID },
+        payload: Schema.Struct({ directory: AbsolutePath }),
+        success: Schema.Struct({ data: Session.Info }),
+        error: [SessionNotFoundError, ConflictError, InvalidRequestError, UnknownError],
+      })
+        .middleware(sessionLocationMiddleware)
+        .annotateMerge(
+          OpenApi.annotations({
+            identifier: "v2.session.attach",
+            summary: "Attach chat session",
+            description: "Move a chat project's managed files into a new or empty workspace directory.",
+          }),
+        ),
     )
     .add(
       HttpApiEndpoint.get("session.get", "/api/session/:sessionID", {

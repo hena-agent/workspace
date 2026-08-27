@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "d95a221a-7bf8-485b-8086-0e13bd2b42b6",
+  "id": "2e7e93b7-b661-4aee-968e-8034e26ca42b",
   "prevIds": [
-    "2dcef776-d3c4-4674-bdf1-292db23bfc96"
+    "d95a221a-7bf8-485b-8086-0e13bd2b42b6"
   ],
   "ddl": [
     {
@@ -684,11 +684,21 @@
     },
     {
       "type": "text",
-      "notNull": false,
+      "notNull": true,
       "autoincrement": false,
       "default": null,
       "generated": null,
       "name": "worktree",
+      "entityType": "columns",
+      "table": "project"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'workspace'",
+      "generated": null,
+      "name": "mode",
       "entityType": "columns",
       "table": "project"
     },

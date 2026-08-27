@@ -170,6 +170,7 @@ function refreshSession(database: DatabaseService, sessionID: string, moved: boo
             row: {
               id: project.id,
               worktree: project.worktree,
+              mode: project.mode,
               vcs: project.vcs ?? undefined,
               name: project.name ?? undefined,
               icon:

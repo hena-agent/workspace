@@ -8,6 +8,7 @@ import { AbsolutePath, optional } from "../schema"
 import { ProjectSchema } from "./schema"
 import { ProjectDirectoryTable } from "./sql"
 import type { EffectDrizzleSqlite } from "@hena/effect-drizzle-sqlite"
+import path from "path"
 
 export interface Directory {
   readonly directory: AbsolutePath
@@ -45,6 +46,13 @@ export const ListOutput = Schema.Array(
 export type ListOutput = typeof ListOutput.Type
 
 export interface Interface {
+  readonly attached: (directory: AbsolutePath) => Effect.Effect<
+    | {
+        readonly projectID: ProjectSchema.ID
+        readonly directory: AbsolutePath
+      }
+    | undefined
+  >
   readonly list: (projectID: ProjectSchema.ID) => Effect.Effect<ReadonlyArray<Directory>>
   readonly get: (input: {
     projectID: ProjectSchema.ID
@@ -145,7 +153,23 @@ const layer = Layer.effect(
       return row ? { directory: row.directory, strategy: row.strategy ?? undefined } : undefined
     })
 
+    const attached = Effect.fn("ProjectDirectories.attached")(function* (directory: AbsolutePath) {
+      const rows = yield* db
+        .select({ projectID: ProjectDirectoryTable.project_id, directory: ProjectDirectoryTable.directory })
+        .from(ProjectDirectoryTable)
+        .where(eq(ProjectDirectoryTable.strategy, "attach"))
+        .all()
+        .pipe(Effect.orDie)
+      return rows
+        .filter((row) => {
+          const relative = path.relative(row.directory, directory)
+          return !relative || (!relative.startsWith("..") && !path.isAbsolute(relative))
+        })
+        .sort((a, b) => b.directory.length - a.directory.length)[0]
+    })
+
     return Service.of({
+      attached,
       list,
       get,
       contains,

@@ -41,6 +41,14 @@ export type ConflictError = {
 export const isConflictError = (value: unknown): value is ConflictError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ConflictError"
 
+export type UnknownError = {
+  readonly _tag: "UnknownError"
+  readonly message: string
+  readonly ref?: string | undefined
+}
+export const isUnknownError = (value: unknown): value is UnknownError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "UnknownError"
+
 export type ServiceUnavailableError = {
   readonly _tag: "ServiceUnavailableError"
   readonly message: string
@@ -57,14 +65,6 @@ export type MessageNotFoundError = {
 }
 export const isMessageNotFoundError = (value: unknown): value is MessageNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "MessageNotFoundError"
-
-export type UnknownError = {
-  readonly _tag: "UnknownError"
-  readonly message: string
-  readonly ref?: string | undefined
-}
-export const isUnknownError = (value: unknown): value is UnknownError =>
-  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "UnknownError"
 
 export type ProviderNotFoundError = {
   readonly _tag: "ProviderNotFoundError"
@@ -272,24 +272,35 @@ export type SessionsCreateInput = {
     readonly id?: string | null
     readonly agent?: string | null
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
+    readonly mode?: ("chat" | "workspace") | null
     readonly location?: { readonly directory: string; readonly workspaceID?: string } | null
   }["id"]
   readonly agent?: {
     readonly id?: string | null
     readonly agent?: string | null
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
+    readonly mode?: ("chat" | "workspace") | null
     readonly location?: { readonly directory: string; readonly workspaceID?: string } | null
   }["agent"]
   readonly model?: {
     readonly id?: string | null
     readonly agent?: string | null
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
+    readonly mode?: ("chat" | "workspace") | null
     readonly location?: { readonly directory: string; readonly workspaceID?: string } | null
   }["model"]
+  readonly mode?: {
+    readonly id?: string | null
+    readonly agent?: string | null
+    readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
+    readonly mode?: ("chat" | "workspace") | null
+    readonly location?: { readonly directory: string; readonly workspaceID?: string } | null
+  }["mode"]
   readonly location?: {
     readonly id?: string | null
     readonly agent?: string | null
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
+    readonly mode?: ("chat" | "workspace") | null
     readonly location?: { readonly directory: string; readonly workspaceID?: string } | null
   }["location"]
 }
@@ -330,6 +341,46 @@ export type SessionsCreateOutput = {
 }["data"]
 
 export type SessionsActiveOutput = { readonly data: { readonly [x: string]: { readonly type: "running" } } }["data"]
+
+export type SessionsAttachInput = {
+  readonly sessionID: { readonly sessionID: string }["sessionID"]
+  readonly directory: { readonly directory: string }["directory"]
+}
+
+export type SessionsAttachOutput = {
+  readonly data: {
+    readonly id: string
+    readonly parentID?: string
+    readonly projectID: string
+    readonly agent?: string
+    readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
+    readonly cost: number
+    readonly tokens: {
+      readonly input: number
+      readonly output: number
+      readonly reasoning: number
+      readonly cache: { readonly read: number; readonly write: number }
+    }
+    readonly time: { readonly created: number; readonly updated: number; readonly archived?: number }
+    readonly title: string
+    readonly location: { readonly directory: string; readonly workspaceID?: string }
+    readonly subpath?: string
+    readonly revert?: {
+      readonly messageID: string
+      readonly partID?: string
+      readonly snapshot?: string
+      readonly diff?: string
+      readonly files?: ReadonlyArray<{
+        readonly path: string
+        readonly status: "added" | "modified" | "deleted"
+        readonly additions: number
+        readonly deletions: number
+        readonly patch: string
+      }>
+    }
+    readonly queueRevision?: number
+  }
+}["data"]
 
 export type SessionsGetInput = { readonly sessionID: { readonly sessionID: string }["sessionID"] }
 

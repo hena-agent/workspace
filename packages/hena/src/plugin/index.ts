@@ -148,7 +148,7 @@ const layer = Layer.effect(
         const cfg = yield* config.get()
         const input: PluginInput = {
           client,
-          project: { ...ctx.project, worktree: ctx.worktree },
+          project: ctx.project,
           worktree: ctx.worktree,
           directory: ctx.directory,
           experimental_workspace: {

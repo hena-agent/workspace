@@ -1,33 +1,36 @@
 import { useEffect, useRef, useState } from "react"
-import { ArrowUp, Paperclip, Square, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import type { FileUIPart } from "ai"
+import { Paperclip } from "lucide-react"
+import { Attachment, AttachmentInfo, AttachmentPreview, AttachmentRemove, Attachments } from "@/components/ai-elements/attachments"
+import {
+  PromptInput,
+  PromptInputActionAddAttachments,
+  PromptInputActionMenu,
+  PromptInputActionMenuContent,
+  PromptInputActionMenuTrigger,
+  PromptInputBody,
+  PromptInputCommand,
+  PromptInputCommandGroup,
+  PromptInputCommandItem,
+  PromptInputCommandList,
+  PromptInputFooter,
+  PromptInputHeader,
+  PromptInputProvider,
+  PromptInputSubmit,
+  PromptInputTools,
+  usePromptInputAttachments,
+  usePromptInputController,
+} from "@/components/ai-elements/prompt-input"
+import { DropdownMenuGroup } from "@/components/ui/dropdown-menu"
+import { InputGroupTextarea } from "@/components/ui/input-group"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import type { Agent, Model } from "@/lib/types"
 import { AgentModelPicker } from "./agent-model-picker"
 import { getComposerEnterAction } from "./should-send-on-enter"
 
-export function Composer({
-  agents,
-  models,
-  agentId,
-  modelId,
-  onChangeAgent,
-  onChangeModel,
-  onSend,
-  onQueue,
-  disabled,
-  working,
-  onStop,
-  placeholder = "Message the agent…",
-  initialText = "",
-  initialSelection,
-  initialError = "",
-  droppedAttachments = 0,
-  onDraftChange,
-  onFindFiles,
-  stopping,
-}: {
+type AttachedFile = { uri: string; name?: string }
+
+type ComposerProps = {
   agents: Agent[]
   models: Model[]
   agentId: string
@@ -47,15 +50,51 @@ export function Composer({
   onDraftChange?: (value: { text: string; selection: { start: number; end: number }; droppedAttachments: number }) => void
   onFindFiles?: (query: string, signal: AbortSignal) => Promise<string[]>
   stopping?: boolean
-}) {
-  const [text, setText] = useState(initialText)
+}
+
+export function Composer(props: ComposerProps) {
+  return (
+    <PromptInputProvider initialInput={props.initialText}>
+      <ComposerForm {...props} />
+    </PromptInputProvider>
+  )
+}
+
+function ComposerForm({
+  agents,
+  models,
+  agentId,
+  modelId,
+  onChangeAgent,
+  onChangeModel,
+  onSend,
+  onQueue,
+  disabled,
+  working,
+  onStop,
+  placeholder = "Message the agent…",
+  initialText = "",
+  initialSelection,
+  initialError = "",
+  droppedAttachments = 0,
+  onDraftChange,
+  onFindFiles,
+  stopping,
+}: ComposerProps) {
+  const controller = usePromptInputController()
+  const attachments = usePromptInputAttachments()
   const [selection, setSelection] = useState(initialSelection ?? { start: initialText.length, end: initialText.length })
-  const [files, setFiles] = useState<{ uri: string; name?: string; bytes: number }[]>([])
+  const [mentionedFiles, setMentionedFiles] = useState<AttachedFile[]>([])
   const [fileResults, setFileResults] = useState<string[]>([])
   const [error, setError] = useState(initialError)
-  const fileInput = useRef<HTMLInputElement>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const delivery = useRef<"send" | "queue">("send")
   const hasFinePointer = useMediaQuery("(any-pointer: fine)")
+  const text = controller.textInput.value
   const mention = text.slice(0, selection.start).match(/(?:^|\s)@([^\s]*)$/)?.[1]
+  const attachmentCount = attachments.files.length + mentionedFiles.length
+  const savedAttachmentCount = useRef(attachmentCount)
+  const stoppingControl = Boolean(working && onStop)
 
   useEffect(() => {
     if (mention === undefined || !onFindFiles) return
@@ -69,141 +108,186 @@ export function Composer({
     }
   }, [mention, onFindFiles])
 
-  const matchingFiles = mention === undefined ? [] : fileResults
-
-  function updateDraft(nextText = text, nextSelection = selection, nextFiles = files) {
-    onDraftChange?.({ text: nextText, selection: nextSelection, droppedAttachments: nextFiles.length })
+  function updateDraft(nextText = text, nextSelection = selection, nextAttachmentCount = attachmentCount) {
+    savedAttachmentCount.current = nextAttachmentCount
+    onDraftChange?.({ text: nextText, selection: nextSelection, droppedAttachments: nextAttachmentCount })
   }
 
-  function submit(delivery: "send" | "queue") {
-    const trimmed = text.trim()
-    if (!trimmed) return
-    setText("")
-    setError("")
-    updateDraft("", { start: 0, end: 0 }, [])
-    try {
-      const result = delivery === "queue" ? onQueue(trimmed, files) : onSend(trimmed, files)
-      setFiles([])
-      void Promise.resolve(result).catch((cause) => {
-        setText((current) => current || trimmed)
-        setFiles(files)
-        setError(cause instanceof Error ? cause.message : "The message could not be sent.")
-        updateDraft(trimmed, selection, files)
-      })
-    } catch (cause) {
-      setText(trimmed)
-      setError(cause instanceof Error ? cause.message : "The message could not be sent.")
-      updateDraft(trimmed, selection, files)
-    }
-  }
-
-  async function attach(selected: FileList | null) {
-    const incoming = selected ? Array.from(selected) : []
-    const total = files.reduce((bytes, file) => bytes + file.bytes, 0) + incoming.reduce((bytes, file) => bytes + file.size, 0)
-    if (incoming.some((file) => file.size > 5 * 1024 * 1024) || total > 20 * 1024 * 1024) {
-      setError("Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less.")
-      return
-    }
-    const encoded = await Promise.all(incoming.map(async (file) => ({ uri: await dataUri(file), name: file.name, bytes: file.size })))
-    const nextFiles = [...files, ...encoded]
-    setFiles(nextFiles)
-    updateDraft(text, selection, nextFiles)
-    setError("")
-  }
+  useEffect(() => {
+    if (savedAttachmentCount.current === attachmentCount) return
+    savedAttachmentCount.current = attachmentCount
+    onDraftChange?.({ text, selection, droppedAttachments: attachmentCount })
+  }, [attachmentCount, onDraftChange, selection, text])
 
   function chooseMention(path: string) {
     const before = text.slice(0, selection.start).replace(/@[^\s]*$/, `@${path} `)
     const next = before + text.slice(selection.end)
-    setText(next)
     const nextSelection = { start: before.length, end: before.length }
-    const nextFiles = files.some((file) => file.uri === `file:${path}`)
-      ? files
-      : [...files, { uri: `file:${path}`, name: path, bytes: 0 }]
+    const nextFiles = mentionedFiles.some((file) => file.uri === `file:${path}`)
+      ? mentionedFiles
+      : [...mentionedFiles, { uri: `file:${path}`, name: path }]
+    controller.textInput.setInput(next)
     setSelection(nextSelection)
-    setFiles(nextFiles)
-    updateDraft(next, nextSelection, nextFiles)
+    setMentionedFiles(nextFiles)
+    updateDraft(next, nextSelection, attachments.files.length + nextFiles.length)
     setFileResults([])
   }
 
-  return (
-    <div className="flex flex-col gap-2 rounded-lg border p-2">
-      <Textarea
-        aria-label="Message"
-        value={text}
-        onChange={(event) => {
-          const nextSelection = { start: event.target.selectionStart, end: event.target.selectionEnd }
-          setText(event.target.value)
-          setSelection(nextSelection)
-          updateDraft(event.target.value, nextSelection)
-        }}
-        onSelect={(event) => {
-          const nextSelection = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd }
-          setSelection(nextSelection)
-          updateDraft(text, nextSelection)
-        }}
-        onKeyDown={(event) => {
-          const action = getComposerEnterAction(event, hasFinePointer)
-          if (!action) return
-          event.preventDefault()
-          submit(action)
-        }}
-        placeholder={placeholder}
-        disabled={disabled}
-        className="min-h-16 resize-none border-none shadow-none focus-visible:ring-0"
-      />
-      {matchingFiles.length > 0 ? (
-        <div role="listbox" aria-label="Matching files" className="max-h-40 overflow-y-auto rounded-md border bg-popover p-1">
-          {matchingFiles.map((path) => <button key={path} type="button" role="option" aria-selected="false" className="block w-full rounded px-2 py-1 text-left text-xs hover:bg-accent" onClick={() => chooseMention(path)}>{path}</button>)}
-        </div>
-      ) : null}
-      {files.length > 0 ? <div className="flex flex-wrap gap-1">{files.map((file) => (
-        <span key={file.uri} className="flex items-center gap-1 rounded bg-muted px-2 py-1 text-xs">
-          {file.name ?? "Attachment"}
-          <button type="button" aria-label={`Remove ${file.name ?? "attachment"}`} onClick={() => {
-            const nextFiles = files.filter((item) => item.uri !== file.uri)
-            setFiles(nextFiles)
-            updateDraft(text, selection, nextFiles)
-          }}><X className="size-3" /></button>
-        </span>
-      ))}</div> : null}
-      {droppedAttachments > 0 && files.length === 0 ? <p className="text-xs text-muted-foreground">{droppedAttachments} attachment{droppedAttachments === 1 ? " was" : "s were"} not restored after reload.</p> : null}
-      {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
-      <div className="flex items-center justify-between gap-2">
-        <AgentModelPicker
-          agents={agents}
-          models={models}
-          agentId={agentId}
-          modelId={modelId}
-          onChangeAgent={onChangeAgent}
-          onChangeModel={onChangeModel}
-        />
-        <input ref={fileInput} type="file" multiple aria-label="Choose files" className="sr-only" onChange={(event) => void attach(event.target.files)} />
-        <Button type="button" size="icon" variant="ghost" aria-label="Attach files" onClick={() => fileInput.current?.click()} className="shrink-0 hit-area"><Paperclip /></Button>
-        {working && onStop ? (
-          <Button size="icon" variant="destructive" aria-label={stopping ? "Stopping session" : "Stop session"} disabled={stopping} onClick={onStop} className="shrink-0 hit-area">
-            <Square />
-          </Button>
-        ) : (
-          <Button
-            size="icon"
-            aria-label="Send message"
-            disabled={disabled || text.trim().length === 0}
-            onClick={() => submit("send")}
-            className="shrink-0 hit-area"
-          >
-            <ArrowUp />
-          </Button>
-        )}
-      </div>
-    </div>
-  )
-}
+  async function submit(message: { text: string; files: FileUIPart[] }) {
+    const mode = delivery.current
+    delivery.current = "send"
+    const trimmed = message.text.trim()
+    if (!trimmed) {
+      setSubmitting(false)
+      return
+    }
+    setError("")
+    await Promise.resolve()
+      .then(() => (mode === "queue" ? onQueue : onSend)(trimmed, [
+        ...message.files.map((file) => ({ uri: file.url, name: file.filename })),
+        ...mentionedFiles.map((file) => ({ uri: file.uri, name: file.name })),
+      ]))
+      .then(() => {
+        setMentionedFiles([])
+        setSelection({ start: 0, end: 0 })
+        updateDraft("", { start: 0, end: 0 }, 0)
+      }, (cause) => {
+        setError(cause instanceof Error ? cause.message : "The message could not be sent.")
+        throw cause
+      })
+      .finally(() => setSubmitting(false))
+  }
 
-function dataUri(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not read attachment"))
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read attachment"))
-    reader.readAsDataURL(file)
-  })
+  return (
+    <PromptInput
+      multiple
+      maxFileSize={5 * 1024 * 1024}
+      maxFiles={submitting ? attachments.files.length : undefined}
+      onError={() => {
+        if (!submitting) setError("Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less.")
+      }}
+      onSubmitCapture={() => setSubmitting(true)}
+      onSubmit={submit}
+    >
+      {attachmentCount > 0 || droppedAttachments > 0 || error ? (
+        <PromptInputHeader className="flex-col items-stretch">
+          {attachmentCount > 0 ? (
+            <Attachments variant="inline">
+              {attachments.files.map((file) => (
+                <Attachment
+                  key={file.id}
+                  data={file}
+                  onRemove={() => attachments.remove(file.id)}
+                >
+                  <AttachmentPreview />
+                  <AttachmentInfo />
+                  <AttachmentRemove disabled={submitting} label={`Remove ${file.filename ?? "attachment"}`} className="opacity-100" />
+                </Attachment>
+              ))}
+              {mentionedFiles.map((file) => (
+                <Attachment
+                  key={file.uri}
+                  data={{ id: file.uri, type: "file", filename: file.name, mediaType: "application/octet-stream", url: file.uri }}
+                  onRemove={() => setMentionedFiles((current) => current.filter((item) => item.uri !== file.uri))}
+                >
+                  <AttachmentPreview />
+                  <AttachmentInfo />
+                  <AttachmentRemove disabled={submitting} label={`Remove ${file.name ?? "attachment"}`} className="opacity-100" />
+                </Attachment>
+              ))}
+            </Attachments>
+          ) : null}
+          {droppedAttachments > 0 && attachmentCount === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {droppedAttachments} attachment{droppedAttachments === 1 ? " was" : "s were"} not restored after reload.
+            </p>
+          ) : null}
+          {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
+        </PromptInputHeader>
+      ) : null}
+      <PromptInputBody>
+        <InputGroupTextarea
+          aria-label="Message"
+          name="message"
+          value={text}
+          onChange={(event) => {
+            const nextSelection = { start: event.target.selectionStart, end: event.target.selectionEnd }
+            controller.textInput.setInput(event.target.value)
+            setSelection(nextSelection)
+            updateDraft(event.target.value, nextSelection)
+          }}
+          onSelect={(event) => {
+            const nextSelection = { start: event.currentTarget.selectionStart, end: event.currentTarget.selectionEnd }
+            setSelection(nextSelection)
+            updateDraft(text, nextSelection)
+          }}
+          onKeyDown={(event) => {
+            const action = getComposerEnterAction(event, hasFinePointer)
+            if (!action) return
+            event.preventDefault()
+            delivery.current = action
+            event.currentTarget.form?.requestSubmit()
+          }}
+          onPaste={(event) => {
+            const files = Array.from(event.clipboardData.files)
+            if (files.length === 0) return
+            event.preventDefault()
+            const accepted = files.filter((file) => file.size <= 5 * 1024 * 1024)
+            if (accepted.length === 0) {
+              setError("Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less.")
+              return
+            }
+            attachments.add(accepted)
+          }}
+          placeholder={placeholder}
+          disabled={disabled || submitting}
+          className="field-sizing-content max-h-48 min-h-16"
+        />
+      </PromptInputBody>
+      {mention !== undefined && fileResults.length > 0 ? (
+        <PromptInputCommand shouldFilter={false} className="max-h-40 rounded-none border-y">
+          <PromptInputCommandList>
+            <PromptInputCommandGroup heading="Matching files">
+              {fileResults.map((path) => (
+                <PromptInputCommandItem key={path} value={path} onSelect={() => chooseMention(path)}>
+                  {path}
+                </PromptInputCommandItem>
+              ))}
+            </PromptInputCommandGroup>
+          </PromptInputCommandList>
+        </PromptInputCommand>
+      ) : null}
+      <PromptInputFooter>
+        <PromptInputTools>
+          <AgentModelPicker
+            agents={agents}
+            models={models}
+            agentId={agentId}
+            modelId={modelId}
+            onChangeAgent={onChangeAgent}
+            onChangeModel={onChangeModel}
+            disabled={disabled || submitting}
+          />
+          <PromptInputActionMenu>
+            <PromptInputActionMenuTrigger disabled={disabled || submitting} aria-label="Attach files" tooltip="Attach files">
+              <Paperclip />
+            </PromptInputActionMenuTrigger>
+            <PromptInputActionMenuContent>
+              <DropdownMenuGroup>
+                <PromptInputActionAddAttachments />
+              </DropdownMenuGroup>
+            </PromptInputActionMenuContent>
+          </PromptInputActionMenu>
+        </PromptInputTools>
+        <PromptInputSubmit
+          status={stoppingControl ? "streaming" : undefined}
+          onStop={onStop}
+          variant={stoppingControl ? "destructive" : "default"}
+          aria-label={stoppingControl ? (stopping ? "Stopping session" : "Stop session") : "Send message"}
+          disabled={stopping || submitting || (!stoppingControl && (disabled || text.trim().length === 0))}
+          className="hit-area"
+        />
+      </PromptInputFooter>
+    </PromptInput>
+  )
 }

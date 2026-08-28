@@ -21,9 +21,13 @@ export function loadDraft(url: string, key: string, storage: Storage = localStor
 }
 
 export function saveDraft(url: string, key: string, route: string, body: DraftBody, storage: Storage = localStorage) {
+  const nextBody = normalizeBody(body)
+  if (!nextBody.text && nextBody.droppedAttachments === 0 && !nextBody.error) {
+    removeDraft(url, key, storage)
+    return nextBody
+  }
   const current = load(url, storage)
   const updatedAt = Date.now()
-  const nextBody = normalizeBody(body)
   const index = [...current.index.filter((entry) => entry.key !== key), { key, route, updatedAt }].slice(-MAX_DRAFTS)
   const retained = new Set(index.map((entry) => entry.key))
   const bodies = Object.fromEntries(
@@ -64,15 +68,14 @@ function versionTwo(value: unknown): DraftStore {
   const bodies = Object.fromEntries(
     Object.entries(record(source.bodies)).map(([key, body]) => [key, normalizeBody(record(body))]),
   )
-  const index = array(source.index)
-    .flatMap((entry) => {
-      const item = record(entry)
-      return typeof item.key === "string" && typeof item.route === "string" && typeof item.updatedAt === "number"
-        ? [{ key: item.key, route: item.route, updatedAt: item.updatedAt }]
-        : []
-    })
-    .filter((entry) => bodies[entry.key])
-    .slice(-MAX_DRAFTS)
+  const candidates = array(source.index).flatMap((entry) => {
+    const item = record(entry)
+    return typeof item.key === "string" && typeof item.route === "string" && typeof item.updatedAt === "number"
+      ? [{ key: item.key, route: item.route, updatedAt: item.updatedAt }]
+      : []
+  })
+  const available = candidates.filter((entry) => bodies[entry.key])
+  const index = available.slice(-MAX_DRAFTS)
   return { version: 2, index, bodies: Object.fromEntries(Object.entries(bodies).filter(([key]) => index.some((entry) => entry.key === key))) }
 }
 

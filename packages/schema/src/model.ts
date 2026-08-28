@@ -1,6 +1,6 @@
 export * as Model from "./model"
 
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 import { optional } from "./schema"
 import { Provider } from "./provider"
 import { statics } from "./schema"
@@ -24,6 +24,7 @@ export type Family = typeof Family.Type
 export interface Capabilities extends Schema.Schema.Type<typeof Capabilities> {}
 export const Capabilities = Schema.Struct({
   tools: Schema.Boolean,
+  reasoning: Schema.Boolean.pipe(Schema.withDecodingDefaultKey(Effect.succeed(false))),
   input: Schema.Array(Schema.String),
   output: Schema.Array(Schema.String),
 }).annotate({ identifier: "Model.Capabilities" })
@@ -93,7 +94,7 @@ export const Info = Schema.Struct({
           providerID,
           name: modelID,
           api: { id: modelID, type: "native", settings: {} },
-          capabilities: { tools: false, input: [], output: [] },
+          capabilities: { tools: false, reasoning: false, input: [], output: [] },
           request: { headers: {}, body: {} },
           variants: [],
           time: { released: 0 },

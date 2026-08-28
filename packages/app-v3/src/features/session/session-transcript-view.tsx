@@ -1,11 +1,23 @@
 import type { Agent, Model, PermissionRequest, QuestionRequest, Session, SessionMessage, Todo } from "@/lib/types"
+import { ArrowDown, ArrowUp, X } from "lucide-react"
+import {
+  Queue,
+  QueueItem,
+  QueueItemAction,
+  QueueItemActions,
+  QueueItemContent,
+  QueueList,
+  QueueSection,
+  QueueSectionContent,
+  QueueSectionLabel,
+  QueueSectionTrigger,
+} from "@/components/ai-elements/queue"
 import { Composer } from "./composer/composer"
 import { PermissionDock } from "./composer/permission-dock"
 import { QuestionDock } from "./composer/question-dock"
 import { TodoDock } from "./composer/todo-dock"
 import { MessageList } from "./message-list"
 import { SessionTranscriptHeader } from "./session-transcript-header"
-import { Button } from "@/components/ui/button"
 import type { DraftBody } from "@/local-state/drafts"
 
 export function SessionTranscriptView({
@@ -82,17 +94,29 @@ export function SessionTranscriptView({
         <TodoDock todos={todos} />
         {mutationNotice ? <p role="status" className="rounded-md border px-3 py-2 text-sm text-muted-foreground">{mutationNotice}</p> : null}
         {queuedInputs.length > 0 ? (
-          <div className="rounded-md border bg-muted/30 p-2" aria-label="Queued messages">
-            <div className="mb-1 text-xs font-medium text-muted-foreground">Queued</div>
-            {queuedInputs.map((input, index) => (
-              <div key={input.id} className="flex items-center gap-2 py-1 text-sm">
-                <span className="min-w-0 flex-1 truncate">{input.text}</span>
-                <Button size="sm" variant="ghost" disabled={index === 0} onClick={() => onMoveInput?.(input.id, -1)}>Up</Button>
-                <Button size="sm" variant="ghost" disabled={index === queuedInputs.length - 1} onClick={() => onMoveInput?.(input.id, 1)}>Down</Button>
-                <Button size="sm" variant="ghost" onClick={() => onCancelInput?.(input.id)}>Cancel</Button>
-              </div>
-            ))}
-          </div>
+          <Queue aria-label="Queued messages" className="rounded-lg px-2 py-1 shadow-none">
+            <QueueSection>
+              <QueueSectionTrigger className="hit-area bg-transparent px-1 py-1 text-xs text-foreground">
+                <QueueSectionLabel count={queuedInputs.length} label={queuedInputs.length === 1 ? "queued message" : "queued messages"} />
+              </QueueSectionTrigger>
+              <QueueSectionContent>
+                <QueueList className="mt-1">
+                  {queuedInputs.map((input, index) => (
+                    <QueueItem key={input.id} data-queue-input-id={input.id} className="px-1">
+                      <div className="flex items-center gap-2">
+                        <QueueItemContent className="text-foreground">{input.text}</QueueItemContent>
+                        <QueueItemActions>
+                          <QueueItemAction aria-label="Up" className="opacity-100" disabled={index === 0} onClick={() => onMoveInput?.(input.id, -1)}><ArrowUp /></QueueItemAction>
+                          <QueueItemAction aria-label="Down" className="opacity-100" disabled={index === queuedInputs.length - 1} onClick={() => onMoveInput?.(input.id, 1)}><ArrowDown /></QueueItemAction>
+                          <QueueItemAction aria-label="Cancel" className="opacity-100" onClick={() => onCancelInput?.(input.id)}><X /></QueueItemAction>
+                        </QueueItemActions>
+                      </div>
+                    </QueueItem>
+                  ))}
+                </QueueList>
+              </QueueSectionContent>
+            </QueueSection>
+          </Queue>
         ) : null}
         {questionRequest ? <QuestionDock request={questionRequest} onChoose={onAnswerQuestion} /> : null}
         {permissionRequest ? (

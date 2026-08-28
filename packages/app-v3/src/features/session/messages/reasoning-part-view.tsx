@@ -1,24 +1,21 @@
-import { useState, useSyncExternalStore } from "react"
-import { Brain, ChevronDown, ChevronUp } from "lucide-react"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { useSyncExternalStore } from "react"
+import { MessageResponse } from "@/components/ai-elements/message"
+import { Reasoning, ReasoningTrigger } from "@/components/ai-elements/reasoning"
+import { CollapsibleContent } from "@/components/ui/collapsible"
 import type { ReasoningPart } from "@/lib/types"
+import { markdownComponents } from "./markdown"
 
-export function ReasoningPartView({ part }: { part: ReasoningPart }) {
-  const [open, setOpen] = useState(false)
+export function ReasoningPartView({ part, isStreaming }: { part: ReasoningPart; isStreaming?: boolean }) {
   const live = useSyncExternalStore(part.live?.subscribe ?? emptySubscribe, part.live?.snapshot ?? emptySnapshot, emptySnapshot)
+  const incomplete = part.live?.incomplete() ?? false
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-md border border-dashed px-2 py-1.5">
-      <CollapsibleTrigger className="flex hit-area items-center gap-1.5 text-xs text-muted-foreground">
-        <Brain aria-hidden className="size-3.5" />
-        Thinking
-        {open ? <ChevronUp aria-hidden className="size-3" /> : <ChevronDown aria-hidden className="size-3" />}
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-1.5 text-xs whitespace-pre-wrap text-muted-foreground italic">
-         {part.text || live}
-         {part.live?.incomplete() ? " (stream incomplete)" : ""}
+    <Reasoning isStreaming={isStreaming} className="mb-0 rounded-md border border-dashed px-2 py-1.5">
+      <ReasoningTrigger className="text-xs" />
+      <CollapsibleContent className="mt-1.5 text-xs italic text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:animate-in data-[state=open]:slide-in-from-top-2">
+        <MessageResponse animated={isStreaming} components={markdownComponents} isAnimating={isStreaming} mode={isStreaming ? "streaming" : "static"}>{`${live || part.text}${incomplete ? " (stream incomplete)" : ""}`}</MessageResponse>
       </CollapsibleContent>
-    </Collapsible>
+    </Reasoning>
   )
 }
 

@@ -28,7 +28,7 @@ const model = (api: Api, variants: ModelV2.Info["variants"] = []) =>
     providerID: ProviderV2.ID.make("test-provider"),
     name: "Test model",
     api: { id: ModelV2.ID.make("api-test-model"), ...api },
-    capabilities: { tools: true, input: ["text"], output: ["text"] },
+    capabilities: { tools: true, reasoning: false, input: ["text"], output: ["text"] },
     request: {
       headers: { "x-test": "header" },
       body: { apiKey: "secret", custom_extension: { enabled: true } },
@@ -70,6 +70,22 @@ describe("SessionRunnerModel", () => {
 
       expect(JSON.stringify(prepared.body)).not.toContain("apiKey")
       expect(JSON.stringify(prepared.body)).not.toContain("secret")
+      expect(prepared.body).not.toHaveProperty("reasoning")
+    }),
+  )
+
+  it.effect("requests summaries for reasoning OpenAI Responses models", () =>
+    Effect.gen(function* () {
+      const catalog = model({ type: "aisdk", package: "@ai-sdk/openai", url: "https://openai.example/v1" })
+      const resolved = yield* SessionRunnerModel.fromCatalogModel(
+        ModelV2.Info.make({
+          ...catalog,
+          capabilities: { ...catalog.capabilities, reasoning: true },
+        }),
+      )
+      const prepared = yield* LLMClient.prepare(LLM.request({ model: resolved, prompt: "Hello" }))
+
+      expect(prepared.body).toMatchObject({ reasoning: { summary: "auto" } })
     }),
   )
 

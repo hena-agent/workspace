@@ -16,11 +16,12 @@ import type {
   Todo,
   FileNode,
 } from "@/lib/types"
-import { createConnectionStore } from "@/connection/store"
+import { createConnectionStore, type DeltaIdentity } from "@/connection/store"
 import { getMutationStateVersion, isMessagePending, subscribeMutationState } from "@/mutations/session"
 import { useSeenWatermarks, wasSeenAfter } from "@/local-state/seen"
 
 const emptyStore = createConnectionStore()
+type VisibleDelta = DeltaIdentity & { partKind: "text" | "reasoning" }
 
 export function useProjects(agent: ReturnTypeOfAgent | undefined) {
   return useRows(agent, "projects", "")
@@ -89,10 +90,9 @@ export function useSessions(agent: ReturnTypeOfAgent | undefined, projectId?: st
   useSeenWatermarks(agent?.url)
   const permissions = useRows(agent, "permissions", "")
   const questions = useRows(agent, "questions", "")
-  return useRows(agent, "sessions", "")
-    .map((row) => sessionView(row, permissions, questions, agent?.url ?? ""))
-    .filter((session) => !session.archived && (!projectId || session.projectId === projectId))
-    .sort((left, right) => right.updatedAt - left.updatedAt || right.id.localeCompare(left.id))
+  const sessions = useRows(agent, "sessions", "").map((row) => sessionView(row, permissions, questions, agent?.url ?? ""))
+  const visible = sessions.filter((session) => !session.archived && (!projectId || session.projectId === projectId))
+  return visible.sort((left, right) => right.updatedAt - left.updatedAt || right.id.localeCompare(left.id))
 }
 
 export function useSession(agent: ReturnTypeOfAgent | undefined, id: string | undefined) {
@@ -109,11 +109,27 @@ export function useSessionLocation(agent: ReturnTypeOfAgent | undefined, id: str
 
 export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
   useSyncExternalStore(subscribeMutationState, getMutationStateVersion, getMutationStateVersion)
+  useSyncExternalStore(
+    agent ? (listener) => agent.store.subscribeDeltaIdentities(sessionId, listener) : emptySubscribe,
+    () => agent?.store.deltaIdentityRevision(sessionId) ?? 0,
+    () => 0,
+  )
   const messages = useRows(agent, "messages", sessionId)
   const parts = useRows(agent, "parts", sessionId)
-  return messages
-    .map((message) => messageView(agent, message, parts))
+  const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
+  const projected = messages
+    .map((message) => messageView(agent, sessionId, message, parts, deltas))
     .sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
+  const known = new Set(projected.map((message) => message.id))
+  const provisional = deltas
+    .filter((delta) => !known.has(delta.messageId))
+    .reduce<Extract<SessionMessage, { role: "assistant" }>[]>((result, delta) => {
+      const message = result.find((item) => item.id === delta.messageId)
+      if (message) message.parts.push(deltaPartView(agent!, delta))
+      if (!message) result.push({ id: delta.messageId, sessionId, createdAt: Number.MAX_SAFE_INTEGER, role: "assistant", parts: [deltaPartView(agent!, delta)] })
+      return result
+    }, [])
+  return [...projected, ...provisional]
 }
 
 export function useTodos(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
@@ -151,10 +167,13 @@ export function useQueuedInputs(agent: ReturnTypeOfAgent | undefined, sessionId:
 
 export function useCatalog(agent: ReturnTypeOfAgent | undefined, location: { directory: string; workspaceID?: string } | undefined) {
   const scope = location ? JSON.stringify(location) : "missing"
+  const agents = useRows(agent, "agents", scope).map(agentView)
+  const models = useRows(agent, "models", scope).map(modelView)
+  const providers = useRows(agent, "providers", scope).map(providerView)
   return {
-    agents: useRows(agent, "agents", scope).map(agentView).filter((item) => item.id),
-    models: useRows(agent, "models", scope).map(modelView).filter((item) => item.id),
-    providers: useRows(agent, "providers", scope).map(providerView).filter((item) => item.id),
+    agents: agents.filter((item) => item.id),
+    models: models.filter((item) => item.id),
+    providers: providers.filter((item) => item.id),
   }
 }
 
@@ -175,10 +194,13 @@ export function useLocationCatalog(
       })
       if (!response.ok) throw new Error("Could not load the catalog")
       const data = await response.json()
+      const agents = data.agents.map(agentView)
+      const models = data.models.map(modelView)
+      const providers = data.providers.map(providerView)
       return {
-        agents: data.agents.map(agentView).filter((item) => item.id),
-        models: data.models.map(modelView).filter((item) => item.id),
-        providers: data.providers.map(providerView).filter((item) => item.id),
+        agents: agents.filter((item) => item.id),
+        models: models.filter((item) => item.id),
+        providers: providers.filter((item) => item.id),
       }
     },
   })
@@ -243,16 +265,23 @@ function sessionView(row: Record<string, unknown>, permissions: Record<string, u
   }
 }
 
-function messageView(agent: ReturnTypeOfAgent | undefined, row: Record<string, unknown>, parts: Record<string, unknown>[]): SessionMessage {
+function messageView(agent: ReturnTypeOfAgent | undefined, sessionId: string, row: Record<string, unknown>, parts: Record<string, unknown>[], deltas: VisibleDelta[]): SessionMessage {
   const type = string(row.type)
-  const base = { id: string(row.id), sessionId: string(row.sessionID), createdAt: number(record(row.time).created), pending: isMessagePending(string(row.id)) }
-  if (type === "user") return { ...base, role: "user", text: string(row.text), files: array(row.files).map((file) => string(record(file).name || record(file).uri)).filter(Boolean) }
-  if (type === "assistant") return {
-    ...base,
-    role: "assistant",
-    parts: parts.filter((part) => string(part.messageID) === base.id).sort((left, right) => number(left.ordinal) - number(right.ordinal)).map((part) => partView(agent, base.sessionId, base.id, part)),
-    agent: optionalString(row.agent),
-    model: optionalString(record(row.model).id),
+  const base = { id: string(row.id), sessionId, createdAt: number(record(row.time).created), pending: isMessagePending(string(row.id)) }
+  if (type === "user") {
+    const files = array(row.files).map((file) => string(record(file).name || record(file).uri))
+    return { ...base, role: "user", text: string(row.text), files: files.filter(Boolean) }
+  }
+  if (type === "assistant") {
+    const persisted = parts.filter((part) => string(part.messageID) === base.id).sort((left, right) => number(left.ordinal) - number(right.ordinal)).map((part) => partView(agent, base.sessionId, base.id, part))
+    const known = new Set(persisted.map((part) => `${part.kind}\u0000${part.id}`))
+    return {
+      ...base,
+      role: "assistant",
+      parts: [...persisted, ...deltas.flatMap((delta) => delta.messageId === base.id && !known.has(`${delta.partKind}\u0000${delta.partId}`) ? [deltaPartView(agent!, delta)] : [])],
+      agent: optionalString(row.agent),
+      model: optionalString(record(row.model).id),
+    }
   }
   if (type === "compaction") return { ...base, role: "compaction", summary: string(row.summary), final: Boolean(record(row.time).completed) }
   if (type === "shell") return { ...base, role: "shell", command: string(row.command), output: string(row.output) }
@@ -344,6 +373,14 @@ function liveText(agent: ReturnTypeOfAgent | undefined, identity: Parameters<Ret
     snapshot: () => agent.store.delta(identity)?.text ?? "",
     incomplete: () => agent.store.delta(identity)?.incomplete ?? false,
   }
+}
+
+function isVisibleDelta(identity: DeltaIdentity): identity is VisibleDelta {
+  return identity.partKind === "text" || identity.partKind === "reasoning"
+}
+
+function deltaPartView(agent: ReturnTypeOfAgent, identity: VisibleDelta): AssistantPart {
+  return { id: identity.partId, kind: identity.partKind, text: "", live: liveText(agent, identity) }
 }
 
 function contentReference(agent: ReturnTypeOfAgent | undefined, sessionId: string, value: unknown) {

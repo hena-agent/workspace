@@ -20,7 +20,7 @@ describe("TodoDock", () => {
     const user = userEvent.setup()
     render(<TodoDock todos={todos} />)
 
-    expect(screen.getByText("Todos · 2 remaining of 3")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Todos · 2 remaining of 3" }).querySelector("svg")).toBeInTheDocument()
     for (const todo of todos) {
       expect(screen.getByText(todo.text)).toBeInTheDocument()
     }

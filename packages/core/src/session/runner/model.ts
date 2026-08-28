@@ -142,7 +142,11 @@ export const fromCatalogModel = (
   if (resolved.api.type === "aisdk" && resolved.api.package === "@ai-sdk/openai") {
     return Effect.succeed(
       withDefaults(resolved, OpenAIResponses.route)
-        .with({ auth: key === undefined ? Auth.none : Auth.bearer(key) })
+        .with({
+          auth: key === undefined ? Auth.none : Auth.bearer(key),
+          providerOptions:
+            resolved.capabilities.reasoning === true ? { openai: { reasoningSummary: "auto" } } : undefined,
+        })
         .model({ id: resolved.api.id }),
     )
   }

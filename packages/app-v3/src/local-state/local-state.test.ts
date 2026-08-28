@@ -33,6 +33,24 @@ describe("local client state", () => {
     expect(loadDraft(url, "old")?.text).toBe("keep me")
   })
 
+  test("removes a draft when its content is cleared", () => {
+    saveDraft(url, "draft", "/new/draft", {
+      text: "remove me",
+      selection: { start: 9, end: 9 },
+      delivery: "steer",
+      droppedAttachments: 0,
+    })
+    saveDraft(url, "draft", "/new/draft", {
+      text: "",
+      selection: { start: 0, end: 0 },
+      delivery: "steer",
+      droppedAttachments: 0,
+    })
+
+    expect(loadDraft(url, "draft")).toBeUndefined()
+    expect(listDrafts(url)).toHaveLength(0)
+  })
+
   test("tracks and clears per-server seen watermarks", () => {
     markSessionSeen(url, "session", 20)
     expect(wasSeenAfter(url, "session", 20)).toBe(true)

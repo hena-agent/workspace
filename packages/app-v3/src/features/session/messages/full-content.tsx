@@ -1,9 +1,10 @@
 import { useState } from "react"
+import type { ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import type { ContentReference } from "@/lib/types"
 
-export function FullContent({ content, preview }: { content: ContentReference; preview: string }) {
+export function FullContent({ content, preview, render }: { content: ContentReference; preview: string; render?: (text: string) => ReactNode }) {
   const [expanded, setExpanded] = useState(false)
   const query = useQuery({
     queryKey: content.queryKey,
@@ -11,9 +12,10 @@ export function FullContent({ content, preview }: { content: ContentReference; p
     gcTime: 0,
     queryFn: ({ signal }) => loadAll(content, 0, "", signal),
   })
+  const text = expanded && query.data !== undefined ? query.data : preview
   return (
     <div className="flex flex-col gap-2">
-      <pre className="overflow-x-auto whitespace-pre-wrap">{expanded && query.data !== undefined ? query.data : preview}</pre>
+      {render ? render(text) : <pre className="overflow-x-auto whitespace-pre-wrap">{text}</pre>}
       <Button type="button" size="sm" variant="outline" className="self-start" onClick={() => setExpanded((value) => !value)}>
         {expanded ? "Show preview" : `Show full output (${content.bytes} bytes)`}
       </Button>

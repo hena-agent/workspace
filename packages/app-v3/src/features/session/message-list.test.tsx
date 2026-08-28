@@ -6,7 +6,8 @@ import { listMessages } from "@/test/queries"
 describe("MessageList", () => {
   test("shows an empty state when there are no messages", () => {
     render(<MessageList messages={[]} />)
-    expect(screen.getByText("No messages yet. Say something to get started.")).toBeInTheDocument()
+    expect(screen.getByText("No messages yet")).toBeInTheDocument()
+    expect(screen.getByText("Say something to get started.")).toBeInTheDocument()
   })
 
   test("renders every message in the log in order", () => {

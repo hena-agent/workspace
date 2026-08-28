@@ -56,7 +56,7 @@ test("saves defaults and creates a queued session through the UI", async ({ page
   expect(response.ok()).toBe(true)
   expect(response.request().postDataJSON()).toMatchObject({ delivery: "queue" })
   await expect(page).toHaveURL(/\/session\/ses_/)
-  await expect(page.getByText("E2E queued from UI", { exact: true })).toBeVisible()
+  await expect(page.getByRole("log").getByText("E2E queued from UI", { exact: true })).toBeVisible()
 })
 
 test("streams a real model response to completion", async ({ page, request }) => {
@@ -78,7 +78,7 @@ test("streams a real model response to completion", async ({ page, request }) =>
   await expect(pong).toBeVisible()
 })
 
-test("reorders and cancels queued inputs through authoritative mutations", async ({ page }) => {
+test("reorders, cancels, and stops through authoritative mutations", async ({ page }) => {
   test.skip(!modelAvailable, "opencode-go is unavailable for an active queue")
   const sessionID = id("ses")
   await createSession(page.request, sessionID, "Use the bash tool to run `sleep 30`, then reply done.", "steer", {
@@ -101,17 +101,20 @@ test("reorders and cancels queued inputs through authoritative mutations", async
   await expect(queue).toContainText("E2E queued second")
   await page.waitForTimeout(250)
 
-  const first = queue.getByText("E2E queued first").locator("..")
+  const first = queue.locator('[data-queue-input-id]').filter({ hasText: "E2E queued first" })
   const reordered = page.waitForResponse((response) => response.url().endsWith(`/session/${sessionID}/input-order`))
   await first.getByRole("button", { name: "Down" }).click()
   expect((await reordered).ok()).toBe(true)
-  await expect(queue.locator(":scope > div").nth(1)).toContainText("E2E queued second")
+  await expect(queue.locator('[data-queue-input-id]').first()).toContainText("E2E queued second")
   await page.waitForTimeout(100)
   const canceled = page.waitForResponse((response) => response.url().includes(`/session/${sessionID}/input/`) && response.url().endsWith("/cancel"))
   await first.getByRole("button", { name: "Cancel" }).click()
   expect((await canceled).ok()).toBe(true)
   await expect(queue).not.toContainText("E2E queued first")
-  await page.request.post(`${server}/api/session/${sessionID}/interrupt`)
+  const stopped = page.waitForResponse((response) => response.url().endsWith(`/session/${sessionID}/interrupt`))
+  await page.getByRole("button", { name: "Stop session" }).click()
+  expect((await stopped).ok()).toBe(true)
+  await expect(page.getByRole("button", { name: "Send message" })).toBeVisible()
 })
 
 test("reads real files from the integrated panel and redirects legacy session views", async ({ page }) => {

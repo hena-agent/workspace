@@ -13,6 +13,7 @@ import { decodeServerSlug } from "@/lib/server-url"
 import type { Project } from "@/lib/types"
 import { projectNotification, useProject, useProjects, useSessions } from "@/data/queries"
 import { archiveSessionOptimistically } from "@/mutations/session"
+import { applyProjectOrder, loadProjectOrder, saveProjectOrder } from "@/local-state/project-order"
 import { AppShell } from "./app-shell"
 
 const DRAFT_INSTANCE_ID = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) => value.toString(36)).join(
@@ -95,6 +96,7 @@ function ShellLayout() {
   const sessionFiles = useSessionFiles()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [addProjectOpen, setAddProjectOpen] = useState(false)
+  const [projectOrders, setProjectOrders] = useState<Record<string, string[]>>({})
   const [now] = useState(Date.now)
   const draftSequence = useRef(0)
 
@@ -122,7 +124,8 @@ function ShellLayout() {
         updatedAt: now,
       }
     : undefined
-  const projects = draftProject ? [...syncedProjects, draftProject] : syncedProjects
+  const projectOrder = connection ? projectOrders[connection.url] ?? loadProjectOrder(connection.url) : []
+  const projects = applyProjectOrder(draftProject ? [...syncedProjects, draftProject] : syncedProjects, projectOrder)
   const project = useProject(agent, params.projectId) ?? draftProject
   const serverSessions = useSessions(agent)
   const projectSessions = serverSessions.filter((session) => session.projectId === project?.id)
@@ -135,6 +138,13 @@ function ShellLayout() {
       to: "/$connectionId/$projectId",
       params: { connectionId: servers.getSlug(server), projectId: target.id },
     })
+  }
+
+  function reorderProjects(next: Project[]) {
+    if (!connection) return
+    const persisted = next.filter((item) => item.id !== draftProject?.id)
+    saveProjectOrder(connection.url, persisted)
+    setProjectOrders((current) => ({ ...current, [connection.url]: persisted.map((item) => item.id) }))
   }
 
   async function startNewProject(input: string) {
@@ -187,6 +197,7 @@ function ShellLayout() {
         })),
         selectedProject: project,
         onSelectProject: goToProject,
+        onReorderProjects: reorderProjects,
         onAddProject: () => setAddProjectOpen(true),
         onOpenSettings: () => {
           if (!params.connectionId) return

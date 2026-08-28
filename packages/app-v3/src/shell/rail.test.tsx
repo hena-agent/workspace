@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
-import { render, screen } from "@/test/test-utils"
+import { useState } from "react"
+import type { Project } from "@/lib/types"
+import { act, fireEvent, render, screen } from "@/test/test-utils"
 import { Rail } from "./rail"
 
 describe("Rail", () => {
@@ -20,6 +22,7 @@ describe("Rail", () => {
           },
         ]}
         onSelectProject={() => {}}
+        onReorderProjects={() => {}}
         onAddProject={() => {}}
         onOpenSettings={() => {}}
       />,
@@ -27,8 +30,11 @@ describe("Rail", () => {
 
     const project = screen.getByRole("button", { name: "External, needs your input, working" })
     expect(project).toHaveAccessibleName("External, needs your input, working")
+    expect(project).toHaveClass("cursor-default")
+    expect(project).not.toHaveClass("cursor-grab", "cursor-grabbing")
     expect(project.querySelector(".bg-\\[var\\(--legacy-warning\\)\\]")).toBeInTheDocument()
     expect(project.querySelector(".animate-spin")).toBeInTheDocument()
+    expect(project.parentElement?.querySelector("[data-drag-handle]")).toHaveClass("touch-none")
   })
 
   test("keeps duplicate project labels distinct within and across connections", async () => {
@@ -50,6 +56,7 @@ describe("Rail", () => {
         projects={duplicateProjects}
         selectedProject={duplicateProjects[1].project}
         onSelectProject={(project) => selected.push(project.id)}
+        onReorderProjects={() => {}}
         onAddProject={() => {}}
         onOpenSettings={() => {}}
       />,
@@ -59,15 +66,55 @@ describe("Rail", () => {
       "aria-pressed",
       "false",
     )
-    expect(screen.getByRole("button", { name: "Shared (/workspace-1, beta)" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    )
+    expect(screen.getByRole("button", { name: "Shared (/workspace-1, beta)" })).toHaveAttribute("aria-pressed", "true")
     expect(screen.getByRole("button", { name: "Shared (/workspace-2, alpha)" })).toHaveAttribute(
       "aria-pressed",
       "false",
     )
     await user.click(screen.getByRole("button", { name: "Shared (/workspace-2, alpha)" }))
     expect(selected).toEqual(["project-2"])
+  })
+
+  test("reorders with the keyboard and restores the initial order on cancel", () => {
+    const reordered: string[][] = []
+    const input = ["Alpha", "Beta", "Gamma"].map((name, index) => ({
+      id: name.toLowerCase(),
+      connectionId: "local",
+      name,
+      path: `/${name.toLowerCase()}`,
+      updatedAt: index,
+    }))
+
+    function ReorderableRail() {
+      const [projects, setProjects] = useState(input)
+      return (
+        <Rail
+          projects={projects.map((project) => ({
+            project,
+            notification: { kind: "none" as const, working: false },
+          }))}
+          onSelectProject={() => {}}
+          onReorderProjects={(next: Project[]) => {
+            reordered.push(next.map((project) => project.id))
+            setProjects(next)
+          }}
+          onAddProject={() => {}}
+          onOpenSettings={() => {}}
+        />
+      )
+    }
+
+    render(<ReorderableRail />)
+    const alpha = screen.getByRole("button", { name: "Alpha" })
+    act(() => alpha.focus())
+    fireEvent.keyDown(alpha, { key: " " })
+    fireEvent.keyDown(alpha, { key: "ArrowDown" })
+
+    expect(reordered.at(-1)).toEqual(["beta", "alpha", "gamma"])
+    expect(screen.getByText("Alpha moved to position 2 of 3.")).toBeInTheDocument()
+
+    fireEvent.keyDown(alpha, { key: "Escape" })
+    expect(reordered.at(-1)).toEqual(["alpha", "beta", "gamma"])
+    expect(screen.getByText("Alpha movement canceled.")).toBeInTheDocument()
   })
 })

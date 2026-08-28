@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { encodeServerSlug } from "@/lib/server-url"
 import { listDrafts, loadDraft, removeDraft, saveDraft } from "./drafts"
+import { applyProjectOrder, loadProjectOrder, saveProjectOrder } from "./project-order"
 import { clearSeenWatermarks, markSessionSeen, wasSeenAfter } from "./seen"
 
 const url = "http://localhost:4106"
@@ -39,5 +40,23 @@ describe("local client state", () => {
     expect(wasSeenAfter(url, "session", 21)).toBe(false)
     clearSeenWatermarks(url)
     expect(wasSeenAfter(url, "session", 1)).toBe(false)
+  })
+
+  test("persists project order and puts newly discovered projects first", () => {
+    const projects = ["alpha", "beta", "gamma"].map((id) => ({
+      id,
+      connectionId: url,
+      name: id,
+      path: `/${id}`,
+      updatedAt: 0,
+    }))
+    saveProjectOrder(url, [projects[1], projects[0]])
+
+    expect(loadProjectOrder(url)).toEqual(["beta", "alpha"])
+    expect(applyProjectOrder(projects, loadProjectOrder(url)).map((project) => project.id)).toEqual([
+      "gamma",
+      "beta",
+      "alpha",
+    ])
   })
 })

@@ -102,11 +102,13 @@ export function createConnectionRegistry(input: { ownUrl?: string; storage?: Sto
 function clearConnectionStorage(storage: Storage, url: string) {
   const slug = encodeServerSlug(url)
   const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index)).filter((key): key is string => Boolean(key))
-  keys.filter((key) =>
+  const keysToRemove = keys.filter((key) =>
     key === `hena.seen.v1.${slug}` ||
     key === `hena.drafts.v1.${slug}` ||
+    key === `hena.project-order.v1.${slug}` ||
     key.startsWith(`hena.draft.v1.${slug}.`),
-  ).forEach((key) => storage.removeItem(key))
+  )
+  keysToRemove.forEach((key) => storage.removeItem(key))
 }
 
 function decodeConnections(value: string | null): ConnectionRecord[] {

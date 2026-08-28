@@ -11,6 +11,7 @@ import { Location } from "@hena/core/location"
 import { ModelV2 } from "@hena/core/model"
 import { ModelsDev } from "@hena/core/models-dev"
 import { ModelsDevPlugin } from "@hena/core/plugin/models-dev"
+import { OpenCodePlugin } from "@hena/core/plugin/provider/opencode"
 import { ProviderV2 } from "@hena/core/provider"
 import { AbsolutePath } from "@hena/core/schema"
 import { location } from "../fixture/location"
@@ -152,10 +153,28 @@ describe("ModelsDevPlugin", () => {
           integration: integrationHost(integrations),
         }),
       ).pipe(Effect.provideService(ModelsDev.Service, models))
+      yield* OpenCodePlugin.effect(host({ catalog: catalogHost(catalog) }))
 
       const providerID = ProviderV2.ID.make("opencode")
-      expect((yield* catalog.provider.get(providerID))?.request.body.apiKey).toBe("public")
+      expect((yield* catalog.provider.get(providerID))?.request.body.apiKey).toBe(ProviderV2.PUBLIC_API_KEY)
       expect((yield* catalog.model.available()).map((item) => item.id)).toEqual([ModelV2.ID.make("free")])
+
+      yield* catalog.transform((draft) => {
+        draft.model.default.set(providerID, ModelV2.ID.make("paid"))
+      })
+      expect((yield* catalog.model.default())?.id).toBe(ModelV2.ID.make("free"))
+      expect(yield* catalog.model.small(providerID)).toBeUndefined()
+
+      yield* catalog.transform((draft) => {
+        draft.model.update(providerID, ModelV2.ID.make("paid"), (paid) => {
+          paid.request.body.apiKey = "model-secret"
+        })
+      })
+      expect((yield* catalog.model.available()).map((item) => item.id)).toEqual([
+        ModelV2.ID.make("free"),
+        ModelV2.ID.make("paid"),
+      ])
+      expect((yield* catalog.model.default())?.id).toBe(ModelV2.ID.make("paid"))
 
       yield* integrations.connection.key({ integrationID: Integration.ID.make("opencode"), key: "secret" })
       expect((yield* catalog.model.available()).map((item) => item.id)).toEqual([

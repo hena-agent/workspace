@@ -25,9 +25,9 @@ export default defineConfig({
   server: {
     // Server-v3 maps exact entries to http://<host>:5173 CORS origins.
     strictPort: true,
-    allowedHosts: process.env.HENA_VITE_ALLOWED_HOSTS?.split(",")
-      .map((host) => host.trim())
-      .filter(Boolean),
+    // Disable Vite's Host header check entirely so any hostname (e.g. tailnet
+    // or tunnel domains) can reach the dev server.
+    allowedHosts: true,
     proxy: {
       "/api": viteApiProxy(process.env.HENA_SERVER_V3_URL ?? "http://127.0.0.1:4106"),
     },

@@ -1,5 +1,4 @@
 {
-  "$schema": "https://hena.dev/config.json",
   "provider": {},
   "permission": {},
   "references": {

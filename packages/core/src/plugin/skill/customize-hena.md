@@ -8,24 +8,7 @@
 # Customizing Hena
 
 Hena validates its own config strictly and refuses to start when a field
-is wrong. The shapes below cover the common surface area, but they are a
-**summary, not the source of truth**.
-
-## Full schema reference
-
-The authoritative list of every config option — with field types, enums,
-defaults, and descriptions — lives in the published JSON Schema:
-
-**<https://hena.dev/config.json>**
-
-If a field is not documented in this skill, or you need to confirm an exact
-shape before writing config, **fetch that URL and read the schema directly**
-rather than guessing. Hena hard-fails on invalid config, so the cost of a
-wrong shape is a broken startup.
-
-Independently, every `hena.json` should declare
-`"$schema": "https://hena.dev/config.json"` so the user's editor catches
-mistakes as they type.
+is wrong. The shapes below cover the supported configuration surface.
 
 ## Applying changes
 
@@ -37,17 +20,17 @@ already-loaded config until then.
 
 ## Where files live
 
-| Scope                         | Path                                                                                                                      |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Scope                         | Path                                                                                                  |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- |
 | Project config                | `./hena.json`, `./hena.jsonc`, or `.hena/hena.json` (Hena walks up from the cwd to the worktree root) |
-| Global config                 | `~/.config/hena/hena.json`                                                                                         |
-| Project agents                | `.hena/agent/<name>.md` or `.hena/agents/<name>.md`                                                               |
-| Global agents                 | `~/.config/hena/agent(s)/<name>.md`                                                                                 |
-| Project commands              | `.hena/command/<name>.md` or `.hena/commands/<name>.md`                                                           |
-| Global commands               | `~/.config/hena/command(s)/<name>.md`                                                                               |
-| Project skills                | `.hena/skill(s)/<name>/SKILL.md`                                                                                      |
-| Global skills                 | `~/.config/hena/skill(s)/<name>/SKILL.md`                                                                           |
-| External skills (auto-loaded) | `~/.claude/skills/<name>/SKILL.md`, `~/.agents/skills/<name>/SKILL.md`                                                    |
+| Global config                 | `~/.config/hena/hena.json`                                                                            |
+| Project agents                | `.hena/agent/<name>.md` or `.hena/agents/<name>.md`                                                   |
+| Global agents                 | `~/.config/hena/agent(s)/<name>.md`                                                                   |
+| Project commands              | `.hena/command/<name>.md` or `.hena/commands/<name>.md`                                               |
+| Global commands               | `~/.config/hena/command(s)/<name>.md`                                                                 |
+| Project skills                | `.hena/skill(s)/<name>/SKILL.md`                                                                      |
+| Global skills                 | `~/.config/hena/skill(s)/<name>/SKILL.md`                                                             |
+| External skills (auto-loaded) | `~/.claude/skills/<name>/SKILL.md`, `~/.agents/skills/<name>/SKILL.md`                                |
 
 Configs from each scope are deep-merged. Project overrides global. Unknown
 top-level keys in `hena.json` are rejected with `ConfigInvalidError`.
@@ -58,7 +41,6 @@ Every field is optional.
 
 ```json
 {
-  "$schema": "https://hena.dev/config.json",
   "username": "string",
   "model": "provider/model-id",
   "small_model": "provider/model-id",
@@ -429,7 +411,7 @@ When a user's config is broken and Hena won't start, these env vars help:
   and start from globals only. Run from the project directory, Hena loads,
   the user edits the broken file, then they restart without the flag.
 - `HENA_CONFIG=/path/to/file.json`: load an additional explicit config.
-- `HENA_CONFIG_CONTENT='{"$schema":"https://hena.dev/config.json"}'`:
+- `HENA_CONFIG_CONTENT='{}'`:
   inject inline JSON as a final local-scope merge.
 - `HENA_DISABLE_DEFAULT_PLUGINS=1`: skip default plugins.
 - `HENA_PURE=1`: skip external plugins entirely.
@@ -439,10 +421,7 @@ When a user's config is broken and Hena won't start, these env vars help:
 
 ## When proposing edits
 
-- Validate against the schema before writing. If you are unsure of a field's
-  exact shape, or the field is not covered in this skill, fetch
-  `https://hena.dev/config.json` and read the schema rather than guessing.
-- Preserve `$schema` and any existing fields the user did not ask to change.
+- Follow the documented shapes above and preserve existing fields the user did not ask to change.
 - For agent, command, skill, and plugin definitions, prefer creating new files
   in the correct location over inlining everything in `hena.json`.
 - If the user's existing config is malformed, point them at the env-var escape

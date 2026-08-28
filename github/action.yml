@@ -22,9 +22,9 @@ inputs:
     required: false
 
   use_github_token:
-    description: "Use GITHUB_TOKEN directly instead of Hena App token exchange. When true, skips OIDC and uses the GITHUB_TOKEN env var."
+    description: "Use GITHUB_TOKEN directly. Set to false only with a custom GitHub App token exchange service."
     required: false
-    default: "false"
+    default: "true"
 
   mentions:
     description: "Comma-separated trigger phrases. Defaults to '/hena'."
@@ -36,7 +36,7 @@ inputs:
     required: false
 
   oidc_base_url:
-    description: "Base URL for OIDC token exchange API. Only required when running a custom GitHub App install. Defaults to https://api.hena.dev"
+    description: "Base URL for a custom GitHub App token exchange API. Required when use_github_token is false."
     required: false
 
 runs:

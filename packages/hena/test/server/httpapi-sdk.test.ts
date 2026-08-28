@@ -11,7 +11,6 @@ import { FSUtil } from "@hena/core/fs-util"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
 import { Flag } from "@hena/core/flag/flag"
 import { createHenaClient } from "@hena/sdk/v2"
-import { validateSession } from "../../src/cli/validate-session"
 import { InstanceBootstrap } from "../../src/project/bootstrap"
 import { InstanceStore } from "../../src/project/instance-store"
 import { MessageID, PartID, SessionID } from "../../src/session/schema"
@@ -467,25 +466,6 @@ describe("HttpApi SDK", () => {
           error: missing.error,
           thrown,
         }
-      }),
-    ),
-  )
-
-  serverPathParity("formats missing session validation errors for -s", (serverPath) =>
-    withStandardProject(serverPath, ({ directory }) =>
-      Effect.gen(function* () {
-        const sessionID = "ses_206f84f18ffeZ6hhD7pFYAiW5T"
-        const fetch = yield* serverFetch(serverPath)
-        const thrown = yield* captureThrown(() =>
-          validateSession({
-            url: "http://localhost",
-            directory,
-            sessionID,
-            fetch,
-          }),
-        )
-        expect(errorMessage(thrown)).toBe(`Session not found: ${sessionID}`)
-        return errorMessage(thrown)
       }),
     ),
   )

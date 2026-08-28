@@ -290,8 +290,7 @@ exports[`hena CLI help-text snapshots every documented command emits stable help
 manage GitHub agent
 
 Commands:
-  hena github install  install the GitHub agent
-  hena github run      run the GitHub agent
+  hena github run  run the GitHub agent
 
 Options:
   -h, --help        show help                                                              [boolean]

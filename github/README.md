@@ -50,18 +50,7 @@ This allows for more targeted requests without needing to specify file paths or 
 
 ## Installation
 
-Run the following command in the terminal from your GitHub repo:
-
-```bash
-hena github install
-```
-
-This will walk you through installing the GitHub app, creating the workflow, and setting up secrets.
-
-### Manual Setup
-
-1. Install the Hena GitHub app and enable it for the target repository.
-2. Add `.github/workflows/hena.yml` to your repo and set the model and required API keys.
+1. Add `.github/workflows/hena.yml` to your repo and set the model and required API keys.
 
    ```yml
    name: hena
@@ -96,7 +85,7 @@ This will walk you through installing the GitHub app, creating the workflow, and
              use_github_token: true
    ```
 
-3. Store the API keys in secrets. In your organization or project **settings**, expand **Secrets and variables** on the left and select **Actions**. Add the required API keys.
+2. Store the API keys in secrets. In your organization or project **settings**, expand **Secrets and variables** on the left and select **Actions**. Add the required API keys.
 
 ## Support
 

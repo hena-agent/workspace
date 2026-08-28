@@ -114,8 +114,7 @@ export function sessionIDFromEvents(output: string) {
 }
 
 export function sessionModels(value: unknown) {
-  if (!isRecord(value) || !Array.isArray(value.messages))
-    throw new Error("Hena returned an invalid session export.")
+  if (!isRecord(value) || !Array.isArray(value.messages)) throw new Error("Hena returned an invalid session export.")
   return value.messages.flatMap((message) => {
     if (!isRecord(message) || !isRecord(message.info) || message.info.role !== "assistant") return []
     if (typeof message.info.providerID !== "string" || typeof message.info.modelID !== "string") {
@@ -145,7 +144,6 @@ export function modelVariants(output: string, model: string) {
 
 export function translationConfig(agent: string, model: string, targets: string[]) {
   return {
-    $schema: "https://hena.dev/config.json",
     model,
     default_agent: agent,
     share: "disabled" as const,

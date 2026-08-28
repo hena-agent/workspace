@@ -109,7 +109,7 @@ async function read(file: string) {
 }
 
 describe("plugin.install.task", () => {
-  test("writes both server and tui config entries", async () => {
+  test("writes only the retained server config for mixed plugins", async () => {
     await using tmp = await tmpdir()
     const target = await plugin(tmp.path, ["server", "tui"])
     const run = createPlugTask(
@@ -123,9 +123,8 @@ describe("plugin.install.task", () => {
     expect(ok).toBe(true)
 
     const server = await read(path.join(tmp.path, ".hena", "hena.jsonc"))
-    const tui = await read(path.join(tmp.path, ".hena", "tui.jsonc"))
     expect(server.plugin).toEqual(["acme@1.2.3"])
-    expect(tui.plugin).toEqual(["acme@1.2.3"])
+    expect(await Filesystem.exists(path.join(tmp.path, ".hena", "tui.jsonc"))).toBe(false)
   })
 
   test("writes default options from exports config metadata", async () => {
@@ -145,17 +144,15 @@ describe("plugin.install.task", () => {
     expect(ok).toBe(true)
 
     const server = await read(path.join(tmp.path, ".hena", "hena.jsonc"))
-    const tui = await read(path.join(tmp.path, ".hena", "tui.jsonc"))
     expect(server.plugin).toEqual([["acme@1.2.3", { custom: true, other: false }]])
-    expect(tui.plugin).toEqual([["acme@1.2.3", { compact: true }]])
+    expect(await Filesystem.exists(path.join(tmp.path, ".hena", "tui.jsonc"))).toBe(false)
   })
 
-  test("preserves JSONC comments when adding plugins to server and tui config", async () => {
+  test("preserves JSONC comments when adding plugins to server config", async () => {
     await using tmp = await tmpdir()
     const target = await plugin(tmp.path, ["server", "tui"])
     const cfg = path.join(tmp.path, ".hena")
     const server = path.join(cfg, "hena.jsonc")
-    const tui = path.join(cfg, "tui.jsonc")
     await fs.mkdir(cfg, { recursive: true })
     await Bun.write(
       server,
@@ -170,20 +167,6 @@ describe("plugin.install.task", () => {
 }
 `,
     )
-    await Bun.write(
-      tui,
-      `{
-  // tui head
-  "plugin": [
-    // tui keep
-    "seed@1.0.0"
-  ],
-  // tui tail
-  "theme": "hena"
-}
-`,
-    )
-
     const run = createPlugTask(
       {
         mod: "acme@1.2.3",
@@ -195,18 +178,12 @@ describe("plugin.install.task", () => {
     expect(ok).toBe(true)
 
     const serverText = await fs.readFile(server, "utf8")
-    const tuiText = await fs.readFile(tui, "utf8")
     expect(serverText).toContain("// server head")
     expect(serverText).toContain("// server keep")
     expect(serverText).toContain("// server tail")
-    expect(tuiText).toContain("// tui head")
-    expect(tuiText).toContain("// tui keep")
-    expect(tuiText).toContain("// tui tail")
 
     const serverJson = parseJsonc(serverText) as { plugin?: unknown[] }
-    const tuiJson = parseJsonc(tuiText) as { plugin?: unknown[] }
     expect(serverJson.plugin).toEqual(["seed@1.0.0", "acme@1.2.3"])
-    expect(tuiJson.plugin).toEqual(["seed@1.0.0", "acme@1.2.3"])
   })
 
   test("preserves JSONC comments when force replacing plugin version", async () => {
@@ -407,24 +384,7 @@ describe("plugin.install.task", () => {
     expect(await Filesystem.exists(path.join(directory, ".hena", "hena.jsonc"))).toBe(true)
   })
 
-  test("writes tui local scope under directory when worktree is root slash", async () => {
-    await using tmp = await tmpdir()
-    const target = await plugin(tmp.path, ["tui"])
-    const directory = path.join(tmp.path, "dir")
-    await fs.mkdir(directory, { recursive: true })
-    const run = createPlugTask(
-      {
-        mod: "acme@1.2.3",
-      },
-      deps(path.join(tmp.path, "global"), target),
-    )
-
-    const ok = await run(ctxRoot(directory))
-    expect(ok).toBe(true)
-    expect(await Filesystem.exists(path.join(directory, ".hena", "tui.jsonc"))).toBe(true)
-  })
-
-  test("writes only tui config for tui-only plugins", async () => {
+  test("rejects tui-only plugins", async () => {
     await using tmp = await tmpdir()
     const target = await plugin(tmp.path, ["tui"])
     const run = createPlugTask(
@@ -435,12 +395,12 @@ describe("plugin.install.task", () => {
     )
 
     const ok = await run(ctx(tmp.path))
-    expect(ok).toBe(true)
-    expect(await Filesystem.exists(path.join(tmp.path, ".hena", "tui.jsonc"))).toBe(true)
+    expect(ok).toBe(false)
+    expect(await Filesystem.exists(path.join(tmp.path, ".hena", "tui.jsonc"))).toBe(false)
     expect(await Filesystem.exists(path.join(tmp.path, ".hena", "hena.jsonc"))).toBe(false)
   })
 
-  test("writes tui config for oc-themes-only packages", async () => {
+  test("rejects theme-only packages", async () => {
     await using tmp = await tmpdir()
     const target = await plugin(tmp.path, undefined, undefined, ["themes/forest.json"])
     await fs.mkdir(path.join(target, "themes"), { recursive: true })
@@ -453,12 +413,9 @@ describe("plugin.install.task", () => {
     )
 
     const ok = await run(ctx(tmp.path))
-    expect(ok).toBe(true)
-    expect(await Filesystem.exists(path.join(tmp.path, ".hena", "tui.jsonc"))).toBe(true)
+    expect(ok).toBe(false)
+    expect(await Filesystem.exists(path.join(tmp.path, ".hena", "tui.jsonc"))).toBe(false)
     expect(await Filesystem.exists(path.join(tmp.path, ".hena", "hena.jsonc"))).toBe(false)
-
-    const tui = await read(path.join(tmp.path, ".hena", "tui.jsonc"))
-    expect(tui.plugin).toEqual(["acme@1.2.3"])
   })
 
   test("returns false for oc-themes outside plugin directory", async () => {
@@ -477,7 +434,7 @@ describe("plugin.install.task", () => {
     expect(await Filesystem.exists(path.join(tmp.path, ".hena", "hena.jsonc"))).toBe(false)
   })
 
-  test("force replaces version in both server and tui configs", async () => {
+  test("force replaces only the retained server config", async () => {
     await using tmp = await tmpdir()
     const target = await plugin(tmp.path, ["server", "tui"])
     const server = path.join(tmp.path, ".hena", "hena.json")
@@ -497,9 +454,8 @@ describe("plugin.install.task", () => {
     const ok = await run(ctx(tmp.path))
     expect(ok).toBe(true)
     const serverJson = await read(server)
-    const tuiJson = await read(tui)
     expect(serverJson.plugin).toEqual(["acme@2.0.0", "other@1.0.0"])
-    expect(tuiJson.plugin).toEqual([["acme@2.0.0", { mode: "safe" }], "other@1.0.0"])
+    expect(await read(tui)).toEqual({ plugin: [["acme@1.0.0", { mode: "safe" }], "other@1.0.0"] })
   })
 
   test("returns false and keeps config unchanged for invalid JSONC", async () => {

@@ -100,15 +100,18 @@ Remove stale `.sst`, `.wrangler`, and `sst-env.d.ts` references from lint, forma
 
 ### Runtime consequences
 
-No retained package imports a deleted cloud package. Several retained CLI features call hosted URLs rather than workspace code:
+No retained package imports a deleted cloud package. Remove defaults that depend on deleted hosted services:
 
-- `hena github install` calls `api.hena.dev/get_github_app_installation`, implemented only by the deleted `packages/function` worker.
-- `hena console` calls the deleted console service.
-- sharing and Go upsell messages call deleted hosted routes.
+- Remove `hena github install`; the GitHub Action uses `GITHUB_TOKEN` by default and requires an explicit token-exchange URL for custom GitHub Apps.
+- Require an explicit URL for `hena console login`.
+- Require an enterprise URL or active custom console account for sharing.
+
+Other retained behavior still references hosted distribution surfaces:
+
 - the legacy web server falls back to `app.hena.dev` when the embedded UI is absent.
 - curl-based upgrades fetch `hena.dev/install`.
 
-Keep these call sites in this branch to avoid mixing product behavior changes with package deletion. Document the broken hosted dependencies in the PR. The embedded legacy app remains functional.
+The embedded legacy app remains functional.
 
 Keep `packages/core/src/share/sql.ts` and `packages/core/src/account/sql.ts`. They remain imported and deleting their tables would require a database migration.
 
@@ -138,7 +141,7 @@ Run tests from package directories, never from the repository root.
 - Update `packages/desktop/scripts/copy-metainfo.ts`, whose AppStream screenshot URL points at `packages/web`.
 - Keep `packages/sdk/openapi.json`; `packages/docs/openapi.json` was only a symlink to it.
 
-After cloud and docs deletion, `packages/hena/script/schema.ts` has no publishing caller. Keep config schema generation for now because Hena still writes `https://hena.dev/config.json` into user configuration. The TUI branch removes its obsolete `tui.json` output.
+After cloud and docs deletion, remove the unpublished config schema generator and stop injecting its dead URL into user configuration.
 
 ### Verification
 
@@ -201,7 +204,7 @@ Several Hena modules re-export generic helpers from `@hena/tui`:
 - Inline the retained ASCII logo in `packages/hena/src/cli/ui.ts`.
 - Delete `packages/hena/src/cli/cmd/prompt-display.ts`; only the terminal UI imports it.
 - Delete `packages/hena/parsers-config.ts`; it has no importer.
-- Preserve the non-TUI session validation used by HTTP API tests by moving or inlining `src/cli/tui/validate-session.ts`.
+- Delete the production-dead session validation helper and its duplicate HTTP API test.
 
 ### Delete packages and OpenTUI tooling
 
@@ -233,7 +236,7 @@ Remove:
 
 Keep the shared root `solid-js` catalog entry because the retained web and desktop packages use it.
 
-Keep the accepted `PluginKind` value `"tui"` temporarily if removing it creates unrelated plugin migration work. It can remain inert until external plugin compatibility is handled separately.
+Keep the accepted `PluginKind` value `"tui"` temporarily for external plugin compatibility, but do not install TUI-only packages or write `tui.json` configuration.
 
 ### Change the default command
 

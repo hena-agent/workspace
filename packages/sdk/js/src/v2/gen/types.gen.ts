@@ -1665,6 +1665,7 @@ export type GlobalEvent = {
     | SyncEventSessionNextToolFailed
     | SyncEventSessionNextRetried
     | SyncEventSessionNextCompactionStarted
+    | SyncEventSessionNextCompactionDiscarded
     | SyncEventSessionNextCompactionEnded
     | SyncEventSessionNextRevertStaged
     | SyncEventSessionNextRevertCleared
@@ -2792,6 +2793,7 @@ export type SessionDurableEvent =
   | SessionNextReasoningEnded
   | SessionNextRetried
   | SessionNextCompactionStarted
+  | SessionNextCompactionDiscarded
   | SessionNextCompactionEnded
   | SessionNextRevertStaged
   | SessionNextRevertCleared
@@ -3793,6 +3795,22 @@ export type SyncEventSessionNextCompactionStarted = {
   }
 }
 
+export type SyncEventSessionNextCompactionDiscarded = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.compaction.discarded.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      messageID: string
+    }
+  }
+}
+
 export type SyncEventSessionNextCompactionEnded = {
   type: "sync"
   id: string
@@ -4764,6 +4782,25 @@ export type SessionNextCompactionStarted = {
   }
 }
 
+export type SessionNextCompactionDiscarded = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "session.next.compaction.discarded"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+  }
+}
+
 export type SessionNextCompactionEnded = {
   id: string
   metadata?: {
@@ -4903,6 +4940,7 @@ export type ModelApi =
 
 export type ModelCapabilities = {
   tools: boolean
+  reasoning?: boolean
   input: Array<string>
   output: Array<string>
 }
@@ -5408,25 +5446,6 @@ export type SessionNextCompactionDelta = {
     sessionID: string
     messageID: string
     text: string
-  }
-}
-
-export type SessionNextCompactionDiscarded = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  type: "session.next.compaction.discarded"
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  data: {
-    timestamp: number
-    sessionID: string
-    messageID: string
   }
 }
 

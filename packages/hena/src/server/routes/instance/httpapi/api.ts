@@ -23,7 +23,6 @@ import { PtyApi, PtyConnectApi } from "./groups/pty"
 import { QuestionApi } from "./groups/question"
 import { SessionApi } from "./groups/session"
 import { SyncApi } from "./groups/sync"
-import { TuiApi } from "./groups/tui"
 import { WorkspaceApi } from "./groups/workspace"
 import { makeApi } from "@hena/protocol/api"
 import { LocationMiddleware } from "@hena/server/location"
@@ -72,7 +71,6 @@ export const InstanceHttpApi = HttpApi.make("hena-instance")
   .addHttpApi(ProviderApi)
   .addHttpApi(SessionApi)
   .addHttpApi(SyncApi)
-  .addHttpApi(TuiApi)
   .addHttpApi(WorkspaceApi)
   .middleware(SchemaErrorMiddleware)
 

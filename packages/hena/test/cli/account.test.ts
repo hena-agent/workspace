@@ -1,13 +1,20 @@
 import { describe, expect, test } from "bun:test"
+import { Effect } from "effect"
 import stripAnsi from "strip-ansi"
 
-import { defaultConsoleUrl, formatAccountLabel, formatOrgLine } from "../../src/cli/cmd/account"
+import { formatAccountLabel, formatOrgLine } from "../../src/cli/cmd/account"
+import { cliIt } from "../lib/cli-process"
+
+cliIt.live("requires a server URL when logging in", ({ hena }) =>
+  Effect.gen(function* () {
+    const result = yield* hena.spawn(["console", "login"])
+    expect(result.exitCode).not.toBe(0)
+    expect(result.stderr).toContain("url  server URL")
+    expect(result.stderr).toContain("[required]")
+  }),
+)
 
 describe("console account display", () => {
-  test("uses console.hena.dev as the default login URL", () => {
-    expect(defaultConsoleUrl).toBe("https://console.hena.dev")
-  })
-
   test("includes the account url in account labels", () => {
     expect(stripAnsi(formatAccountLabel({ email: "one@example.com", url: "https://one.example.com" }, false))).toBe(
       "one@example.com https://one.example.com",

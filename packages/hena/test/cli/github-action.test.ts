@@ -1,8 +1,19 @@
 import { test, expect, describe } from "bun:test"
 import { SessionV1 } from "@hena/core/v1/session"
 import { extractResponseText, formatPromptTooLargeError } from "../../src/cli/cmd/github"
-import type { MessageV2 } from "../../src/session/message-v2"
 import { SessionID, MessageID, PartID } from "../../src/session/schema"
+
+const action = await Bun.file(new URL("../../../../github/action.yml", import.meta.url)).text()
+
+test("composite action supplies a token and disables implicit sharing", () => {
+  expect(action).toContain(
+    'use_github_token:\n    description: "Use GITHUB_TOKEN directly. Set to false only with a custom GitHub App token exchange service."\n    required: false\n    default: "true"',
+  )
+  expect(action).toContain(
+    'share:\n    description: "Share the Hena session"\n    required: false\n    default: "false"',
+  )
+  expect(action).toContain("GITHUB_TOKEN: ${{ github.token }}")
+})
 
 // Helper to create minimal valid parts
 function createTextPart(text: string): SessionV1.Part {

@@ -134,9 +134,7 @@ export class Service extends Context.Service<Service, Interface>()("@hena/Config
 export const use = serviceUse(Service)
 
 function globalConfigFile() {
-  const candidates = ["hena.jsonc", "hena.json"].map((file) =>
-    path.join(Global.Path.config, file),
-  )
+  const candidates = ["hena.jsonc", "hena.json"].map((file) => path.join(Global.Path.config, file))
   for (const file of candidates) {
     if (existsSync(file)) return file
   }
@@ -225,11 +223,6 @@ const layer = Layer.effect(
       if (!("path" in options)) return data
 
       yield* Effect.promise(() => resolveLoadedPlugins(data, options.path))
-      if (!data.$schema) {
-        data.$schema = "https://hena.dev/config.json"
-        const updated = text.replace(/^\s*\{/, '{\n  "$schema": "https://hena.dev/config.json",')
-        yield* fs.writeFileString(options.path, updated).pipe(Effect.catch(() => Effect.void))
-      }
       return data
     })
 
@@ -242,16 +235,6 @@ const layer = Layer.effect(
 
     const loadGlobal = Effect.fnUntraced(function* (env?: Record<string, string>) {
       let result: Info = {}
-      // Seed the default global config with the schema for editor completion, but avoid writing when the user
-      // explicitly routes config through env-provided paths or content.
-      if (!Flag.HENA_CONFIG && !Flag.HENA_CONFIG_DIR && !Flag.HENA_CONFIG_CONTENT) {
-        const file = globalConfigFile()
-        if (!existsSync(file)) {
-          yield* fs
-            .writeWithDirs(file, JSON.stringify({ $schema: "https://hena.dev/config.json" }, null, 2))
-            .pipe(Effect.catch(() => Effect.void))
-        }
-      }
       result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "hena.json"), env))
       result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "hena.jsonc"), env))
 
@@ -360,7 +343,6 @@ const layer = Layer.effect(
                 })
               : {}
             const remoteConfig = mergeConfig(isRecord(wellknown.config) ? wellknown.config : {}, fetchedConfig)
-            if (!remoteConfig.$schema) remoteConfig.$schema = "https://hena.dev/config.json"
             const source = wellknownURL
             const next = yield* loadConfig(
               JSON.stringify(remoteConfig),

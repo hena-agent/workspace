@@ -71,7 +71,6 @@ Replace `<platform>` with your platform (e.g., `darwin-arm64`, `linux-x64`).
 
 - Core pieces:
   - `packages/hena`: Hena core business logic & server.
-  - `packages/hena/src/cli/cmd/tui/`: The TUI code, written in SolidJS with [opentui](https://github.com/sst/opentui)
   - `packages/app`: The shared web UI components, written in SolidJS
   - `packages/desktop`: The native desktop app, built with Electron (wraps `packages/app`)
   - `packages/plugin`: Source for the compatible `@opencode-ai/plugin` SDK
@@ -83,15 +82,15 @@ During development, `bun dev` is the local equivalent of the built `hena` comman
 ```bash
 # Development (from project root)
 bun dev --help           # Show all available commands
-bun dev serve            # Start headless API server
+bun dev                  # Start headless API server
+bun dev serve            # Start headless API server explicitly
 bun dev web              # Start server + open web interface
-bun dev <directory>      # Start TUI in specific directory
 
 # Production
 hena --help          # Show all available commands
-hena serve           # Start headless API server
+hena                 # Start headless API server
+hena serve           # Start headless API server explicitly
 hena web             # Start server + open web interface
-hena <directory>     # Start TUI in specific directory
 ```
 
 ### Running the API Server
@@ -139,7 +138,7 @@ bun run --cwd packages/desktop package
 ```
 
 > [!NOTE]
-> If you make changes to the API or SDK (e.g. `packages/hena/src/server/server.ts`), run `./script/generate.ts` to regenerate the SDK and related files.
+> If you make changes to the public API, run `./packages/sdk/js/script/build.ts` to regenerate the OpenAPI document and v2 SDK.
 
 Please try to follow the [style guide](./AGENTS.md)
 
@@ -150,14 +149,11 @@ Bun debugging is currently rough around the edges. We hope this guide helps you 
 The most reliable way to debug Hena is to run it manually in a terminal via `bun run --inspect=<url> dev ...` and attach
 your debugger via that URL. Other methods can result in breakpoints being mapped incorrectly, at least in VSCode (YMMV).
 
-Caveats:
+Debug the server directly with:
 
-- If you want to run the Hena TUI and have breakpoints triggered in the server code, you might need to run `bun dev spawn` instead of
-  the usual `bun dev`. This is because `bun dev` runs the server in a worker thread and breakpoints might not work there.
-- If `spawn` does not work for you, you can debug the server separately:
-  - Debug server: `bun run --inspect=ws://localhost:6499/ --cwd packages/hena ./src/index.ts serve --port 4096`,
-    then attach TUI with `hena attach http://localhost:4096`
-  - Debug TUI: `bun run --inspect=ws://localhost:6499/ --cwd packages/hena --conditions=browser ./src/index.ts`
+```bash
+bun run --inspect=ws://localhost:6499/ --cwd packages/hena ./src/index.ts serve --port 4096
+```
 
 Other tips and tricks:
 

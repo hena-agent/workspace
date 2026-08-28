@@ -308,34 +308,6 @@ it.instance("falls back to generic username when system user info is unavailable
   }),
 )
 
-it.effect("creates global jsonc config with schema when no global configs exist", () =>
-  withGlobalConfig({}, ({ dir }) =>
-    Effect.gen(function* () {
-      yield* Config.use.get().pipe(provideInstanceEffect(dir))
-
-      const content = yield* FSUtil.use.readFileString(path.join(dir, "hena.jsonc"))
-      expect(content).toContain('"$schema": "https://hena.dev/config.json"')
-    }).pipe(Effect.provide(testInstanceStoreLayer), Effect.provide(LayerNode.compile(CrossSpawnSpawner.node))),
-  ),
-)
-
-it.effect("does not create global config when HENA_CONFIG_DIR is set", () =>
-  Effect.gen(function* () {
-    const custom = yield* tmpdirScoped()
-    yield* withGlobalConfig({}, ({ dir }) =>
-      withProcessEnv(
-        "HENA_CONFIG_DIR",
-        custom,
-        Effect.gen(function* () {
-          yield* Config.use.get().pipe(provideInstanceEffect(dir))
-
-          expect(yield* FSUtil.use.existsSafe(path.join(dir, "hena.jsonc"))).toBe(false)
-        }).pipe(Effect.provide(testInstanceStoreLayer), Effect.provide(LayerNode.compile(CrossSpawnSpawner.node))),
-      ),
-    )
-  }),
-)
-
 it.instance(
   "loads JSON config file",
   Effect.gen(function* () {
@@ -358,11 +330,7 @@ it.instance(
 it.instance("updates config and preserves empty shell sentinel", () =>
   Effect.gen(function* () {
     const test = yield* TestInstance
-    yield* writeConfigEffect(
-      test.directory,
-      { $schema: "https://hena.dev/config.json", shell: "bash" },
-      "config.json",
-    )
+    yield* writeConfigEffect(test.directory, { $schema: "https://hena.dev/config.json", shell: "bash" }, "config.json")
 
     yield* Config.Service.use((svc) => svc.update(ConfigParse.schema(ConfigV1.Info, { shell: "" }, "test:config")))
 
@@ -505,13 +473,12 @@ it.instance("handles environment variable substitution", () =>
   ),
 )
 
-it.instance("preserves env variables when adding $schema to config", () =>
+it.instance("does not rewrite env variables when loading config without a schema", () =>
   withProcessEnv(
     "PRESERVE_VAR",
     "secret_value",
     Effect.gen(function* () {
       const test = yield* TestInstance
-      // Config without $schema - should trigger auto-add
       yield* FSUtil.use.writeWithDirs(
         path.join(test.directory, "hena.json"),
         JSON.stringify({ username: "{env:PRESERVE_VAR}" }),
@@ -519,11 +486,10 @@ it.instance("preserves env variables when adding $schema to config", () =>
       const config = yield* Config.use.get()
       expect(config.username).toBe("secret_value")
 
-      // Read the file to verify the env variable was preserved
       const content = yield* FSUtil.use.readFileString(path.join(test.directory, "hena.json"))
       expect(content).toContain("{env:PRESERVE_VAR}")
       expect(content).not.toContain("secret_value")
-      expect(content).toContain("$schema")
+      expect(content).not.toContain("$schema")
     }),
   ),
 )
@@ -583,7 +549,7 @@ const accountTokenIt = configIt({
     config: () =>
       Effect.succeed(
         Option.some({
-          provider: { "hena": { options: { apiKey: "{env:HENA_CONSOLE_TOKEN}" } } },
+          provider: { hena: { options: { apiKey: "{env:HENA_CONSOLE_TOKEN}" } } },
         }),
       ),
     token: () => Effect.succeed(Option.some(AccessToken.make("st_test_token"))),

@@ -8,7 +8,6 @@ import { TextField } from "@hena/ui/text-field"
 import { showToast } from "@/utils/toast"
 import { batch, For } from "solid-js"
 import { createStore, produce } from "solid-js/store"
-import { Link } from "@/components/link"
 import { useServerSDK } from "@/context/server-sdk"
 import { useServerSync } from "@/context/server-sync"
 import { useLanguage } from "@/context/language"
@@ -182,14 +181,6 @@ export function CustomProviderForm(props: { autofocus?: boolean } = {}) {
       </div>
 
       <form onSubmit={save} class="px-2.5 pb-6 flex flex-col gap-6">
-        <p class="text-14-regular text-text-base">
-          {language.t("provider.custom.description.prefix")}
-          <Link href="https://hena.dev/docs/providers/#custom-provider" tabIndex={-1}>
-            {language.t("provider.custom.description.link")}
-          </Link>
-          {language.t("provider.custom.description.suffix")}
-        </p>
-
         <div class="flex flex-col gap-4">
           <TextField
             autofocus={props.autofocus ?? true}

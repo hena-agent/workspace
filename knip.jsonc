@@ -35,21 +35,17 @@
     ".": {
       "entry": [
         "script/**/*.{ts,mjs}",
-        "infra/**/*.ts",
-        "packages/containers/script/**/*.ts",
         ".hena/tool/*.ts",
-        ".hena/plugins/*.tsx",
       ],
-      // github/, sdks/vscode/, and artifacts/ have independent package manifests and lockfiles.
-      "project": ["script/**/*.{ts,mjs}", "infra/**/*.ts", "packages/containers/**/*.ts", ".hena/**/*.{ts,tsx}"],
+      // github/ and sdks/vscode/ have independent package manifests and lockfiles.
+      "project": ["script/**/*.{ts,mjs}", ".hena/**/*.{ts,tsx}"],
       // `marked` pins marked-shiki's peer for Bun's hoisted Windows linker.
       "ignoreDependencies": ["turbo", "marked"],
-      "ignoreBinaries": ["ulimit", "hena"],
+      "ignoreBinaries": ["hena"],
       "ignoreUnresolved": [
         "./script/build.ts",
         "./packages/sdk/js/script/build.ts",
         "./packages/hena/script/publish.ts",
-        "./packages/cli/script/publish.ts",
         "./packages/sdk/js/script/publish.ts",
         "./packages/ui/script/publish.ts",
         "./packages/desktop/scripts/finalize-latest-json.ts",
@@ -61,7 +57,6 @@
     "packages/hena": {
       "entry": [
         "src/{index,node}.ts",
-        "parsers-config.ts",
         "specs/**/*.ts",
         "**/*.test.{ts,tsx}",
         "test/fixture/**/*.{js,ts,tsx}",
@@ -118,72 +113,10 @@
     "packages/ui": {
       "entry": ["src/**/*.stories.{js,jsx,mjs,ts,tsx}", "**/*.test.{ts,tsx}", "script/**/*.{js,cjs,mjs,ts,cts,mts}"],
     },
-    "packages/console/core": {
-      "entry": ["drizzle.config.ts", "**/*.test.{ts,tsx}", "script/**/*.{ts,mts}"],
-      "includeEntryExports": true,
-      "ignoreBinaries": ["vim"],
-      // This config reads linked SST resources while being evaluated. Analyze it statically instead.
-      "drizzle": { "config": [] },
-    },
-    "packages/stats/core": {
-      "entry": ["drizzle.config.ts", "**/*.test.{ts,tsx}"],
-      "includeEntryExports": true,
-      // This config reads linked SST resources while being evaluated. Analyze it statically instead.
-      "drizzle": { "config": [] },
-    },
-    "packages/console/mail": { "includeEntryExports": true },
-    "packages/web": {
-      // Toolbeam injects these font imports into Starlight's virtual user CSS module.
-      "ignoreDependencies": ["@fontsource/ibm-plex-mono"],
-    },
     "packages/sdk/js": {
       "entry": ["**/*.test.{ts,tsx}", "script/**/*.{js,cjs,mjs,ts,cts,mts}", "example/**/*.{js,jsx,ts,tsx}"],
       "ignoreBinaries": ["dev"],
       "ignoreFiles": ["src/{gen,v2/gen}/**"],
-    },
-    "packages/enterprise": {
-      "entry": [
-        "test-debug.ts",
-        "src/app.{ts,tsx}",
-        "src/entry-{client,server}.{ts,tsx}",
-        "src/routes/**/*.{ts,tsx}",
-        "**/*.test.{ts,tsx}",
-        "{script,scripts}/**/*.{js,cjs,mjs,ts,cts,mts}",
-      ],
-      // SolidStart's Vite config cannot be executed outside its virtual module runtime.
-      "vite": { "config": [] },
-    },
-    "packages/console/app": {
-      "entry": [
-        "src/app.{ts,tsx}",
-        "src/entry-{client,server}.{ts,tsx}",
-        "src/middleware.{ts,tsx}",
-        "src/routes/**/*.{ts,tsx}",
-        "**/*.test.{ts,tsx}",
-        "{script,scripts}/**/*.{js,cjs,mjs,ts,cts,mts}",
-      ],
-      // SolidStart's Vite config cannot be executed outside its virtual module runtime.
-      "vite": { "config": [] },
-    },
-    "packages/console/support": {
-      "entry": ["src/app.{ts,tsx}", "src/entry-{client,server}.{ts,tsx}", "src/routes/**/*.{ts,tsx}"],
-      // SolidStart's Vite config cannot be executed outside its virtual module runtime.
-      "vite": { "config": [] },
-    },
-    "packages/stats/app": {
-      "entry": ["app.config.ts", "src/app.{ts,tsx}", "src/entry-{client,server}.{ts,tsx}", "src/routes/**/*.{ts,tsx}"],
-      // SolidStart's Vite config cannot be executed outside its virtual module runtime.
-      "vite": { "config": [] },
-    },
-    "packages/console/function": {
-      "entry": ["src/{auth,log-processor,stat}.ts"],
-    },
-    "packages/function": {
-      "entry": ["src/api.ts"],
-      "ignoreDependencies": ["cloudflare"],
-    },
-    "packages/stats/server": {
-      "entry": ["src/{server,stat-sync}.ts"],
     },
     "packages/httpapi-codegen": {
       "entry": ["**/*.test.{ts,tsx}", "test/generated-consumer.ts", "test/generated*/**/*.ts"],
@@ -208,11 +141,6 @@
     },
     "packages/storybook": {
       "entry": [".storybook/**/*.{ts,tsx}"],
-    },
-    "packages/cli": {
-      "entry": ["**/*.test.{ts,tsx}", "script/**/*.{js,cjs,mjs,ts,cts,mts}"],
-      // The build script reads this version to install every platform binary before packaging.
-      "ignoreDependencies": ["@opentui/core"],
     },
     "packages/core": {
       "entry": [

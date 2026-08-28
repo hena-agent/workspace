@@ -4,9 +4,9 @@ Concrete inventory of the remaining `makeRuntime(...)`-backed facades in `packag
 
 Current status on this branch:
 
-- `src/` has 5 `makeRuntime(...)` call sites total.
-- 2 are intentionally excluded from this checklist: `src/bus/index.ts` and `src/effect/cross-spawn-spawner.ts`.
-- That leaves 2 live runtime-backed service facades still worth tracking here: `src/npm/index.ts` and `src/cli/cmd/tui/config/tui.ts`.
+- `src/` has 2 `makeRuntime(...)` call sites total.
+- The debug scrap command is excluded from this checklist.
+- That leaves the installation facade as the live runtime-backed service facade worth tracking here.
 
 Recent progress:
 
@@ -15,8 +15,7 @@ Recent progress:
 
 ## Priority hotspots
 
-- `src/cli/cmd/tui/config/tui.ts` still exports `makeRuntime(...)` plus async facade helpers for `get()` and `waitForDependencies()`.
-- `src/npm/index.ts` still exports `makeRuntime(...)` plus async facade helpers for `install()`, `add()`, `outdated()`, and `which()`.
+- `src/installation/index.ts` still exports a runtime-backed async facade.
 
 ## Completed Batches
 
@@ -188,13 +187,11 @@ These were the recurring mistakes and useful corrections from the first two batc
 
 Most of the original facade-removal backlog is already done. The practical remaining work is narrower now:
 
-1. remove the `Npm` runtime-backed facade from `src/npm/index.ts`
-2. remove the `TuiConfig` runtime-backed facade from `src/cli/cmd/tui/config/tui.ts`
+1. remove the runtime-backed facade from `src/installation/index.ts`
 
 ## Checklist
 
-- [ ] `src/npm/index.ts` (`Npm`) - still exports runtime-backed async facade helpers on top of `Npm.Service`
-- [ ] `src/cli/cmd/tui/config/tui.ts` (`TuiConfig`) - still exports runtime-backed async facade helpers on top of `TuiConfig.Service`
+- [ ] `src/installation/index.ts` (`Installation`) - still exports a runtime-backed async facade
 - [x] `src/session/session.ts` / `src/session/prompt.ts` / `src/session/revert.ts` / `src/session/summary.ts` - service-local facades removed
 - [x] `src/agent/agent.ts` (`Agent`) - service-local facades removed
 - [x] `src/permission/index.ts` (`Permission`) - service-local facades removed
@@ -214,5 +211,4 @@ Most of the original facade-removal backlog is already done. The practical remai
 
 ## Excluded `makeRuntime(...)` sites
 
-- `src/bus/index.ts` - core bus plumbing, not a normal facade-removal target.
-- `src/effect/cross-spawn-spawner.ts` - runtime helper for `ChildProcessSpawner`, not a service namespace facade.
+- `src/cli/cmd/debug/scrap.ts` - an isolated debug command, not a service namespace facade.

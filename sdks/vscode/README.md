@@ -8,14 +8,12 @@ This extension requires the [Hena CLI](https://hena.dev) to be installed on your
 
 ## Features
 
-- **Quick Launch**: Use `Cmd+Esc` (Mac) or `Ctrl+Esc` (Windows/Linux) to open Hena in a split terminal view.
-- **New Session**: Use `Cmd+Shift+Esc` (Mac) or `Ctrl+Shift+Esc` (Windows/Linux) to start a new Hena terminal session.
-- **Context Awareness**: Automatically share your current selection or tab with Hena.
-- **File Reference Shortcuts**: Use `Cmd+Option+K` (Mac) or `Alt+Ctrl+K` (Linux/Windows) to insert file references. For example, `@File#L37-42`.
+- **Quick Launch**: Use `Cmd+Esc` (Mac) or `Ctrl+Esc` (Windows/Linux) to start the Hena web interface.
+- **Reuse**: Running the command again focuses the existing Hena server terminal.
 
 ## Support
 
-This is an early release. Report issues at https://github.com/hena-agent/hena/issues.
+This is an early release. Report issues at https://github.com/hena-agent/workspace/issues.
 
 ## Development
 

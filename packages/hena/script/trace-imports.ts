@@ -5,7 +5,7 @@ import ts from "typescript"
 const BASE_DIR = path.resolve(import.meta.dirname, "..")
 
 // Get entry file from command line arg or use default
-const ENTRY_FILE = process.argv[2] || "src/plugin/tui/runtime.ts"
+const ENTRY_FILE = process.argv[2] || "src/index.ts"
 
 const visited = new Set<string>()
 

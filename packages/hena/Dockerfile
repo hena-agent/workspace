@@ -15,4 +15,6 @@ COPY dist/hena-linux-arm64-musl/bin/hena /usr/local/bin/hena
 ARG TARGETARCH
 FROM build-${TARGETARCH}
 RUN hena --version
+EXPOSE 4096
 ENTRYPOINT ["hena"]
+CMD ["serve", "--hostname=0.0.0.0", "--port=4096"]

@@ -9,7 +9,6 @@
     "url": "https://github.com/hena-agent/hena"
   },
   "license": "MIT",
-  "icon": "images/icon.png",
   "galleryBanner": {
     "color": "#000000",
     "theme": "dark"
@@ -26,29 +25,13 @@
     "commands": [
       {
         "command": "hena.openTerminal",
-        "title": "Open Hena",
-        "icon": {
-          "light": "images/button-dark.svg",
-          "dark": "images/button-light.svg"
-        }
-      },
-      {
-        "command": "hena.openNewTerminal",
-        "title": "Open Hena in new tab",
-        "icon": {
-          "light": "images/button-dark.svg",
-          "dark": "images/button-light.svg"
-        }
-      },
-      {
-        "command": "hena.addFilepathToTerminal",
-        "title": "Add Filepath to Terminal"
+        "title": "Open Hena"
       }
     ],
     "menus": {
       "editor/title": [
         {
-          "command": "hena.openNewTerminal",
+          "command": "hena.openTerminal",
           "group": "navigation"
         }
       ]
@@ -61,22 +44,6 @@
         "mac": "cmd+escape",
         "win": "ctrl+escape",
         "linux": "ctrl+escape"
-      },
-      {
-        "command": "hena.openNewTerminal",
-        "title": "Run Hena",
-        "key": "cmd+shift+escape",
-        "mac": "cmd+shift+escape",
-        "win": "ctrl+shift+escape",
-        "linux": "ctrl+shift+escape"
-      },
-      {
-        "command": "hena.addFilepathToTerminal",
-        "title": "Hena: Insert At-Mentioned",
-        "key": "cmd+alt+k",
-        "mac": "cmd+alt+k",
-        "win": "ctrl+alt+K",
-        "linux": "ctrl+alt+K"
       }
     ]
   },

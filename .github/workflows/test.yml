@@ -80,15 +80,7 @@ jobs:
       - name: Run non-Hena unit tests
         if: matrix.settings.primary
         timeout-minutes: 45
-        run: GITHUB_ACTIONS=false bun turbo test --filter='!hena' --filter='!@hena/tui'
-        env:
-          HENA_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
-
-      - name: Run TUI unit tests
-        if: matrix.settings.primary
-        timeout-minutes: 10
-        working-directory: packages/tui
-        run: bun test --timeout 30000 --only-failures
+        run: GITHUB_ACTIONS=false bun turbo test --filter='!hena'
         env:
           HENA_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
 

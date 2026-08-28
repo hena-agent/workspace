@@ -15,8 +15,6 @@ const dim = (value: string) => UI.Style.TEXT_DIM + value + UI.Style.TEXT_NORMAL
 
 const activeSuffix = (isActive: boolean) => (isActive ? dim(" (active)") : "")
 
-export const defaultConsoleUrl = "https://console.hena.dev"
-
 export const formatAccountLabel = (account: { email: string; url: string }, isActive: boolean) =>
   `${account.email} ${dim(account.url)}${activeSuffix(isActive)}`
 
@@ -175,7 +173,7 @@ const openEffect = Effect.fn("open")(function* () {
 })
 
 export const LoginCommand = effectCmd({
-  command: "login [url]",
+  command: "login <url>",
   describe: false,
   instance: false,
   builder: (yargs) =>
@@ -185,7 +183,7 @@ export const LoginCommand = effectCmd({
     }),
   handler: Effect.fn("Cli.account.login")(function* (args) {
     UI.empty()
-    yield* Effect.orDie(loginEffect(args.url ?? defaultConsoleUrl))
+    yield* Effect.orDie(loginEffect(args.url))
   }),
 })
 

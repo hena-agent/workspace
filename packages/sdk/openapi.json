@@ -8408,873 +8408,6 @@
         ]
       }
     },
-    "/tui/append-prompt": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.appendPrompt",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Prompt processed successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Prompt processed successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "BadRequest | InvalidRequestError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/effect_HttpApiError_BadRequest"
-                    },
-                    {
-                      "$ref": "#/components/schemas/InvalidRequestError"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "description": "Append prompt to the TUI.",
-        "summary": "Append TUI prompt",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "text": {
-                    "type": "string"
-                  }
-                },
-                "required": ["text"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.appendPrompt({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/open-help": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.openHelp",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Help dialog opened successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Help dialog opened successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Open the help dialog in the TUI to display user assistance information.",
-        "summary": "Open help dialog",
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.openHelp({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/open-sessions": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.openSessions",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Session dialog opened successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Session dialog opened successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Open the session dialog.",
-        "summary": "Open sessions dialog",
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.openSessions({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/open-themes": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.openThemes",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Theme dialog opened successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Theme dialog opened successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Open the theme dialog.",
-        "summary": "Open themes dialog",
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.openThemes({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/open-models": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.openModels",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Model dialog opened successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Model dialog opened successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Open the model dialog.",
-        "summary": "Open models dialog",
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.openModels({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/submit-prompt": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.submitPrompt",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Prompt submitted successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Prompt submitted successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Submit the prompt.",
-        "summary": "Submit TUI prompt",
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.submitPrompt({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/clear-prompt": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.clearPrompt",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Prompt cleared successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Prompt cleared successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Clear the prompt.",
-        "summary": "Clear TUI prompt",
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.clearPrompt({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/execute-command": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.executeCommand",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Command executed successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Command executed successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "BadRequest | InvalidRequestError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/effect_HttpApiError_BadRequest"
-                    },
-                    {
-                      "$ref": "#/components/schemas/InvalidRequestError"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "description": "Execute a TUI command.",
-        "summary": "Execute TUI command",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "command": {
-                    "type": "string"
-                  }
-                },
-                "required": ["command"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.executeCommand({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/show-toast": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.showToast",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Toast notification shown successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Toast notification shown successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Show a toast notification in the TUI.",
-        "summary": "Show TUI toast",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "title": {
-                    "type": "string"
-                  },
-                  "message": {
-                    "type": "string"
-                  },
-                  "variant": {
-                    "type": "string",
-                    "enum": ["info", "success", "warning", "error"]
-                  },
-                  "duration": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0
-                  }
-                },
-                "required": ["message", "variant"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.showToast({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/publish": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.publish",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Event published successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Event published successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "BadRequest | InvalidRequestError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/effect_HttpApiError_BadRequest"
-                    },
-                    {
-                      "$ref": "#/components/schemas/InvalidRequestError"
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        },
-        "description": "Publish a TUI event.",
-        "summary": "Publish TUI event",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "$ref": "#/components/schemas/EventTuiPromptAppend"
-                  },
-                  {
-                    "$ref": "#/components/schemas/EventTuiCommandExecute"
-                  },
-                  {
-                    "$ref": "#/components/schemas/EventTuiToastShow"
-                  },
-                  {
-                    "$ref": "#/components/schemas/EventTuiSessionSelect"
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.publish({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/select-session": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.selectSession",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Session selected successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Session selected successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "BadRequest | InvalidRequestError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/effect_HttpApiError_BadRequest"
-                    },
-                    {
-                      "$ref": "#/components/schemas/InvalidRequestError"
-                    }
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "NotFoundError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NotFoundError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Navigate the TUI to display the specified session.",
-        "summary": "Select session",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "sessionID": {
-                    "type": "string",
-                    "pattern": "^ses",
-                    "description": "Session ID to navigate to"
-                  }
-                },
-                "required": ["sessionID"],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.selectSession({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/control/next": {
-      "get": {
-        "tags": ["tui"],
-        "operationId": "tui.control.next",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Next TUI request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "path": {
-                      "type": "string"
-                    },
-                    "body": {}
-                  },
-                  "required": ["path", "body"],
-                  "additionalProperties": false,
-                  "description": "Next TUI request"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Retrieve the next TUI request from the queue for processing.",
-        "summary": "Get next TUI request",
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.control.next({\n  ...\n})"
-          }
-        ]
-      }
-    },
-    "/tui/control/response": {
-      "post": {
-        "tags": ["tui"],
-        "operationId": "tui.control.response",
-        "parameters": [
-          {
-            "name": "directory",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          },
-          {
-            "name": "workspace",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "required": false
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Response submitted successfully",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "boolean",
-                  "description": "Response submitted successfully"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
-                }
-              }
-            }
-          }
-        },
-        "description": "Submit a response to the TUI request queue to complete a pending request.",
-        "summary": "Submit TUI response",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {}
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "js",
-            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.tui.control.response({\n  ...\n})"
-          }
-        ]
-      }
-    },
     "/experimental/workspace/adapter": {
       "get": {
         "tags": ["workspace"],
@@ -15377,6 +14510,9 @@
             "$ref": "#/components/schemas/EventSessionNextCompactionDelta"
           },
           {
+            "$ref": "#/components/schemas/EventSessionNextCompactionDiscarded"
+          },
+          {
             "$ref": "#/components/schemas/EventSessionNextCompactionEnded"
           },
           {
@@ -15387,6 +14523,12 @@
           },
           {
             "$ref": "#/components/schemas/EventSessionNextRevertCommitted"
+          },
+          {
+            "$ref": "#/components/schemas/EventSessionNextInputCanceled"
+          },
+          {
+            "$ref": "#/components/schemas/EventSessionNextInputReordered"
           },
           {
             "$ref": "#/components/schemas/EventMessagePartDelta"
@@ -15456,18 +14598,6 @@
           },
           {
             "$ref": "#/components/schemas/EventPermissionReplied"
-          },
-          {
-            "$ref": "#/components/schemas/Event.tui.prompt.append"
-          },
-          {
-            "$ref": "#/components/schemas/Event.tui.command.execute"
-          },
-          {
-            "$ref": "#/components/schemas/Event.tui.toast.show"
-          },
-          {
-            "$ref": "#/components/schemas/Event.tui.session.select"
           },
           {
             "$ref": "#/components/schemas/EventMcpToolsChanged"
@@ -17247,6 +16377,10 @@
       "Todo": {
         "type": "object",
         "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^todo_"
+          },
           "content": {
             "type": "string",
             "description": "Brief description of the task"
@@ -18889,6 +18023,39 @@
                   },
                   "type": {
                     "type": "string",
+                    "enum": ["session.next.compaction.discarded"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "messageID": {
+                        "type": "string",
+                        "pattern": "^msg_"
+                      }
+                    },
+                    "required": ["timestamp", "sessionID", "messageID"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
                     "enum": ["session.next.compaction.ended"]
                   },
                   "properties": {
@@ -19011,6 +18178,83 @@
                       }
                     },
                     "required": ["timestamp", "sessionID", "messageID"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["session.next.input.canceled"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "messageID": {
+                        "type": "string",
+                        "pattern": "^msg_"
+                      },
+                      "expectedRevision": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": ["timestamp", "sessionID", "messageID", "expectedRevision"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["session.next.input.reordered"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": {
+                        "type": "number"
+                      },
+                      "sessionID": {
+                        "type": "string",
+                        "pattern": "^ses"
+                      },
+                      "messageIDs": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "pattern": "^msg_"
+                        }
+                      },
+                      "expectedRevision": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    },
+                    "required": ["timestamp", "sessionID", "messageIDs", "expectedRevision"],
                     "additionalProperties": false
                   }
                 },
@@ -19766,144 +19010,6 @@
                   },
                   "type": {
                     "type": "string",
-                    "enum": ["tui.prompt.append"]
-                  },
-                  "properties": {
-                    "type": "object",
-                    "properties": {
-                      "text": {
-                        "type": "string"
-                      }
-                    },
-                    "required": ["text"],
-                    "additionalProperties": false
-                  }
-                },
-                "required": ["id", "type", "properties"],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^evt_"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": ["tui.command.execute"]
-                  },
-                  "properties": {
-                    "type": "object",
-                    "properties": {
-                      "command": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "enum": [
-                              "session.list",
-                              "session.new",
-                              "session.share",
-                              "session.interrupt",
-                              "session.compact",
-                              "session.page.up",
-                              "session.page.down",
-                              "session.line.up",
-                              "session.line.down",
-                              "session.half.page.up",
-                              "session.half.page.down",
-                              "session.first",
-                              "session.last",
-                              "prompt.clear",
-                              "prompt.submit",
-                              "agent.cycle"
-                            ]
-                          },
-                          {
-                            "type": "string"
-                          }
-                        ]
-                      }
-                    },
-                    "required": ["command"],
-                    "additionalProperties": false
-                  }
-                },
-                "required": ["id", "type", "properties"],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^evt_"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": ["tui.toast.show"]
-                  },
-                  "properties": {
-                    "type": "object",
-                    "properties": {
-                      "title": {
-                        "type": "string"
-                      },
-                      "message": {
-                        "type": "string"
-                      },
-                      "variant": {
-                        "type": "string",
-                        "enum": ["info", "success", "warning", "error"]
-                      },
-                      "duration": {
-                        "type": "integer",
-                        "exclusiveMinimum": 0
-                      }
-                    },
-                    "required": ["message", "variant"],
-                    "additionalProperties": false
-                  }
-                },
-                "required": ["id", "type", "properties"],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^evt_"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": ["tui.session.select"]
-                  },
-                  "properties": {
-                    "type": "object",
-                    "properties": {
-                      "sessionID": {
-                        "type": "string",
-                        "pattern": "^ses",
-                        "description": "Session ID to navigate to"
-                      }
-                    },
-                    "required": ["sessionID"],
-                    "additionalProperties": false
-                  }
-                },
-                "required": ["id", "type", "properties"],
-                "additionalProperties": false
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^evt_"
-                  },
-                  "type": {
-                    "type": "string",
                     "enum": ["mcp.tools.changed"]
                   },
                   "properties": {
@@ -20512,6 +19618,9 @@
                 "$ref": "#/components/schemas/SyncEventSessionNextCompactionStarted"
               },
               {
+                "$ref": "#/components/schemas/SyncEventSessionNextCompactionDiscarded"
+              },
+              {
                 "$ref": "#/components/schemas/SyncEventSessionNextCompactionEnded"
               },
               {
@@ -20522,6 +19631,12 @@
               },
               {
                 "$ref": "#/components/schemas/SyncEventSessionNextRevertCommitted"
+              },
+              {
+                "$ref": "#/components/schemas/SyncEventSessionNextInputCanceled"
+              },
+              {
+                "$ref": "#/components/schemas/SyncEventSessionNextInputReordered"
               }
             ]
           }
@@ -23224,128 +22339,6 @@
         "required": ["_tag", "sessionID", "message"],
         "additionalProperties": false
       },
-      "EventTuiPromptAppend": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["tui.prompt.append"]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "text": {
-                "type": "string"
-              }
-            },
-            "required": ["text"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["type", "properties"],
-        "additionalProperties": false
-      },
-      "EventTuiCommandExecute": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["tui.command.execute"]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "command": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "enum": [
-                      "session.list",
-                      "session.new",
-                      "session.share",
-                      "session.interrupt",
-                      "session.compact",
-                      "session.page.up",
-                      "session.page.down",
-                      "session.line.up",
-                      "session.line.down",
-                      "session.half.page.up",
-                      "session.half.page.down",
-                      "session.first",
-                      "session.last",
-                      "prompt.clear",
-                      "prompt.submit",
-                      "agent.cycle"
-                    ]
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              }
-            },
-            "required": ["command"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["type", "properties"],
-        "additionalProperties": false
-      },
-      "EventTuiToastShow": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["tui.toast.show"]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "title": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "variant": {
-                "type": "string",
-                "enum": ["info", "success", "warning", "error"]
-              },
-              "duration": {
-                "type": "integer",
-                "exclusiveMinimum": 0
-              }
-            },
-            "required": ["message", "variant"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["type", "properties"],
-        "additionalProperties": false
-      },
-      "EventTuiSessionSelect": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": "string",
-            "enum": ["tui.session.select"]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses",
-                "description": "Session ID to navigate to"
-              }
-            },
-            "required": ["sessionID"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["type", "properties"],
-        "additionalProperties": false
-      },
       "Workspace": {
         "type": "object",
         "properties": {
@@ -23708,6 +22701,9 @@
             "$ref": "#/components/schemas/SessionNextCompactionStarted"
           },
           {
+            "$ref": "#/components/schemas/SessionNextCompactionDiscarded"
+          },
+          {
             "$ref": "#/components/schemas/SessionNextCompactionEnded"
           },
           {
@@ -23718,6 +22714,12 @@
           },
           {
             "$ref": "#/components/schemas/SessionNextRevertCommitted"
+          },
+          {
+            "$ref": "#/components/schemas/SessionNextInputCanceled"
+          },
+          {
+            "$ref": "#/components/schemas/SessionNextInputReordered"
           }
         ]
       },
@@ -24100,6 +23102,9 @@
             "$ref": "#/components/schemas/SessionNextCompactionDelta"
           },
           {
+            "$ref": "#/components/schemas/SessionNextCompactionDiscarded"
+          },
+          {
             "$ref": "#/components/schemas/SessionNextCompactionEnded"
           },
           {
@@ -24110,6 +23115,12 @@
           },
           {
             "$ref": "#/components/schemas/SessionNextRevertCommitted"
+          },
+          {
+            "$ref": "#/components/schemas/SessionNextInputCanceled"
+          },
+          {
+            "$ref": "#/components/schemas/SessionNextInputReordered"
           },
           {
             "$ref": "#/components/schemas/MessagePartDelta"
@@ -24179,18 +23190,6 @@
           },
           {
             "$ref": "#/components/schemas/PermissionReplied"
-          },
-          {
-            "$ref": "#/components/schemas/TuiPromptAppend"
-          },
-          {
-            "$ref": "#/components/schemas/TuiCommandExecute"
-          },
-          {
-            "$ref": "#/components/schemas/TuiToastShow"
-          },
-          {
-            "$ref": "#/components/schemas/TuiSessionSelect"
           },
           {
             "$ref": "#/components/schemas/McpToolsChanged"
@@ -24302,144 +23301,6 @@
           }
         },
         "required": ["_tag"],
-        "additionalProperties": false
-      },
-      "Event.tui.prompt.append": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["tui.prompt.append"]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "text": {
-                "type": "string"
-              }
-            },
-            "required": ["text"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["id", "type", "properties"],
-        "additionalProperties": false
-      },
-      "Event.tui.command.execute": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["tui.command.execute"]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "command": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "enum": [
-                      "session.list",
-                      "session.new",
-                      "session.share",
-                      "session.interrupt",
-                      "session.compact",
-                      "session.page.up",
-                      "session.page.down",
-                      "session.line.up",
-                      "session.line.down",
-                      "session.half.page.up",
-                      "session.half.page.down",
-                      "session.first",
-                      "session.last",
-                      "prompt.clear",
-                      "prompt.submit",
-                      "agent.cycle"
-                    ]
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              }
-            },
-            "required": ["command"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["id", "type", "properties"],
-        "additionalProperties": false
-      },
-      "Event.tui.toast.show": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["tui.toast.show"]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "title": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "variant": {
-                "type": "string",
-                "enum": ["info", "success", "warning", "error"]
-              },
-              "duration": {
-                "type": "integer",
-                "exclusiveMinimum": 0
-              }
-            },
-            "required": ["message", "variant"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["id", "type", "properties"],
-        "additionalProperties": false
-      },
-      "Event.tui.session.select": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["tui.session.select"]
-          },
-          "properties": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses",
-                "description": "Session ID to navigate to"
-              }
-            },
-            "required": ["sessionID"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["id", "type", "properties"],
         "additionalProperties": false
       },
       "CredentialValue": {
@@ -26772,6 +25633,60 @@
         "required": ["type", "id", "syncEvent"],
         "additionalProperties": false
       },
+      "SyncEventSessionNextCompactionDiscarded": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["sync"]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "syncEvent": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["session.next.compaction.discarded.1"]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^evt_"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "aggregateID": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "timestamp": {
+                    "type": "number"
+                  },
+                  "sessionID": {
+                    "type": "string",
+                    "pattern": "^ses"
+                  },
+                  "messageID": {
+                    "type": "string",
+                    "pattern": "^msg_"
+                  }
+                },
+                "required": ["timestamp", "sessionID", "messageID"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "id", "seq", "aggregateID", "data"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["type", "id", "syncEvent"],
+        "additionalProperties": false
+      },
       "SyncEventSessionNextCompactionEnded": {
         "type": "object",
         "properties": {
@@ -26983,6 +25898,125 @@
                   }
                 },
                 "required": ["timestamp", "sessionID", "messageID"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "id", "seq", "aggregateID", "data"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["type", "id", "syncEvent"],
+        "additionalProperties": false
+      },
+      "SyncEventSessionNextInputCanceled": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["sync"]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "syncEvent": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["session.next.input.canceled.1"]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^evt_"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "aggregateID": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "timestamp": {
+                    "type": "number"
+                  },
+                  "sessionID": {
+                    "type": "string",
+                    "pattern": "^ses"
+                  },
+                  "messageID": {
+                    "type": "string",
+                    "pattern": "^msg_"
+                  },
+                  "expectedRevision": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": ["timestamp", "sessionID", "messageID", "expectedRevision"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["type", "id", "seq", "aggregateID", "data"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["type", "id", "syncEvent"],
+        "additionalProperties": false
+      },
+      "SyncEventSessionNextInputReordered": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["sync"]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "syncEvent": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["session.next.input.reordered.1"]
+              },
+              "id": {
+                "type": "string",
+                "pattern": "^evt_"
+              },
+              "seq": {
+                "type": "number"
+              },
+              "aggregateID": {
+                "type": "string"
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "timestamp": {
+                    "type": "number"
+                  },
+                  "sessionID": {
+                    "type": "string",
+                    "pattern": "^ses"
+                  },
+                  "messageIDs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^msg_"
+                    }
+                  },
+                  "expectedRevision": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": ["timestamp", "sessionID", "messageIDs", "expectedRevision"],
                 "additionalProperties": false
               }
             },
@@ -27293,6 +26327,10 @@
           },
           "revert": {
             "$ref": "#/components/schemas/RevertState"
+          },
+          "queueRevision": {
+            "type": "integer",
+            "minimum": 0
           }
         },
         "required": ["id", "projectID", "cost", "tokens", "time", "title", "location"],
@@ -29494,6 +28532,61 @@
         "required": ["id", "type", "data"],
         "additionalProperties": false
       },
+      "SessionNextCompactionDiscarded": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.compaction.discarded"]
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              }
+            },
+            "required": ["timestamp", "sessionID", "messageID"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
       "SessionNextCompactionEnded": {
         "type": "object",
         "properties": {
@@ -29713,6 +28806,127 @@
               }
             },
             "required": ["timestamp", "sessionID", "messageID"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "SessionNextInputCanceled": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.input.canceled"]
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["timestamp", "sessionID", "messageID", "expectedRevision"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "SessionNextInputReordered": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.input.reordered"]
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageIDs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^msg_"
+                }
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["timestamp", "sessionID", "messageIDs", "expectedRevision"],
             "additionalProperties": false
           }
         },
@@ -32699,232 +31913,6 @@
         "required": ["id", "type", "data"],
         "additionalProperties": false
       },
-      "TuiPromptAppend": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["tui.prompt.append"]
-          },
-          "durable": {
-            "type": "object",
-            "properties": {
-              "aggregateID": {
-                "type": "string"
-              },
-              "seq": {
-                "type": "integer"
-              },
-              "version": {
-                "type": "integer"
-              }
-            },
-            "required": ["aggregateID", "seq", "version"],
-            "additionalProperties": false
-          },
-          "location": {
-            "$ref": "#/components/schemas/LocationRef"
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "text": {
-                "type": "string"
-              }
-            },
-            "required": ["text"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["id", "type", "data"],
-        "additionalProperties": false
-      },
-      "TuiCommandExecute": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["tui.command.execute"]
-          },
-          "durable": {
-            "type": "object",
-            "properties": {
-              "aggregateID": {
-                "type": "string"
-              },
-              "seq": {
-                "type": "integer"
-              },
-              "version": {
-                "type": "integer"
-              }
-            },
-            "required": ["aggregateID", "seq", "version"],
-            "additionalProperties": false
-          },
-          "location": {
-            "$ref": "#/components/schemas/LocationRef"
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "command": {
-                "anyOf": [
-                  {
-                    "type": "string",
-                    "enum": [
-                      "session.list",
-                      "session.new",
-                      "session.share",
-                      "session.interrupt",
-                      "session.compact",
-                      "session.page.up",
-                      "session.page.down",
-                      "session.line.up",
-                      "session.line.down",
-                      "session.half.page.up",
-                      "session.half.page.down",
-                      "session.first",
-                      "session.last",
-                      "prompt.clear",
-                      "prompt.submit",
-                      "agent.cycle"
-                    ]
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              }
-            },
-            "required": ["command"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["id", "type", "data"],
-        "additionalProperties": false
-      },
-      "TuiToastShow": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["tui.toast.show"]
-          },
-          "durable": {
-            "type": "object",
-            "properties": {
-              "aggregateID": {
-                "type": "string"
-              },
-              "seq": {
-                "type": "integer"
-              },
-              "version": {
-                "type": "integer"
-              }
-            },
-            "required": ["aggregateID", "seq", "version"],
-            "additionalProperties": false
-          },
-          "location": {
-            "$ref": "#/components/schemas/LocationRef"
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "title": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              },
-              "variant": {
-                "type": "string",
-                "enum": ["info", "success", "warning", "error"]
-              },
-              "duration": {
-                "type": "integer",
-                "exclusiveMinimum": 0
-              }
-            },
-            "required": ["message", "variant"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["id", "type", "data"],
-        "additionalProperties": false
-      },
-      "TuiSessionSelect": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^evt_"
-          },
-          "metadata": {
-            "type": "object"
-          },
-          "type": {
-            "type": "string",
-            "enum": ["tui.session.select"]
-          },
-          "durable": {
-            "type": "object",
-            "properties": {
-              "aggregateID": {
-                "type": "string"
-              },
-              "seq": {
-                "type": "integer"
-              },
-              "version": {
-                "type": "integer"
-              }
-            },
-            "required": ["aggregateID", "seq", "version"],
-            "additionalProperties": false
-          },
-          "location": {
-            "$ref": "#/components/schemas/LocationRef"
-          },
-          "data": {
-            "type": "object",
-            "properties": {
-              "sessionID": {
-                "type": "string",
-                "pattern": "^ses",
-                "description": "Session ID to navigate to"
-              }
-            },
-            "required": ["sessionID"],
-            "additionalProperties": false
-          }
-        },
-        "required": ["id", "type", "data"],
-        "additionalProperties": false
-      },
       "McpToolsChanged": {
         "type": "object",
         "properties": {
@@ -35263,6 +34251,39 @@
         "required": ["id", "type", "properties"],
         "additionalProperties": false
       },
+      "EventSessionNextCompactionDiscarded": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.compaction.discarded"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              }
+            },
+            "required": ["timestamp", "sessionID", "messageID"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
       "EventSessionNextCompactionEnded": {
         "type": "object",
         "properties": {
@@ -35394,6 +34415,83 @@
               }
             },
             "required": ["timestamp", "sessionID", "messageID"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventSessionNextInputCanceled": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.input.canceled"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageID": {
+                "type": "string",
+                "pattern": "^msg_"
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["timestamp", "sessionID", "messageID", "expectedRevision"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventSessionNextInputReordered": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["session.next.input.reordered"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "number"
+              },
+              "sessionID": {
+                "type": "string",
+                "pattern": "^ses"
+              },
+              "messageIDs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^msg_"
+                }
+              },
+              "expectedRevision": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": ["timestamp", "sessionID", "messageIDs", "expectedRevision"],
             "additionalProperties": false
           }
         },
@@ -36840,10 +35938,6 @@
     {
       "name": "sync",
       "description": "Experimental HttpApi sync routes."
-    },
-    {
-      "name": "tui",
-      "description": "Experimental HttpApi TUI routes."
     },
     {
       "name": "workspace",

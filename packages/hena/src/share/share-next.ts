@@ -207,7 +207,8 @@ const layer = Layer.effect(
       const headers: Record<string, string> = {}
       const active = yield* account.active()
       if (Option.isNone(active) || !active.value.active_org_id) {
-        const baseUrl = (yield* cfg.get()).enterprise?.url ?? "https://hena.dev"
+        const baseUrl = (yield* cfg.get()).enterprise?.url
+        if (!baseUrl) throw new Error("Sharing requires an enterprise URL or active console account")
         return { headers, api: legacyApi, baseUrl } satisfies Req
       }
 

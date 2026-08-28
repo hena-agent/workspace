@@ -62,9 +62,6 @@ export const Flag = {
   get HENA_EXPERIMENTAL_REFERENCES() {
     return enabledByExperimental("HENA_EXPERIMENTAL_REFERENCES")
   },
-  get HENA_TUI_CONFIG() {
-    return environment("HENA_TUI_CONFIG")
-  },
   get HENA_CONFIG_DIR() {
     return environment("HENA_CONFIG_DIR")
   },

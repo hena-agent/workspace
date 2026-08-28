@@ -200,7 +200,6 @@ export const DESKTOP_MENU: DesktopMenu[] = [
     id: "help",
     label: "Help",
     items: [
-      { type: "item", label: "Hena Documentation", href: "https://hena.dev/docs" },
       { type: "item", label: "Support Forum", href: "https://discord.com/invite/hena" },
       { type: "item", label: "Export Logs...", command: "logs.export" },
       { type: "separator" },

@@ -35,11 +35,6 @@ const xml = `<?xml version="1.0" encoding="UTF-8"?>
   <url type="homepage">https://hena.dev</url>
   <url type="vcs-browser">https://github.com/hena-agent/hena</url>
 
-  <screenshots>
-    <screenshot type="default">
-      <image>https://raw.githubusercontent.com/hena-agent/hena/develop/packages/web/src/assets/lander/screenshot.png</image>
-    </screenshot>
-  </screenshots>
 </component>
 `
 

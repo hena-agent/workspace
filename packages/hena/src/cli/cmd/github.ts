@@ -4,16 +4,6 @@ import { effectCmd } from "../effect-cmd"
 
 export { extractResponseText, formatPromptTooLargeError, parseGitHubRemote } from "./github.shared"
 
-export const GithubInstallCommand = effectCmd({
-  command: "install",
-  describe: "install the GitHub agent",
-  handler: () =>
-    Effect.gen(function* () {
-      const { githubInstall } = yield* Effect.promise(() => import("./github.handler"))
-      return yield* githubInstall()
-    }),
-})
-
 export const GithubRunCommand = effectCmd({
   command: "run",
   describe: "run the GitHub agent",
@@ -37,6 +27,6 @@ export const GithubRunCommand = effectCmd({
 export const GithubCommand = cmd({
   command: "github",
   describe: "manage GitHub agent",
-  builder: (yargs) => yargs.command(GithubInstallCommand).command(GithubRunCommand).demandCommand(),
+  builder: (yargs) => yargs.command(GithubRunCommand).demandCommand(),
   async handler() {},
 })

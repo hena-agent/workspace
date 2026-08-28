@@ -4,7 +4,7 @@ import { withNetworkOptions, resolveNetworkOptions } from "../network"
 import { Flag } from "@/flag"
 
 export const ServeCommand = effectCmd({
-  command: "serve",
+  command: ["serve", "$0"],
   builder: (yargs) => withNetworkOptions(yargs),
   describe: "starts a headless Hena server",
   // Server loads instances per-request via x-hena-directory header — no

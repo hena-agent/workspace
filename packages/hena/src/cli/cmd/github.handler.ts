@@ -1,8 +1,4 @@
 import path from "path"
-import { exec } from "child_process"
-import { Filesystem } from "@/util/filesystem"
-import * as prompts from "@clack/prompts"
-import { map, pipe, sortBy, values } from "remeda"
 import { Octokit } from "@octokit/rest"
 import { graphql } from "@octokit/graphql"
 import * as core from "@actions/core"
@@ -17,7 +13,6 @@ import type {
   PullRequestEvent,
 } from "@octokit/webhooks-types"
 import { UI } from "../ui"
-import { ModelsDev } from "@hena/core/models-dev"
 import { InstanceRef } from "@/effect/instance-ref"
 import { SessionShare } from "@/share/session"
 import { Session } from "@/session/session"
@@ -31,7 +26,6 @@ import { SessionPrompt } from "@/session/prompt"
 import { Git } from "@/git"
 import { setTimeout as sleep } from "node:timers/promises"
 import { Process } from "@/util/process"
-import { parseGitHubRemote } from "@/util/repository"
 import { Effect } from "effect"
 import { extractResponseText, formatPromptTooLargeError } from "./github.shared"
 
@@ -140,8 +134,6 @@ type IssueQueryResponse = {
 
 const AGENT_USERNAME = "hena[bot]"
 const AGENT_REACTION = "eyes"
-const WORKFLOW_FILE = ".github/workflows/hena.yml"
-
 // Event categories for routing
 // USER_EVENTS: triggered by user actions, have actor/issueId, support reactions/comments
 // REPO_EVENTS: triggered by automation, no actor/issueId, output to logs/PR only
@@ -151,225 +143,6 @@ const SUPPORTED_EVENTS = [...USER_EVENTS, ...REPO_EVENTS] as const
 
 type UserEvent = (typeof USER_EVENTS)[number]
 type RepoEvent = (typeof REPO_EVENTS)[number]
-
-export const githubInstall = Effect.fn("Cli.github.install")(function* () {
-  const maybeCtx = yield* InstanceRef
-  if (!maybeCtx) return yield* Effect.die("InstanceRef not provided")
-  const ctx = maybeCtx
-  const modelsDev = yield* ModelsDev.Service
-  const gitSvc = yield* Git.Service
-  yield* Effect.promise(async () => {
-    {
-      UI.empty()
-      prompts.intro("Install GitHub agent")
-      const app = await getAppInfo()
-      await installGitHubApp()
-
-      const providers = await Effect.runPromise(modelsDev.get()).then((p) => {
-        // TODO: add guide for copilot, for now just hide it
-        delete p["github-copilot"]
-        return p
-      })
-
-      const provider = await promptProvider()
-      const model = await promptModel()
-      //const key = await promptKey()
-
-      await addWorkflowFiles()
-      printNextSteps()
-
-      function printNextSteps() {
-        let step2
-        if (provider === "amazon-bedrock") {
-          step2 =
-            "Configure OIDC in AWS - https://docs.github.com/en/actions/how-tos/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services"
-        } else {
-          step2 = [
-            `    2. Add the following secrets in org or repo (${app.owner}/${app.repo}) settings`,
-            "",
-            ...providers[provider].env.map((e) => `       - ${e}`),
-          ].join("\n")
-        }
-
-        prompts.outro(
-          [
-            "Next steps:",
-            "",
-            `    1. Commit the \`${WORKFLOW_FILE}\` file and push`,
-            step2,
-            "",
-            "    3. Go to a GitHub issue and comment `/hena summarize` to see the agent in action",
-            "",
-            "   Learn more about the GitHub agent - https://hena.dev/docs/github/#usage-examples",
-          ].join("\n"),
-        )
-      }
-
-      async function getAppInfo() {
-        const project = ctx.project
-        if (project.vcs !== "git") {
-          prompts.log.error(`Could not find git repository. Please run this command from a git repository.`)
-          throw new UI.CancelledError()
-        }
-
-        // Get repo info
-        const info = await Effect.runPromise(gitSvc.run(["remote", "get-url", "origin"], { cwd: ctx.worktree })).then(
-          (x) => x.text().trim(),
-        )
-        const parsed = parseGitHubRemote(info)
-        if (!parsed) {
-          prompts.log.error(`Could not find git repository. Please run this command from a git repository.`)
-          throw new UI.CancelledError()
-        }
-        return { owner: parsed.owner, repo: parsed.repo, root: ctx.worktree }
-      }
-
-      async function promptProvider() {
-        const priority: Record<string, number> = {
-          "hena": 0,
-          anthropic: 1,
-          openai: 2,
-          google: 3,
-        }
-        let provider = await prompts.select({
-          message: "Select provider",
-          maxItems: 8,
-          options: pipe(
-            providers,
-            values(),
-            sortBy(
-              (x) => priority[x.id] ?? 99,
-              (x) => x.name ?? x.id,
-            ),
-            map((x) => ({
-              label: x.name,
-              value: x.id,
-              hint: priority[x.id] === 0 ? "recommended" : undefined,
-            })),
-          ),
-        })
-
-        if (prompts.isCancel(provider)) throw new UI.CancelledError()
-
-        return provider
-      }
-
-      async function promptModel() {
-        const providerData = providers[provider]!
-
-        const model = await prompts.select({
-          message: "Select model",
-          maxItems: 8,
-          options: pipe(
-            providerData.models,
-            values(),
-            sortBy((x) => x.name ?? x.id),
-            map((x) => ({
-              label: x.name ?? x.id,
-              value: x.id,
-            })),
-          ),
-        })
-
-        if (prompts.isCancel(model)) throw new UI.CancelledError()
-        return model
-      }
-
-      async function installGitHubApp() {
-        const s = prompts.spinner()
-        s.start("Installing GitHub app")
-
-        // Get installation
-        const installation = await getInstallation()
-        if (installation) return s.stop("GitHub app already installed")
-
-        // Open browser
-        const url = "https://github.com/apps/hena"
-        const command =
-          process.platform === "darwin"
-            ? `open "${url}"`
-            : process.platform === "win32"
-              ? `start "" "${url}"`
-              : `xdg-open "${url}"`
-
-        exec(command, (error) => {
-          if (error) {
-            prompts.log.warn(`Could not open browser. Please visit: ${url}`)
-          }
-        })
-
-        // Wait for installation
-        s.message("Waiting for GitHub app to be installed")
-        const MAX_RETRIES = 120
-        let retries = 0
-        do {
-          const installation = await getInstallation()
-          if (installation) break
-
-          if (retries > MAX_RETRIES) {
-            s.stop(
-              `Failed to detect GitHub app installation. Make sure to install the app for the \`${app.owner}/${app.repo}\` repository.`,
-            )
-            throw new UI.CancelledError()
-          }
-
-          retries++
-          await sleep(1000)
-        } while (true) // oxlint-disable-line no-constant-condition
-
-        s.stop("Installed GitHub app")
-
-        async function getInstallation() {
-          return await fetch(`https://api.hena.dev/get_github_app_installation?owner=${app.owner}&repo=${app.repo}`)
-            .then((res) => res.json())
-            .then((data) => data.installation)
-        }
-      }
-
-      async function addWorkflowFiles() {
-        const envStr =
-          provider === "amazon-bedrock"
-            ? ""
-            : `\n        env:${providers[provider].env.map((e) => `\n          ${e}: \${{ secrets.${e} }}`).join("")}`
-
-        await Filesystem.write(
-          path.join(app.root, WORKFLOW_FILE),
-          `name: hena
-
-on:
-  issue_comment:
-    types: [created]
-  pull_request_review_comment:
-    types: [created]
-
-jobs:
-  hena:
-    if: |
-      contains(github.event.comment.body, ' /hena') ||
-      startsWith(github.event.comment.body, '/hena')
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-      pull-requests: read
-      issues: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - name: Run Hena
-        uses: hena-agent/hena/github@latest${envStr}
-        with:
-          model: ${provider}/${model}`,
-        )
-
-        prompts.log.success(`Added workflow file: "${WORKFLOW_FILE}"`)
-      }
-    }
-  })
-})
 
 export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: string; token?: string }) {
   const ctx = yield* InstanceRef
@@ -404,7 +177,8 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
     const variant = process.env["VARIANT"] || undefined
     const runId = normalizeRunId()
     const share = normalizeShare()
-    const oidcBaseUrl = normalizeOidcBaseUrl()
+    const useGithubToken = normalizeUseGithubToken()
+    const oidcBaseUrl = normalizeOidcBaseUrl(useGithubToken)
     const { owner, repo } = context.repo
     // For repo events (schedule, workflow_dispatch), payload has no issue/comment data
     const payload = context.payload as
@@ -429,7 +203,8 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
     let appToken: string
     let octoRest: Octokit
     let octoGraph: typeof graphql
-    let gitConfig: string
+    let gitConfig: string | undefined
+    let gitConfigured = false
     let session: { id: SessionID; title: string; version: string }
     let shareId: string | undefined
     let exitCode = 0
@@ -437,7 +212,6 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
     const triggerCommentId = isCommentEvent
       ? (payload as IssueCommentEvent | PullRequestReviewCommentEvent).comment.id
       : undefined
-    const useGithubToken = normalizeUseGithubToken()
     const commentType = isCommentEvent
       ? context.eventName === "pull_request_review_comment"
         ? "pr_review"
@@ -483,9 +257,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       })
 
       const { userPrompt, promptFiles } = await getUserPrompt()
-      if (!useGithubToken) {
-        await configureGit(appToken)
-      }
+      await configureGit(appToken)
       // Skip permission check and reactions for repo events (no actor to check, no issue to react to)
       if (isUserEvent) {
         await assertPermissions()
@@ -643,8 +415,8 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       // Also output the clean error message for the action to capture
       //core.setOutput("prepare_error", e.message);
     } finally {
+      if (gitConfigured) await restoreGitConfig()
       if (!useGithubToken) {
-        await restoreGitConfig()
         await revokeAppToken()
       }
     }
@@ -677,15 +449,16 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
 
     function normalizeUseGithubToken() {
       const value = process.env["USE_GITHUB_TOKEN"]
-      if (!value) return false
+      if (!value) return true
       if (value === "true") return true
       if (value === "false") return false
       throw new Error(`Invalid use_github_token value: ${value}. Must be a boolean.`)
     }
 
-    function normalizeOidcBaseUrl(): string {
+    function normalizeOidcBaseUrl(useGithubToken: boolean): string {
+      if (useGithubToken) return ""
       const value = process.env["OIDC_BASE_URL"]
-      if (!value) return "https://api.hena.dev"
+      if (!value) throw new Error(`Environment variable "OIDC_BASE_URL" is required when USE_GITHUB_TOKEN=false`)
       return value.replace(/\/+$/, "")
     }
 
@@ -1019,8 +792,9 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       const ret = await gitStatus(["config", "--local", "--get", config])
       if (ret.exitCode === 0) {
         gitConfig = ret.stdout.toString().trim()
-        await gitRun(["config", "--local", "--unset-all", config])
       }
+      gitConfigured = true
+      await gitStatus(["config", "--local", "--unset-all", config])
 
       const newCredentials = Buffer.from(`x-access-token:${appToken}`, "utf8").toString("base64")
 
@@ -1030,8 +804,9 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
     }
 
     async function restoreGitConfig() {
-      if (gitConfig === undefined) return
       const config = "http.https://github.com/.extraheader"
+      await gitStatus(["config", "--local", "--unset-all", config])
+      if (gitConfig === undefined) return
       await gitRun(["config", "--local", config, gitConfig])
     }
 

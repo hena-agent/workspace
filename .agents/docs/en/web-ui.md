@@ -148,13 +148,12 @@ V2 UI code is not a single package, and deletion order is a gate, not an afterth
 | Package               | Depends on today               | Disposition at cutover                                                                     |
 | --------------------- | ------------------------------ | ------------------------------------------------------------------------------------------ |
 | `packages/app`        | `@hena/session-ui`, `@hena/ui` | Deleted                                                                                    |
-| `packages/session-ui` | `@hena/ui`                     | Deleted only after `enterprise` and `storybook` no longer import it                        |
-| `packages/enterprise` | `@hena/session-ui`, `@hena/ui` | Share viewer (`src/routes/share/[shareID].tsx`) migrates off `@hena/session-ui` first      |
+| `packages/session-ui` | `@hena/ui`                     | Deleted only after `storybook` no longer imports it                                        |
 | `packages/storybook`  | `@hena/session-ui`, `@hena/ui` | Session-UI stories retarget V3 components or are removed with the package they documented  |
 | `packages/desktop`    | `@hena/app`                    | Switches to the built V3 renderer artifact (§10.2) before `packages/app` is deleted        |
 | `packages/ui`         | -                              | Retained for remaining SolidJS consumers; V3 does not use it or its `--v2-*` tokens (§9.1) |
 
-The share viewer is the only V2 surface V3 does not replace; §8.11 defines that split. A cutover change that deletes `packages/session-ui` while `packages/enterprise` still imports it does not build, so the disposition table is part of the §12.4 gate.
+The public share viewer was retired before this cutover. Section §8.11 records the remaining authoring boundary, and the disposition table is part of the §12.4 gate.
 
 Rollback means redeploying or reinstalling the complete previous application artifact, not merely changing a renderer asset. Before rollback, V3 must drain pending work or export it as human-readable drafts. V3 storage namespaces are disjoint from every namespace a V2 build reads or writes, so a downgraded application cannot observe or delete V3 outbox records; this is an obligation on V3's namespace choice, not a requirement placed on already-shipped code. Browser rollback includes the service-worker and cache version.
 
@@ -911,11 +910,7 @@ A PTY belongs to a Session and has explicit attach, detach, reconnect, terminate
 
 ### 8.11 Share
 
-Share is split between two products, and V3 owns only one half.
-
-V3 owns the **authoring** side: creating a share link for a Session, seeing that a Session is shared, copying the link, and revoking it. All three are online-only and never enter the outbox, because a share link is a security-relevant publication whose effect cannot be honestly queued. Creation shows exactly what becomes publicly readable before it happens, and revocation reports the authoritative result rather than an optimistic one. Shared state is a field on the Session row, so the project and Session lists can show it without an extra request.
-
-V3 does not own the **viewer**. The public share page lives in `packages/enterprise` and renders with `@hena/session-ui` today. Per §3.2 that viewer must migrate off `@hena/session-ui` before the package is deleted; that migration is not part of the V3 application, and V3 must not be assumed to replace it. If the viewer is retired instead of migrated, share authoring is removed from V3 in the same change rather than left pointing at a dead route.
+The public share viewer was retired with `packages/enterprise`. V3 does not restore share authoring until a maintained viewer and publication service exist; it must not expose controls that point at a dead route.
 
 ---
 
@@ -1240,7 +1235,7 @@ Ship terminal lifecycle, PTY ticket transport, desktop bridge disposition, nativ
 
 There is no preview-channel feedback window, because §3.2 removed the preview channel. That gate line is deleted and not replaced; the remaining gates are the only thing between V3 and every user, and they are treated accordingly.
 
-Only then does V3 replace V2 — taking `app.hena.dev` and the embed slot in one change per §3.2 — and delete `packages/app`, plus `packages/session-ui` once §3.2's dispositions for `packages/enterprise` and `packages/storybook` have landed.
+Only then does V3 replace V2 — taking `app.hena.dev` and the embed slot in one change per §3.2 — and delete `packages/app`, plus `packages/session-ui` once §3.2's `packages/storybook` disposition has landed.
 
 ---
 
@@ -1270,7 +1265,7 @@ Only then does V3 replace V2 — taking `app.hena.dev` and the embed slot in one
 | No message-content search        | Historical semantic/content search remains unavailable and is not implied by UI copy              |
 | Origin as profile boundary       | The same user can hold several profiles; the UI names the origin instead of implying data loss    |
 | `style-src-attr 'unsafe-inline'` | Required by Radix/shadcn inline style attributes; bounded by `style-src 'self'` and Trusted Types |
-| Share viewer left in V2          | V3 authors and revokes links but does not render them; enterprise migration is a cutover gate     |
+| No share viewer                  | Sharing remains unavailable until a maintained viewer and publication service exist              |
 | Attachment inlining              | Browser-picked files are bounded data URIs until an upload endpoint exists (§14 item 9)           |
 
 ---

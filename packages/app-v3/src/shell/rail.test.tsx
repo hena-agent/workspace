@@ -34,6 +34,7 @@ describe("Rail", () => {
     expect(project).not.toHaveClass("cursor-grab", "cursor-grabbing")
     expect(project.querySelector(".bg-\\[var\\(--legacy-warning\\)\\]")).toBeInTheDocument()
     expect(project.querySelector(".animate-spin")).toBeInTheDocument()
+    expect(project.parentElement?.querySelector("[data-drag-handle]")).toHaveClass("touch-none")
   })
 
   test("keeps duplicate project labels distinct within and across connections", async () => {

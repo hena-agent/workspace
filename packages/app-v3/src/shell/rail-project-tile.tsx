@@ -58,7 +58,6 @@ export function RailProjectTile({
         <button
           type="button"
           aria-pressed={selected}
-          aria-grabbed={grabbed}
           aria-describedby={descriptionId}
           aria-roledescription="sortable project"
           aria-label={accessibleLabel}
@@ -67,6 +66,7 @@ export function RailProjectTile({
           className={cn(
             "relative flex size-10 min-h-[var(--hit-area)] min-w-[var(--hit-area)] shrink-0 items-center justify-center overflow-hidden rounded-[8px] p-1 transition-colors",
             dragging ? "cursor-grabbing" : "cursor-default",
+            grabbed && "ring-2 ring-[var(--legacy-icon-strong)]",
             selected
               ? "border-2 border-[var(--legacy-icon-strong)]"
               : "border border-transparent hover:border-[var(--legacy-border-weak)] hover:bg-[var(--legacy-surface-hover)]",

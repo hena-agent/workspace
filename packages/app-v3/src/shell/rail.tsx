@@ -1,5 +1,6 @@
-import { Reorder } from "motion/react"
+import { MotionConfig, Reorder, useDragControls } from "motion/react"
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
+import { GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -51,7 +52,9 @@ export function Rail({
     if (keyboardDrag.key !== key) return
     if (event.key === "Escape") {
       event.preventDefault()
-      reorder(keyboardDrag.initial)
+      const initial = keyboardDrag.initial.filter((initialKey) => projectsByKey.has(initialKey))
+      const initialKeys = new Set(initial)
+      reorder([...initial, ...projectKeys.filter((projectKey) => !initialKeys.has(projectKey))])
       setKeyboardDrag(null)
       setAnnouncement(`${label} movement canceled.`)
       return
@@ -90,65 +93,64 @@ export function Rail({
         <span id={instructionsId} className="sr-only">
           Press Space to pick up. Use Arrow keys, Home, or End to move. Press Space to drop or Escape to cancel.
         </span>
-        <Reorder.Group
-          as="div"
-          axis="y"
-          values={projectKeys}
-          onReorder={reorder}
-          className="flex w-full flex-col items-center gap-3"
-        >
-          {projects.map((item) => {
-            const key = projectKey(item.project)
-            const duplicateName = projects.some(
-              (other) => other.project !== item.project && other.project.name === item.project.name,
-            )
-            return (
-              <Reorder.Item
-                as="div"
-                key={key}
-                value={key}
-                className="relative shrink-0 touch-pan-x select-none"
-                whileDrag={{ scale: 1.08 }}
-                onDragStart={() => {
-                  draggedProject.current = key
-                  setPointerDrag(key)
-                  setAnnouncement(`${item.project.name} picked up.`)
-                }}
-                onDragEnd={() => {
-                  setPointerDrag(null)
-                  setAnnouncement(
-                    `${item.project.name} dropped. Position ${projectKeys.indexOf(key) + 1} of ${projectKeys.length}.`,
-                  )
-                  window.setTimeout(() => {
-                    draggedProject.current = null
-                  })
-                }}
-              >
-                <RailProjectTile
-                  project={item.project}
-                  label={
-                    duplicateName
-                      ? `${item.project.name} (${item.project.path}, ${item.project.connectionId})`
-                      : item.project.name
-                  }
-                  selected={
-                    item.project.id === selectedProject?.id &&
-                    item.project.connectionId === selectedProject.connectionId
-                  }
-                  notification={item.notification}
-                  grabbed={keyboardDrag?.key === key}
-                  dragging={pointerDrag === key}
-                  descriptionId={instructionsId}
-                  onSelect={() => {
-                    if (draggedProject.current === key) return
-                    onSelectProject(item.project)
+        <MotionConfig reducedMotion="user">
+          <Reorder.Group
+            as="div"
+            axis="y"
+            values={projectKeys}
+            onReorder={reorder}
+            className="flex w-full flex-col items-center gap-3"
+          >
+            {projects.map((item) => {
+              const key = projectKey(item.project)
+              const duplicateName = projects.some(
+                (other) => other.project !== item.project && other.project.name === item.project.name,
+              )
+              return (
+                <SortableProject
+                  key={key}
+                  value={key}
+                  onDragStart={() => {
+                    draggedProject.current = key
+                    setPointerDrag(key)
+                    setAnnouncement(`${item.project.name} picked up. Position ${projectKeys.indexOf(key) + 1} of ${projectKeys.length}.`)
                   }}
-                  onKeyDown={(event) => handleKeyDown(event, key, item.project.name)}
-                />
-              </Reorder.Item>
-            )
-          })}
-        </Reorder.Group>
+                  onDragEnd={() => {
+                    setPointerDrag(null)
+                    setAnnouncement(
+                      `${item.project.name} dropped. Position ${projectKeys.indexOf(key) + 1} of ${projectKeys.length}.`,
+                    )
+                    window.setTimeout(() => {
+                      draggedProject.current = null
+                    })
+                  }}
+                >
+                  <RailProjectTile
+                    project={item.project}
+                    label={
+                      duplicateName
+                        ? `${item.project.name} (${item.project.path}, ${item.project.connectionId})`
+                        : item.project.name
+                    }
+                    selected={
+                      item.project.id === selectedProject?.id &&
+                      item.project.connectionId === selectedProject.connectionId
+                    }
+                    notification={item.notification}
+                    grabbed={keyboardDrag?.key === key}
+                    dragging={pointerDrag === key}
+                    descriptionId={instructionsId}
+                    onSelect={() => {
+                      if (draggedProject.current === key) return
+                      onSelectProject(item.project)
+                    }}
+                    onKeyDown={(event) => handleKeyDown(event, key, item.project.name)}
+                  />
+                </SortableProject>
+              )
+            })}
+          </Reorder.Group>
+        </MotionConfig>
         <RailAction label="Open project" onClick={onAddProject}>
           <LegacyIcon name="plus" />
         </RailAction>
@@ -167,6 +169,32 @@ export function Rail({
 
 function projectKey(project: Project) {
   return `${project.connectionId}:${project.id}`
+}
+
+function SortableProject({ value, onDragStart, onDragEnd, children }: { value: string; onDragStart: () => void; onDragEnd: () => void; children: ReactNode }) {
+  const controls = useDragControls()
+  return (
+    <Reorder.Item
+      as="div"
+      value={value}
+      dragControls={controls}
+      dragListener={false}
+      className="group/sortable relative shrink-0 select-none"
+      whileDrag={{ scale: 1.08 }}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
+      {children}
+      <div
+        aria-hidden
+        data-drag-handle
+        className="absolute top-1/2 -right-1 z-10 flex size-4 -translate-y-1/2 touch-none cursor-grab items-center justify-center rounded bg-[var(--legacy-background-base)] text-[var(--legacy-icon-base)] opacity-60 md:opacity-0 md:group-hover/sortable:opacity-100"
+        onPointerDown={(event) => controls.start(event)}
+      >
+        <GripVertical className="size-3" />
+      </div>
+    </Reorder.Item>
+  )
 }
 
 function RailAction({ label, onClick, children }: { label: string; onClick: () => void; children: ReactNode }) {

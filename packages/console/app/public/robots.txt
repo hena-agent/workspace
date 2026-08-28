@@ -1,9 +1,0 @@
-User-agent: *
-Allow: /
-
-# Disallow shared content pages
-Disallow: /s/
-Disallow: /share/
-
-Sitemap: https://hena.dev/sitemap.xml
-Sitemap: https://hena.dev/data/sitemap.xml

@@ -1,12 +1,3 @@
-<p align="center">
-  <a href="https://hena.dev">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="Hena logo">
-    </picture>
-  </a>
-</p>
 <p align="center">Den open source AI-kodeagent.</p>
 <p align="center">
   <a href="https://hena.dev/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>

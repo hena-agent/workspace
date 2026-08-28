@@ -13,7 +13,7 @@ export function usePanelWidth(initialWidth: number) {
     let snapshot = { max, width: Math.min(initialWidth, max) }
     const serverSnapshot = { max: PANEL_MIN, width: PANEL_MIN }
 
-    function publish(width: number, nextMax = snapshot.max) {
+    function publish(width: number, nextMax: number) {
       if (snapshot.width === width && snapshot.max === nextMax) return
       snapshot = { max: nextMax, width }
       listeners.forEach((listener) => listener())
@@ -29,7 +29,7 @@ export function usePanelWidth(initialWidth: number) {
       getServerSnapshot: () => serverSnapshot,
       setWidth(width: number | ((current: number) => number)) {
         const nextWidth = typeof width === "function" ? width(snapshot.width) : width
-        publish(Math.max(PANEL_MIN, Math.min(snapshot.max, nextWidth)))
+        publish(Math.max(PANEL_MIN, Math.min(snapshot.max, nextWidth)), snapshot.max)
       },
       subscribe(listener: () => void) {
         listeners.add(listener)

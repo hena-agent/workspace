@@ -124,6 +124,47 @@ describe("ModelsDevPlugin", () => {
     }),
   )
 
+  it.effect("exposes free opencode models without credentials", () =>
+    Effect.gen(function* () {
+      const integrations = yield* Integration.Service
+      const catalog = yield* Catalog.Service
+      const models = ModelsDev.Service.of({
+        get: () =>
+          Effect.succeed({
+            opencode: {
+              id: "opencode",
+              name: "OpenCode Zen",
+              env: ["OPENCODE_API_KEY"],
+              npm: "@ai-sdk/openai",
+              api: "https://opencode.ai/zen/v1",
+              models: {
+                free: model({ id: "free", cost: { input: 0, output: 0 } }),
+                paid: model({ id: "paid", cost: { input: 1, output: 1 } }),
+              },
+            },
+          } satisfies Record<string, ModelsDev.Provider>),
+        refresh: () => Effect.void,
+      })
+
+      yield* ModelsDevPlugin.effect(
+        host({
+          catalog: catalogHost(catalog),
+          integration: integrationHost(integrations),
+        }),
+      ).pipe(Effect.provideService(ModelsDev.Service, models))
+
+      const providerID = ProviderV2.ID.make("opencode")
+      expect((yield* catalog.provider.get(providerID))?.request.body.apiKey).toBe("public")
+      expect((yield* catalog.model.available()).map((item) => item.id)).toEqual([ModelV2.ID.make("free")])
+
+      yield* integrations.connection.key({ integrationID: Integration.ID.make("opencode"), key: "secret" })
+      expect((yield* catalog.model.available()).map((item) => item.id)).toEqual([
+        ModelV2.ID.make("free"),
+        ModelV2.ID.make("paid"),
+      ])
+    }),
+  )
+
   it.effect("registers key methods for providers with environment variables", () =>
     Effect.acquireUseRelease(
       Effect.sync(() => {
@@ -168,3 +209,17 @@ describe("ModelsDevPlugin", () => {
     ),
   )
 })
+
+function model(input: { id: string; cost: { input: number; output: number } }): ModelsDev.Model {
+  return {
+    ...input,
+    name: input.id,
+    family: "test",
+    release_date: "2026-01-01",
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    limit: { context: 128_000, output: 32_000 },
+  }
+}

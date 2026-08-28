@@ -146,6 +146,7 @@ export const ModelsDevPlugin = define({
           const providerID = ProviderV2.ID.make(item.id)
           catalog.provider.update(providerID, (provider) => {
             provider.name = item.name
+            if (providerID === ProviderV2.ID.make("opencode")) provider.request.body.apiKey = "public"
             provider.api = item.npm
               ? {
                   type: "aisdk",

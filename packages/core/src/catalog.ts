@@ -208,8 +208,22 @@ const layer = Layer.effect(
         }),
 
         available: Effect.fn("CatalogV2.model.available")(function* () {
-          const providers = new Set((yield* result.provider.available()).map((provider) => provider.id))
-          return (yield* result.model.all()).filter((model) => providers.has(model.providerID) && model.enabled)
+          const providers = new Map((yield* result.provider.available()).map((provider) => [provider.id, provider]))
+          const connected = new Set(
+            (yield* integrations.list())
+              .filter((integration) => integration.connections.length > 0)
+              .map((integration) => integration.id),
+          )
+          return (yield* result.model.all()).filter((model) => {
+            const provider = providers.get(model.providerID)
+            if (!provider || !model.enabled) return false
+            if (
+              provider.request.body.apiKey !== "public" ||
+              model.cost.every((cost) => cost.input === 0 && cost.output === 0)
+            )
+              return true
+            return connected.has(provider.integrationID ?? Integration.ID.make(provider.id))
+          })
         }),
 
         default: Effect.fn("CatalogV2.model.default")(function* () {

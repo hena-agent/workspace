@@ -100,7 +100,6 @@ function ComposerForm({
   const text = controller.textInput.value
   const mention = text.slice(0, selection.start).match(/(?:^|\s)@([^\s]*)$/)?.[1]
   const attachmentCount = attachments.files.length + mentionedFiles.length
-  const savedAttachmentCount = useRef(attachmentCount)
   const stoppingControl = Boolean(working && onStop)
 
   useEffect(() => {
@@ -116,15 +115,8 @@ function ComposerForm({
   }, [mention, onFindFiles])
 
   function updateDraft(nextText = text, nextSelection = selection, nextAttachmentCount = attachmentCount) {
-    savedAttachmentCount.current = nextAttachmentCount
     onDraftChange?.({ text: nextText, selection: nextSelection, droppedAttachments: nextAttachmentCount })
   }
-
-  useEffect(() => {
-    if (savedAttachmentCount.current === attachmentCount) return
-    savedAttachmentCount.current = attachmentCount
-    onDraftChange?.({ text, selection, droppedAttachments: attachmentCount })
-  }, [attachmentCount, onDraftChange, selection, text])
 
   useEffect(() => {
     const ids = new Set(attachments.files.map((file) => file.id))
@@ -155,6 +147,7 @@ function ComposerForm({
     pendingAttachmentBytes.current.push(...incoming.map((file) => file.size))
     totalAttachmentBytes.current += bytes
     attachments.add(incoming)
+    updateDraft(text, selection, attachmentCount + incoming.length)
     setError("")
   }
 
@@ -162,6 +155,7 @@ function ComposerForm({
     totalAttachmentBytes.current -= attachmentBytes.current.get(id) ?? 0
     attachmentBytes.current.delete(id)
     attachments.remove(id)
+    updateDraft(text, selection, attachmentCount - 1)
   }
 
   const addInputAttachments = useEffectEvent(addAttachments)
@@ -189,6 +183,12 @@ function ComposerForm({
     setMentionedFiles(nextFiles)
     updateDraft(next, nextSelection, attachments.files.length + nextFiles.length)
     setFileResults([])
+  }
+
+  function removeMention(uri: string) {
+    const nextFiles = mentionedFiles.filter((file) => file.uri !== uri)
+    setMentionedFiles(nextFiles)
+    updateDraft(text, selection, attachments.files.length + nextFiles.length)
   }
 
   async function submit(message: { text: string; files: FileUIPart[] }) {
@@ -252,7 +252,7 @@ function ComposerForm({
                 <Attachment
                   key={file.uri}
                   data={{ id: file.uri, type: "file", filename: file.name, mediaType: "application/octet-stream", url: file.uri }}
-                  onRemove={() => setMentionedFiles((current) => current.filter((item) => item.uri !== file.uri))}
+                  onRemove={() => removeMention(file.uri)}
                 >
                   <AttachmentPreview />
                   <AttachmentInfo />

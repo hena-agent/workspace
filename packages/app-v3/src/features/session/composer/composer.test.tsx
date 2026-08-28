@@ -210,7 +210,7 @@ describe("Composer", () => {
     expect(stopped).toBe(1)
   })
 
-  test("persists the attachment count when a file is added", async () => {
+  test("persists the attachment count when a file is added or removed", async () => {
     const user = userEvent.setup()
     mockMatchMedia(true)
     const drafts: { droppedAttachments: number }[] = []
@@ -231,6 +231,9 @@ describe("Composer", () => {
     await user.upload(screen.getByLabelText("Upload files"), new File(["notes"], "notes.txt", { type: "text/plain" }))
 
     expect(drafts.at(-1)?.droppedAttachments).toBe(1)
+
+    await user.click(screen.getByRole("button", { name: "Remove notes.txt" }))
+    expect(drafts.at(-1)?.droppedAttachments).toBe(0)
   })
 
   test("does not leak queue delivery from an empty submission", async () => {

@@ -87,6 +87,13 @@ export function createConnectionStore(options: StoreOptions = {}) {
       if (key.startsWith(prefix)) clearDelta(key)
     })
   }
+  const clearPartDeltas = (sessionId: string, retained = new Set<string>()) => {
+    const prefix = `${sessionId}\u0000`
+    Array.from(deltas.keys()).forEach((key) => {
+      if (!key.startsWith(prefix) || identityFromDeltaKey(key).partKind === "compaction" || retained.has(key)) return
+      clearDelta(key)
+    })
+  }
   const finalize = (collection: string, scopeKey: string, rowKey: string | readonly string[], row: Row | null) => {
     if (collection === "parts" && Array.isArray(rowKey) && rowKey.length === 3) {
       const partKind = rowKey[1] === "tool" ? "tool-input" : rowKey[1]
@@ -152,6 +159,12 @@ export function createConnectionStore(options: StoreOptions = {}) {
           if (key.startsWith(prefix) && !messageIds.has(identityFromDeltaKey(key).messageId)) clearDelta(key)
         })
       }
+      if (replace && collection === "parts") {
+        clearPartDeltas(scopeKey, new Set(rows.flatMap((item) => {
+          const key = partDeltaKey(scopeKey, item.key)
+          return key ? [key] : []
+        })))
+      }
       if (!scope.ready) {
         scope.ready = true
         scope.control.markReady()
@@ -174,6 +187,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
           scope.authoritative.clear()
           for (const key of Array.from(scope.collection.keys())) scope.control.write({ type: "delete", key })
           if (change.collection === "messages") clearDeltasForSession(change.scopeKey)
+          if (change.collection === "parts") clearPartDeltas(change.scopeKey)
           resetScopes.set(scopeIdentity(change.collection, change.scopeKey), scope.ref)
           return
         }
@@ -389,6 +403,13 @@ function scopeIdentity(collection: string, scopeKey: string) {
 
 function deltaKey(identity: DeltaIdentity) {
   return `${identity.sessionId}\u0000${identity.messageId}\u0000${identity.partKind}\u0000${identity.partId}`
+}
+
+function partDeltaKey(sessionId: string, rowKey: string | readonly string[]) {
+  if (!Array.isArray(rowKey) || rowKey.length !== 3) return
+  const partKind = rowKey[1] === "tool" ? "tool-input" : rowKey[1]
+  if (partKind !== "text" && partKind !== "reasoning" && partKind !== "tool-input") return
+  return deltaKey({ sessionId, messageId: rowKey[0]!, partKind, partId: rowKey[2]! })
 }
 
 function identityFromDeltaKey(key: string): DeltaIdentity {

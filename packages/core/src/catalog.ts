@@ -217,9 +217,8 @@ const layer = Layer.effect(
           return (yield* result.model.all()).filter((model) => {
             const provider = providers.get(model.providerID)
             if (!provider || !model.enabled) return false
-            if (provider.id !== ProviderV2.ID.make("opencode")) return true
             if (model.request.body.apiKey !== ProviderV2.PUBLIC_API_KEY) return true
-            if (model.cost.every((cost) => cost.input === 0 && cost.output === 0 && cost.cache.read === 0 && cost.cache.write === 0)) return true
+            if (model.cost.length > 0 && model.cost.every((cost) => cost.input === 0 && cost.output === 0 && cost.cache.read === 0 && cost.cache.write === 0)) return true
             return connected.has(provider.integrationID ?? Integration.ID.make(provider.id))
           })
         }),

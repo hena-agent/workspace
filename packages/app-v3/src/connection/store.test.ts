@@ -134,6 +134,27 @@ describe("connection store", () => {
     expect(store.delta(identity)).toBeUndefined()
   })
 
+  test("clears omitted deltas on replacement part snapshots and resets", () => {
+    const store = createConnectionStore()
+    const kept = { sessionId: "s", messageId: "m", partId: "kept", partKind: "text" as const }
+    const removed = { sessionId: "s", messageId: "m", partId: "removed", partKind: "reasoning" as const }
+    store.applyDelta({ ...kept, offset: 0, text: "kept" })
+    store.applyDelta({ ...removed, offset: 0, text: "removed" })
+
+    store.applySnapshot("parts", "s", [{
+      key: ["m", "text", "kept"],
+      row: { type: "text", text: "" },
+    }], 1)
+    expect(store.delta(kept)).toEqual({ text: "kept", incomplete: false })
+    expect(store.delta(removed)).toBeUndefined()
+
+    store.applyRows({
+      throughSeq: 2,
+      changes: [{ seq: 2, collection: "parts", scopeKey: "s", rowKey: [], op: "reset", row: null }],
+    })
+    expect(store.delta(kept)).toBeUndefined()
+  })
+
   test("resolves timed-out receipts after requesting a scoped resnapshot", async () => {
     const resets: unknown[] = []
     const store = createConnectionStore({ onTxidTimeout: (scopes) => resets.push(scopes) })

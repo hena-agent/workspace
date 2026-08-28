@@ -144,7 +144,7 @@ function ShellLayout() {
     if (!connection) return
     const persisted = next.filter((item) => item.id !== draftProject?.id)
     saveProjectOrder(connection.url, persisted)
-    setProjectOrders((current) => ({ ...current, [connection.url]: persisted.map((item) => item.id) }))
+    setProjectOrders((current) => ({ ...current, [connection.url]: next.map((item) => item.id) }))
   }
 
   async function startNewProject(input: string) {

@@ -142,6 +142,7 @@ describe("ModelsDevPlugin", () => {
               models: {
                 free: model({ id: "free", cost: { input: 0, output: 0 } }),
                 paid: model({ id: "paid", cost: { input: 1, output: 1 } }),
+                unknown: model({ id: "unknown" }),
               },
             },
           } satisfies Record<string, ModelsDev.Provider>),
@@ -158,6 +159,7 @@ describe("ModelsDevPlugin", () => {
 
       const providerID = ProviderV2.ID.make("opencode")
       expect((yield* catalog.provider.get(providerID))?.request.body.apiKey).toBe(ProviderV2.PUBLIC_API_KEY)
+      expect((yield* catalog.model.get(providerID, ModelV2.ID.make("unknown")))?.cost).toEqual([])
       expect((yield* catalog.model.available()).map((item) => item.id)).toEqual([ModelV2.ID.make("free")])
 
       yield* catalog.transform((draft) => {
@@ -181,6 +183,7 @@ describe("ModelsDevPlugin", () => {
       expect((yield* catalog.model.available()).map((item) => item.id)).toEqual([
         ModelV2.ID.make("free"),
         ModelV2.ID.make("paid"),
+        ModelV2.ID.make("unknown"),
       ])
     }),
   )
@@ -230,7 +233,7 @@ describe("ModelsDevPlugin", () => {
   )
 })
 
-function model(input: { id: string; cost: { input: number; output: number } }): ModelsDev.Model {
+function model(input: { id: string; cost?: { input: number; output: number } }): ModelsDev.Model {
   return {
     ...input,
     name: input.id,

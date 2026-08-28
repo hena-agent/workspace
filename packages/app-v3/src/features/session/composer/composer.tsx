@@ -244,7 +244,7 @@ function ComposerForm({
           className="field-sizing-content max-h-48 min-h-16"
         />
       </PromptInputBody>
-      {mention !== undefined && fileResults.length > 0 ? (
+      {!submitting && mention !== undefined && fileResults.length > 0 ? (
         <PromptInputCommand shouldFilter={false} className="max-h-40 rounded-none border-y">
           <PromptInputCommandList>
             <PromptInputCommandGroup heading="Matching files">

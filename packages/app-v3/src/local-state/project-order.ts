@@ -6,7 +6,7 @@ type ProjectOrderStore = { version: 1; projects: string[] }
 export function loadProjectOrder(url: string, storage: Storage = localStorage) {
   const value = record(parse(storage.getItem(storageKey(url))))
   if (value.version !== 1 || !Array.isArray(value.projects)) return []
-  return value.projects.filter((id): id is string => typeof id === "string")
+  return [...new Set(value.projects.filter((id): id is string => typeof id === "string"))]
 }
 
 export function saveProjectOrder(url: string, projects: Project[], storage: Storage = localStorage) {

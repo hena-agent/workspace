@@ -58,5 +58,8 @@ describe("local client state", () => {
       "beta",
       "alpha",
     ])
+
+    localStorage.setItem(`hena.project-order.v1.${encodeServerSlug(url)}`, JSON.stringify({ version: 1, projects: ["beta", "beta", "alpha"] }))
+    expect(loadProjectOrder(url)).toEqual(["beta", "alpha"])
   })
 })

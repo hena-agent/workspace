@@ -131,7 +131,7 @@ describe("Composer", () => {
     expect(screen.queryByText("extra.txt")).not.toBeInTheDocument()
     expect(screen.getByRole("alert")).toHaveTextContent("attachments must total 20 MiB or less")
 
-    await user.click(screen.getByRole("button", { name: "Remove one.txt" }))
+    await user.click(screen.getByRole("button", { name: "Remove two.txt" }))
     await user.upload(screen.getByLabelText("Upload files"), extra)
     expect(screen.getByText("extra.txt")).toBeInTheDocument()
   })

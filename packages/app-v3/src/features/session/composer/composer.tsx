@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { FileUIPart } from "ai"
 import { Paperclip } from "lucide-react"
 import { Attachment, AttachmentInfo, AttachmentPreview, AttachmentRemove, Attachments } from "@/components/ai-elements/attachments"
@@ -93,8 +93,7 @@ function ComposerForm({
   const [error, setError] = useState(initialError)
   const [submitting, setSubmitting] = useState(false)
   const delivery = useRef<"send" | "queue">("send")
-  const attachmentBytes = useRef(new Map<string, number>())
-  const pendingAttachmentBytes = useRef<number[]>([])
+  const attachmentBytes = useRef<number[]>([])
   const totalAttachmentBytes = useRef(0)
   const hasFinePointer = useMediaQuery("(any-pointer: fine)")
   const text = controller.textInput.value
@@ -118,21 +117,6 @@ function ComposerForm({
     onDraftChange?.({ text: nextText, selection: nextSelection, droppedAttachments: nextAttachmentCount })
   }
 
-  useEffect(() => {
-    const ids = new Set(attachments.files.map((file) => file.id))
-    attachments.files.forEach((file) => {
-      if (!attachmentBytes.current.has(file.id))
-        attachmentBytes.current.set(file.id, pendingAttachmentBytes.current.shift() ?? 0)
-    })
-    Array.from(attachmentBytes.current.keys()).forEach((id) => {
-      if (!ids.has(id)) attachmentBytes.current.delete(id)
-    })
-    totalAttachmentBytes.current = Array.from(attachmentBytes.current.values()).reduce(
-      (total, bytes) => total + bytes,
-      0,
-    )
-  }, [attachments.files])
-
   function addAttachments(selected: File[] | FileList) {
     if (submitting) return
     const incoming = Array.from(selected)
@@ -144,7 +128,7 @@ function ComposerForm({
       setError(ATTACHMENT_ERROR)
       return
     }
-    pendingAttachmentBytes.current.push(...incoming.map((file) => file.size))
+    attachmentBytes.current.push(...incoming.map((file) => file.size))
     totalAttachmentBytes.current += bytes
     attachments.add(incoming)
     updateDraft(text, selection, attachmentCount + incoming.length)
@@ -152,24 +136,14 @@ function ComposerForm({
   }
 
   function removeAttachment(id: string) {
-    totalAttachmentBytes.current -= attachmentBytes.current.get(id) ?? 0
-    attachmentBytes.current.delete(id)
+    const index = attachments.files.findIndex((file) => file.id === id)
+    if (index >= 0) {
+      totalAttachmentBytes.current -= attachmentBytes.current[index] ?? 0
+      attachmentBytes.current.splice(index, 1)
+    }
     attachments.remove(id)
     updateDraft(text, selection, attachmentCount - 1)
   }
-
-  const addInputAttachments = useEffectEvent(addAttachments)
-  useEffect(() => {
-    const input = attachments.fileInputRef.current
-    const onChange = (event: Event) => {
-      if (!(event.target instanceof HTMLInputElement) || !event.target.files) return
-      event.stopImmediatePropagation()
-      addInputAttachments(event.target.files)
-      event.target.value = ""
-    }
-    input?.addEventListener("change", onChange, { capture: true })
-    return () => input?.removeEventListener("change", onChange, { capture: true })
-  }, [attachments.fileInputRef])
 
   function chooseMention(path: string) {
     const before = text.slice(0, selection.start).replace(/@[^\s]*$/, `@${path} `)
@@ -206,6 +180,8 @@ function ComposerForm({
         ...mentionedFiles.map((file) => ({ uri: file.uri, name: file.name })),
       ]))
       .then(() => {
+        attachmentBytes.current = []
+        totalAttachmentBytes.current = 0
         setMentionedFiles([])
         setSelection({ start: 0, end: 0 })
         updateDraft("", { start: 0, end: 0 }, 0)
@@ -217,6 +193,15 @@ function ComposerForm({
   }
 
   return (
+    <div
+      className="contents"
+      onChangeCapture={(event) => {
+        if (!(event.target instanceof HTMLInputElement) || event.target.type !== "file" || !event.target.files) return
+        event.stopPropagation()
+        addAttachments(event.target.files)
+        event.target.value = ""
+      }}
+    >
     <PromptInput
       multiple
       maxFileSize={MAX_ATTACHMENT_BYTES}
@@ -348,5 +333,6 @@ function ComposerForm({
         />
       </PromptInputFooter>
     </PromptInput>
+    </div>
   )
 }

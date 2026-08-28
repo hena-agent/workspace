@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type PointerEvent, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useConnectionAgent } from "@/connection/provider"
 import { Input } from "@/components/ui/input"
@@ -6,8 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { loadFileDirectory, loadFileMatches, useFileContent, useFileTree, useSessionLocation } from "@/data/queries"
 import { FilePreview } from "@/features/files/file-preview"
 import { FileTree } from "@/features/files/file-tree"
-
-const PANEL_MIN = 180
+import { PANEL_MIN, usePanelWidth } from "@/hooks/use-panel-width"
 
 const SessionFilesContext = createContext<{
   open: boolean
@@ -25,10 +24,6 @@ export function useSessionFiles() {
   return context
 }
 
-function panelMaxWidth() {
-  return Math.max(PANEL_MIN, Math.round(window.innerWidth * 0.3))
-}
-
 export function SessionFilesPanel({ connectionId, sessionId }: { connectionId: string; sessionId: string }) {
   const agent = useConnectionAgent(connectionId)
   const location = useSessionLocation(agent, sessionId)
@@ -36,27 +31,13 @@ export function SessionFilesPanel({ connectionId, sessionId }: { connectionId: s
   const [file, setFile] = useState<string>()
   const [search, setSearch] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
-  const [previewWidth, setPreviewWidth] = useState(() => Math.min(360, panelMaxWidth()))
-  const [treeWidth, setTreeWidth] = useState(() => Math.min(280, panelMaxWidth()))
-  const [panelMax, setPanelMax] = useState(panelMaxWidth)
+  const [previewWidth, panelMax, setPreviewWidth] = usePanelWidth(360)
+  const [treeWidth, , setTreeWidth] = usePanelWidth(280)
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined)
   const tree = useFileTree(agent, location)
   const content = useFileContent(agent, location, file)
 
-  useEffect(() => {
-    const timeout = setTimeout(() => setSearchQuery(search.trim()), 150)
-    return () => clearTimeout(timeout)
-  }, [search])
-
-  useEffect(() => {
-    function clampPanelWidths() {
-      const max = panelMaxWidth()
-      setPanelMax(max)
-      setPreviewWidth((current) => Math.max(PANEL_MIN, Math.min(max, current)))
-      setTreeWidth((current) => Math.max(PANEL_MIN, Math.min(max, current)))
-    }
-    window.addEventListener("resize", clampPanelWidths)
-    return () => window.removeEventListener("resize", clampPanelWidths)
-  }, [])
+  useEffect(() => () => clearTimeout(searchTimeout.current), [])
 
   const matches = useQuery({
     queryKey: [agent?.url, "fs.find", location?.directory, location?.workspaceID, searchQuery],
@@ -103,7 +84,17 @@ export function SessionFilesPanel({ connectionId, sessionId }: { connectionId: s
     >
       <ScrollArea className="h-full">
         <div className="flex flex-col gap-2 p-2">
-          <Input aria-label="Find in project" placeholder="Find in project" value={search} onChange={(event) => setSearch(event.target.value)} />
+          <Input
+            aria-label="Find in project"
+            placeholder="Find in project"
+            value={search}
+            onChange={(event) => {
+              const value = event.target.value
+              setSearch(value)
+              clearTimeout(searchTimeout.current)
+              searchTimeout.current = setTimeout(() => setSearchQuery(value.trim()), 150)
+            }}
+          />
           {finding ? (
             <div aria-live="polite" className="flex flex-col gap-0.5">
               {matches.isLoading ? <p className="px-2 py-1 text-xs text-muted-foreground">Searching...</p> : null}
@@ -134,7 +125,7 @@ function ResizeHandle({
   onResize: (width: number) => void
 }) {
   function clamp(width: number) {
-    return Math.min(max, Math.max(PANEL_MIN, width))
+    return Math.max(PANEL_MIN, width)
   }
 
   function startResize(event: PointerEvent<HTMLDivElement>) {

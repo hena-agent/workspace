@@ -10,6 +10,7 @@ import {
 } from "react"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { PANEL_MIN, usePanelWidth } from "@/hooks/use-panel-width"
 import { loadSidebarOpen, saveSidebarOpen } from "@/local-state/sidebar"
 import type { Project } from "@/lib/types"
 import { MobileNavDrawer } from "./mobile-nav-drawer"
@@ -18,11 +19,6 @@ import { SidebarPanel } from "./sidebar-panel"
 import { Titlebar } from "./titlebar"
 
 const DESKTOP_QUERY = "(min-width: 1280px)"
-const PANEL_MIN = 180
-
-function panelMaxWidth() {
-  return Math.max(PANEL_MIN, Math.round(window.innerWidth * 0.3))
-}
 
 export function AppShell({
   rail,
@@ -47,8 +43,7 @@ export function AppShell({
     open: defaultSidebarOpen(),
   }))
   const [mobileNavOpen, setMobileNavOpen] = useState(() => Boolean(window.history.state?.henaMobileNavigation))
-  const [panelWidth, setPanelWidth] = useState(280)
-  const [panelMax, setPanelMax] = useState(panelMaxWidth)
+  const [panelWidth, panelMax, setPanelWidth] = usePanelWidth(280)
   const mobileNavOpenRef = useRef(mobileNavOpen)
   const mobileNavButtonRef = useRef<HTMLButtonElement>(null)
   const mobileNavRef = useRef<HTMLElement>(null)
@@ -68,16 +63,6 @@ export function AppShell({
     pendingMobileNavActionRef.current = () => mainRef.current?.focus()
     window.history.back()
   }, [isDesktop, mobileNavOpen])
-
-  useEffect(() => {
-    function clampPanelWidth() {
-      const max = panelMaxWidth()
-      setPanelMax(max)
-      setPanelWidth((current) => Math.max(PANEL_MIN, Math.min(max, current)))
-    }
-    window.addEventListener("resize", clampPanelWidth)
-    return () => window.removeEventListener("resize", clampPanelWidth)
-  }, [])
 
   useLayoutEffect(() => {
     if (!mobileNavOpen || isDesktop || document.activeElement === mobileNavRef.current) return
@@ -150,7 +135,7 @@ export function AppShell({
     const startWidth = panelWidth
 
     function onPointerMove(nextEvent: globalThis.PointerEvent) {
-      setPanelWidth(Math.min(panelMaxWidth(), Math.max(PANEL_MIN, startWidth + nextEvent.clientX - startX)))
+      setPanelWidth(Math.max(PANEL_MIN, startWidth + nextEvent.clientX - startX))
     }
 
     function stopResize() {
@@ -167,7 +152,7 @@ export function AppShell({
   function resizeWithKeyboard(event: { key: string; preventDefault: () => void }) {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return
     event.preventDefault()
-    const max = panelMaxWidth()
+    const max = panelMax
     setPanelWidth((current) => {
       if (event.key === "Home") return PANEL_MIN
       if (event.key === "End") return max

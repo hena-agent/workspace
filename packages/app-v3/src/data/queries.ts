@@ -111,8 +111,8 @@ export function useSessionLocation(agent: ReturnTypeOfAgent | undefined, id: str
 export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
   useSyncExternalStore(subscribeMutationState, getMutationStateVersion, getMutationStateVersion)
   useSyncExternalStore(
-    agent ? agent.store.subscribe : emptySubscribe,
-    () => agent?.store.deltaRevision() ?? 0,
+    agent ? (listener) => agent.store.subscribeDeltaIdentities(sessionId, listener) : emptySubscribe,
+    () => agent?.store.deltaIdentityRevision(sessionId) ?? 0,
     () => 0,
   )
   const messages = useRows(agent, "messages", sessionId)

@@ -82,6 +82,40 @@ describe("connection store", () => {
     expect(store.delta(identity)).toBeUndefined()
   })
 
+  test("notifies delta identity subscribers only when parts are added or removed", () => {
+    const store = createConnectionStore()
+    const identity = { sessionId: "s", messageId: "m", partId: "p", partKind: "text" as const }
+    let notifications = 0
+    store.subscribeDeltaIdentities("s", () => notifications++)
+
+    store.applyDelta({ ...identity, offset: 0, text: "one" })
+    store.applyDelta({ ...identity, offset: 3, text: "two" })
+    expect(notifications).toBe(1)
+
+    store.applyRows({
+      throughSeq: 1,
+      changes: [{ seq: 1, collection: "messages", scopeKey: "s", rowKey: "m", op: "delete", row: null }],
+    })
+    expect(notifications).toBe(2)
+    expect(store.delta(identity)).toBeUndefined()
+  })
+
+  test("clears deltas omitted by replacement message snapshots", () => {
+    const store = createConnectionStore()
+    const kept = { sessionId: "s", messageId: "kept", partId: "p1", partKind: "text" as const }
+    const removed = { sessionId: "s", messageId: "removed", partId: "p2", partKind: "reasoning" as const }
+    store.applyDelta({ ...kept, offset: 0, text: "kept" })
+    store.applyDelta({ ...removed, offset: 0, text: "removed" })
+
+    store.applySnapshot("messages", "s", [{
+      key: "kept",
+      row: { id: "kept", type: "assistant", time: { created: 1 } },
+    }], 1)
+
+    expect(store.delta(kept)).toEqual({ text: "kept", incomplete: false })
+    expect(store.delta(removed)).toBeUndefined()
+  })
+
   test("keeps reasoning deltas until the reasoning part completes", () => {
     const store = createConnectionStore()
     const identity = { sessionId: "s", messageId: "m", partId: "p", partKind: "reasoning" as const }

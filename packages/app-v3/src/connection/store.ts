@@ -41,9 +41,10 @@ export function createConnectionStore(options: StoreOptions = {}) {
   const recentTxids = new Set<string>()
   const deltas = new Map<string, { text: string; bytes: number; incomplete: boolean; snapshot: { text: string; incomplete: boolean } }>()
   const deltaListeners = new Map<string, Set<() => void>>()
+  const deltaIdentityListeners = new Map<string, Set<() => void>>()
+  const deltaIdentityRevisions = new Map<string, number>()
   const pendingDeltaNotifications = new Set<string>()
   let deltaFrameScheduled = false
-  let deltaRevision = 0
 
   const getScope = (collection: string, scopeKey: string) => {
     const key = scopeIdentity(collection, scopeKey)
@@ -60,16 +61,31 @@ export function createConnectionStore(options: StoreOptions = {}) {
     deltaFrameScheduled = true
     ;(options.scheduleFrame ?? scheduleAnimationFrame)(() => {
       deltaFrameScheduled = false
-      deltaRevision++
       const pending = Array.from(pendingDeltaNotifications)
       pendingDeltaNotifications.clear()
       pending.forEach((item) => deltaListeners.get(item)?.forEach((listener) => listener()))
-      notify()
     })
+  }
+  const notifyDeltaIdentities = (sessionId: string) => {
+    deltaIdentityRevisions.set(sessionId, (deltaIdentityRevisions.get(sessionId) ?? 0) + 1)
+    deltaIdentityListeners.get(sessionId)?.forEach((listener) => listener())
   }
   const clearDelta = (key: string) => {
     if (!deltas.delete(key)) return
+    notifyDeltaIdentities(identityFromDeltaKey(key).sessionId)
     notifyDelta(key)
+  }
+  const clearMessageDeltas = (sessionId: string, messageId: string) => {
+    const prefix = `${sessionId}\u0000${messageId}\u0000`
+    Array.from(deltas.keys()).forEach((key) => {
+      if (key.startsWith(prefix)) clearDelta(key)
+    })
+  }
+  const clearDeltasForSession = (sessionId: string) => {
+    const prefix = `${sessionId}\u0000`
+    Array.from(deltas.keys()).forEach((key) => {
+      if (key.startsWith(prefix)) clearDelta(key)
+    })
   }
   const finalize = (collection: string, scopeKey: string, rowKey: string | readonly string[], row: Row | null) => {
     if (collection === "parts" && Array.isArray(rowKey) && rowKey.length === 3) {
@@ -81,12 +97,14 @@ export function createConnectionStore(options: StoreOptions = {}) {
         clearDelta(deltaKey({ sessionId: scopeKey, messageId: rowKey[0], partKind: partKind as DeltaIdentity["partKind"], partId: rowKey[2] }))
       return
     }
-    if (collection !== "messages" || !row) return
-    const messageId = typeof row.id === "string" ? row.id : typeof rowKey === "string" ? rowKey : rowKey[0]
+    if (collection !== "messages") return
+    const messageId = typeof row?.id === "string" ? row.id : typeof rowKey === "string" ? rowKey : rowKey[0]
+    if (!row) {
+      clearMessageDeltas(scopeKey, messageId)
+      return
+    }
     if (row.type === "assistant" && typeof (row.time as Row | undefined)?.completed === "number") {
-      const prefix = `${scopeKey}\u0000${messageId}\u0000`
-      const keys = Array.from(deltas.keys()).filter((key) => key.startsWith(prefix))
-      keys.forEach(clearDelta)
+      clearMessageDeltas(scopeKey, messageId)
       return
     }
     if (row.type !== "compaction") return
@@ -127,6 +145,13 @@ export function createConnectionStore(options: StoreOptions = {}) {
           : { type: "insert", value })
       })
       scope.control.commit()
+      if (replace && collection === "messages") {
+        const messageIds = new Set(rows.map((item) => typeof item.row.id === "string" ? item.row.id : typeof item.key === "string" ? item.key : item.key[0]))
+        const prefix = `${scopeKey}\u0000`
+        Array.from(deltas.keys()).forEach((key) => {
+          if (key.startsWith(prefix) && !messageIds.has(identityFromDeltaKey(key).messageId)) clearDelta(key)
+        })
+      }
       if (!scope.ready) {
         scope.ready = true
         scope.control.markReady()
@@ -148,6 +173,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
         if (change.op === "reset") {
           scope.authoritative.clear()
           for (const key of Array.from(scope.collection.keys())) scope.control.write({ type: "delete", key })
+          if (change.collection === "messages") clearDeltasForSession(change.scopeKey)
           resetScopes.set(scopeIdentity(change.collection, change.scopeKey), scope.ref)
           return
         }
@@ -225,12 +251,14 @@ export function createConnectionStore(options: StoreOptions = {}) {
     },
     applyDelta(input: DeltaIdentity & { offset: number; text: string }) {
       const key = deltaKey(input)
-      const current = deltas.get(key) ?? { text: "", bytes: 0, incomplete: false, snapshot: { text: "", incomplete: false } }
+      const previous = deltas.get(key)
+      const current = previous ?? { text: "", bytes: 0, incomplete: false, snapshot: { text: "", incomplete: false } }
       const encoded = new TextEncoder().encode(input.text)
       if (input.offset + encoded.byteLength <= current.bytes) return
       if (input.offset > current.bytes) {
         const next = { ...current, incomplete: true, snapshot: { text: current.text, incomplete: true } }
         deltas.set(key, next)
+        if (!previous) notifyDeltaIdentities(input.sessionId)
         notifyDelta(key)
         return
       }
@@ -240,6 +268,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
       const text = current.text + suffix
       const bytes = Math.max(current.bytes, input.offset + encoded.byteLength)
       deltas.set(key, { text, bytes, incomplete: current.incomplete, snapshot: { text, incomplete: current.incomplete } })
+      if (!previous) notifyDeltaIdentities(input.sessionId)
       notifyDelta(key)
     },
     delta(identity: DeltaIdentity) {
@@ -250,8 +279,17 @@ export function createConnectionStore(options: StoreOptions = {}) {
       return Array.from(deltas.keys())
         .flatMap((key) => key.startsWith(prefix) ? [identityFromDeltaKey(key)] : [])
     },
-    deltaRevision() {
-      return deltaRevision
+    deltaIdentityRevision(sessionId: string) {
+      return deltaIdentityRevisions.get(sessionId) ?? 0
+    },
+    subscribeDeltaIdentities(sessionId: string, listener: () => void) {
+      const scoped = deltaIdentityListeners.get(sessionId) ?? new Set()
+      scoped.add(listener)
+      deltaIdentityListeners.set(sessionId, scoped)
+      return () => {
+        scoped.delete(listener)
+        if (scoped.size === 0) deltaIdentityListeners.delete(sessionId)
+      }
     },
     subscribeDelta(identity: DeltaIdentity, listener: () => void) {
       const key = deltaKey(identity)
@@ -264,9 +302,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
       }
     },
     clearSessionDeltas(sessionId: string) {
-      const prefix = `${sessionId}\u0000`
-      const keys = Array.from(deltas.keys()).filter((key) => key.startsWith(prefix))
-      keys.forEach(clearDelta)
+      clearDeltasForSession(sessionId)
     },
     dropCursors(targets?: readonly ScopeRef[]) {
       const identities = targets && new Set(targets.map((scope) => scopeIdentity(scope.collection, scope.scopeKey)))
@@ -308,6 +344,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
       this.clear()
       listeners.clear()
       deltaListeners.clear()
+      deltaIdentityListeners.clear()
     },
   }
 }

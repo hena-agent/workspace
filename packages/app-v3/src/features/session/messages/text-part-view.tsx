@@ -2,8 +2,7 @@ import { useSyncExternalStore } from "react"
 import { MessageResponse } from "@/components/ai-elements/message"
 import type { TextPart } from "@/lib/types"
 import { FullContent } from "./full-content"
-
-const markdownComponents = { img: () => null }
+import { markdownComponents } from "./markdown"
 
 export function TextPartView({ part, isStreaming }: { part: TextPart; isStreaming?: boolean }) {
   const live = useSyncExternalStore(part.live?.subscribe ?? emptySubscribe, part.live?.snapshot ?? emptySnapshot, emptySnapshot)

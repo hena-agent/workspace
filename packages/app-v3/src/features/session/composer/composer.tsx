@@ -115,7 +115,8 @@ function ComposerForm({
 
   useEffect(() => {
     if (savedAttachmentCount.current === attachmentCount) return
-    updateDraft(text, selection, attachmentCount)
+    savedAttachmentCount.current = attachmentCount
+    onDraftChange?.({ text, selection, droppedAttachments: attachmentCount })
   }, [attachmentCount, onDraftChange, selection, text])
 
   function chooseMention(path: string) {
@@ -141,20 +142,20 @@ function ComposerForm({
       return
     }
     setError("")
-    try {
-      await Promise.resolve((mode === "queue" ? onQueue : onSend)(trimmed, [
+    await Promise.resolve()
+      .then(() => (mode === "queue" ? onQueue : onSend)(trimmed, [
         ...message.files.map((file) => ({ uri: file.url, name: file.filename })),
         ...mentionedFiles.map((file) => ({ uri: file.uri, name: file.name })),
       ]))
-      setMentionedFiles([])
-      setSelection({ start: 0, end: 0 })
-      updateDraft("", { start: 0, end: 0 }, 0)
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The message could not be sent.")
-      throw cause
-    } finally {
-      setSubmitting(false)
-    }
+      .then(() => {
+        setMentionedFiles([])
+        setSelection({ start: 0, end: 0 })
+        updateDraft("", { start: 0, end: 0 }, 0)
+      }, (cause) => {
+        setError(cause instanceof Error ? cause.message : "The message could not be sent.")
+        throw cause
+      })
+      .finally(() => setSubmitting(false))
   }
 
   return (

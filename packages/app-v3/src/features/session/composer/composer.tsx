@@ -171,7 +171,10 @@ function ComposerForm({
     const trimmed = message.text.trim()
     if (!trimmed) {
       setSubmitting(false)
-      return
+      controller.textInput.setInput("")
+      setSelection({ start: 0, end: 0 })
+      updateDraft("", { start: 0, end: 0 })
+      throw new Error("Message is empty.")
     }
     setError("")
     await Promise.resolve()
@@ -204,11 +207,6 @@ function ComposerForm({
     >
     <PromptInput
       multiple
-      maxFileSize={MAX_ATTACHMENT_BYTES}
-      maxFiles={attachments.files.length}
-      onError={() => {
-        if (!submitting) setError(ATTACHMENT_ERROR)
-      }}
       onDropCapture={(event) => {
         if (event.dataTransfer.files.length === 0) return
         event.preventDefault()

@@ -84,23 +84,33 @@ describe("Rail", () => {
       path: `/${name.toLowerCase()}`,
       updatedAt: index,
     }))
+    const discovered = {
+      id: "delta",
+      connectionId: "local",
+      name: "Delta",
+      path: "/delta",
+      updatedAt: 3,
+    }
 
     function ReorderableRail() {
       const [projects, setProjects] = useState(input)
       return (
-        <Rail
-          projects={projects.map((project) => ({
-            project,
-            notification: { kind: "none" as const, working: false },
-          }))}
-          onSelectProject={() => {}}
-          onReorderProjects={(next: Project[]) => {
-            reordered.push(next.map((project) => project.id))
-            setProjects(next)
-          }}
-          onAddProject={() => {}}
-          onOpenSettings={() => {}}
-        />
+        <>
+          <button type="button" onClick={() => setProjects((current) => [discovered, ...current])}>Discover project</button>
+          <Rail
+            projects={projects.map((project) => ({
+              project,
+              notification: { kind: "none" as const, working: false },
+            }))}
+            onSelectProject={() => {}}
+            onReorderProjects={(next: Project[]) => {
+              reordered.push(next.map((project) => project.id))
+              setProjects(next)
+            }}
+            onAddProject={() => {}}
+            onOpenSettings={() => {}}
+          />
+        </>
       )
     }
 
@@ -113,8 +123,43 @@ describe("Rail", () => {
     expect(reordered.at(-1)).toEqual(["beta", "alpha", "gamma"])
     expect(screen.getByText("Alpha moved to position 2 of 3.")).toBeInTheDocument()
 
+    fireEvent.click(screen.getByRole("button", { name: "Discover project" }))
+    expect(alpha).not.toHaveClass("ring-2")
     fireEvent.keyDown(alpha, { key: "Escape" })
-    expect(reordered.at(-1)).toEqual(["alpha", "beta", "gamma"])
+    expect(reordered.at(-1)).toEqual(["delta", "alpha", "beta", "gamma"])
     expect(screen.getByText("Alpha movement canceled.")).toBeInTheDocument()
+  })
+
+  test("unlocks keyboard reordering when the server project list changes", () => {
+    const project = (connectionId: string) => ({
+      project: {
+        id: "project",
+        connectionId,
+        name: connectionId === "local" ? "Local" : "Remote",
+        path: "/project",
+        updatedAt: 0,
+      },
+      notification: { kind: "none" as const, working: false },
+    })
+    const rail = (connectionId: string) => (
+      <Rail
+        projects={[project(connectionId)]}
+        onSelectProject={() => {}}
+        onReorderProjects={() => {}}
+        onAddProject={() => {}}
+        onOpenSettings={() => {}}
+      />
+    )
+    const view = render(rail("local"))
+    const local = screen.getByRole("button", { name: "Local" })
+
+    fireEvent.keyDown(local, { key: " " })
+    expect(local).toHaveClass("ring-2")
+
+    view.rerender(rail("remote"))
+    const remote = screen.getByRole("button", { name: "Remote" })
+    expect(remote).not.toHaveClass("ring-2")
+    fireEvent.keyDown(remote, { key: " " })
+    expect(remote).toHaveClass("ring-2")
   })
 })

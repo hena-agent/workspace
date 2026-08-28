@@ -136,6 +136,69 @@ describe("Composer", () => {
     expect(screen.getByText("extra.txt")).toBeInTheDocument()
   })
 
+  test.each(["picker", "drop", "paste"] as const)("validates %s attachments before adding them", async (method) => {
+    const user = userEvent.setup()
+    setup([])
+    const textarea = screen.getByLabelText("Message")
+    const upload = screen.getByLabelText("Upload files")
+    const add = async (files: File[]) => {
+      if (method === "picker") {
+        await user.upload(upload, files)
+        return
+      }
+      if (method === "drop") {
+        fireEvent.drop(textarea, { dataTransfer: { files, types: ["Files"] } })
+        return
+      }
+      fireEvent.paste(textarea, { clipboardData: { files } })
+    }
+    const oversized = new File(["large"], "large.txt", { type: "text/plain" })
+    Object.defineProperty(oversized, "size", { value: 5 * 1024 * 1024 + 1 })
+
+    await add([oversized])
+    expect(screen.queryByText("large.txt")).not.toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent("Each attachment must be 5 MiB or smaller")
+
+    const maximum = ["one", "two", "three", "four"].map((name) => {
+      const file = new File([name], `${name}.txt`, { type: "text/plain" })
+      Object.defineProperty(file, "size", { value: 5 * 1024 * 1024 })
+      return file
+    })
+    await add(maximum)
+    expect(screen.getByText("four.txt")).toBeInTheDocument()
+
+    await add([new File(["extra"], "extra.txt", { type: "text/plain" })])
+    expect(screen.queryByText("extra.txt")).not.toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent("attachments must total 20 MiB or less")
+  })
+
+  test("keeps attachments when an empty submission is rejected", async () => {
+    const user = userEvent.setup()
+    setup([], false)
+    const textarea = screen.getByLabelText("Message")
+    const upload = screen.getByLabelText("Upload files")
+    const stale = new File(["stale"], "stale.txt", { type: "text/plain" })
+    Object.defineProperty(stale, "size", { value: 5 * 1024 * 1024 })
+
+    await user.upload(upload, stale)
+    await user.type(textarea, " ")
+    fireEvent.keyDown(textarea, { key: "Enter", ctrlKey: true, shiftKey: true })
+    await waitFor(() => expect(screen.getByText("stale.txt")).toBeInTheDocument())
+
+    await user.click(screen.getByRole("button", { name: "Remove stale.txt" }))
+    await user.upload(upload, new File(["replacement"], "replacement.txt", { type: "text/plain" }))
+    await user.click(screen.getByRole("button", { name: "Remove replacement.txt" }))
+    const maximum = ["one", "two", "three", "four"].map((name) => {
+      const file = new File([name], `${name}.txt`, { type: "text/plain" })
+      Object.defineProperty(file, "size", { value: 5 * 1024 * 1024 })
+      return file
+    })
+    await user.upload(upload, maximum)
+
+    expect(screen.getByText("four.txt")).toBeInTheDocument()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
   test("keeps text and attachments when sending fails", async () => {
     const user = userEvent.setup()
     mockMatchMedia(true)

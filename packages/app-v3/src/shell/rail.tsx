@@ -26,12 +26,19 @@ export function Rail({
   className?: string
 }) {
   const projectKeys = projects.map((item) => projectKey(item.project))
+  const projectKeySet = JSON.stringify(projectKeys.toSorted())
   const projectsByKey = new Map(projects.map((item) => [projectKey(item.project), item.project]))
-  const [keyboardDrag, setKeyboardDrag] = useState<{ key: string; initial: string[] } | null>(null)
+  const [knownProjectKeySet, setKnownProjectKeySet] = useState(projectKeySet)
+  const [keyboardDrag, setKeyboardDrag] = useState<{ key: string; initial: string[]; active: boolean } | null>(null)
   const [pointerDrag, setPointerDrag] = useState<string | null>(null)
   const [announcement, setAnnouncement] = useState("")
   const instructionsId = useId()
   const draggedProject = useRef<string | null>(null)
+
+  if (knownProjectKeySet !== projectKeySet) {
+    setKnownProjectKeySet(projectKeySet)
+    setKeyboardDrag(keyboardDrag?.active ? { ...keyboardDrag, active: false } : keyboardDrag)
+  }
 
   function reorder(keys: string[]) {
     const reordered = keys.flatMap((key) => {
@@ -42,23 +49,23 @@ export function Rail({
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, key: string, label: string) {
-    if (!keyboardDrag) {
-      if (event.key !== " " || event.repeat) return
-      event.preventDefault()
-      setKeyboardDrag({ key, initial: projectKeys })
-      setAnnouncement(`${label} picked up. Position ${projectKeys.indexOf(key) + 1} of ${projectKeys.length}.`)
-      return
-    }
-    if (keyboardDrag.key !== key) return
-    if (event.key === "Escape") {
+    if (keyboardDrag?.key === key && event.key === "Escape") {
       event.preventDefault()
       const initial = keyboardDrag.initial.filter((initialKey) => projectsByKey.has(initialKey))
       const initialKeys = new Set(initial)
-      reorder([...initial, ...projectKeys.filter((projectKey) => !initialKeys.has(projectKey))])
+      reorder([...projectKeys.filter((projectKey) => !initialKeys.has(projectKey)), ...initial])
       setKeyboardDrag(null)
       setAnnouncement(`${label} movement canceled.`)
       return
     }
+    if (!keyboardDrag?.active) {
+      if (event.key !== " " || event.repeat) return
+      event.preventDefault()
+      setKeyboardDrag({ key, initial: projectKeys, active: true })
+      setAnnouncement(`${label} picked up. Position ${projectKeys.indexOf(key) + 1} of ${projectKeys.length}.`)
+      return
+    }
+    if (keyboardDrag.key !== key) return
     if (event.key === " ") {
       event.preventDefault()
       setKeyboardDrag(null)
@@ -137,7 +144,7 @@ export function Rail({
                       item.project.connectionId === selectedProject.connectionId
                     }
                     notification={item.notification}
-                    grabbed={keyboardDrag?.key === key}
+                    grabbed={keyboardDrag?.active === true && keyboardDrag.key === key}
                     dragging={pointerDrag === key}
                     descriptionId={instructionsId}
                     onSelect={() => {

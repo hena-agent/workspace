@@ -124,7 +124,10 @@ function ShellLayout() {
         updatedAt: now,
       }
     : undefined
-  const projectOrder = connection ? projectOrders[connection.url] ?? loadProjectOrder(connection.url) : []
+  const storedProjectOrder = connection ? loadProjectOrder(connection.url) : []
+  const projectOrder = connection && storedProjectOrder.length > 0
+    ? projectOrders[connection.url] ?? storedProjectOrder
+    : storedProjectOrder
   const projects = applyProjectOrder(draftProject ? [...syncedProjects, draftProject] : syncedProjects, projectOrder)
   const project = useProject(agent, params.projectId) ?? draftProject
   const serverSessions = useSessions(agent)

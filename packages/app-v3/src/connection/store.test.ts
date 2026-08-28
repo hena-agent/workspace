@@ -57,6 +57,49 @@ describe("connection store", () => {
     expect(store.delta(identity)).toEqual({ text: "é!", incomplete: true })
   })
 
+  test("authoritative text rows clear incomplete live text", () => {
+    const store = createConnectionStore()
+    const updated = { sessionId: "s", messageId: "m", partId: "updated", partKind: "text" as const }
+    const replaced = { sessionId: "s", messageId: "m", partId: "replaced", partKind: "text" as const }
+    store.applyDelta({ ...updated, offset: 0, text: "stale" })
+    store.applyDelta({ ...updated, offset: 10, text: "gap" })
+    store.applyDelta({ ...replaced, offset: 0, text: "stale" })
+    store.applyDelta({ ...replaced, offset: 10, text: "gap" })
+
+    store.applyRows({
+      throughSeq: 1,
+      changes: [{ seq: 1, collection: "parts", scopeKey: "s", rowKey: ["m", "text", "updated"], op: "update", row: { type: "text", text: "durable update" } }],
+    })
+    expect(store.delta(updated)).toBeUndefined()
+    expect(store.rows("parts", "s")).toEqual([{ type: "text", text: "durable update" }])
+
+    store.applySnapshot("parts", "s", [{
+      key: ["m", "text", "replaced"],
+      row: { type: "text", text: "durable snapshot" },
+    }], 2)
+
+    expect(store.delta(replaced)).toBeUndefined()
+    expect(store.rows("parts", "s")).toEqual([{ type: "text", text: "durable snapshot" }])
+  })
+
+  test("bounds live delta previews by bytes and lines", () => {
+    const store = createConnectionStore()
+    const bytes = { sessionId: "s", messageId: "m", partId: "bytes", partKind: "text" as const }
+    const lines = { sessionId: "s", messageId: "m", partId: "lines", partKind: "text" as const }
+    const byteText = "😀".repeat(9_000)
+    const lineText = `${"line\n".repeat(500)}hidden`
+
+    store.applyDelta({ ...bytes, offset: 0, text: byteText })
+    store.applyDelta({ ...bytes, offset: new TextEncoder().encode(byteText).byteLength, text: "hidden" })
+    store.applyDelta({ ...lines, offset: 0, text: lineText })
+
+    expect(new TextEncoder().encode(store.delta(bytes)!.text).byteLength).toBeLessThanOrEqual(32 * 1024)
+    expect(store.delta(bytes)!.text).not.toContain("�")
+    expect(store.delta(bytes)!.text).not.toContain("hidden")
+    expect(store.delta(lines)!.text.split("\n")).toHaveLength(500)
+    expect(store.delta(lines)!.text).not.toContain("hidden")
+  })
+
   test("coalesces delta notifications and keeps text deltas until the assistant completes", () => {
     const frames: Array<() => void> = []
     const store = createConnectionStore({ scheduleFrame: (callback) => frames.push(callback) })

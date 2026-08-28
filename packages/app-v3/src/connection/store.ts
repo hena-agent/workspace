@@ -97,7 +97,13 @@ export function createConnectionStore(options: StoreOptions = {}) {
   const finalize = (collection: string, scopeKey: string, rowKey: string | readonly string[], row: Row | null) => {
     if (collection === "parts" && Array.isArray(rowKey) && rowKey.length === 3) {
       const partKind = rowKey[1] === "tool" ? "tool-input" : rowKey[1]
-      if (partKind === "text" && row) return
+      if (partKind === "text") {
+        const key = partDeltaKey(scopeKey, rowKey)!
+        const current = deltas.get(key)
+        const text = typeof row?.text === "string" ? row.text : ""
+        if (!row || current?.incomplete || (current && (current.text === text || !current.text.startsWith(text)))) clearDelta(key)
+        return
+      }
       if (partKind === "reasoning" && row && typeof (row.time as Row | undefined)?.completed !== "number") return
       if (partKind === "tool-input" && row && (row.state as Row | undefined)?.status === "pending") return
       if (["text", "reasoning", "tool-input"].includes(partKind))
@@ -162,11 +168,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
       if (replace && collection === "parts") {
         clearPartDeltas(scopeKey, new Set(rows.flatMap((item) => {
           const key = partDeltaKey(scopeKey, item.key)
-          if (!key) return []
-          const current = deltas.get(key)
-          if (identityFromDeltaKey(key).partKind !== "text" || !current) return [key]
-          const text = typeof item.row.text === "string" ? item.row.text : ""
-          return current.text !== text && current.text.startsWith(text) ? [key] : []
+          return key && deltas.has(key) ? [key] : []
         })))
       }
       if (!scope.ready) {
@@ -283,7 +285,9 @@ export function createConnectionStore(options: StoreOptions = {}) {
       const suffix = input.offset < current.bytes
         ? new TextDecoder().decode(encoded.subarray(current.bytes - input.offset))
         : input.text
-      const text = current.text + suffix
+      const text = new TextEncoder().encode(current.text).byteLength < current.bytes
+        ? current.text
+        : deltaPreview(current.text + suffix)
       const bytes = Math.max(current.bytes, input.offset + encoded.byteLength)
       deltas.set(key, { text, bytes, incomplete: current.incomplete, snapshot: { text, incomplete: current.incomplete } })
       if (!previous) notifyDeltaIdentities(input.sessionId)
@@ -419,6 +423,15 @@ function partDeltaKey(sessionId: string, rowKey: string | readonly string[]) {
 function identityFromDeltaKey(key: string): DeltaIdentity {
   const [sessionId, messageId, partKind, partId] = key.split("\u0000")
   return { sessionId: sessionId!, messageId: messageId!, partKind: partKind as DeltaIdentity["partKind"], partId: partId! }
+}
+
+function deltaPreview(input: string) {
+  const bytes = new TextEncoder().encode(input.split("\n", 501).slice(0, 500).join("\n"))
+  const target = Math.min(bytes.length, 32 * 1024)
+  if (target === bytes.length || bytes[target]! >> 6 !== 2) return new TextDecoder().decode(bytes.subarray(0, target))
+  if (bytes[target - 1]! >> 6 !== 2) return new TextDecoder().decode(bytes.subarray(0, target - 1))
+  if (bytes[target - 2]! >> 6 !== 2) return new TextDecoder().decode(bytes.subarray(0, target - 2))
+  return new TextDecoder().decode(bytes.subarray(0, target - 3))
 }
 
 function scheduleAnimationFrame(callback: () => void) {

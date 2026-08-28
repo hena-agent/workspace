@@ -257,7 +257,6 @@ describe("Composer", () => {
   })
 
   test("hides file mention results while delivery is pending", async () => {
-    const user = userEvent.setup()
     const delivery = Promise.withResolvers<void>()
     mockMatchMedia(true)
     render(
@@ -271,13 +270,14 @@ describe("Composer", () => {
         onSend={() => delivery.promise}
         onQueue={() => {}}
         onFindFiles={async () => ["src/app.tsx"]}
+        initialText="Check @app"
+        initialSelection={{ start: 10, end: 10 }}
       />,
     )
 
     const textarea = screen.getByLabelText("Message")
-    await user.type(textarea, "Check @app")
     expect(await screen.findByText("src/app.tsx")).toBeInTheDocument()
-    await user.click(screen.getByRole("button", { name: "Send message" }))
+    fireEvent.click(screen.getByRole("button", { name: "Send message" }))
     expect(screen.queryByText("src/app.tsx")).not.toBeInTheDocument()
 
     delivery.resolve()

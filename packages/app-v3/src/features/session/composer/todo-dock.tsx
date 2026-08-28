@@ -1,4 +1,4 @@
-import { Circle, CircleCheck, CircleDashed, CircleX } from "lucide-react"
+import { ChevronDown, Circle, CircleCheck, CircleDashed, CircleX } from "lucide-react"
 import {
   Queue,
   QueueItem,
@@ -28,7 +28,10 @@ export function TodoDock({ todos }: { todos: Todo[] }) {
     <Queue className="rounded-lg px-2 py-1 shadow-none">
       <QueueSection>
         <QueueSectionTrigger className="hit-area bg-transparent px-1 py-1 text-xs text-foreground">
-          <span>Todos · {remaining} remaining of {todos.length}</span>
+          <span className="flex items-center gap-2">
+            <ChevronDown aria-hidden className="size-4 transition-transform group-data-[state=closed]:-rotate-90" />
+            Todos · {remaining} remaining of {todos.length}
+          </span>
         </QueueSectionTrigger>
         <QueueSectionContent>
           <QueueList className="mt-1">

@@ -29,6 +29,7 @@ const rail = {
   projects: projects.map((project) => ({ project, notification: { kind: "none" as const, working: false } })),
   selectedProject: projects[0],
   onSelectProject: noop,
+  onReorderProjects: noop,
   onAddProject: noop,
   onOpenSettings: noop,
 }

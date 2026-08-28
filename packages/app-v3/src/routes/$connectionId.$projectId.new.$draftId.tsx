@@ -5,7 +5,7 @@ import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
 import { loadFileMatches, useCatalog, useCollectionReady, useProject, useSettings } from "@/data/queries"
 import { createSessionOptimistically } from "@/mutations/session"
-import { loadDraft, removeDraft, saveDraft } from "@/local-state/drafts"
+import { loadDraft, saveDraft } from "@/local-state/drafts"
 
 export const Route = createFileRoute("/$connectionId/$projectId/new/$draftId")({
   component: NewSessionRoute,
@@ -70,7 +70,7 @@ function NewSessionRoute() {
           to: "/$connectionId/$projectId/session/$sessionId",
           params: { connectionId, projectId, sessionId: created.sessionID },
         })
-        return created.transaction.isPersisted.promise.then(() => removeDraft(agent.url, draftId)).catch((cause) => {
+        return created.transaction.isPersisted.promise.catch((cause) => {
           const current = loadDraft(agent.url, draftId)
           if (current) saveDraft(agent.url, draftId, `/${connectionId}/${projectId}/new/${draftId}`, {
             ...current,

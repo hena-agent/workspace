@@ -7,7 +7,7 @@ import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
 import { loadFileMatches, useCatalog, useCollectionReady, useMessages, usePendingRequest, usePermission, useQuestion, useQueuedInputs, useSession, useSessionLocation, useSettings, useTodos } from "@/data/queries"
 import { admitPromptOptimistically, cancelInputOptimistically, interruptOptimistically, isSessionStopping, reorderInputsOptimistically, replyPermissionOptimistically, replyQuestionOptimistically } from "@/mutations/session"
-import { loadDraft, removeDraft, saveDraft } from "@/local-state/drafts"
+import { loadDraft, saveDraft } from "@/local-state/drafts"
 import { markSessionSeen } from "@/local-state/seen"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/")({
@@ -97,7 +97,7 @@ function SessionTranscriptRoute() {
           agentID: selectedAgentId || undefined,
           model: selectedModel(catalog.models, selectedModelId),
         }).transaction.isPersisted.promise
-        return result.then(() => removeDraft(agent.url, draftKey))
+        return result
           }}
           onQueue={(text, files) => {
         if (!agent) return Promise.reject(new Error("Server is unavailable"))
@@ -109,7 +109,7 @@ function SessionTranscriptRoute() {
           agentID: selectedAgentId || undefined,
           model: selectedModel(catalog.models, selectedModelId),
         }).transaction.isPersisted.promise
-        return result.then(() => removeDraft(agent.url, draftKey))
+        return result
           }}
           queuedInputs={queue.items}
           onCancelInput={(messageID) => {

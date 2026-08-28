@@ -4,9 +4,9 @@ import { Paperclip } from "lucide-react"
 import { Attachment, AttachmentInfo, AttachmentPreview, AttachmentRemove, Attachments } from "@/components/ai-elements/attachments"
 import {
   PromptInput,
+  PromptInputActionAddAttachments,
   PromptInputActionMenu,
   PromptInputActionMenuContent,
-  PromptInputActionMenuItem,
   PromptInputActionMenuTrigger,
   PromptInputBody,
   PromptInputCommand,
@@ -87,12 +87,13 @@ function ComposerForm({
   const [mentionedFiles, setMentionedFiles] = useState<AttachedFile[]>([])
   const [fileResults, setFileResults] = useState<string[]>([])
   const [error, setError] = useState(initialError)
-  const fileInput = useRef<HTMLInputElement>(null)
+  const [submitting, setSubmitting] = useState(false)
   const delivery = useRef<"send" | "queue">("send")
   const hasFinePointer = useMediaQuery("(any-pointer: fine)")
   const text = controller.textInput.value
   const mention = text.slice(0, selection.start).match(/(?:^|\s)@([^\s]*)$/)?.[1]
   const attachmentCount = attachments.files.length + mentionedFiles.length
+  const savedAttachmentCount = useRef(attachmentCount)
   const stoppingControl = Boolean(working && onStop)
 
   useEffect(() => {
@@ -108,8 +109,14 @@ function ComposerForm({
   }, [mention, onFindFiles])
 
   function updateDraft(nextText = text, nextSelection = selection, nextAttachmentCount = attachmentCount) {
+    savedAttachmentCount.current = nextAttachmentCount
     onDraftChange?.({ text: nextText, selection: nextSelection, droppedAttachments: nextAttachmentCount })
   }
+
+  useEffect(() => {
+    if (savedAttachmentCount.current === attachmentCount) return
+    updateDraft(text, selection, attachmentCount)
+  }, [attachmentCount, onDraftChange, selection, text])
 
   function chooseMention(path: string) {
     const before = text.slice(0, selection.start).replace(/@[^\s]*$/, `@${path} `)
@@ -126,52 +133,41 @@ function ComposerForm({
   }
 
   async function submit(message: { text: string; files: FileUIPart[] }) {
-    const trimmed = message.text.trim()
-    if (!trimmed) return
-    if (message.files.reduce((bytes, file) => bytes + dataUriBytes(file.url), 0) > 20 * 1024 * 1024) {
-      setError("Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less.")
-      throw new Error("Attachments exceed the combined size limit")
-    }
     const mode = delivery.current
     delivery.current = "send"
+    const trimmed = message.text.trim()
+    if (!trimmed) {
+      setSubmitting(false)
+      return
+    }
     setError("")
-    await Promise.resolve()
-      .then(() => (mode === "queue" ? onQueue : onSend)(trimmed, [
+    try {
+      await Promise.resolve((mode === "queue" ? onQueue : onSend)(trimmed, [
         ...message.files.map((file) => ({ uri: file.url, name: file.filename })),
         ...mentionedFiles.map((file) => ({ uri: file.uri, name: file.name })),
       ]))
-      .catch((cause) => {
-        setError(cause instanceof Error ? cause.message : "The message could not be sent.")
-        throw cause
-      })
-    setMentionedFiles([])
-    setSelection({ start: 0, end: 0 })
-    updateDraft("", { start: 0, end: 0 }, 0)
+      setMentionedFiles([])
+      setSelection({ start: 0, end: 0 })
+      updateDraft("", { start: 0, end: 0 }, 0)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The message could not be sent.")
+      throw cause
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
     <PromptInput
       multiple
       maxFileSize={5 * 1024 * 1024}
-      onError={() => setError("Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less.")}
-      onDrop={(event) => {
-        updateDraft(text, selection, attachmentCount + Array.from(event.dataTransfer.files).filter((file) => file.size <= 5 * 1024 * 1024).length)
+      maxFiles={submitting ? attachments.files.length : undefined}
+      onError={() => {
+        if (!submitting) setError("Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less.")
       }}
+      onSubmitCapture={() => setSubmitting(true)}
       onSubmit={submit}
     >
-      <input
-        ref={fileInput}
-        type="file"
-        multiple
-        className="hidden"
-        aria-label="Add attachment"
-        onChange={(event) => {
-          const files = Array.from(event.currentTarget.files ?? [])
-          attachments.add(files)
-          updateDraft(text, selection, attachmentCount + files.filter((file) => file.size <= 5 * 1024 * 1024).length)
-          event.currentTarget.value = ""
-        }}
-      />
       {attachmentCount > 0 || droppedAttachments > 0 || error ? (
         <PromptInputHeader className="flex-col items-stretch">
           {attachmentCount > 0 ? (
@@ -180,28 +176,22 @@ function ComposerForm({
                 <Attachment
                   key={file.id}
                   data={file}
-                  onRemove={() => {
-                    attachments.remove(file.id)
-                    updateDraft(text, selection, attachmentCount - 1)
-                  }}
+                  onRemove={() => attachments.remove(file.id)}
                 >
                   <AttachmentPreview />
                   <AttachmentInfo />
-                  <AttachmentRemove label={`Remove ${file.filename ?? "attachment"}`} className="opacity-100" />
+                  <AttachmentRemove disabled={submitting} label={`Remove ${file.filename ?? "attachment"}`} className="opacity-100" />
                 </Attachment>
               ))}
               {mentionedFiles.map((file) => (
                 <Attachment
                   key={file.uri}
                   data={{ id: file.uri, type: "file", filename: file.name, mediaType: "application/octet-stream", url: file.uri }}
-                  onRemove={() => {
-                    setMentionedFiles((current) => current.filter((item) => item.uri !== file.uri))
-                    updateDraft(text, selection, attachmentCount - 1)
-                  }}
+                  onRemove={() => setMentionedFiles((current) => current.filter((item) => item.uri !== file.uri))}
                 >
                   <AttachmentPreview />
                   <AttachmentInfo />
-                  <AttachmentRemove label={`Remove ${file.name ?? "attachment"}`} className="opacity-100" />
+                  <AttachmentRemove disabled={submitting} label={`Remove ${file.name ?? "attachment"}`} className="opacity-100" />
                 </Attachment>
               ))}
             </Attachments>
@@ -241,15 +231,15 @@ function ComposerForm({
             const files = Array.from(event.clipboardData.files)
             if (files.length === 0) return
             event.preventDefault()
-            if (files.some((file) => file.size > 5 * 1024 * 1024)) {
+            const accepted = files.filter((file) => file.size <= 5 * 1024 * 1024)
+            if (accepted.length === 0) {
               setError("Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less.")
               return
             }
-            attachments.add(files)
-            updateDraft(text, selection, attachmentCount + files.length)
+            attachments.add(accepted)
           }}
           placeholder={placeholder}
-          disabled={disabled}
+          disabled={disabled || submitting}
           className="field-sizing-content max-h-48 min-h-16"
         />
       </PromptInputBody>
@@ -275,21 +265,15 @@ function ComposerForm({
             modelId={modelId}
             onChangeAgent={onChangeAgent}
             onChangeModel={onChangeModel}
+            disabled={disabled || submitting}
           />
           <PromptInputActionMenu>
-            <PromptInputActionMenuTrigger aria-label="Attach files" tooltip="Attach files">
+            <PromptInputActionMenuTrigger disabled={disabled || submitting} aria-label="Attach files" tooltip="Attach files">
               <Paperclip />
             </PromptInputActionMenuTrigger>
             <PromptInputActionMenuContent>
               <DropdownMenuGroup>
-                <PromptInputActionMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault()
-                    fileInput.current?.click()
-                  }}
-                >
-                  <Paperclip /> Add photos or files
-                </PromptInputActionMenuItem>
+                <PromptInputActionAddAttachments />
               </DropdownMenuGroup>
             </PromptInputActionMenuContent>
           </PromptInputActionMenu>
@@ -299,16 +283,10 @@ function ComposerForm({
           onStop={onStop}
           variant={stoppingControl ? "destructive" : "default"}
           aria-label={stoppingControl ? (stopping ? "Stopping session" : "Stop session") : "Send message"}
-          disabled={stopping || (!stoppingControl && (disabled || text.trim().length === 0))}
+          disabled={stopping || submitting || (!stoppingControl && (disabled || text.trim().length === 0))}
           className="hit-area"
         />
       </PromptInputFooter>
     </PromptInput>
   )
-}
-
-function dataUriBytes(uri: string) {
-  if (!uri.startsWith("data:")) return 0
-  const value = uri.slice(uri.indexOf(",") + 1)
-  return Math.floor(value.length * 3 / 4) - (value.endsWith("==") ? 2 : value.endsWith("=") ? 1 : 0)
 }

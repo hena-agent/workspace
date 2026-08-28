@@ -21,9 +21,13 @@ export function loadDraft(url: string, key: string, storage: Storage = localStor
 }
 
 export function saveDraft(url: string, key: string, route: string, body: DraftBody, storage: Storage = localStorage) {
+  const nextBody = normalizeBody(body)
+  if (!nextBody.text && nextBody.droppedAttachments === 0 && !nextBody.error) {
+    removeDraft(url, key, storage)
+    return nextBody
+  }
   const current = load(url, storage)
   const updatedAt = Date.now()
-  const nextBody = normalizeBody(body)
   const index = [...current.index.filter((entry) => entry.key !== key), { key, route, updatedAt }].slice(-MAX_DRAFTS)
   const retained = new Set(index.map((entry) => entry.key))
   const bodies = Object.fromEntries(

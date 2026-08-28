@@ -29,6 +29,7 @@ export function AgentModelPicker({
   modelId,
   onChangeAgent,
   onChangeModel,
+  disabled,
 }: {
   agents: Agent[]
   models: Model[]
@@ -36,6 +37,7 @@ export function AgentModelPicker({
   modelId: string
   onChangeAgent: (id: string) => void
   onChangeModel: (id: string) => void
+  disabled?: boolean
 }) {
   const [modelOpen, setModelOpen] = useState(false)
   const [search, setSearch] = useState("")
@@ -47,7 +49,7 @@ export function AgentModelPicker({
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1">
-      <PromptInputSelect value={agentId} onValueChange={onChangeAgent}>
+      <PromptInputSelect disabled={disabled} value={agentId} onValueChange={onChangeAgent}>
         <PromptInputSelectTrigger size="sm" aria-label="Agent" className="h-7 max-w-24 shrink-0 hit-area px-2 text-xs">
           <PromptInputSelectValue placeholder="Agent" />
         </PromptInputSelectTrigger>
@@ -73,6 +75,7 @@ export function AgentModelPicker({
             aria-label="Model"
             aria-haspopup="dialog"
             aria-expanded={modelOpen}
+            disabled={disabled}
             className="min-w-0 flex-1 hit-area justify-between px-2 text-xs font-normal"
           >
             <span className="truncate">{selectedModel?.name ?? "Model"}</span>
@@ -87,7 +90,8 @@ export function AgentModelPicker({
               {filteredModels.map((model) => (
                 <ModelSelectorItem
                   key={`${model.providerId}/${model.id}`}
-                  value={`${model.name} ${model.id} ${model.providerId} ${normalizeModelSearch(`${model.name} ${model.id} ${model.providerId}`).replaceAll(" ", "")}`}
+                  value={`${model.name} ${model.id} ${model.providerId}`}
+                  forceMount
                   data-checked={model.id === modelId}
                   onSelect={() => {
                     onChangeModel(model.id)

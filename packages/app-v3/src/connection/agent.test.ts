@@ -22,6 +22,35 @@ describe("event stream parser", () => {
 })
 
 describe("connection protocol", () => {
+  test("restarts when a session is claimed during subscription", async () => {
+    const firstSubscription = Promise.withResolvers<void>()
+    const subscriptions: unknown[] = []
+    const agent = createConnectionAgent("http://hena.test", async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url.endsWith("/capabilities")) return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
+      if (request.url.endsWith("/streams")) return Response.json({ streamId: "stream", generation: 0, expiresAt: Date.now() + 1_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
+      if (request.url.endsWith("/subscription")) {
+        subscriptions.push(await request.json())
+        if (subscriptions.length === 1) await firstSubscription.promise
+        return Response.json({ revision: subscriptions.length, generation: 0 })
+      }
+      return sse([])
+    })
+
+    const started = agent.start()
+    await waitUntil(() => subscriptions.length === 1)
+    agent.claim("session-1")
+    firstSubscription.resolve()
+    await waitUntil(() => subscriptions.length === 2)
+    agent.dispose()
+    await started
+
+    expect(subscriptions).toEqual([
+      expect.objectContaining({ sessions: [] }),
+      expect.objectContaining({ sessions: ["session-1"] }),
+    ])
+  })
+
   test("refuses servers whose protocol range excludes version one", async () => {
     const agent = createConnectionAgent("http://hena.test", async () =>
       Response.json({ feedId: "feed", protocol: { min: 2, max: 3 }, auth: "none" }))
@@ -62,4 +91,12 @@ function sse(frames: Record<string, unknown>[]) {
       controller.close()
     },
   }), { headers: { "content-type": "text/event-stream" } })
+}
+
+async function waitUntil(predicate: () => boolean) {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    if (predicate()) return
+    await Bun.sleep(10)
+  }
+  throw new Error("Timed out waiting for connection state")
 }

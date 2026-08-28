@@ -16,11 +16,12 @@ import type {
   Todo,
   FileNode,
 } from "@/lib/types"
-import { createConnectionStore } from "@/connection/store"
+import { createConnectionStore, type DeltaIdentity } from "@/connection/store"
 import { getMutationStateVersion, isMessagePending, subscribeMutationState } from "@/mutations/session"
 import { useSeenWatermarks, wasSeenAfter } from "@/local-state/seen"
 
 const emptyStore = createConnectionStore()
+type VisibleDelta = DeltaIdentity & { partKind: "text" | "reasoning" }
 
 export function useProjects(agent: ReturnTypeOfAgent | undefined) {
   return useRows(agent, "projects", "")
@@ -109,11 +110,27 @@ export function useSessionLocation(agent: ReturnTypeOfAgent | undefined, id: str
 
 export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
   useSyncExternalStore(subscribeMutationState, getMutationStateVersion, getMutationStateVersion)
+  useSyncExternalStore(
+    agent ? agent.store.subscribe : emptySubscribe,
+    () => agent?.store.deltaRevision() ?? 0,
+    () => 0,
+  )
   const messages = useRows(agent, "messages", sessionId)
   const parts = useRows(agent, "parts", sessionId)
-  return messages
-    .map((message) => messageView(agent, message, parts))
+  const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
+  const projected = messages
+    .map((message) => messageView(agent, sessionId, message, parts, deltas))
     .sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
+  const known = new Set(projected.map((message) => message.id))
+  const provisional = deltas
+    .filter((delta) => !known.has(delta.messageId))
+    .reduce<Extract<SessionMessage, { role: "assistant" }>[]>((result, delta) => {
+      const message = result.find((item) => item.id === delta.messageId)
+      if (message) message.parts.push(deltaPartView(agent!, delta))
+      if (!message) result.push({ id: delta.messageId, sessionId, createdAt: Number.MAX_SAFE_INTEGER, role: "assistant", parts: [deltaPartView(agent!, delta)] })
+      return result
+    }, [])
+  return [...projected, ...provisional]
 }
 
 export function useTodos(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
@@ -243,16 +260,20 @@ function sessionView(row: Record<string, unknown>, permissions: Record<string, u
   }
 }
 
-function messageView(agent: ReturnTypeOfAgent | undefined, row: Record<string, unknown>, parts: Record<string, unknown>[]): SessionMessage {
+function messageView(agent: ReturnTypeOfAgent | undefined, sessionId: string, row: Record<string, unknown>, parts: Record<string, unknown>[], deltas: VisibleDelta[]): SessionMessage {
   const type = string(row.type)
-  const base = { id: string(row.id), sessionId: string(row.sessionID), createdAt: number(record(row.time).created), pending: isMessagePending(string(row.id)) }
+  const base = { id: string(row.id), sessionId, createdAt: number(record(row.time).created), pending: isMessagePending(string(row.id)) }
   if (type === "user") return { ...base, role: "user", text: string(row.text), files: array(row.files).map((file) => string(record(file).name || record(file).uri)).filter(Boolean) }
-  if (type === "assistant") return {
-    ...base,
-    role: "assistant",
-    parts: parts.filter((part) => string(part.messageID) === base.id).sort((left, right) => number(left.ordinal) - number(right.ordinal)).map((part) => partView(agent, base.sessionId, base.id, part)),
-    agent: optionalString(row.agent),
-    model: optionalString(record(row.model).id),
+  if (type === "assistant") {
+    const persisted = parts.filter((part) => string(part.messageID) === base.id).sort((left, right) => number(left.ordinal) - number(right.ordinal)).map((part) => partView(agent, base.sessionId, base.id, part))
+    const known = new Set(persisted.map((part) => `${part.kind}\u0000${part.id}`))
+    return {
+      ...base,
+      role: "assistant",
+      parts: [...persisted, ...deltas.flatMap((delta) => delta.messageId === base.id && !known.has(`${delta.partKind}\u0000${delta.partId}`) ? [deltaPartView(agent!, delta)] : [])],
+      agent: optionalString(row.agent),
+      model: optionalString(record(row.model).id),
+    }
   }
   if (type === "compaction") return { ...base, role: "compaction", summary: string(row.summary), final: Boolean(record(row.time).completed) }
   if (type === "shell") return { ...base, role: "shell", command: string(row.command), output: string(row.output) }
@@ -344,6 +365,14 @@ function liveText(agent: ReturnTypeOfAgent | undefined, identity: Parameters<Ret
     snapshot: () => agent.store.delta(identity)?.text ?? "",
     incomplete: () => agent.store.delta(identity)?.incomplete ?? false,
   }
+}
+
+function isVisibleDelta(identity: DeltaIdentity): identity is VisibleDelta {
+  return identity.partKind === "text" || identity.partKind === "reasoning"
+}
+
+function deltaPartView(agent: ReturnTypeOfAgent, identity: VisibleDelta): AssistantPart {
+  return { id: identity.partId, kind: identity.partKind, text: "", live: liveText(agent, identity) }
 }
 
 function contentReference(agent: ReturnTypeOfAgent | undefined, sessionId: string, value: unknown) {

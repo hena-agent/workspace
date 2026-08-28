@@ -57,7 +57,7 @@ describe("connection store", () => {
     expect(store.delta(identity)).toEqual({ text: "é!", incomplete: true })
   })
 
-  test("coalesces delta notifications and clears finalized parts", () => {
+  test("coalesces delta notifications and keeps text deltas until the assistant completes", () => {
     const frames: Array<() => void> = []
     const store = createConnectionStore({ scheduleFrame: (callback) => frames.push(callback) })
     const identity = { sessionId: "s", messageId: "m", partId: "p", partKind: "text" as const }
@@ -71,8 +71,32 @@ describe("connection store", () => {
 
     store.applyRows({
       throughSeq: 1,
-      changes: [{ seq: 1, collection: "parts", scopeKey: "s", rowKey: ["m", "text", "p"], op: "insert", row: { type: "text", text: "onetwo" } }],
+      changes: [{ seq: 1, collection: "parts", scopeKey: "s", rowKey: ["m", "text", "p"], op: "insert", row: { type: "text", text: "one" } }],
     })
+    expect(store.delta(identity)).toEqual({ text: "onetwo", incomplete: false })
+
+    store.applyRows({
+      throughSeq: 2,
+      changes: [{ seq: 2, collection: "messages", scopeKey: "s", rowKey: "m", op: "update", row: { id: "m", type: "assistant", time: { created: 1, completed: 2 } } }],
+    })
+    expect(store.delta(identity)).toBeUndefined()
+  })
+
+  test("keeps reasoning deltas until the reasoning part completes", () => {
+    const store = createConnectionStore()
+    const identity = { sessionId: "s", messageId: "m", partId: "p", partKind: "reasoning" as const }
+    store.applyDelta({ ...identity, offset: 0, text: "live reasoning" })
+
+    store.applyRows({
+      throughSeq: 1,
+      changes: [{ seq: 1, collection: "parts", scopeKey: "s", rowKey: ["m", "reasoning", "p"], op: "insert", row: { type: "reasoning", text: "", time: { created: 1 } } }],
+    })
+    expect(store.delta(identity)).toEqual({ text: "live reasoning", incomplete: false })
+
+    store.applySnapshot("parts", "s", [{
+      key: ["m", "reasoning", "p"],
+      row: { type: "reasoning", text: "live reasoning", time: { created: 1, completed: 2 } },
+    }], 2)
     expect(store.delta(identity)).toBeUndefined()
   })
 

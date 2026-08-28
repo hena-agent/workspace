@@ -43,6 +43,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
   const deltaListeners = new Map<string, Set<() => void>>()
   const pendingDeltaNotifications = new Set<string>()
   let deltaFrameScheduled = false
+  let deltaRevision = 0
 
   const getScope = (collection: string, scopeKey: string) => {
     const key = scopeIdentity(collection, scopeKey)
@@ -59,6 +60,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
     deltaFrameScheduled = true
     ;(options.scheduleFrame ?? scheduleAnimationFrame)(() => {
       deltaFrameScheduled = false
+      deltaRevision++
       const pending = Array.from(pendingDeltaNotifications)
       pendingDeltaNotifications.clear()
       pending.forEach((item) => deltaListeners.get(item)?.forEach((listener) => listener()))
@@ -72,14 +74,25 @@ export function createConnectionStore(options: StoreOptions = {}) {
   const finalize = (collection: string, scopeKey: string, rowKey: string | readonly string[], row: Row | null) => {
     if (collection === "parts" && Array.isArray(rowKey) && rowKey.length === 3) {
       const partKind = rowKey[1] === "tool" ? "tool-input" : rowKey[1]
+      if (partKind === "text" && row) return
+      if (partKind === "reasoning" && row && typeof (row.time as Row | undefined)?.completed !== "number") return
+      if (partKind === "tool-input" && row && (row.state as Row | undefined)?.status === "pending") return
       if (["text", "reasoning", "tool-input"].includes(partKind))
         clearDelta(deltaKey({ sessionId: scopeKey, messageId: rowKey[0], partKind: partKind as DeltaIdentity["partKind"], partId: rowKey[2] }))
       return
     }
-    if (collection !== "messages" || row?.type !== "compaction") return
+    if (collection !== "messages" || !row) return
     const messageId = typeof row.id === "string" ? row.id : typeof rowKey === "string" ? rowKey : rowKey[0]
+    if (row.type === "assistant" && typeof (row.time as Row | undefined)?.completed === "number") {
+      const prefix = `${scopeKey}\u0000${messageId}\u0000`
+      const keys = Array.from(deltas.keys()).filter((key) => key.startsWith(prefix))
+      keys.forEach(clearDelta)
+      return
+    }
+    if (row.type !== "compaction") return
     const prefix = `${scopeKey}\u0000${messageId}\u0000compaction\u0000`
-    Array.from(deltas.keys()).filter((key) => key.startsWith(prefix)).forEach(clearDelta)
+    const keys = Array.from(deltas.keys()).filter((key) => key.startsWith(prefix))
+    keys.forEach(clearDelta)
   }
 
   return {
@@ -159,7 +172,8 @@ export function createConnectionStore(options: StoreOptions = {}) {
         if (!resetScopes.has(key)) scope.cursor = Math.max(scope.cursor, frame.throughSeq)
       })
       if (affected.size > 0) notify()
-      frame.changes.flatMap((change) => change.txid ? [change.txid] : []).forEach((txid) => {
+      const txids = frame.changes.flatMap((change) => change.txid ? [change.txid] : [])
+      txids.forEach((txid) => {
         recentTxids.add(txid)
         waiters.get(txid)?.forEach((waiter) => {
           clearTimeout(waiter.timer)
@@ -231,6 +245,14 @@ export function createConnectionStore(options: StoreOptions = {}) {
     delta(identity: DeltaIdentity) {
       return deltas.get(deltaKey(identity))?.snapshot
     },
+    deltaIdentities(sessionId: string) {
+      const prefix = `${sessionId}\u0000`
+      return Array.from(deltas.keys())
+        .flatMap((key) => key.startsWith(prefix) ? [identityFromDeltaKey(key)] : [])
+    },
+    deltaRevision() {
+      return deltaRevision
+    },
     subscribeDelta(identity: DeltaIdentity, listener: () => void) {
       const key = deltaKey(identity)
       const scoped = deltaListeners.get(key) ?? new Set()
@@ -243,7 +265,8 @@ export function createConnectionStore(options: StoreOptions = {}) {
     },
     clearSessionDeltas(sessionId: string) {
       const prefix = `${sessionId}\u0000`
-      Array.from(deltas.keys()).filter((key) => key.startsWith(prefix)).forEach(clearDelta)
+      const keys = Array.from(deltas.keys()).filter((key) => key.startsWith(prefix))
+      keys.forEach(clearDelta)
     },
     dropCursors(targets?: readonly ScopeRef[]) {
       const identities = targets && new Set(targets.map((scope) => scopeIdentity(scope.collection, scope.scopeKey)))
@@ -329,6 +352,11 @@ function scopeIdentity(collection: string, scopeKey: string) {
 
 function deltaKey(identity: DeltaIdentity) {
   return `${identity.sessionId}\u0000${identity.messageId}\u0000${identity.partKind}\u0000${identity.partId}`
+}
+
+function identityFromDeltaKey(key: string): DeltaIdentity {
+  const [sessionId, messageId, partKind, partId] = key.split("\u0000")
+  return { sessionId: sessionId!, messageId: messageId!, partKind: partKind as DeltaIdentity["partKind"], partId: partId! }
 }
 
 function scheduleAnimationFrame(callback: () => void) {

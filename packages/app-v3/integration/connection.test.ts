@@ -24,8 +24,14 @@ describe("connection agent with server-v3", () => {
     persisted.publish = database.changes.publishPersisted
     bootstrapCollections(database)
     const app = createApp({ database, domain, deltas, online })
-    const agent = createConnectionAgent("http://hena.test", (input, init) =>
-      app.request(input instanceof Request ? new Request(input, init) : new Request(input, init)))
+    const subscriptions: unknown[] = []
+    const agent = createConnectionAgent("http://hena.test", async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url.endsWith("/subscription")) subscriptions.push(await request.clone().json())
+      return app.request(request)
+    })
+    const sessionID = Session.ID.create()
+    const release = agent.claim(sessionID)
 
     try {
       void agent.start()
@@ -35,8 +41,6 @@ describe("connection agent with server-v3", () => {
       )
       expect(agent.store.rows("projects")).toEqual([])
 
-      const sessionID = Session.ID.create()
-      const release = agent.claim(sessionID)
       const response = await agent.client.api.session.$post({
         json: {
           idempotencyKey: crypto.randomUUID(),
@@ -54,6 +58,25 @@ describe("connection agent with server-v3", () => {
 
       expect(agent.store.rows("projects").length).toBe(1)
       expect(agent.store.rows("sessions")).toContainEqual(expect.objectContaining({ id: sessionID }))
+      const identity = {
+        sessionId: sessionID,
+        messageId: SessionMessage.ID.create(),
+        partId: "text-0",
+        partKind: "text" as const,
+      }
+      expect(subscriptions).toContainEqual(expect.objectContaining({ sessions: [sessionID] }))
+      deltas.publish({ ...identity, text: "streaming" })
+      await waitUntil(() => agent.store.delta(identity)?.text === "streaming")
+      expect(agent.store.delta(identity)).toEqual({ text: "streaming", incomplete: false })
+      const reasoning = {
+        sessionId: sessionID,
+        messageId: SessionMessage.ID.create(),
+        partId: "reasoning-0",
+        partKind: "reasoning" as const,
+      }
+      deltas.publish({ ...reasoning, text: "live reasoning" })
+      await waitUntil(() => agent.store.delta(reasoning)?.text === "live reasoning")
+      expect(agent.store.deltaIdentities(sessionID)).toContainEqual(reasoning)
       release()
     } finally {
       agent.dispose()

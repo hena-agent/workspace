@@ -22,9 +22,9 @@ export function MessageList({ messages, working }: { messages: SessionMessage[];
               </div>
             ) : (
               <>
-                {messages.map((message) => (
+                {messages.map((message, index) => (
                   <MessageScrollerItem key={message.id} messageId={message.id} scrollAnchor={message.role === "user"}>
-                    <MessageRow message={message} />
+                    <MessageRow message={message} working={working && index === messages.length - 1} />
                   </MessageScrollerItem>
                 ))}
                 {showsThinking(messages, working) ? (

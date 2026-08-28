@@ -70,6 +70,22 @@ describe("SessionRunnerModel", () => {
 
       expect(JSON.stringify(prepared.body)).not.toContain("apiKey")
       expect(JSON.stringify(prepared.body)).not.toContain("secret")
+      expect(prepared.body).not.toHaveProperty("reasoning")
+    }),
+  )
+
+  it.effect("requests summaries for reasoning OpenAI Responses models", () =>
+    Effect.gen(function* () {
+      const catalog = model({ type: "aisdk", package: "@ai-sdk/openai", url: "https://openai.example/v1" })
+      const resolved = yield* SessionRunnerModel.fromCatalogModel(
+        ModelV2.Info.make({
+          ...catalog,
+          capabilities: { ...catalog.capabilities, reasoning: true },
+        }),
+      )
+      const prepared = yield* LLMClient.prepare(LLM.request({ model: resolved, prompt: "Hello" }))
+
+      expect(prepared.body).toMatchObject({ reasoning: { summary: "auto" } })
     }),
   )
 

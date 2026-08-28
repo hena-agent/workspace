@@ -58,7 +58,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   let startPromise: Promise<void> | undefined
   let subscriptionRevision = 0
   let disposed = false
-  let immediateRestart = false
+  let restartRevision = 0
   let decoders: Decoders | undefined
 
   const notify = () => listeners.forEach((listener) => listener())
@@ -73,7 +73,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   }
   const claimedSessions = () => Array.from(new Set([focusedSession, ...linger].filter((session): session is string => !!session)))
   const requestRestart = () => {
-    immediateRestart = true
+    restartRevision++
     abort?.abort()
   }
   refresh = (scopes) => {
@@ -93,12 +93,15 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     decoders ??= await loadDecoders()
     let attempt = 0
     while (!disposed) {
+      const currentRestartRevision = restartRevision
       try {
         if (!resource) await createResource()
         if (!resource) continue
         if (!await putSubscription()) continue
+        if (currentRestartRevision !== restartRevision) continue
         await attach(resource.generation)
         if (disposed) return
+        if (currentRestartRevision !== restartRevision) continue
         setStatus("reconnecting")
         await reconnectDelay(attempt++)
       } catch (cause) {
@@ -108,10 +111,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
           setStatus(cause.status)
           return
         }
-        if (immediateRestart || (cause instanceof DOMException && cause.name === "AbortError")) {
-          immediateRestart = false
-          continue
-        }
+        if (currentRestartRevision !== restartRevision || (cause instanceof DOMException && cause.name === "AbortError")) continue
         setStatus("reconnecting")
         await reconnectDelay(attempt++)
       }
@@ -187,7 +187,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
       })
       if (response.status === 404) {
         resource = undefined
-        immediateRestart = true
+        requestRestart()
         return
       }
       if (!response.ok || !response.body) throw new Error(`Event stream failed with ${response.status}`)
@@ -206,7 +206,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
           activeSnapshots.clear()
           bufferedDeltas.clear()
           resource = undefined
-          immediateRestart = true
+          requestRestart()
           return
         }
         if (decoded.runtimeId !== resource.feed.runtimeId)

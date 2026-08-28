@@ -74,10 +74,6 @@ export type Event =
   | EventLspUpdated
   | EventPermissionAsked
   | EventPermissionReplied
-  | EventTuiPromptAppend2
-  | EventTuiCommandExecute2
-  | EventTuiToastShow2
-  | EventTuiSessionSelect2
   | EventMcpToolsChanged
   | EventMcpBrowserOpenFailed
   | EventCommandExecuted
@@ -1435,57 +1431,6 @@ export type GlobalEvent = {
       }
     | {
         id: string
-        type: "tui.prompt.append"
-        properties: {
-          text: string
-        }
-      }
-    | {
-        id: string
-        type: "tui.command.execute"
-        properties: {
-          command:
-            | "session.list"
-            | "session.new"
-            | "session.share"
-            | "session.interrupt"
-            | "session.compact"
-            | "session.page.up"
-            | "session.page.down"
-            | "session.line.up"
-            | "session.line.down"
-            | "session.half.page.up"
-            | "session.half.page.down"
-            | "session.first"
-            | "session.last"
-            | "prompt.clear"
-            | "prompt.submit"
-            | "agent.cycle"
-            | string
-        }
-      }
-    | {
-        id: string
-        type: "tui.toast.show"
-        properties: {
-          title?: string
-          message: string
-          variant: "info" | "success" | "warning" | "error"
-          duration?: number
-        }
-      }
-    | {
-        id: string
-        type: "tui.session.select"
-        properties: {
-          /**
-           * Session ID to navigate to
-           */
-          sessionID: string
-        }
-      }
-    | {
-        id: string
         type: "mcp.tools.changed"
         properties: {
           server: string
@@ -1665,6 +1610,7 @@ export type GlobalEvent = {
     | SyncEventSessionNextToolFailed
     | SyncEventSessionNextRetried
     | SyncEventSessionNextCompactionStarted
+    | SyncEventSessionNextCompactionDiscarded
     | SyncEventSessionNextCompactionEnded
     | SyncEventSessionNextRevertStaged
     | SyncEventSessionNextRevertCleared
@@ -2632,57 +2578,6 @@ export type SessionBusyError = {
   message: string
 }
 
-export type EventTuiPromptAppend = {
-  type: "tui.prompt.append"
-  properties: {
-    text: string
-  }
-}
-
-export type EventTuiCommandExecute = {
-  type: "tui.command.execute"
-  properties: {
-    command:
-      | "session.list"
-      | "session.new"
-      | "session.share"
-      | "session.interrupt"
-      | "session.compact"
-      | "session.page.up"
-      | "session.page.down"
-      | "session.line.up"
-      | "session.line.down"
-      | "session.half.page.up"
-      | "session.half.page.down"
-      | "session.first"
-      | "session.last"
-      | "prompt.clear"
-      | "prompt.submit"
-      | "agent.cycle"
-      | string
-  }
-}
-
-export type EventTuiToastShow = {
-  type: "tui.toast.show"
-  properties: {
-    title?: string
-    message: string
-    variant: "info" | "success" | "warning" | "error"
-    duration?: number
-  }
-}
-
-export type EventTuiSessionSelect = {
-  type: "tui.session.select"
-  properties: {
-    /**
-     * Session ID to navigate to
-     */
-    sessionID: string
-  }
-}
-
 export type Workspace = {
   id: string
   type: string
@@ -2792,6 +2687,7 @@ export type SessionDurableEvent =
   | SessionNextReasoningEnded
   | SessionNextRetried
   | SessionNextCompactionStarted
+  | SessionNextCompactionDiscarded
   | SessionNextCompactionEnded
   | SessionNextRevertStaged
   | SessionNextRevertCleared
@@ -2955,10 +2851,6 @@ export type V2Event =
   | LspUpdated
   | PermissionAsked
   | PermissionReplied
-  | TuiPromptAppend
-  | TuiCommandExecute
-  | TuiToastShow
-  | TuiSessionSelect
   | McpToolsChanged
   | McpBrowserOpenFailed
   | CommandExecuted
@@ -2995,61 +2887,6 @@ export type ProjectCopyError = {
 
 export type EffectHttpApiErrorForbidden = {
   _tag: "Forbidden"
-}
-
-export type EventTuiPromptAppend2 = {
-  id: string
-  type: "tui.prompt.append"
-  properties: {
-    text: string
-  }
-}
-
-export type EventTuiCommandExecute2 = {
-  id: string
-  type: "tui.command.execute"
-  properties: {
-    command:
-      | "session.list"
-      | "session.new"
-      | "session.share"
-      | "session.interrupt"
-      | "session.compact"
-      | "session.page.up"
-      | "session.page.down"
-      | "session.line.up"
-      | "session.line.down"
-      | "session.half.page.up"
-      | "session.half.page.down"
-      | "session.first"
-      | "session.last"
-      | "prompt.clear"
-      | "prompt.submit"
-      | "agent.cycle"
-      | string
-  }
-}
-
-export type EventTuiToastShow2 = {
-  id: string
-  type: "tui.toast.show"
-  properties: {
-    title?: string
-    message: string
-    variant: "info" | "success" | "warning" | "error"
-    duration?: number
-  }
-}
-
-export type EventTuiSessionSelect2 = {
-  id: string
-  type: "tui.session.select"
-  properties: {
-    /**
-     * Session ID to navigate to
-     */
-    sessionID: string
-  }
 }
 
 export type CredentialValue = CredentialOAuth | CredentialKey
@@ -3789,6 +3626,22 @@ export type SyncEventSessionNextCompactionStarted = {
       sessionID: string
       messageID: string
       reason: "auto" | "manual"
+    }
+  }
+}
+
+export type SyncEventSessionNextCompactionDiscarded = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.compaction.discarded.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      messageID: string
     }
   }
 }
@@ -4764,6 +4617,25 @@ export type SessionNextCompactionStarted = {
   }
 }
 
+export type SessionNextCompactionDiscarded = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "session.next.compaction.discarded"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    timestamp: number
+    sessionID: string
+    messageID: string
+  }
+}
+
 export type SessionNextCompactionEnded = {
   id: string
   metadata?: {
@@ -5411,25 +5283,6 @@ export type SessionNextCompactionDelta = {
   }
 }
 
-export type SessionNextCompactionDiscarded = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  type: "session.next.compaction.discarded"
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  data: {
-    timestamp: number
-    sessionID: string
-    messageID: string
-  }
-}
-
 export type MessagePartDelta = {
   id: string
   metadata?: {
@@ -5867,97 +5720,6 @@ export type PermissionReplied = {
     sessionID: string
     requestID: string
     reply: "once" | "always" | "reject"
-  }
-}
-
-export type TuiPromptAppend = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  type: "tui.prompt.append"
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  data: {
-    text: string
-  }
-}
-
-export type TuiCommandExecute = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  type: "tui.command.execute"
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  data: {
-    command:
-      | "session.list"
-      | "session.new"
-      | "session.share"
-      | "session.interrupt"
-      | "session.compact"
-      | "session.page.up"
-      | "session.page.down"
-      | "session.line.up"
-      | "session.line.down"
-      | "session.half.page.up"
-      | "session.half.page.down"
-      | "session.first"
-      | "session.last"
-      | "prompt.clear"
-      | "prompt.submit"
-      | "agent.cycle"
-      | string
-  }
-}
-
-export type TuiToastShow = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  type: "tui.toast.show"
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  data: {
-    title?: string
-    message: string
-    variant: "info" | "success" | "warning" | "error"
-    duration?: number
-  }
-}
-
-export type TuiSessionSelect = {
-  id: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  type: "tui.session.select"
-  durable?: {
-    aggregateID: string
-    seq: number
-    version: number
-  }
-  location?: LocationRef
-  data: {
-    /**
-     * Session ID to navigate to
-     */
-    sessionID: string
   }
 }
 
@@ -10776,391 +10538,6 @@ export type SyncHistoryListResponses = {
 }
 
 export type SyncHistoryListResponse = SyncHistoryListResponses[keyof SyncHistoryListResponses]
-
-export type TuiAppendPromptData = {
-  body?: {
-    text: string
-  }
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/append-prompt"
-}
-
-export type TuiAppendPromptErrors = {
-  /**
-   * BadRequest | InvalidRequestError
-   */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
-}
-
-export type TuiAppendPromptError = TuiAppendPromptErrors[keyof TuiAppendPromptErrors]
-
-export type TuiAppendPromptResponses = {
-  /**
-   * Prompt processed successfully
-   */
-  200: boolean
-}
-
-export type TuiAppendPromptResponse = TuiAppendPromptResponses[keyof TuiAppendPromptResponses]
-
-export type TuiOpenHelpData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/open-help"
-}
-
-export type TuiOpenHelpErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type TuiOpenHelpError = TuiOpenHelpErrors[keyof TuiOpenHelpErrors]
-
-export type TuiOpenHelpResponses = {
-  /**
-   * Help dialog opened successfully
-   */
-  200: boolean
-}
-
-export type TuiOpenHelpResponse = TuiOpenHelpResponses[keyof TuiOpenHelpResponses]
-
-export type TuiOpenSessionsData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/open-sessions"
-}
-
-export type TuiOpenSessionsErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type TuiOpenSessionsError = TuiOpenSessionsErrors[keyof TuiOpenSessionsErrors]
-
-export type TuiOpenSessionsResponses = {
-  /**
-   * Session dialog opened successfully
-   */
-  200: boolean
-}
-
-export type TuiOpenSessionsResponse = TuiOpenSessionsResponses[keyof TuiOpenSessionsResponses]
-
-export type TuiOpenThemesData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/open-themes"
-}
-
-export type TuiOpenThemesErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type TuiOpenThemesError = TuiOpenThemesErrors[keyof TuiOpenThemesErrors]
-
-export type TuiOpenThemesResponses = {
-  /**
-   * Theme dialog opened successfully
-   */
-  200: boolean
-}
-
-export type TuiOpenThemesResponse = TuiOpenThemesResponses[keyof TuiOpenThemesResponses]
-
-export type TuiOpenModelsData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/open-models"
-}
-
-export type TuiOpenModelsErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type TuiOpenModelsError = TuiOpenModelsErrors[keyof TuiOpenModelsErrors]
-
-export type TuiOpenModelsResponses = {
-  /**
-   * Model dialog opened successfully
-   */
-  200: boolean
-}
-
-export type TuiOpenModelsResponse = TuiOpenModelsResponses[keyof TuiOpenModelsResponses]
-
-export type TuiSubmitPromptData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/submit-prompt"
-}
-
-export type TuiSubmitPromptErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type TuiSubmitPromptError = TuiSubmitPromptErrors[keyof TuiSubmitPromptErrors]
-
-export type TuiSubmitPromptResponses = {
-  /**
-   * Prompt submitted successfully
-   */
-  200: boolean
-}
-
-export type TuiSubmitPromptResponse = TuiSubmitPromptResponses[keyof TuiSubmitPromptResponses]
-
-export type TuiClearPromptData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/clear-prompt"
-}
-
-export type TuiClearPromptErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type TuiClearPromptError = TuiClearPromptErrors[keyof TuiClearPromptErrors]
-
-export type TuiClearPromptResponses = {
-  /**
-   * Prompt cleared successfully
-   */
-  200: boolean
-}
-
-export type TuiClearPromptResponse = TuiClearPromptResponses[keyof TuiClearPromptResponses]
-
-export type TuiExecuteCommandData = {
-  body?: {
-    command: string
-  }
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/execute-command"
-}
-
-export type TuiExecuteCommandErrors = {
-  /**
-   * BadRequest | InvalidRequestError
-   */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
-}
-
-export type TuiExecuteCommandError = TuiExecuteCommandErrors[keyof TuiExecuteCommandErrors]
-
-export type TuiExecuteCommandResponses = {
-  /**
-   * Command executed successfully
-   */
-  200: boolean
-}
-
-export type TuiExecuteCommandResponse = TuiExecuteCommandResponses[keyof TuiExecuteCommandResponses]
-
-export type TuiShowToastData = {
-  body?: {
-    title?: string
-    message: string
-    variant: "info" | "success" | "warning" | "error"
-    duration?: number
-  }
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/show-toast"
-}
-
-export type TuiShowToastErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type TuiShowToastError = TuiShowToastErrors[keyof TuiShowToastErrors]
-
-export type TuiShowToastResponses = {
-  /**
-   * Toast notification shown successfully
-   */
-  200: boolean
-}
-
-export type TuiShowToastResponse = TuiShowToastResponses[keyof TuiShowToastResponses]
-
-export type TuiPublishData = {
-  body?: EventTuiPromptAppend | EventTuiCommandExecute | EventTuiToastShow | EventTuiSessionSelect
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/publish"
-}
-
-export type TuiPublishErrors = {
-  /**
-   * BadRequest | InvalidRequestError
-   */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
-}
-
-export type TuiPublishError = TuiPublishErrors[keyof TuiPublishErrors]
-
-export type TuiPublishResponses = {
-  /**
-   * Event published successfully
-   */
-  200: boolean
-}
-
-export type TuiPublishResponse = TuiPublishResponses[keyof TuiPublishResponses]
-
-export type TuiSelectSessionData = {
-  body?: {
-    /**
-     * Session ID to navigate to
-     */
-    sessionID: string
-  }
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/select-session"
-}
-
-export type TuiSelectSessionErrors = {
-  /**
-   * BadRequest | InvalidRequestError
-   */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
-  /**
-   * NotFoundError
-   */
-  404: NotFoundError
-}
-
-export type TuiSelectSessionError = TuiSelectSessionErrors[keyof TuiSelectSessionErrors]
-
-export type TuiSelectSessionResponses = {
-  /**
-   * Session selected successfully
-   */
-  200: boolean
-}
-
-export type TuiSelectSessionResponse = TuiSelectSessionResponses[keyof TuiSelectSessionResponses]
-
-export type TuiControlNextData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/control/next"
-}
-
-export type TuiControlNextErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type TuiControlNextError = TuiControlNextErrors[keyof TuiControlNextErrors]
-
-export type TuiControlNextResponses = {
-  /**
-   * Next TUI request
-   */
-  200: {
-    path: string
-    body: unknown
-  }
-}
-
-export type TuiControlNextResponse = TuiControlNextResponses[keyof TuiControlNextResponses]
-
-export type TuiControlResponseData = {
-  body?: unknown
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/tui/control/response"
-}
-
-export type TuiControlResponseErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type TuiControlResponseError = TuiControlResponseErrors[keyof TuiControlResponseErrors]
-
-export type TuiControlResponseResponses = {
-  /**
-   * Response submitted successfully
-   */
-  200: boolean
-}
-
-export type TuiControlResponseResponse = TuiControlResponseResponses[keyof TuiControlResponseResponses]
 
 export type ExperimentalWorkspaceAdapterListData = {
   body?: never

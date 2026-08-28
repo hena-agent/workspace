@@ -43,10 +43,10 @@ Each branch must typecheck and pass knip independently.
 - [x] Record the agreed scope in this document.
 - [x] Remove cloud packages and SST infrastructure.
 - [x] Remove both documentation sites and repair references.
-- [ ] Remove the TUI package, mini UI, TUI API, and OpenTUI dependencies.
-- [ ] Regenerate affected SDK output.
-- [ ] Run package tests, typechecks, lint, knip, builds, and HTTP API checks.
-- [ ] Submit the three stacked pull requests.
+- [x] Remove the TUI package, mini UI, TUI API, and OpenTUI dependencies.
+- [x] Regenerate affected SDK output.
+- [x] Run package tests, typechecks, lint, knip, builds, and HTTP API checks.
+- [x] Submit the three stacked pull requests.
 
 Update this checklist after each branch is committed and verified. If work resumes after context compaction, read this file and inspect `gh stack view --json`, `git status`, and the checklist before making changes.
 

@@ -39,10 +39,6 @@
           "light": "images/button-dark.svg",
           "dark": "images/button-light.svg"
         }
-      },
-      {
-        "command": "hena.addFilepathToTerminal",
-        "title": "Add Filepath to Terminal"
       }
     ],
     "menus": {
@@ -69,14 +65,6 @@
         "mac": "cmd+shift+escape",
         "win": "ctrl+shift+escape",
         "linux": "ctrl+shift+escape"
-      },
-      {
-        "command": "hena.addFilepathToTerminal",
-        "title": "Hena: Insert At-Mentioned",
-        "key": "cmd+alt+k",
-        "mac": "cmd+alt+k",
-        "win": "ctrl+alt+K",
-        "linux": "ctrl+alt+K"
       }
     ]
   },

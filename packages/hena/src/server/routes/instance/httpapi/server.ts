@@ -98,7 +98,6 @@ import { ptyConnectHandlers, ptyHandlers } from "./handlers/pty"
 import { questionHandlers } from "./handlers/question"
 import { sessionHandlers } from "./handlers/session"
 import { syncHandlers } from "./handlers/sync"
-import { tuiHandlers } from "./handlers/tui"
 import { handlers } from "@hena/server/handlers"
 import { buildLocationServiceMap, LocationServiceMap } from "@hena/core/location-services"
 import { layer as locationLayer } from "@hena/server/location"
@@ -166,7 +165,6 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     providerHandlers,
     sessionHandlers,
     syncHandlers,
-    tuiHandlers,
     workspaceHandlers,
   ]),
 )
@@ -307,7 +305,7 @@ export function createRoutes(
     // Must stay last: layers provided later in this pipe build beneath earlier ones,
     // so Observability must come after every service graph. Otherwise eagerly forked
     // fibers (e.g. the ModelsDev background refresh) capture Effect's default stdout
-    // logger and corrupt the TUI (#34730).
+    // logger and corrupt terminal output (#34730).
     Layer.provideMerge(Observability.layer),
   )
 }

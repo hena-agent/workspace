@@ -13,12 +13,13 @@ export async function validateSession(input: {
 }) {
   if (!input.sessionID) return
 
-  let sessionID: SessionID
-  try {
-    sessionID = decodeSessionID(input.sessionID)
-  } catch (error) {
-    throw new Error(`Invalid session ID: ${error instanceof Error ? error.message : "unknown error"}`, { cause: error })
-  }
+  const sessionID = (() => {
+    try {
+      return decodeSessionID(input.sessionID)
+    } catch (error) {
+      throw new Error(`Invalid session ID: ${error instanceof Error ? error.message : "unknown error"}`, { cause: error })
+    }
+  })()
 
   await createHenaClient({
     baseUrl: input.url,

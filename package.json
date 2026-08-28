@@ -18,7 +18,6 @@
     "knip": "knip-bun",
     "lint": "oxlint",
     "typecheck": "bun turbo typecheck",
-    "upgrade-opentui": "bun run script/upgrade-opentui.ts",
     "postinstall": "bun run --cwd packages/core fix-node-pty",
     "prepare": "husky",
     "random": "echo 'Random script'",
@@ -40,9 +39,6 @@
       "@types/cross-spawn": "6.0.6",
       "@octokit/rest": "22.0.0",
       "@hono/standard-validator": "0.2.0",
-      "@opentui/core": "0.4.5",
-      "@opentui/keymap": "0.4.5",
-      "@opentui/solid": "0.4.5",
       "@tanstack/solid-virtual": "3.13.32",
       "@shikijs/stream": "4.2.0",
       "ulid": "3.0.1",
@@ -54,7 +50,6 @@
       "@tsconfig/node22": "22.0.2",
       "@tsconfig/bun": "1.0.9",
       "@pierre/diffs": "1.2.10",
-      "opentui-spinner": "0.0.7",
       "@solid-primitives/storage": "4.3.3",
       "@tailwindcss/vite": "4.3.3",
       "diff": "8.0.2",
@@ -89,9 +84,6 @@
     }
   },
   "devDependencies": {
-    "@opentui/core": "catalog:",
-    "@opentui/keymap": "catalog:",
-    "@opentui/solid": "catalog:",
     "@tsconfig/bun": "catalog:",
     "@types/bun": "catalog:",
     "@types/mime-types": "3.0.1",
@@ -131,9 +123,6 @@
     "electron"
   ],
   "overrides": {
-    "@opentui/core": "catalog:",
-    "@opentui/keymap": "catalog:",
-    "@opentui/solid": "catalog:",
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
     "@vitejs/plugin-react": "6.0.5",

@@ -36,7 +36,6 @@
       "entry": [
         "script/**/*.{ts,mjs}",
         ".hena/tool/*.ts",
-        ".hena/plugins/*.tsx",
       ],
       // github/ and sdks/vscode/ have independent package manifests and lockfiles.
       "project": ["script/**/*.{ts,mjs}", ".hena/**/*.{ts,tsx}"],
@@ -47,7 +46,6 @@
         "./script/build.ts",
         "./packages/sdk/js/script/build.ts",
         "./packages/hena/script/publish.ts",
-        "./packages/cli/script/publish.ts",
         "./packages/sdk/js/script/publish.ts",
         "./packages/ui/script/publish.ts",
         "./packages/desktop/scripts/finalize-latest-json.ts",
@@ -59,7 +57,6 @@
     "packages/hena": {
       "entry": [
         "src/{index,node}.ts",
-        "parsers-config.ts",
         "specs/**/*.ts",
         "**/*.test.{ts,tsx}",
         "test/fixture/**/*.{js,ts,tsx}",
@@ -144,11 +141,6 @@
     },
     "packages/storybook": {
       "entry": [".storybook/**/*.{ts,tsx}"],
-    },
-    "packages/cli": {
-      "entry": ["**/*.test.{ts,tsx}", "script/**/*.{js,cjs,mjs,ts,cts,mts}"],
-      // The build script reads this version to install every platform binary before packaging.
-      "ignoreDependencies": ["@opentui/core"],
     },
     "packages/core": {
       "entry": [

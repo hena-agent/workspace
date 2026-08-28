@@ -25,7 +25,6 @@ import { McpOAuthPendingProvider, McpOAuthProvider, OAUTH_CALLBACK_PATH } from "
 import { McpOAuthCallback } from "./oauth-callback"
 import { McpAuth } from "./auth"
 import { EventV2Bridge } from "@/event-v2-bridge"
-import { TuiEvent } from "@/server/tui-event"
 import { Cause, Effect, Exit, Layer, Context, Schema, Stream } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
@@ -300,25 +299,11 @@ const layer = Layer.effect(
                   status: "needs_client_registration" as const,
                   error: "Server does not support dynamic client registration. Please provide clientId in config.",
                 }
-                return events
-                  .publish(TuiEvent.ToastShow, {
-                    title: "MCP Authentication Required",
-                    message: `Server "${key}" requires a pre-registered client ID. Add clientId to your config.`,
-                    variant: "warning",
-                    duration: 8000,
-                  })
-                  .pipe(Effect.ignore, Effect.as(undefined))
+                return Effect.void
               } else {
                 pendingOAuthTransports.set(key, { transport })
                 lastStatus = { status: "needs_auth" as const }
-                return events
-                  .publish(TuiEvent.ToastShow, {
-                    title: "MCP Authentication Required",
-                    message: `Server "${key}" requires authentication. Run: hena mcp auth ${key}`,
-                    variant: "warning",
-                    duration: 8000,
-                  })
-                  .pipe(Effect.ignore, Effect.as(undefined))
+                return Effect.void
               }
             }
 

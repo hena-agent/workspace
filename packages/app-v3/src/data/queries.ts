@@ -90,10 +90,9 @@ export function useSessions(agent: ReturnTypeOfAgent | undefined, projectId?: st
   useSeenWatermarks(agent?.url)
   const permissions = useRows(agent, "permissions", "")
   const questions = useRows(agent, "questions", "")
-  return useRows(agent, "sessions", "")
-    .map((row) => sessionView(row, permissions, questions, agent?.url ?? ""))
-    .filter((session) => !session.archived && (!projectId || session.projectId === projectId))
-    .sort((left, right) => right.updatedAt - left.updatedAt || right.id.localeCompare(left.id))
+  const sessions = useRows(agent, "sessions", "").map((row) => sessionView(row, permissions, questions, agent?.url ?? ""))
+  const visible = sessions.filter((session) => !session.archived && (!projectId || session.projectId === projectId))
+  return visible.sort((left, right) => right.updatedAt - left.updatedAt || right.id.localeCompare(left.id))
 }
 
 export function useSession(agent: ReturnTypeOfAgent | undefined, id: string | undefined) {
@@ -168,10 +167,13 @@ export function useQueuedInputs(agent: ReturnTypeOfAgent | undefined, sessionId:
 
 export function useCatalog(agent: ReturnTypeOfAgent | undefined, location: { directory: string; workspaceID?: string } | undefined) {
   const scope = location ? JSON.stringify(location) : "missing"
+  const agents = useRows(agent, "agents", scope).map(agentView)
+  const models = useRows(agent, "models", scope).map(modelView)
+  const providers = useRows(agent, "providers", scope).map(providerView)
   return {
-    agents: useRows(agent, "agents", scope).map(agentView).filter((item) => item.id),
-    models: useRows(agent, "models", scope).map(modelView).filter((item) => item.id),
-    providers: useRows(agent, "providers", scope).map(providerView).filter((item) => item.id),
+    agents: agents.filter((item) => item.id),
+    models: models.filter((item) => item.id),
+    providers: providers.filter((item) => item.id),
   }
 }
 
@@ -192,10 +194,13 @@ export function useLocationCatalog(
       })
       if (!response.ok) throw new Error("Could not load the catalog")
       const data = await response.json()
+      const agents = data.agents.map(agentView)
+      const models = data.models.map(modelView)
+      const providers = data.providers.map(providerView)
       return {
-        agents: data.agents.map(agentView).filter((item) => item.id),
-        models: data.models.map(modelView).filter((item) => item.id),
-        providers: data.providers.map(providerView).filter((item) => item.id),
+        agents: agents.filter((item) => item.id),
+        models: models.filter((item) => item.id),
+        providers: providers.filter((item) => item.id),
       }
     },
   })
@@ -263,7 +268,10 @@ function sessionView(row: Record<string, unknown>, permissions: Record<string, u
 function messageView(agent: ReturnTypeOfAgent | undefined, sessionId: string, row: Record<string, unknown>, parts: Record<string, unknown>[], deltas: VisibleDelta[]): SessionMessage {
   const type = string(row.type)
   const base = { id: string(row.id), sessionId, createdAt: number(record(row.time).created), pending: isMessagePending(string(row.id)) }
-  if (type === "user") return { ...base, role: "user", text: string(row.text), files: array(row.files).map((file) => string(record(file).name || record(file).uri)).filter(Boolean) }
+  if (type === "user") {
+    const files = array(row.files).map((file) => string(record(file).name || record(file).uri))
+    return { ...base, role: "user", text: string(row.text), files: files.filter(Boolean) }
+  }
   if (type === "assistant") {
     const persisted = parts.filter((part) => string(part.messageID) === base.id).sort((left, right) => number(left.ordinal) - number(right.ordinal)).map((part) => partView(agent, base.sessionId, base.id, part))
     const known = new Set(persisted.map((part) => `${part.kind}\u0000${part.id}`))

@@ -64,15 +64,14 @@ function versionTwo(value: unknown): DraftStore {
   const bodies = Object.fromEntries(
     Object.entries(record(source.bodies)).map(([key, body]) => [key, normalizeBody(record(body))]),
   )
-  const index = array(source.index)
-    .flatMap((entry) => {
-      const item = record(entry)
-      return typeof item.key === "string" && typeof item.route === "string" && typeof item.updatedAt === "number"
-        ? [{ key: item.key, route: item.route, updatedAt: item.updatedAt }]
-        : []
-    })
-    .filter((entry) => bodies[entry.key])
-    .slice(-MAX_DRAFTS)
+  const candidates = array(source.index).flatMap((entry) => {
+    const item = record(entry)
+    return typeof item.key === "string" && typeof item.route === "string" && typeof item.updatedAt === "number"
+      ? [{ key: item.key, route: item.route, updatedAt: item.updatedAt }]
+      : []
+  })
+  const available = candidates.filter((entry) => bodies[entry.key])
+  const index = available.slice(-MAX_DRAFTS)
   return { version: 2, index, bodies: Object.fromEntries(Object.entries(bodies).filter(([key]) => index.some((entry) => entry.key === key))) }
 }
 

@@ -153,17 +153,12 @@ export function admitPromptOptimistically(agent: Agent, input: {
 
 export function interruptOptimistically(agent: Agent, sessionID: string) {
   setStopping(agent, sessionID, true)
-  const transaction = createTransaction({
-    mutationFn: async () => {
-      const response = await agent.client.api.session[":sessionId"].interrupt.$post({ param: { sessionId: sessionID } })
+  return agent.client.api.session[":sessionId"].interrupt.$post({ param: { sessionId: sessionID } })
+    .then(async (response) => {
       if (!response.ok) throw mutationError(await response.json(), response.status)
       await waitForSyncedState(agent, "sessions", "", (row) => row.id === sessionID && row.working === false)
-    },
-  })
-  transaction.mutate(() => {})
-  const persisted = transaction.isPersisted.promise.finally(() => setStopping(agent, sessionID, false))
-  void persisted.catch(() => {})
-  return persisted
+    })
+    .finally(() => setStopping(agent, sessionID, false))
 }
 
 export function archiveSessionOptimistically(agent: Agent, sessionID: string) {

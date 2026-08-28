@@ -1,25 +1,21 @@
 import type { UserMessage } from "@/lib/types"
-import { Attachment, AttachmentContent, AttachmentGroup, AttachmentTitle } from "@/components/ui/attachment"
-import { Bubble, BubbleContent } from "@/components/ui/bubble"
-import { Message, MessageContent, MessageHeader } from "@/components/ui/message"
+import { Attachment, AttachmentInfo, AttachmentPreview, Attachments } from "@/components/ai-elements/attachments"
+import { Message, MessageContent } from "@/components/ai-elements/message"
 
 export function UserMessageRow({ message }: { message: UserMessage }) {
   return (
-    <Message align="end" data-role="user" data-pending={message.pending || undefined} className="px-4 py-3 md:px-5">
+    <Message from="user" data-role="user" data-pending={message.pending || undefined} className="max-w-none px-4 py-3 md:px-5">
+      <p className="ml-auto text-xs font-medium text-muted-foreground">You{message.pending ? " · Sending" : ""}</p>
       <MessageContent>
-        <MessageHeader>You{message.pending ? " · Sending" : ""}</MessageHeader>
-        <Bubble variant="secondary" align="end">
-          <BubbleContent className="whitespace-pre-wrap">{message.text}</BubbleContent>
-        </Bubble>
-        {message.files?.length ? <AttachmentGroup>
+        <p className="whitespace-pre-wrap">{message.text}</p>
+        {message.files?.length ? <Attachments variant="inline">
           {message.files.map((file) => (
-            <Attachment key={file} size="xs">
-              <AttachmentContent>
-                <AttachmentTitle>{file}</AttachmentTitle>
-              </AttachmentContent>
+            <Attachment key={file} data={{ id: file, type: "file", filename: file, mediaType: "application/octet-stream", url: "" }}>
+              <AttachmentPreview />
+              <AttachmentInfo />
             </Attachment>
           ))}
-        </AttachmentGroup> : null}
+        </Attachments> : null}
       </MessageContent>
     </Message>
   )

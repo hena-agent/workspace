@@ -6,10 +6,13 @@ import { MessageRow } from "./message-row"
 import type { SessionMessage } from "@/lib/types"
 
 describe("MessageRow", () => {
-  test("user: renders the message text", () => {
-    const message: SessionMessage = { id: "m1", sessionId: "s1", createdAt: 0, role: "user", text: "Hello there" }
-    render(<MessageRow message={message} />)
+  test("user: renders pending text and attachments", () => {
+    const message: SessionMessage = { id: "m1", sessionId: "s1", createdAt: 0, role: "user", text: "Hello there", files: ["notes.txt"], pending: true }
+    const { container } = render(<MessageRow message={message} />)
     expect(screen.getByText("Hello there")).toBeInTheDocument()
+    expect(screen.getByText("notes.txt")).toBeInTheDocument()
+    expect(screen.getByText(/Sending/)).toBeInTheDocument()
+    expect(container.querySelector('[data-role="user"]')).toHaveAttribute("data-pending", "true")
   })
 
   test("assistant: renders the agent name and every part kind", async () => {
@@ -20,18 +23,23 @@ describe("MessageRow", () => {
       createdAt: 0,
       role: "assistant",
       agent: "build",
+      model: "sonnet",
       parts: [
         { id: "p1", kind: "text", text: "Here is the answer." },
         { id: "p2", kind: "reasoning", text: "Thinking about it." },
         { id: "p3", kind: "tool", tool: "read", status: "completed", input: "file.ts" },
+        { id: "p4", kind: "unknown", type: "future-part", summary: "Still visible." },
       ],
     }
     render(<MessageRow message={message} />)
     expect(screen.getByText("build")).toBeInTheDocument()
+    expect(screen.getByText(/sonnet/)).toBeInTheDocument()
     expect(screen.getByText("Here is the answer.")).toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: /Thought for a few seconds/ }))
     expect(screen.getByText("Thinking about it.")).toBeVisible()
-    expect(screen.getByText("read")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /read file.ts/ })).toBeInTheDocument()
+    expect(screen.getByText(/Unsupported part: future-part/)).toBeInTheDocument()
+    expect(screen.getByText(/Still visible/)).toBeInTheDocument()
   })
 
   test("assistant: opens the latest reasoning part while working", () => {
@@ -194,7 +202,7 @@ describe("MessageRow", () => {
     expect(screen.getByText("summarizing…")).toBeInTheDocument()
   })
 
-  test("shell: renders the command and output", () => {
+  test("shell: renders the command and lazy terminal output", async () => {
     const message: SessionMessage = {
       id: "m4",
       sessionId: "s1",
@@ -205,7 +213,7 @@ describe("MessageRow", () => {
     }
     render(<MessageRow message={message} />)
     expect(screen.getByText("bun test")).toBeInTheDocument()
-    expect(screen.getByText("3 pass")).toBeInTheDocument()
+    expect(await screen.findByLabelText("Shell output")).toHaveTextContent("3 pass")
   })
 
   test("system and synthetic: render their text and a distinct data-role", () => {

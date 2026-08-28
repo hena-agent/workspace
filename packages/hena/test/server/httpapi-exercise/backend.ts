@@ -36,7 +36,7 @@ export function callAuthProbe(scenario: ActiveScenario, credentials: "missing" |
           timedOut: true,
         }
       }),
-    ])
+    ]).finally(() => controller.abort("auth probe complete"))
   })
 }
 

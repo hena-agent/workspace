@@ -19,6 +19,7 @@ import { LLMGatewayPlugin } from "./provider/llmgateway"
 import { MistralPlugin } from "./provider/mistral"
 import { NvidiaPlugin } from "./provider/nvidia"
 import { OpenAIPlugin } from "./provider/openai"
+import { OpenCodePlugin } from "./provider/opencode"
 import { SnowflakeCortexPlugin } from "./provider/snowflake-cortex"
 import { OpenAICompatiblePlugin } from "./provider/openai-compatible"
 import { OpenRouterPlugin } from "./provider/openrouter"
@@ -57,6 +58,7 @@ export const ProviderPlugins: PluginInternal.Plugin<PluginInternal.Requirements 
   SnowflakeCortexPlugin,
   OpenAICompatiblePlugin,
   OpenAIPlugin,
+  OpenCodePlugin,
   OpenRouterPlugin,
   PerplexityPlugin,
   SapAICorePlugin,

@@ -114,6 +114,28 @@ describe("Composer", () => {
     expect(screen.queryByText("notes.txt")).not.toBeInTheDocument()
   })
 
+  test("rejects attachments over the aggregate size limit when they are added", async () => {
+    const user = userEvent.setup()
+    setup([])
+    const files = ["one", "two", "three", "four"].map((name) => {
+      const file = new File([name], `${name}.txt`, { type: "text/plain" })
+      Object.defineProperty(file, "size", { value: 5 * 1024 * 1024 })
+      return file
+    })
+    const extra = new File(["extra"], "extra.txt", { type: "text/plain" })
+
+    await user.upload(screen.getByLabelText("Upload files"), files)
+    await user.upload(screen.getByLabelText("Upload files"), extra)
+
+    expect(screen.getByText("one.txt")).toBeInTheDocument()
+    expect(screen.queryByText("extra.txt")).not.toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent("attachments must total 20 MiB or less")
+
+    await user.click(screen.getByRole("button", { name: "Remove one.txt" }))
+    await user.upload(screen.getByLabelText("Upload files"), extra)
+    expect(screen.getByText("extra.txt")).toBeInTheDocument()
+  })
+
   test("keeps text and attachments when sending fails", async () => {
     const user = userEvent.setup()
     mockMatchMedia(true)

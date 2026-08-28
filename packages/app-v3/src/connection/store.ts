@@ -162,7 +162,11 @@ export function createConnectionStore(options: StoreOptions = {}) {
       if (replace && collection === "parts") {
         clearPartDeltas(scopeKey, new Set(rows.flatMap((item) => {
           const key = partDeltaKey(scopeKey, item.key)
-          return key ? [key] : []
+          if (!key) return []
+          const current = deltas.get(key)
+          if (identityFromDeltaKey(key).partKind !== "text" || !current) return [key]
+          const text = typeof item.row.text === "string" ? item.row.text : ""
+          return current.text !== text && current.text.startsWith(text) ? [key] : []
         })))
       }
       if (!scope.ready) {

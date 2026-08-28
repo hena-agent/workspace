@@ -155,6 +155,19 @@ describe("connection store", () => {
     expect(store.delta(kept)).toBeUndefined()
   })
 
+  test("clears a stale text delta once a replacement snapshot supersedes it", () => {
+    const store = createConnectionStore()
+    const identity = { sessionId: "s", messageId: "m", partId: "p", partKind: "text" as const }
+    store.applyDelta({ ...identity, offset: 0, text: "old" })
+
+    store.applySnapshot("parts", "s", [{
+      key: ["m", "text", "p"],
+      row: { type: "text", text: "new authoritative text" },
+    }], 1)
+
+    expect(store.delta(identity)).toBeUndefined()
+  })
+
   test("resolves timed-out receipts after requesting a scoped resnapshot", async () => {
     const resets: unknown[] = []
     const store = createConnectionStore({ onTxidTimeout: (scopes) => resets.push(scopes) })

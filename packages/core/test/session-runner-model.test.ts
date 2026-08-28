@@ -85,7 +85,10 @@ describe("SessionRunnerModel", () => {
       )
       const prepared = yield* LLMClient.prepare(LLM.request({ model: resolved, prompt: "Hello" }))
 
-      expect(prepared.body).toMatchObject({ reasoning: { summary: "auto" } })
+      expect(prepared.body).toMatchObject({
+        include: ["reasoning.encrypted_content"],
+        reasoning: { summary: "auto" },
+      })
     }),
   )
 

@@ -145,7 +145,9 @@ export const fromCatalogModel = (
         .with({
           auth: key === undefined ? Auth.none : Auth.bearer(key),
           providerOptions:
-            resolved.capabilities.reasoning === true ? { openai: { reasoningSummary: "auto" } } : undefined,
+            resolved.capabilities.reasoning === true
+              ? { openai: { reasoningSummary: "auto", include: ["reasoning.encrypted_content"] } }
+              : undefined,
         })
         .model({ id: resolved.api.id }),
     )

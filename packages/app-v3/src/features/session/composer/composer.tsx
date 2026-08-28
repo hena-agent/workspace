@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useEffectEvent, useRef, useState } from "react"
 import type { FileUIPart } from "ai"
 import { Paperclip } from "lucide-react"
 import { Attachment, AttachmentInfo, AttachmentPreview, AttachmentRemove, Attachments } from "@/components/ai-elements/attachments"
@@ -29,6 +29,10 @@ import { AgentModelPicker } from "./agent-model-picker"
 import { getComposerEnterAction } from "./should-send-on-enter"
 
 type AttachedFile = { uri: string; name?: string }
+
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024
+const MAX_TOTAL_ATTACHMENT_BYTES = 20 * 1024 * 1024
+const ATTACHMENT_ERROR = "Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less."
 
 type ComposerProps = {
   agents: Agent[]
@@ -89,6 +93,9 @@ function ComposerForm({
   const [error, setError] = useState(initialError)
   const [submitting, setSubmitting] = useState(false)
   const delivery = useRef<"send" | "queue">("send")
+  const attachmentBytes = useRef(new Map<string, number>())
+  const pendingAttachmentBytes = useRef<number[]>([])
+  const totalAttachmentBytes = useRef(0)
   const hasFinePointer = useMediaQuery("(any-pointer: fine)")
   const text = controller.textInput.value
   const mention = text.slice(0, selection.start).match(/(?:^|\s)@([^\s]*)$/)?.[1]
@@ -118,6 +125,57 @@ function ComposerForm({
     savedAttachmentCount.current = attachmentCount
     onDraftChange?.({ text, selection, droppedAttachments: attachmentCount })
   }, [attachmentCount, onDraftChange, selection, text])
+
+  useEffect(() => {
+    const ids = new Set(attachments.files.map((file) => file.id))
+    attachments.files.forEach((file) => {
+      if (!attachmentBytes.current.has(file.id))
+        attachmentBytes.current.set(file.id, pendingAttachmentBytes.current.shift() ?? 0)
+    })
+    Array.from(attachmentBytes.current.keys()).forEach((id) => {
+      if (!ids.has(id)) attachmentBytes.current.delete(id)
+    })
+    totalAttachmentBytes.current = Array.from(attachmentBytes.current.values()).reduce(
+      (total, bytes) => total + bytes,
+      0,
+    )
+  }, [attachments.files])
+
+  function addAttachments(selected: File[] | FileList) {
+    if (submitting) return
+    const incoming = Array.from(selected)
+    const bytes = incoming.reduce((total, file) => total + file.size, 0)
+    if (
+      incoming.some((file) => file.size > MAX_ATTACHMENT_BYTES) ||
+      totalAttachmentBytes.current + bytes > MAX_TOTAL_ATTACHMENT_BYTES
+    ) {
+      setError(ATTACHMENT_ERROR)
+      return
+    }
+    pendingAttachmentBytes.current.push(...incoming.map((file) => file.size))
+    totalAttachmentBytes.current += bytes
+    attachments.add(incoming)
+    setError("")
+  }
+
+  function removeAttachment(id: string) {
+    totalAttachmentBytes.current -= attachmentBytes.current.get(id) ?? 0
+    attachmentBytes.current.delete(id)
+    attachments.remove(id)
+  }
+
+  const addInputAttachments = useEffectEvent(addAttachments)
+  useEffect(() => {
+    const input = attachments.fileInputRef.current
+    const onChange = (event: Event) => {
+      if (!(event.target instanceof HTMLInputElement) || !event.target.files) return
+      event.stopImmediatePropagation()
+      addInputAttachments(event.target.files)
+      event.target.value = ""
+    }
+    input?.addEventListener("change", onChange, { capture: true })
+    return () => input?.removeEventListener("change", onChange, { capture: true })
+  }, [attachments.fileInputRef])
 
   function chooseMention(path: string) {
     const before = text.slice(0, selection.start).replace(/@[^\s]*$/, `@${path} `)
@@ -161,10 +219,16 @@ function ComposerForm({
   return (
     <PromptInput
       multiple
-      maxFileSize={5 * 1024 * 1024}
-      maxFiles={submitting ? attachments.files.length : undefined}
+      maxFileSize={MAX_ATTACHMENT_BYTES}
+      maxFiles={attachments.files.length}
       onError={() => {
-        if (!submitting) setError("Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less.")
+        if (!submitting) setError(ATTACHMENT_ERROR)
+      }}
+      onDropCapture={(event) => {
+        if (event.dataTransfer.files.length === 0) return
+        event.preventDefault()
+        event.stopPropagation()
+        addAttachments(event.dataTransfer.files)
       }}
       onSubmitCapture={() => setSubmitting(true)}
       onSubmit={submit}
@@ -177,7 +241,7 @@ function ComposerForm({
                 <Attachment
                   key={file.id}
                   data={file}
-                  onRemove={() => attachments.remove(file.id)}
+                  onRemove={() => removeAttachment(file.id)}
                 >
                   <AttachmentPreview />
                   <AttachmentInfo />
@@ -232,12 +296,7 @@ function ComposerForm({
             const files = Array.from(event.clipboardData.files)
             if (files.length === 0) return
             event.preventDefault()
-            const accepted = files.filter((file) => file.size <= 5 * 1024 * 1024)
-            if (accepted.length === 0) {
-              setError("Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less.")
-              return
-            }
-            attachments.add(accepted)
+            addAttachments(files)
           }}
           placeholder={placeholder}
           disabled={disabled || submitting}

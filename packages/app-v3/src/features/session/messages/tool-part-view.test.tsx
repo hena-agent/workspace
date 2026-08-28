@@ -21,6 +21,7 @@ describe("ToolPartView", () => {
 
     expect(screen.queryByText("3 pass")).not.toBeInTheDocument()
     await user.click(screen.getByRole("button", { name: /bash/ }))
+    expect(screen.getByText("bun test")).toBeInTheDocument()
     expect(screen.getByText("Result").parentElement).toHaveTextContent("3 pass")
   })
 
@@ -59,5 +60,26 @@ describe("ToolPartView", () => {
     await user.click(screen.getByRole("button", { name: "Show full output (11 bytes)" }))
     expect(await screen.findByText("full output")).toBeInTheDocument()
     expect(loadPage).toHaveBeenCalledTimes(2)
+  })
+
+  test("preserves error styling for paged output", async () => {
+    const user = userEvent.setup()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<ToolPartView part={{
+      ...part,
+      status: "error",
+      output: "failure preview",
+      outputContent: {
+        id: "c2",
+        revision: "r1",
+        bytes: 15,
+        queryKey: ["c2", "r1"],
+        loadPage: mock(async () => ({ text: "failure output", offset: 0, nextOffset: 14, totalBytes: 14, revision: "r1" })),
+      },
+    }} />, { wrapper: ({ children }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider> })
+
+    await user.click(screen.getByRole("button", { name: /bash/ }))
+    expect(screen.getByText("Tool failed").parentElement).toHaveClass("bg-destructive/10")
+    expect(screen.getByText("failure preview")).toBeInTheDocument()
   })
 })

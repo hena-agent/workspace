@@ -1,5 +1,5 @@
+import { Paperclip } from "lucide-react"
 import type { UserMessage } from "@/lib/types"
-import { Attachment, AttachmentInfo, AttachmentPreview, Attachments } from "@/components/ai-elements/attachments"
 import { Message, MessageContent } from "@/components/ai-elements/message"
 
 export function UserMessageRow({ message }: { message: UserMessage }) {
@@ -8,14 +8,14 @@ export function UserMessageRow({ message }: { message: UserMessage }) {
       <p className="ml-auto text-xs font-medium text-muted-foreground">You{message.pending ? " · Sending" : ""}</p>
       <MessageContent>
         <p className="whitespace-pre-wrap">{message.text}</p>
-        {message.files?.length ? <Attachments variant="inline">
+        {message.files?.length ? <div className="flex flex-wrap gap-2">
           {message.files.map((file) => (
-            <Attachment key={file} data={{ id: file, type: "file", filename: file, mediaType: "application/octet-stream", url: "" }}>
-              <AttachmentPreview />
-              <AttachmentInfo />
-            </Attachment>
+            <span key={file} className="flex h-8 min-w-0 items-center gap-1.5 rounded-md border border-border px-1.5 text-sm font-medium">
+              <Paperclip aria-hidden className="size-3 shrink-0 text-muted-foreground" />
+              <span className="truncate">{file}</span>
+            </span>
           ))}
-        </Attachments> : null}
+        </div> : null}
       </MessageContent>
     </Message>
   )

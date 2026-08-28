@@ -9,6 +9,7 @@ test.describe.configure({ mode: "serial" })
 const server = "http://127.0.0.1:4117"
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 const queuedSessionID = id("ses")
+const stoppableSessionID = id("ses")
 const localAuth = await readFile(path.join(homedir(), ".local/share/opencode/auth.json"), "utf8")
   .then((value) => Boolean((JSON.parse(value) as Record<string, unknown>)["opencode-go"]))
   .catch(() => false)
@@ -18,6 +19,7 @@ let modelAvailable = hasModelCredentials
 
 test.beforeAll(async ({ request }) => {
   await createSession(request, queuedSessionID, "E2E queued first", "queue")
+  await createSession(request, stoppableSessionID, "E2E stop from UI", "queue")
   const response = await request.post(`${server}/api/session/${queuedSessionID}/interrupt`)
   expect(response.ok()).toBe(true)
 })
@@ -56,7 +58,15 @@ test("saves defaults and creates a queued session through the UI", async ({ page
   expect(response.ok()).toBe(true)
   expect(response.request().postDataJSON()).toMatchObject({ delivery: "queue" })
   await expect(page).toHaveURL(/\/session\/ses_/)
-  await expect(page.getByText("E2E queued from UI", { exact: true })).toBeVisible()
+  await expect(page.getByRole("log").getByText("E2E queued from UI", { exact: true })).toBeVisible()
+})
+
+test("stops a working session through the UI", async ({ page }) => {
+  await page.goto(`${projectRoute}/session/${stoppableSessionID}`)
+  const stopped = page.waitForResponse((response) => response.url().endsWith(`/session/${stoppableSessionID}/interrupt`))
+  await page.getByRole("button", { name: "Stop session" }).click()
+  expect((await stopped).ok()).toBe(true)
+  await expect(page.getByRole("button", { name: "Send message" })).toBeVisible()
 })
 
 test("streams a real model response to completion", async ({ page, request }) => {
@@ -101,11 +111,11 @@ test("reorders and cancels queued inputs through authoritative mutations", async
   await expect(queue).toContainText("E2E queued second")
   await page.waitForTimeout(250)
 
-  const first = queue.getByText("E2E queued first").locator("..")
+  const first = queue.locator('[data-queue-input-id]').filter({ hasText: "E2E queued first" })
   const reordered = page.waitForResponse((response) => response.url().endsWith(`/session/${sessionID}/input-order`))
   await first.getByRole("button", { name: "Down" }).click()
   expect((await reordered).ok()).toBe(true)
-  await expect(queue.locator(":scope > div").nth(1)).toContainText("E2E queued second")
+  await expect(queue.locator('[data-queue-input-id]').first()).toContainText("E2E queued second")
   await page.waitForTimeout(100)
   const canceled = page.waitForResponse((response) => response.url().includes(`/session/${sessionID}/input/`) && response.url().endsWith("/cancel"))
   await first.getByRole("button", { name: "Cancel" }).click()

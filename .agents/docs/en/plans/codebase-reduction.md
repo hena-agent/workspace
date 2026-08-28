@@ -42,7 +42,7 @@ Each branch must typecheck and pass knip independently.
 - [x] Explore package dependencies and confirm the deletion boundaries.
 - [x] Record the agreed scope in this document.
 - [x] Remove cloud packages and SST infrastructure.
-- [ ] Remove both documentation sites and repair references.
+- [x] Remove both documentation sites and repair references.
 - [ ] Remove the TUI package, mini UI, TUI API, and OpenTUI dependencies.
 - [ ] Regenerate affected SDK output.
 - [ ] Run package tests, typechecks, lint, knip, builds, and HTTP API checks.

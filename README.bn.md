@@ -30,8 +30,6 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![Hena Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://hena.dev)
-
 ---
 
 ### ইনস্টলেশন (Installation)

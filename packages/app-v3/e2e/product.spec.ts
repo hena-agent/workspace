@@ -9,7 +9,6 @@ test.describe.configure({ mode: "serial" })
 const server = "http://127.0.0.1:4117"
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..")
 const queuedSessionID = id("ses")
-const stoppableSessionID = id("ses")
 const localAuth = await readFile(path.join(homedir(), ".local/share/opencode/auth.json"), "utf8")
   .then((value) => Boolean((JSON.parse(value) as Record<string, unknown>)["opencode-go"]))
   .catch(() => false)
@@ -19,7 +18,6 @@ let modelAvailable = hasModelCredentials
 
 test.beforeAll(async ({ request }) => {
   await createSession(request, queuedSessionID, "E2E queued first", "queue")
-  await createSession(request, stoppableSessionID, "E2E stop from UI", "queue")
   const response = await request.post(`${server}/api/session/${queuedSessionID}/interrupt`)
   expect(response.ok()).toBe(true)
 })
@@ -61,14 +59,6 @@ test("saves defaults and creates a queued session through the UI", async ({ page
   await expect(page.getByRole("log").getByText("E2E queued from UI", { exact: true })).toBeVisible()
 })
 
-test("stops a working session through the UI", async ({ page }) => {
-  await page.goto(`${projectRoute}/session/${stoppableSessionID}`)
-  const stopped = page.waitForResponse((response) => response.url().endsWith(`/session/${stoppableSessionID}/interrupt`))
-  await page.getByRole("button", { name: "Stop session" }).click()
-  expect((await stopped).ok()).toBe(true)
-  await expect(page.getByRole("button", { name: "Send message" })).toBeVisible()
-})
-
 test("streams a real model response to completion", async ({ page, request }) => {
   test.skip(!hasModelCredentials, "opencode-go credentials are unavailable")
   test.setTimeout(90_000)
@@ -88,7 +78,7 @@ test("streams a real model response to completion", async ({ page, request }) =>
   await expect(pong).toBeVisible()
 })
 
-test("reorders and cancels queued inputs through authoritative mutations", async ({ page }) => {
+test("reorders, cancels, and stops through authoritative mutations", async ({ page }) => {
   test.skip(!modelAvailable, "opencode-go is unavailable for an active queue")
   const sessionID = id("ses")
   await createSession(page.request, sessionID, "Use the bash tool to run `sleep 30`, then reply done.", "steer", {
@@ -121,7 +111,10 @@ test("reorders and cancels queued inputs through authoritative mutations", async
   await first.getByRole("button", { name: "Cancel" }).click()
   expect((await canceled).ok()).toBe(true)
   await expect(queue).not.toContainText("E2E queued first")
-  await page.request.post(`${server}/api/session/${sessionID}/interrupt`)
+  const stopped = page.waitForResponse((response) => response.url().endsWith(`/session/${sessionID}/interrupt`))
+  await page.getByRole("button", { name: "Stop session" }).click()
+  expect((await stopped).ok()).toBe(true)
+  await expect(page.getByRole("button", { name: "Send message" })).toBeVisible()
 })
 
 test("reads real files from the integrated panel and redirects legacy session views", async ({ page }) => {

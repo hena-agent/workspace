@@ -293,21 +293,21 @@ const layer = Layer.effect(
             const isAuthError =
               error instanceof UnauthorizedError || (authProvider && lastError.message.includes("OAuth"))
 
-            if (isAuthError) {
-              if (lastError.message.includes("registration") || lastError.message.includes("client_id")) {
-                lastStatus = {
-                  status: "needs_client_registration" as const,
-                  error: "Server does not support dynamic client registration. Please provide clientId in config.",
-                }
-                return Effect.void
-              } else {
-                pendingOAuthTransports.set(key, { transport })
-                lastStatus = { status: "needs_auth" as const }
-                return Effect.void
-              }
+            if (!isAuthError) {
+              lastStatus = { status: "failed" as const, error: lastError.message }
+              return Effect.void
             }
 
-            lastStatus = { status: "failed" as const, error: lastError.message }
+            if (lastError.message.includes("registration") || lastError.message.includes("client_id")) {
+              lastStatus = {
+                status: "needs_client_registration" as const,
+                error: "Server does not support dynamic client registration. Please provide clientId in config.",
+              }
+              return Effect.void
+            }
+
+            pendingOAuthTransports.set(key, { transport })
+            lastStatus = { status: "needs_auth" as const }
             return Effect.void
           }),
         )

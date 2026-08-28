@@ -203,7 +203,8 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
     let appToken: string
     let octoRest: Octokit
     let octoGraph: typeof graphql
-    let gitConfig: string
+    let gitConfig: string | undefined
+    let gitConfigured = false
     let session: { id: SessionID; title: string; version: string }
     let shareId: string | undefined
     let exitCode = 0
@@ -256,9 +257,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       })
 
       const { userPrompt, promptFiles } = await getUserPrompt()
-      if (!useGithubToken) {
-        await configureGit(appToken)
-      }
+      await configureGit(appToken)
       // Skip permission check and reactions for repo events (no actor to check, no issue to react to)
       if (isUserEvent) {
         await assertPermissions()
@@ -416,8 +415,8 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       // Also output the clean error message for the action to capture
       //core.setOutput("prepare_error", e.message);
     } finally {
+      if (gitConfigured) await restoreGitConfig()
       if (!useGithubToken) {
-        await restoreGitConfig()
         await revokeAppToken()
       }
     }
@@ -793,8 +792,9 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       const ret = await gitStatus(["config", "--local", "--get", config])
       if (ret.exitCode === 0) {
         gitConfig = ret.stdout.toString().trim()
-        await gitRun(["config", "--local", "--unset-all", config])
       }
+      gitConfigured = true
+      await gitStatus(["config", "--local", "--unset-all", config])
 
       const newCredentials = Buffer.from(`x-access-token:${appToken}`, "utf8").toString("base64")
 
@@ -804,8 +804,9 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
     }
 
     async function restoreGitConfig() {
-      if (gitConfig === undefined) return
       const config = "http.https://github.com/.extraheader"
+      await gitStatus(["config", "--local", "--unset-all", config])
+      if (gitConfig === undefined) return
       await gitRun(["config", "--local", config, gitConfig])
     }
 

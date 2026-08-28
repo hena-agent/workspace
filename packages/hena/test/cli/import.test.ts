@@ -1,11 +1,5 @@
 import { test, expect } from "bun:test"
-import {
-  formatImportFileError,
-  parseShareUrl,
-  shouldAttachShareAuthHeaders,
-  transformShareData,
-  type ShareData,
-} from "../../src/cli/cmd/import"
+import { formatImportFileError, parseShareUrl, transformShareData, type ShareData } from "../../src/cli/cmd/import"
 import { FSUtil } from "@hena/core/fs-util"
 import { PlatformError } from "effect"
 
@@ -54,17 +48,6 @@ test("rejects invalid URLs", () => {
   expect(parseShareUrl("https://hena.dev/share/")).toBeNull()
   expect(parseShareUrl("https://hena.dev/share/id/extra")).toBeNull()
   expect(parseShareUrl("not-a-url")).toBeNull()
-})
-
-test("only attaches share auth headers for same-origin URLs", () => {
-  expect(shouldAttachShareAuthHeaders("https://control.example.com/share/abc", "https://control.example.com")).toBe(
-    true,
-  )
-  expect(shouldAttachShareAuthHeaders("https://other.example.com/share/abc", "https://control.example.com")).toBe(false)
-  expect(shouldAttachShareAuthHeaders("https://control.example.com:443/share/abc", "https://control.example.com")).toBe(
-    true,
-  )
-  expect(shouldAttachShareAuthHeaders("not-a-url", "https://control.example.com")).toBe(false)
 })
 
 // transformShareData tests

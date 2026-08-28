@@ -21,7 +21,6 @@ const FOLDERS = new Set([
   ".turbo",
   ".output",
   "desktop",
-  ".sst",
   ".cache",
   ".webkit-cache",
   "__pycache__",

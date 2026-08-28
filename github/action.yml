@@ -14,8 +14,9 @@ inputs:
     required: false
 
   share:
-    description: "Share the Hena session (defaults to true for public repos)"
+    description: "Share the Hena session"
     required: false
+    default: "false"
 
   prompt:
     description: "Custom prompt to override the default prompt"
@@ -78,3 +79,4 @@ runs:
         MENTIONS: ${{ inputs.mentions }}
         VARIANT: ${{ inputs.variant }}
         OIDC_BASE_URL: ${{ inputs.oidc_base_url }}
+        GITHUB_TOKEN: ${{ github.token }}

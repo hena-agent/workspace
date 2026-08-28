@@ -9,7 +9,7 @@
 
 - Running `bun dev` from `packages/hena` starts the server. Do not run it as a blocking foreground command when you need to inspect the result.
 - Start it in `tmux` instead: `tmux new-session -d -s hena-dev 'bun dev'`.
-- Capture the current TUI output with: `tmux capture-pane -pt hena-dev`.
+- Capture the current server output with: `tmux capture-pane -pt hena-dev`.
 - Stop the session explicitly when done: `tmux kill-session -t hena-dev`.
 
 # Module shape

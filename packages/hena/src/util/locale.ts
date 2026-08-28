@@ -9,7 +9,11 @@ export function datetime(input: number): string {
 export function todayTimeOrDateTime(input: number): string {
   const date = new Date(input)
   const now = new Date()
-  if (date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate()) {
+  if (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  ) {
     return time(input)
   }
   return datetime(input)

@@ -67,22 +67,22 @@ This allows for more targeted requests without needing to specify file paths or 
          contains(github.event.comment.body, '/hena')
        runs-on: ubuntu-latest
        permissions:
-         id-token: write
+         contents: write
+         issues: write
+         pull-requests: write
        steps:
-          - name: Checkout repository
-            uses: actions/checkout@v6
-            with:
-              fetch-depth: 1
-              persist-credentials: false
+         - name: Checkout repository
+           uses: actions/checkout@v6
+           with:
+             fetch-depth: 1
+             persist-credentials: false
 
-          - name: Run Hena
+         - name: Run Hena
            uses: hena-agent/hena/github@latest
            env:
              ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
            with:
              model: anthropic/claude-sonnet-4-20250514
-             use_github_token: true
    ```
 
 2. Store the API keys in secrets. In your organization or project **settings**, expand **Secrets and variables** on the left and select **Actions**. Add the required API keys.

@@ -6,7 +6,6 @@ import { CliError, effectCmd } from "../effect-cmd"
 import { Database } from "@hena/core/database/database"
 import { SessionTable, MessageTable, PartTable } from "@hena/core/session/sql"
 import { InstanceRef } from "@/effect/instance-ref"
-import { ShareNext } from "@/share/share-next"
 import { EOL } from "os"
 import path from "path"
 import { FSUtil } from "@hena/core/fs-util"
@@ -28,14 +27,6 @@ export type ShareData =
 export function parseShareUrl(url: string): string | null {
   const match = url.match(/^https?:\/\/[^/]+\/share\/([a-zA-Z0-9_-]+)$/)
   return match ? match[1] : null
-}
-
-export function shouldAttachShareAuthHeaders(shareUrl: string, accountBaseUrl: string): boolean {
-  try {
-    return new URL(shareUrl).origin === new URL(accountBaseUrl).origin
-  } catch {
-    return false
-  }
 }
 
 export function formatImportFileError(file: string, error: FSUtil.Error) {
@@ -108,7 +99,6 @@ export const ImportCommand = effectCmd({
 })
 
 const runImport = Effect.fn("Cli.import.body")(function* (file: string, ctx: InstanceContext) {
-  const share = yield* ShareNext.Service
   const fs = yield* FSUtil.Service
   const { db } = yield* Database.Service
 
@@ -119,31 +109,24 @@ const runImport = Effect.fn("Cli.import.body")(function* (file: string, ctx: Ins
   if (isUrl) {
     const slug = parseShareUrl(file)
     if (!slug) {
-      const baseUrl = yield* Effect.orDie(share.url())
-      process.stdout.write(`Invalid URL format. Expected: ${baseUrl}/share/<slug>`)
+      process.stdout.write("Invalid URL format. Expected: https://example.com/share/<slug>")
       process.stdout.write(EOL)
       return
     }
 
     const baseUrl = new URL(file).origin
-    const req = yield* Effect.orDie(share.request())
-    const headers = shouldAttachShareAuthHeaders(file, req.baseUrl) ? req.headers : {}
 
     const tryFetch = (url: string) =>
       Effect.tryPromise({
-        try: () => fetch(url, { headers }),
+        try: () => fetch(url),
         catch: (e) =>
           new CliError({
             message: `Failed to fetch share data: ${e instanceof Error ? e.message : String(e)}`,
           }),
       })
 
-    const dataPath = req.api.data(slug)
-    let response = yield* tryFetch(`${baseUrl}${dataPath}`)
-
-    if (!response.ok && dataPath !== `/api/share/${slug}/data`) {
-      response = yield* tryFetch(`${baseUrl}/api/share/${slug}/data`)
-    }
+    const primary = yield* tryFetch(`${baseUrl}/api/shares/${slug}/data`)
+    const response = primary.ok ? primary : yield* tryFetch(`${baseUrl}/api/share/${slug}/data`)
 
     if (!response.ok) {
       process.stdout.write(`Failed to fetch share data: ${response.statusText}`)

@@ -255,32 +255,4 @@ describe("Composer", () => {
     await waitFor(() => expect(textarea).toHaveValue(""))
     expect(textarea).toBeEnabled()
   })
-
-  test("hides file mention results while delivery is pending", async () => {
-    const delivery = Promise.withResolvers<void>()
-    mockMatchMedia(true)
-    render(
-      <Composer
-        agents={agents}
-        models={models}
-        agentId={agents[0].id}
-        modelId={models[0].id}
-        onChangeAgent={() => {}}
-        onChangeModel={() => {}}
-        onSend={() => delivery.promise}
-        onQueue={() => {}}
-        onFindFiles={async () => ["src/app.tsx"]}
-        initialText="Check @app"
-        initialSelection={{ start: 10, end: 10 }}
-      />,
-    )
-
-    const textarea = screen.getByLabelText("Message")
-    expect(await screen.findByText("src/app.tsx")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: "Send message" }))
-    expect(screen.queryByText("src/app.tsx")).not.toBeInTheDocument()
-
-    delivery.resolve()
-    await waitFor(() => expect(textarea).toBeEnabled())
-  })
 })

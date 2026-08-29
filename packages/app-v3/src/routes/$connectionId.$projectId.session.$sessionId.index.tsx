@@ -8,7 +8,6 @@ import { RouteLoadingState } from "@/connection/route-state"
 import { loadFileMatches, useCatalog, useCollectionReady, useMessages, usePendingRequest, usePermission, useQuestion, useQueuedInputs, useSession, useSessionLocation, useSettings, useTodos } from "@/data/queries"
 import { admitPromptOptimistically, cancelInputOptimistically, interruptOptimistically, isSessionStopping, reorderInputsOptimistically, replyPermissionOptimistically, replyQuestionOptimistically } from "@/mutations/session"
 import { loadDraft, saveDraft } from "@/local-state/drafts"
-import { saveLastSession } from "@/local-state/last-session"
 import { markSessionSeen } from "@/local-state/seen"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/")({
@@ -22,8 +21,6 @@ function SessionTranscriptRoute() {
   const agent = useConnectionAgent(connectionId)
   useEffect(() => agent?.claim(sessionId), [agent, sessionId])
   const session = useSession(agent, sessionId)
-  const serverUrl = agent?.url
-  const selectedSessionId = session?.projectId === projectId ? session.id : undefined
   const location = useSessionLocation(agent, sessionId)
   const catalog = useCatalog(agent, location)
   const settings = useSettings(agent, location ? JSON.stringify(location) : "missing")
@@ -46,9 +43,6 @@ function SessionTranscriptRoute() {
   useEffect(() => {
     if (agent && session) markSessionSeen(agent.url, sessionId, session.updatedAt)
   }, [agent, session, sessionId])
-  useEffect(() => {
-    if (serverUrl && selectedSessionId) saveLastSession(serverUrl, projectId, selectedSessionId)
-  }, [projectId, selectedSessionId, serverUrl])
   const replyPermission = (reply: "once" | "always" | "reject") => {
     if (!agent || !location || !permissionWire || typeof permissionWire.id !== "string" || typeof permissionWire.nonce !== "string") return
     setMutationNotice("")

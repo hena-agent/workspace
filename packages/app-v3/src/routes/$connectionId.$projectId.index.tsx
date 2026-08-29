@@ -5,7 +5,7 @@ import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
 import { useCollectionReady, useProject, useSessions } from "@/data/queries"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { loadLastSession } from "@/local-state/last-session"
+import { recentlySeen } from "@/local-state/seen"
 import { SessionList } from "@/shell/session-list"
 
 const DESKTOP_QUERY = "(min-width: 1280px)"
@@ -23,15 +23,13 @@ function ProjectOverviewRoute() {
   const sessions = useSessions(agent, projectId)
   const projectsReady = useCollectionReady(agent, "projects")
   const sessionsReady = useCollectionReady(agent, "sessions")
-  const lastSessionId = agent && isDesktop ? loadLastSession(agent.url, projectId) : undefined
+  const lastSessionId = agent && isDesktop
+    ? recentlySeen(agent.url).findLast((id) => sessions.some((session) => session.id === id))
+    : undefined
   const lastSession = sessions.find((session) => session.id === lastSessionId)
 
-  if (!project) {
-    return <RouteLoadingState agent={agent} ready={projectsReady} missing="Project not found." />
-  }
-
-  if (lastSessionId && !sessionsReady) {
-    return <RouteLoadingState agent={agent} ready={false} missing="Session not found." />
+  if (!project || !sessionsReady) {
+    return <RouteLoadingState agent={agent} ready={projectsReady && sessionsReady} missing="Project not found." />
   }
 
   if (lastSession) {
@@ -67,7 +65,7 @@ function ProjectOverviewRoute() {
         </Button>
       </div>
       <SessionList
-        sessions={sessions}
+         sessions={sessions}
         autoFocusSessionId={
           typeof window.history.state?.henaFocusSessionId === "string"
             ? window.history.state.henaFocusSessionId

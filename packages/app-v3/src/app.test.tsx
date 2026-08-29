@@ -4,7 +4,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import userEvent from "@testing-library/user-event"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ConnectionProvider } from "@/connection/provider"
-import { saveLastSession } from "@/local-state/last-session"
+import { markSessionSeen } from "@/local-state/seen"
 import { encodeServerSlug } from "@/lib/server-url"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { fireEvent, render, screen, waitFor, within } from "@/test/test-utils"
@@ -16,12 +16,12 @@ const originalInnerWidth = window.innerWidth
 afterEach(() => {
   localStorage.removeItem("hena.connections.v1")
   localStorage.removeItem("hena.tombstones.v1")
-  localStorage.removeItem(`hena.last-session.v1.${slug}`)
+  localStorage.removeItem(`hena.seen.v1.${slug}`)
   Object.defineProperty(window, "innerWidth", { configurable: true, value: originalInnerWidth })
 })
 
-function renderApp(initialPath: string, fetcher = collectionFetcher(), desktop = true) {
-  mockMatchMedia(desktop)
+function renderApp(initialPath: string, fetcher = collectionFetcher(), options: { desktop?: boolean } = {}) {
+  mockMatchMedia(options.desktop ?? true)
   const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [initialPath] }) })
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -303,7 +303,7 @@ describe("app routing against server-v3", () => {
 
   test("restores the last session when opening a recent project", async () => {
     const user = userEvent.setup()
-    saveLastSession(origin, "global", "ses_live")
+    markSessionSeen(origin, "ses_live", 1)
     const router = renderApp(`/${slug}`)
 
     await user.click(await screen.findByRole("button", { name: /\/repo/ }))
@@ -312,8 +312,8 @@ describe("app routing against server-v3", () => {
     expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
   })
 
-  test("falls back to the project overview when the saved session is stale", async () => {
-    saveLastSession(origin, "global", "ses_missing")
+  test("falls back to the project overview when session history is stale", async () => {
+    markSessionSeen(origin, "ses_missing", 1)
     const router = renderApp(`/${slug}/global`)
 
     expect(await screen.findByRole("heading", { name: "Repo" })).toBeInTheDocument()
@@ -321,8 +321,8 @@ describe("app routing against server-v3", () => {
   })
 
   test("keeps the project session list on mobile", async () => {
-    saveLastSession(origin, "global", "ses_live")
-    const router = renderApp(`/${slug}/global`, collectionFetcher(), false)
+    markSessionSeen(origin, "ses_live", 1)
+    const router = renderApp(`/${slug}/global`, collectionFetcher(), { desktop: false })
 
     expect(await within(await screen.findByRole("main")).findByText("Live session")).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(`/${slug}/global`)

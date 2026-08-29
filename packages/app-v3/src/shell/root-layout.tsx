@@ -137,10 +137,9 @@ function ShellLayout() {
     if (target.id === draftProject?.id) return
     const server = servers.connections.find((candidate) => candidate.url === target.connectionId)
     if (!server) return
-    const connectionId = servers.getSlug(server)
     void navigate({
       to: "/$connectionId/$projectId",
-      params: { connectionId, projectId: target.id },
+      params: { connectionId: servers.getSlug(server), projectId: target.id },
     })
   }
 

@@ -23,7 +23,7 @@
     "random": "echo 'Random script'",
     "translate:app": "bun run script/translate-app.ts",
     "test": "echo 'do not run tests from root' && exit 1",
-    "doctor": "react-doctor"
+    "doctor": "react-doctor --project @hena/app-v3 --scope changed --base origin/develop --blocking warning"
   },
   "workspaces": {
     "packages": [

@@ -1,17 +1,12 @@
 import type { Connection, Project, ProjectNotification, Session, SessionMessage } from "@/lib/types"
 import {
-  agents,
   connections,
   diffFilesBySession,
   fileTree,
-  mcpServers,
   messagesBySession,
-  models,
   permissionsBySession,
   projects,
-  providers,
   questionsBySession,
-  serverCommands,
   sessions,
   todosBySession,
 } from "./fixtures"
@@ -20,10 +15,6 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 export function listConnections(): Connection[] {
   return connections
-}
-
-export function getConnection(url: string): Connection | undefined {
-  return connections.find((connection) => connection.url === url)
 }
 
 export function listProjects(connectionId?: string): Project[] {
@@ -86,26 +77,6 @@ export function listDiffFiles(options: { sessionId: string; connectionId: string
 
 export function getFileTree() {
   return fileTree
-}
-
-export function listAgents() {
-  return agents
-}
-
-export function listModels() {
-  return models
-}
-
-export function listProviders() {
-  return providers
-}
-
-export function listMcpServers() {
-  return mcpServers
-}
-
-export function listServerCommands() {
-  return serverCommands
 }
 
 export function getProjectNotificationState(options: { projectId: string; connectionId: string }): ProjectNotification {

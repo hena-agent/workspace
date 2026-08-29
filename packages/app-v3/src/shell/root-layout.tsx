@@ -13,7 +13,6 @@ import { decodeServerSlug } from "@/lib/server-url"
 import type { Project } from "@/lib/types"
 import { projectNotification, useProject, useProjects, useSessions } from "@/data/queries"
 import { archiveSessionOptimistically } from "@/mutations/session"
-import { loadLastSession, saveLastSession } from "@/local-state/last-session"
 import { applyProjectOrder, loadProjectOrder, saveProjectOrder } from "@/local-state/project-order"
 import { AppShell } from "./app-shell"
 
@@ -134,26 +133,11 @@ function ShellLayout() {
   const serverSessions = useSessions(agent)
   const projectSessions = serverSessions.filter((session) => session.projectId === project?.id)
 
-  useEffect(() => {
-    if (!connection || !params.projectId || !params.sessionId) return
-    if (!serverSessions.some((session) => session.id === params.sessionId && session.projectId === params.projectId)) return
-    saveLastSession(connection.url, params.projectId, params.sessionId)
-  }, [connection, params.projectId, params.sessionId, serverSessions])
-
   function goToProject(target: Project) {
     if (target.id === draftProject?.id) return
     const server = servers.connections.find((candidate) => candidate.url === target.connectionId)
     if (!server) return
     const connectionId = servers.getSlug(server)
-    const sessionId = loadLastSession(server.url, target.id)
-    const session = serverSessions.find((candidate) => candidate.id === sessionId && candidate.projectId === target.id)
-    if (session) {
-      void navigate({
-        to: "/$connectionId/$projectId/session/$sessionId",
-        params: { connectionId, projectId: target.id, sessionId: session.id },
-      })
-      return
-    }
     void navigate({
       to: "/$connectionId/$projectId",
       params: { connectionId, projectId: target.id },
@@ -233,8 +217,7 @@ function ShellLayout() {
         activeSessionId: params.sessionId,
         now,
         onSelectSession: (id) => {
-          if (!connection || !params.connectionId || !params.projectId) return
-          saveLastSession(connection.url, params.projectId, id)
+          if (!params.connectionId || !params.projectId) return
           void navigate({
             to: "/$connectionId/$projectId/session/$sessionId",
             params: { connectionId: params.connectionId, projectId: params.projectId, sessionId: id },
@@ -306,8 +289,7 @@ function ShellLayout() {
         onSelectProject={(target) => runAfterMobileNavClose(() => goToProject(target))}
         onSelectSession={(session) =>
           runAfterMobileNavClose(() => {
-            if (!connection || !params.connectionId) return
-            saveLastSession(connection.url, session.projectId, session.id)
+            if (!params.connectionId) return
             void navigate({
               to: "/$connectionId/$projectId/session/$sessionId",
               params: {

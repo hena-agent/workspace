@@ -4,6 +4,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import userEvent from "@testing-library/user-event"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ConnectionProvider } from "@/connection/provider"
+import { saveLastSession } from "@/local-state/last-session"
 import { encodeServerSlug } from "@/lib/server-url"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { fireEvent, render, screen, waitFor, within } from "@/test/test-utils"
@@ -19,8 +20,8 @@ afterEach(() => {
   Object.defineProperty(window, "innerWidth", { configurable: true, value: originalInnerWidth })
 })
 
-function renderApp(initialPath: string, fetcher = collectionFetcher()) {
-  mockMatchMedia(true)
+function renderApp(initialPath: string, fetcher = collectionFetcher(), desktop = true) {
+  mockMatchMedia(desktop)
   const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [initialPath] }) })
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -298,6 +299,33 @@ describe("app routing against server-v3", () => {
     await user.click(within(rail).getByRole("button", { name: /Repo/ }))
     await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`))
     expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
+  })
+
+  test("restores the last session when opening a recent project", async () => {
+    const user = userEvent.setup()
+    saveLastSession(origin, "global", "ses_live")
+    const router = renderApp(`/${slug}`)
+
+    await user.click(await screen.findByRole("button", { name: /\/repo/ }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`))
+    expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
+  })
+
+  test("falls back to the project overview when the saved session is stale", async () => {
+    saveLastSession(origin, "global", "ses_missing")
+    const router = renderApp(`/${slug}/global`)
+
+    expect(await screen.findByRole("heading", { name: "Repo" })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/${slug}/global`)
+  })
+
+  test("keeps the project session list on mobile", async () => {
+    saveLastSession(origin, "global", "ses_live")
+    const router = renderApp(`/${slug}/global`, collectionFetcher(), false)
+
+    expect(await within(await screen.findByRole("main")).findByText("Live session")).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/${slug}/global`)
   })
 
   test("opens resizable preview and tree panels from the titlebar", async () => {

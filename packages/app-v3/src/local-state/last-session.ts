@@ -10,11 +10,13 @@ export function loadLastSession(url: string, projectId: string, storage: Storage
 
 export function saveLastSession(url: string, projectId: string, sessionId: string, storage: Storage = localStorage) {
   const value = record(parse(storage.getItem(storageKey(url))))
+  const current = value.version === 1 ? projects(value.projects) : {}
+  if (current[projectId] === sessionId) return
   storage.setItem(
     storageKey(url),
     JSON.stringify({
       version: 1,
-      projects: { ...(value.version === 1 ? projects(value.projects) : {}), [projectId]: sessionId },
+      projects: { ...current, [projectId]: sessionId },
     } satisfies LastSessionStore),
   )
 }

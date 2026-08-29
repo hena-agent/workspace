@@ -1,10 +1,11 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router"
 import { Button } from "@/components/ui/button"
 import { ProjectOverviewView } from "@/features/project/project-overview-view"
 import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
 import { useCollectionReady, useProject, useSessions } from "@/data/queries"
 import { useMediaQuery } from "@/hooks/use-media-query"
+import { loadLastSession } from "@/local-state/last-session"
 import { SessionList } from "@/shell/session-list"
 
 const DESKTOP_QUERY = "(min-width: 1280px)"
@@ -21,9 +22,26 @@ function ProjectOverviewRoute() {
   const project = useProject(agent, projectId)
   const sessions = useSessions(agent, projectId)
   const projectsReady = useCollectionReady(agent, "projects")
+  const sessionsReady = useCollectionReady(agent, "sessions")
+  const lastSessionId = agent && isDesktop ? loadLastSession(agent.url, projectId) : undefined
+  const lastSession = sessions.find((session) => session.id === lastSessionId)
 
   if (!project) {
     return <RouteLoadingState agent={agent} ready={projectsReady} missing="Project not found." />
+  }
+
+  if (lastSessionId && !sessionsReady) {
+    return <RouteLoadingState agent={agent} ready={false} missing="Session not found." />
+  }
+
+  if (lastSession) {
+    return (
+      <Navigate
+        to="/$connectionId/$projectId/session/$sessionId"
+        params={{ connectionId, projectId, sessionId: lastSession.id }}
+        replace
+      />
+    )
   }
 
   function startSession() {
@@ -49,7 +67,7 @@ function ProjectOverviewRoute() {
         </Button>
       </div>
       <SessionList
-         sessions={sessions}
+        sessions={sessions}
         autoFocusSessionId={
           typeof window.history.state?.henaFocusSessionId === "string"
             ? window.history.state.henaFocusSessionId

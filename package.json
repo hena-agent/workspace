@@ -23,7 +23,7 @@
     "random": "echo 'Random script'",
     "translate:app": "bun run script/translate-app.ts",
     "test": "echo 'do not run tests from root' && exit 1",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "react-doctor"
   },
   "workspaces": {
     "packages": [
@@ -93,7 +93,7 @@
     "oxlint": "1.60.0",
     "oxlint-tsgolint": "0.21.0",
     "prettier": "3.6.2",
-    "react-doctor": "0.9.5",
+    "react-doctor": "0.9.12",
     "turbo": "2.10.2"
   },
   "dependencies": {

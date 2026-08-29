@@ -1,6 +1,6 @@
 import { useLiveQuery } from "@tanstack/react-db"
 import { useQuery } from "@tanstack/react-query"
-import { useDeferredValue, useSyncExternalStore } from "react"
+import { useSyncExternalStore } from "react"
 import type { ReturnTypeOfAgent } from "./types"
 import type {
   Agent,
@@ -54,15 +54,6 @@ export function useFileContent(agent: ReturnTypeOfAgent | undefined, location: {
       if (!response.ok) throw new Error("Could not read file")
       return response.json()
     },
-  })
-}
-
-export function useFileFind(agent: ReturnTypeOfAgent | undefined, location: { directory: string; workspaceID?: string } | undefined, value: string) {
-  const query = useDeferredValue(value.trim())
-  return useQuery({
-    queryKey: [agent?.url, "fs.find", location?.directory, location?.workspaceID, query],
-    enabled: Boolean(agent && location && query),
-    queryFn: ({ signal }) => loadFileMatches(agent!, location!, query, signal),
   })
 }
 

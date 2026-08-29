@@ -49,10 +49,6 @@ export async function probeServer(input: {
   }
 }
 
-export function canRegisterProbe(result: ProbeResult) {
-  return result.status === "reachable"
-}
-
 async function diagnoseCapabilities(response: Response, url: string): Promise<ProbeResult> {
   if (response.status === 401) {
     return {

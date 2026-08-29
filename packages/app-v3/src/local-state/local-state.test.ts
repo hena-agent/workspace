@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { encodeServerSlug } from "@/lib/server-url"
 import { listDrafts, loadDraft, removeDraft, saveDraft } from "./drafts"
 import { applyProjectOrder, loadProjectOrder, saveProjectOrder } from "./project-order"
-import { clearSeenWatermarks, markSessionSeen, wasSeenAfter } from "./seen"
+import { clearSeenWatermarks, markSessionSeen, recentlySeen, wasSeenAfter } from "./seen"
 
 const url = "http://localhost:4106"
 
@@ -54,10 +54,14 @@ describe("local client state", () => {
 
   test("tracks and clears per-server seen watermarks", () => {
     markSessionSeen(url, "session", 20)
+    markSessionSeen(url, "other", 10)
+    markSessionSeen(url, "session", 20)
     expect(wasSeenAfter(url, "session", 20)).toBe(true)
     expect(wasSeenAfter(url, "session", 21)).toBe(false)
+    expect(recentlySeen(url)).toEqual(["other", "session"])
     clearSeenWatermarks(url)
     expect(wasSeenAfter(url, "session", 1)).toBe(false)
+    expect(recentlySeen(url)).toEqual([])
   })
 
   test("persists project order and puts newly discovered projects first", () => {

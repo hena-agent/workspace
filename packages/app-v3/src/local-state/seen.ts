@@ -16,6 +16,10 @@ export function wasSeenAfter(url: string, sessionID: string, updatedAt: number) 
   return read(url)[sessionID] >= updatedAt
 }
 
+export function recentlySeen(url: string) {
+  return Object.keys(read(url))
+}
+
 export function markSessionSeen(url: string, sessionID: string, updatedAt: number) {
   const current = read(url)
   if (current[sessionID] === updatedAt && Object.keys(current).at(-1) === sessionID) return

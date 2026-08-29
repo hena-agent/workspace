@@ -57,7 +57,50 @@ describe("connection store", () => {
     expect(store.delta(identity)).toEqual({ text: "é!", incomplete: true })
   })
 
-  test("coalesces delta notifications and clears finalized parts", () => {
+  test("authoritative text rows clear incomplete live text", () => {
+    const store = createConnectionStore()
+    const updated = { sessionId: "s", messageId: "m", partId: "updated", partKind: "text" as const }
+    const replaced = { sessionId: "s", messageId: "m", partId: "replaced", partKind: "text" as const }
+    store.applyDelta({ ...updated, offset: 0, text: "stale" })
+    store.applyDelta({ ...updated, offset: 10, text: "gap" })
+    store.applyDelta({ ...replaced, offset: 0, text: "stale" })
+    store.applyDelta({ ...replaced, offset: 10, text: "gap" })
+
+    store.applyRows({
+      throughSeq: 1,
+      changes: [{ seq: 1, collection: "parts", scopeKey: "s", rowKey: ["m", "text", "updated"], op: "update", row: { type: "text", text: "durable update" } }],
+    })
+    expect(store.delta(updated)).toBeUndefined()
+    expect(store.rows("parts", "s")).toEqual([{ type: "text", text: "durable update" }])
+
+    store.applySnapshot("parts", "s", [{
+      key: ["m", "text", "replaced"],
+      row: { type: "text", text: "durable snapshot" },
+    }], 2)
+
+    expect(store.delta(replaced)).toBeUndefined()
+    expect(store.rows("parts", "s")).toEqual([{ type: "text", text: "durable snapshot" }])
+  })
+
+  test("bounds live delta previews by bytes and lines", () => {
+    const store = createConnectionStore()
+    const bytes = { sessionId: "s", messageId: "m", partId: "bytes", partKind: "text" as const }
+    const lines = { sessionId: "s", messageId: "m", partId: "lines", partKind: "text" as const }
+    const byteText = "😀".repeat(9_000)
+    const lineText = `${"line\n".repeat(500)}hidden`
+
+    store.applyDelta({ ...bytes, offset: 0, text: byteText })
+    store.applyDelta({ ...bytes, offset: new TextEncoder().encode(byteText).byteLength, text: "hidden" })
+    store.applyDelta({ ...lines, offset: 0, text: lineText })
+
+    expect(new TextEncoder().encode(store.delta(bytes)!.text).byteLength).toBeLessThanOrEqual(32 * 1024)
+    expect(store.delta(bytes)!.text).not.toContain("�")
+    expect(store.delta(bytes)!.text).not.toContain("hidden")
+    expect(store.delta(lines)!.text.split("\n")).toHaveLength(500)
+    expect(store.delta(lines)!.text).not.toContain("hidden")
+  })
+
+  test("coalesces delta notifications and keeps text deltas until the assistant completes", () => {
     const frames: Array<() => void> = []
     const store = createConnectionStore({ scheduleFrame: (callback) => frames.push(callback) })
     const identity = { sessionId: "s", messageId: "m", partId: "p", partKind: "text" as const }
@@ -71,8 +114,100 @@ describe("connection store", () => {
 
     store.applyRows({
       throughSeq: 1,
-      changes: [{ seq: 1, collection: "parts", scopeKey: "s", rowKey: ["m", "text", "p"], op: "insert", row: { type: "text", text: "onetwo" } }],
+      changes: [{ seq: 1, collection: "parts", scopeKey: "s", rowKey: ["m", "text", "p"], op: "insert", row: { type: "text", text: "one" } }],
     })
+    expect(store.delta(identity)).toEqual({ text: "onetwo", incomplete: false })
+
+    store.applyRows({
+      throughSeq: 2,
+      changes: [{ seq: 2, collection: "messages", scopeKey: "s", rowKey: "m", op: "update", row: { id: "m", type: "assistant", time: { created: 1, completed: 2 } } }],
+    })
+    expect(store.delta(identity)).toBeUndefined()
+  })
+
+  test("notifies delta identity subscribers only when parts are added or removed", () => {
+    const store = createConnectionStore()
+    const identity = { sessionId: "s", messageId: "m", partId: "p", partKind: "text" as const }
+    let notifications = 0
+    store.subscribeDeltaIdentities("s", () => notifications++)
+
+    store.applyDelta({ ...identity, offset: 0, text: "one" })
+    store.applyDelta({ ...identity, offset: 3, text: "two" })
+    expect(notifications).toBe(1)
+
+    store.applyRows({
+      throughSeq: 1,
+      changes: [{ seq: 1, collection: "messages", scopeKey: "s", rowKey: "m", op: "delete", row: null }],
+    })
+    expect(notifications).toBe(2)
+    expect(store.delta(identity)).toBeUndefined()
+  })
+
+  test("clears deltas omitted by replacement message snapshots", () => {
+    const store = createConnectionStore()
+    const kept = { sessionId: "s", messageId: "kept", partId: "p1", partKind: "text" as const }
+    const removed = { sessionId: "s", messageId: "removed", partId: "p2", partKind: "reasoning" as const }
+    store.applyDelta({ ...kept, offset: 0, text: "kept" })
+    store.applyDelta({ ...removed, offset: 0, text: "removed" })
+
+    store.applySnapshot("messages", "s", [{
+      key: "kept",
+      row: { id: "kept", type: "assistant", time: { created: 1 } },
+    }], 1)
+
+    expect(store.delta(kept)).toEqual({ text: "kept", incomplete: false })
+    expect(store.delta(removed)).toBeUndefined()
+  })
+
+  test("keeps reasoning deltas until the reasoning part completes", () => {
+    const store = createConnectionStore()
+    const identity = { sessionId: "s", messageId: "m", partId: "p", partKind: "reasoning" as const }
+    store.applyDelta({ ...identity, offset: 0, text: "live reasoning" })
+
+    store.applyRows({
+      throughSeq: 1,
+      changes: [{ seq: 1, collection: "parts", scopeKey: "s", rowKey: ["m", "reasoning", "p"], op: "insert", row: { type: "reasoning", text: "", time: { created: 1 } } }],
+    })
+    expect(store.delta(identity)).toEqual({ text: "live reasoning", incomplete: false })
+
+    store.applySnapshot("parts", "s", [{
+      key: ["m", "reasoning", "p"],
+      row: { type: "reasoning", text: "live reasoning", time: { created: 1, completed: 2 } },
+    }], 2)
+    expect(store.delta(identity)).toBeUndefined()
+  })
+
+  test("clears omitted deltas on replacement part snapshots and resets", () => {
+    const store = createConnectionStore()
+    const kept = { sessionId: "s", messageId: "m", partId: "kept", partKind: "text" as const }
+    const removed = { sessionId: "s", messageId: "m", partId: "removed", partKind: "reasoning" as const }
+    store.applyDelta({ ...kept, offset: 0, text: "kept" })
+    store.applyDelta({ ...removed, offset: 0, text: "removed" })
+
+    store.applySnapshot("parts", "s", [{
+      key: ["m", "text", "kept"],
+      row: { type: "text", text: "" },
+    }], 1)
+    expect(store.delta(kept)).toEqual({ text: "kept", incomplete: false })
+    expect(store.delta(removed)).toBeUndefined()
+
+    store.applyRows({
+      throughSeq: 2,
+      changes: [{ seq: 2, collection: "parts", scopeKey: "s", rowKey: [], op: "reset", row: null }],
+    })
+    expect(store.delta(kept)).toBeUndefined()
+  })
+
+  test("clears a stale text delta once a replacement snapshot supersedes it", () => {
+    const store = createConnectionStore()
+    const identity = { sessionId: "s", messageId: "m", partId: "p", partKind: "text" as const }
+    store.applyDelta({ ...identity, offset: 0, text: "old" })
+
+    store.applySnapshot("parts", "s", [{
+      key: ["m", "text", "p"],
+      row: { type: "text", text: "new authoritative text" },
+    }], 1)
+
     expect(store.delta(identity)).toBeUndefined()
   })
 

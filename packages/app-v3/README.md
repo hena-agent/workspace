@@ -2,6 +2,19 @@
 
 This is a template for a new Vite project with React, TypeScript, and shadcn/ui.
 
+## Custom development hosts
+
+Set `HENA_VITE_ALLOWED_HOSTS` to a comma-separated list of exact hostnames when accessing the Vite
+development server directly through Tailscale:
+
+```bash
+HENA_VITE_ALLOWED_HOSTS=workstation.example.ts.net bun run dev --host 0.0.0.0
+```
+
+Pass the same environment variable to server-v3 so it accepts `http://<host>:5173` from those hosts.
+For a reverse proxy, add the complete browser origin, such as `https://app.example.com`, to the server's
+`server.cors` configuration. Keeping explicit lists preserves Vite's Host-header protection.
+
 ## Generated component catalogs
 
 `src/components/ui`, `src/components/ai-elements`, and the supporting `src/hooks/use-mobile.ts` hook are

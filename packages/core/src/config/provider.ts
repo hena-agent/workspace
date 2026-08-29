@@ -44,11 +44,16 @@ const ModelApi = Schema.Union([
   }),
 ])
 
+const Capabilities = Schema.Struct({
+  ...ModelV2.Capabilities.fields,
+  reasoning: Schema.Boolean.pipe(Schema.optional),
+})
+
 class Model extends Schema.Class<Model>("ConfigV2.Model")({
   family: ModelV2.Family.pipe(Schema.optional),
   name: Schema.String.pipe(Schema.optional),
   api: ModelApi.pipe(Schema.optional),
-  capabilities: ModelV2.Capabilities.pipe(Schema.optional),
+  capabilities: Capabilities.pipe(Schema.optional),
   request: Schema.Struct({
     ...Request.fields,
     variant: Schema.String.pipe(Schema.optional),

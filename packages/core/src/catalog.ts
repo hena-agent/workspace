@@ -208,23 +208,33 @@ const layer = Layer.effect(
         }),
 
         available: Effect.fn("CatalogV2.model.available")(function* () {
-          const providers = new Set((yield* result.provider.available()).map((provider) => provider.id))
-          return (yield* result.model.all()).filter((model) => providers.has(model.providerID) && model.enabled)
+          const providers = new Map((yield* result.provider.available()).map((provider) => [provider.id, provider]))
+          const connected = new Set(
+            (yield* integrations.list())
+              .filter((integration) => integration.connections.length > 0)
+              .map((integration) => integration.id),
+          )
+          return (yield* result.model.all()).filter((model) => {
+            const provider = providers.get(model.providerID)
+            if (!provider || !model.enabled) return false
+            if (model.providerID !== ProviderV2.ID.make("opencode")) return true
+            if (model.request.body.apiKey !== ProviderV2.PUBLIC_API_KEY) return true
+            if (model.cost.length > 0 && model.cost.every((cost) => cost.input === 0 && cost.output === 0 && cost.cache.read === 0 && cost.cache.write === 0)) return true
+            return connected.has(provider.integrationID ?? Integration.ID.make(provider.id))
+          })
         }),
 
         default: Effect.fn("CatalogV2.model.default")(function* () {
+          const available = yield* result.model.available()
           const defaultModel = state.get().defaultModel
           if (defaultModel) {
-            const provider = yield* result.provider.get(defaultModel.providerID)
-            if (provider && (yield* result.provider.available()).some((item) => item.id === provider.id)) {
-              const model = yield* result.model.get(defaultModel.providerID, defaultModel.modelID)
-              if (model?.enabled) return model
-            }
+            const model = available.find((item) => item.providerID === defaultModel.providerID && item.id === defaultModel.modelID)
+            if (model) return model
           }
 
           return Option.getOrUndefined(
             pipe(
-              yield* result.model.available(),
+              available,
               Array.sortWith((item) => item.time.released, Order.flip(Order.Number)),
               Array.head,
             ),
@@ -235,6 +245,11 @@ const layer = Layer.effect(
           const record = state.get().providers.get(providerID)
           if (!record) return
           const provider = record.provider
+          const available = new Set(
+            (yield* result.model.available())
+              .filter((model) => model.providerID === providerID)
+              .map((model) => model.id),
+          )
 
           // TODO: Remove these provider-specific assumptions once model syncing reliably reports available deployments.
           if (providerID === ProviderV2.ID.azure || providerID === ProviderV2.ID.make("azure-cognitive-services")) {
@@ -246,6 +261,7 @@ const layer = Layer.effect(
             Array.filter(
               (model) =>
                 model.providerID === providerID &&
+                available.has(model.id) &&
                 model.enabled &&
                 model.status === "active" &&
                 model.capabilities.input.some((item) => item.startsWith("text")) &&

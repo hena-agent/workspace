@@ -6,6 +6,8 @@ import { Provider } from "@hena/schema/provider"
 export const ID = Provider.ID
 export type ID = typeof ID.Type
 
+export const PUBLIC_API_KEY = "public"
+
 export const AISDK = Provider.AISDK
 
 export const Native = Provider.Native

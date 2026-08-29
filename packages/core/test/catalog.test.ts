@@ -239,6 +239,24 @@ describe("CatalogV2", () => {
     }),
   )
 
+  it.effect("does not apply public-model filtering to non-OpenCode providers", () =>
+    Effect.gen(function* () {
+      const catalog = yield* Catalog.Service
+      const providerID = ProviderV2.ID.make("custom")
+      const modelID = ModelV2.ID.make("paid")
+      yield* catalog.transform((catalog) => {
+        catalog.provider.update(providerID, (provider) => {
+          provider.request.body.apiKey = ProviderV2.PUBLIC_API_KEY
+        })
+        catalog.model.update(providerID, modelID, (model) => {
+          model.cost = [{ input: 1, output: 1, cache: { read: 0, write: 0 } }]
+        })
+      })
+
+      expect((yield* catalog.model.available()).map((model) => model.id)).toEqual([modelID])
+    }),
+  )
+
   it.effect("falls back to newest available model when no default is configured", () =>
     Effect.gen(function* () {
       const catalog = yield* Catalog.Service

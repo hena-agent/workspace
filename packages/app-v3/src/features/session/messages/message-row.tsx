@@ -9,12 +9,12 @@ import { UserMessageRow } from "./user-message-row"
 /** Dispatches every `SessionMessage` union member to its row renderer. Each
  * kind has a defined rendering (spec §8.2) — no unknown-part fallback needed
  * here since the role union is closed and exhaustively switched. */
-export function MessageRow({ message }: { message: SessionMessage }) {
+export function MessageRow({ message, working }: { message: SessionMessage; working?: boolean }) {
   switch (message.role) {
     case "user":
       return <UserMessageRow message={message} />
     case "assistant":
-      return <AssistantMessageRow message={message} />
+      return <AssistantMessageRow message={message} working={working} />
     case "compaction":
       return <CompactionMessageRow message={message} />
     case "shell":

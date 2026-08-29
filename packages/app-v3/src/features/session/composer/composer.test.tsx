@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
-import { fireEvent, render, screen } from "@/test/test-utils"
+import { fireEvent, render, screen, waitFor } from "@/test/test-utils"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { Composer } from "./composer"
 import { agents, models } from "@/test/fixtures"
@@ -101,5 +101,246 @@ describe("Composer", () => {
 
     expect(sent).toEqual([])
     expect(textarea).toHaveValue("未確定")
+  })
+
+  test("shows and removes uploaded attachments", async () => {
+    const user = userEvent.setup()
+    setup([])
+
+    await user.upload(screen.getByLabelText("Upload files"), new File(["notes"], "notes.txt", { type: "text/plain" }))
+    expect(screen.getByText("notes.txt")).toBeInTheDocument()
+
+    await user.click(screen.getByRole("button", { name: "Remove notes.txt" }))
+    expect(screen.queryByText("notes.txt")).not.toBeInTheDocument()
+  })
+
+  test("rejects attachments over the aggregate size limit when they are added", async () => {
+    const user = userEvent.setup()
+    setup([])
+    const files = ["one", "two", "three", "four"].map((name) => {
+      const file = new File([name], `${name}.txt`, { type: "text/plain" })
+      Object.defineProperty(file, "size", { value: 5 * 1024 * 1024 })
+      return file
+    })
+    const extra = new File(["extra"], "extra.txt", { type: "text/plain" })
+
+    await user.upload(screen.getByLabelText("Upload files"), files)
+    await user.upload(screen.getByLabelText("Upload files"), extra)
+
+    expect(screen.getByText("one.txt")).toBeInTheDocument()
+    expect(screen.queryByText("extra.txt")).not.toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent("attachments must total 20 MiB or less")
+
+    await user.click(screen.getByRole("button", { name: "Remove two.txt" }))
+    await user.upload(screen.getByLabelText("Upload files"), extra)
+    expect(screen.getByText("extra.txt")).toBeInTheDocument()
+  })
+
+  test.each(["picker", "drop", "paste"] as const)("validates %s attachments before adding them", async (method) => {
+    const user = userEvent.setup()
+    setup([])
+    const textarea = screen.getByLabelText("Message")
+    const upload = screen.getByLabelText("Upload files")
+    const add = async (files: File[]) => {
+      if (method === "picker") {
+        await user.upload(upload, files)
+        return
+      }
+      if (method === "drop") {
+        fireEvent.drop(textarea, { dataTransfer: { files, types: ["Files"] } })
+        return
+      }
+      fireEvent.paste(textarea, { clipboardData: { files } })
+    }
+    const oversized = new File(["large"], "large.txt", { type: "text/plain" })
+    Object.defineProperty(oversized, "size", { value: 5 * 1024 * 1024 + 1 })
+
+    await add([oversized])
+    expect(screen.queryByText("large.txt")).not.toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent("Each attachment must be 5 MiB or smaller")
+
+    const maximum = ["one", "two", "three", "four"].map((name) => {
+      const file = new File([name], `${name}.txt`, { type: "text/plain" })
+      Object.defineProperty(file, "size", { value: 5 * 1024 * 1024 })
+      return file
+    })
+    await add(maximum)
+    expect(screen.getByText("four.txt")).toBeInTheDocument()
+
+    await add([new File(["extra"], "extra.txt", { type: "text/plain" })])
+    expect(screen.queryByText("extra.txt")).not.toBeInTheDocument()
+    expect(screen.getByRole("alert")).toHaveTextContent("attachments must total 20 MiB or less")
+  })
+
+  test("keeps attachments when an empty submission is rejected", async () => {
+    const user = userEvent.setup()
+    setup([], false)
+    const textarea = screen.getByLabelText("Message")
+    const upload = screen.getByLabelText("Upload files")
+    const stale = new File(["stale"], "stale.txt", { type: "text/plain" })
+    Object.defineProperty(stale, "size", { value: 5 * 1024 * 1024 })
+
+    await user.upload(upload, stale)
+    await user.type(textarea, " ")
+    fireEvent.keyDown(textarea, { key: "Enter", ctrlKey: true, shiftKey: true })
+    await waitFor(() => expect(screen.getByText("stale.txt")).toBeInTheDocument())
+
+    await user.click(screen.getByRole("button", { name: "Remove stale.txt" }))
+    await user.upload(upload, new File(["replacement"], "replacement.txt", { type: "text/plain" }))
+    await user.click(screen.getByRole("button", { name: "Remove replacement.txt" }))
+    const maximum = ["one", "two", "three", "four"].map((name) => {
+      const file = new File([name], `${name}.txt`, { type: "text/plain" })
+      Object.defineProperty(file, "size", { value: 5 * 1024 * 1024 })
+      return file
+    })
+    await user.upload(upload, maximum)
+
+    expect(screen.getByText("four.txt")).toBeInTheDocument()
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument()
+  })
+
+  test("keeps text and attachments when sending fails", async () => {
+    const user = userEvent.setup()
+    mockMatchMedia(true)
+    render(
+      <Composer
+        agents={agents}
+        models={models}
+        agentId={agents[0].id}
+        modelId={models[0].id}
+        onChangeAgent={() => {}}
+        onChangeModel={() => {}}
+        onSend={() => Promise.reject(new Error("Offline"))}
+        onQueue={() => {}}
+      />,
+    )
+
+    await user.upload(screen.getByLabelText("Upload files"), new File(["notes"], "notes.txt", { type: "text/plain" }))
+    await user.type(screen.getByLabelText("Message"), "Retry me")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Offline")
+    expect(screen.getByLabelText("Message")).toHaveValue("Retry me")
+    expect(screen.getByText("notes.txt")).toBeInTheDocument()
+  })
+
+  test("adds project file mentions to the submitted attachments", async () => {
+    const user = userEvent.setup()
+    mockMatchMedia(true)
+    const sent: { text: string; files?: { uri: string; name?: string }[] }[] = []
+    render(
+      <Composer
+        agents={agents}
+        models={models}
+        agentId={agents[0].id}
+        modelId={models[0].id}
+        onChangeAgent={() => {}}
+        onChangeModel={() => {}}
+        onSend={(text, files) => sent.push({ text, files })}
+        onQueue={() => {}}
+        onFindFiles={async () => ["src/app.tsx"]}
+      />,
+    )
+
+    await user.type(screen.getByLabelText("Message"), "Check @app")
+    await user.click(await screen.findByText("src/app.tsx"))
+    expect(screen.getByLabelText("Message")).toHaveValue("Check @src/app.tsx ")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+
+    expect(sent).toEqual([{ text: "Check @src/app.tsx", files: [{ uri: "file:src/app.tsx", name: "src/app.tsx" }] }])
+  })
+
+  test("uses the AI Elements submit control to stop a working session", async () => {
+    const user = userEvent.setup()
+    mockMatchMedia(true)
+    let stopped = 0
+    render(
+      <Composer
+        agents={agents}
+        models={models}
+        agentId={agents[0].id}
+        modelId={models[0].id}
+        onChangeAgent={() => {}}
+        onChangeModel={() => {}}
+        onSend={() => {}}
+        onQueue={() => {}}
+        working
+        onStop={() => stopped++}
+      />,
+    )
+
+    await user.click(screen.getByRole("button", { name: "Stop session" }))
+    expect(stopped).toBe(1)
+  })
+
+  test("persists the attachment count when a file is added or removed", async () => {
+    const user = userEvent.setup()
+    mockMatchMedia(true)
+    const drafts: { droppedAttachments: number }[] = []
+    render(
+      <Composer
+        agents={agents}
+        models={models}
+        agentId={agents[0].id}
+        modelId={models[0].id}
+        onChangeAgent={() => {}}
+        onChangeModel={() => {}}
+        onSend={() => {}}
+        onQueue={() => {}}
+        onDraftChange={(draft) => drafts.push(draft)}
+      />,
+    )
+
+    await user.upload(screen.getByLabelText("Upload files"), new File(["notes"], "notes.txt", { type: "text/plain" }))
+
+    expect(drafts.at(-1)?.droppedAttachments).toBe(1)
+
+    await user.click(screen.getByRole("button", { name: "Remove notes.txt" }))
+    expect(drafts.at(-1)?.droppedAttachments).toBe(0)
+  })
+
+  test("does not leak queue delivery from an empty submission", async () => {
+    const user = userEvent.setup()
+    const sent: string[] = []
+    const queued: string[] = []
+    setup(sent, false, queued)
+    const textarea = screen.getByLabelText("Message")
+
+    await user.type(textarea, " ")
+    fireEvent.keyDown(textarea, { key: "Enter", ctrlKey: true, shiftKey: true })
+    await waitFor(() => expect(textarea).toHaveValue(""))
+    await user.type(textarea, "send normally")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+
+    expect(sent).toEqual(["send normally"])
+    expect(queued).toEqual([])
+  })
+
+  test("locks the composer until delivery finishes", async () => {
+    const user = userEvent.setup()
+    const delivery = Promise.withResolvers<void>()
+    mockMatchMedia(true)
+    render(
+      <Composer
+        agents={agents}
+        models={models}
+        agentId={agents[0].id}
+        modelId={models[0].id}
+        onChangeAgent={() => {}}
+        onChangeModel={() => {}}
+        onSend={() => delivery.promise}
+        onQueue={() => {}}
+      />,
+    )
+    const textarea = screen.getByLabelText("Message")
+
+    await user.type(textarea, "Wait for me")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    expect(textarea).toBeDisabled()
+    expect(screen.getByRole("button", { name: "Send message" })).toBeDisabled()
+
+    delivery.resolve()
+    await waitFor(() => expect(textarea).toHaveValue(""))
+    expect(textarea).toBeEnabled()
   })
 })

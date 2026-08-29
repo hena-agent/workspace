@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test"
+import { encodeServerSlug } from "@/lib/server-url"
 import { createConnectionRegistry } from "./registry"
 
 describe("connection registry", () => {
@@ -23,5 +24,16 @@ describe("connection registry", () => {
       expect.objectContaining({ url: "http://127.0.0.1:4106", own: true }),
     ])
     expect(registry.remove("http://127.0.0.1:4106")).toBe(false)
+  })
+
+  test("clears project order when a connection is removed", () => {
+    const url = "https://example.com/hena"
+    const registry = createConnectionRegistry()
+    registry.add(url)
+    localStorage.setItem(`hena.project-order.v1.${encodeServerSlug(url)}`, "stored")
+
+    registry.remove(url)
+
+    expect(localStorage.getItem(`hena.project-order.v1.${encodeServerSlug(url)}`)).toBeNull()
   })
 })

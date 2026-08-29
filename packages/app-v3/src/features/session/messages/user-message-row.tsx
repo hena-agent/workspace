@@ -1,25 +1,21 @@
+import { Paperclip } from "lucide-react"
 import type { UserMessage } from "@/lib/types"
-import { Attachment, AttachmentContent, AttachmentGroup, AttachmentTitle } from "@/components/ui/attachment"
-import { Bubble, BubbleContent } from "@/components/ui/bubble"
-import { Message, MessageContent, MessageHeader } from "@/components/ui/message"
+import { Message, MessageContent } from "@/components/ai-elements/message"
 
 export function UserMessageRow({ message }: { message: UserMessage }) {
   return (
-    <Message align="end" data-role="user" data-pending={message.pending || undefined} className="px-4 py-3 md:px-5">
+    <Message from="user" data-role="user" data-pending={message.pending || undefined} className="max-w-none px-4 py-3 md:px-5">
+      <p className="ml-auto text-xs font-medium text-muted-foreground">You{message.pending ? " · Sending" : ""}</p>
       <MessageContent>
-        <MessageHeader>You{message.pending ? " · Sending" : ""}</MessageHeader>
-        <Bubble variant="secondary" align="end">
-          <BubbleContent className="whitespace-pre-wrap">{message.text}</BubbleContent>
-        </Bubble>
-        {message.files?.length ? <AttachmentGroup>
+        <p className="whitespace-pre-wrap">{message.text}</p>
+        {message.files?.length ? <div className="flex flex-wrap gap-2">
           {message.files.map((file) => (
-            <Attachment key={file} size="xs">
-              <AttachmentContent>
-                <AttachmentTitle>{file}</AttachmentTitle>
-              </AttachmentContent>
-            </Attachment>
+            <span key={file} className="flex h-8 min-w-0 items-center gap-1.5 rounded-md border border-border px-1.5 text-sm font-medium">
+              <Paperclip aria-hidden className="size-3 shrink-0 text-muted-foreground" />
+              <span className="truncate">{file}</span>
+            </span>
           ))}
-        </AttachmentGroup> : null}
+        </div> : null}
       </MessageContent>
     </Message>
   )

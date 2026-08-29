@@ -4,7 +4,7 @@ import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
 import { useLocationCatalog, useSettings } from "@/data/queries"
 import { createSessionOptimistically } from "@/mutations/session"
-import { loadDraft, removeDraft, saveDraft } from "@/local-state/drafts"
+import { loadDraft, saveDraft } from "@/local-state/drafts"
 
 const MAX_DIRECTORY_LENGTH = 4096
 
@@ -81,22 +81,20 @@ function NewProjectSessionRoute() {
             params: { connectionId, projectId: projectID, sessionId: created.sessionID },
           })
         })
-        return created.transaction.isPersisted.promise
-          .then(() => removeDraft(agent.url, draftId))
-          .catch((cause) => {
-            const current = loadDraft(agent.url, draftId)
-            if (current)
-              saveDraft(agent.url, draftId, `/${connectionId}/new/${draftId}`, {
-                ...current,
-                error: cause instanceof Error ? cause.message : "The session could not be created.",
-              })
-            void navigate({
-              to: "/$connectionId/new/$draftId",
-              params: { connectionId, draftId },
-              search: { directory },
+        return created.transaction.isPersisted.promise.catch((cause) => {
+          const current = loadDraft(agent.url, draftId)
+          if (current)
+            saveDraft(agent.url, draftId, `/${connectionId}/new/${draftId}`, {
+              ...current,
+              error: cause instanceof Error ? cause.message : "The session could not be created.",
             })
-            throw cause
+          void navigate({
+            to: "/$connectionId/new/$draftId",
+            params: { connectionId, draftId },
+            search: { directory },
           })
+          throw cause
+        })
       }}
     />
   )

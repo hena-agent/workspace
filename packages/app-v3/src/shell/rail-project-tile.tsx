@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react"
+import type { KeyboardEvent } from "react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -26,12 +27,20 @@ export function RailProjectTile({
   selected,
   notification,
   onSelect,
+  onKeyDown,
+  grabbed,
+  dragging,
+  descriptionId,
 }: {
   project: Project
   label: string
   selected: boolean
   notification: ProjectNotification
   onSelect: () => void
+  onKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => void
+  grabbed: boolean
+  dragging: boolean
+  descriptionId: string
 }) {
   const accessibleLabel = [
     label,
@@ -49,10 +58,15 @@ export function RailProjectTile({
         <button
           type="button"
           aria-pressed={selected}
+          aria-describedby={descriptionId}
+          aria-roledescription="sortable project"
           aria-label={accessibleLabel}
           onClick={onSelect}
+          onKeyDown={onKeyDown}
           className={cn(
-            "relative flex size-10 min-h-[var(--hit-area)] min-w-[var(--hit-area)] shrink-0 cursor-default items-center justify-center overflow-hidden rounded-[8px] p-1 transition-colors",
+            "relative flex size-10 min-h-[var(--hit-area)] min-w-[var(--hit-area)] shrink-0 items-center justify-center overflow-hidden rounded-[8px] p-1 transition-colors",
+            dragging ? "cursor-grabbing" : "cursor-default",
+            grabbed && "ring-2 ring-[var(--legacy-icon-strong)]",
             selected
               ? "border-2 border-[var(--legacy-icon-strong)]"
               : "border border-transparent hover:border-[var(--legacy-border-weak)] hover:bg-[var(--legacy-surface-hover)]",

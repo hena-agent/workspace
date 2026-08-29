@@ -11,17 +11,18 @@ function released(date: string) {
 }
 
 function cost(input: ModelsDev.Model["cost"]): ModelV2Info["cost"] {
+  if (!input) return []
   const base = {
-    input: input?.input ?? 0,
-    output: input?.output ?? 0,
+    input: input.input,
+    output: input.output,
     cache: {
-      read: input?.cache_read ?? 0,
-      write: input?.cache_write ?? 0,
+      read: input.cache_read ?? 0,
+      write: input.cache_write ?? 0,
     },
   }
   return [
     base,
-    ...(input?.tiers?.map((item) => ({
+    ...(input.tiers?.map((item) => ({
       tier: item.tier,
       input: item.input,
       output: item.output,
@@ -30,7 +31,7 @@ function cost(input: ModelsDev.Model["cost"]): ModelV2Info["cost"] {
         write: item.cache_write ?? 0,
       },
     })) ?? []),
-    ...(input?.context_over_200k
+    ...(input.context_over_200k
       ? [
           {
             tier: {
@@ -99,6 +100,7 @@ function applyModel(
       }
   draft.capabilities = {
     tools: model.tool_call,
+    reasoning: model.reasoning,
     input: [...(model.modalities?.input ?? [])],
     output: [...(model.modalities?.output ?? [])],
   }

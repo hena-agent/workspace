@@ -11,9 +11,11 @@ import { routeTree } from "./routeTree.gen"
 
 const origin = "http://localhost:4096"
 const slug = encodeServerSlug(origin)
+const originalInnerWidth = window.innerWidth
 afterEach(() => {
   localStorage.removeItem("hena.connections.v1")
   localStorage.removeItem("hena.tombstones.v1")
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: originalInnerWidth })
 })
 
 function renderApp(initialPath: string, fetcher = collectionFetcher()) {
@@ -109,6 +111,7 @@ function collectionFetcher(options: {
       return Response.json({ directory: input?.startsWith("~/") ? `/Users/server/${input.slice(2)}` : input })
     }
     if (path === "/api/fs/list") return Response.json({ data: [{ path: "README.md", type: "file" }] })
+    if (path === "/api/fs/find") return Response.json({ data: [{ path: "README.md", type: "file" }] })
     if (path === "/api/fs/read") return Response.json({ text: "# Repo", totalBytes: 6 })
     if (path === "/api/session" && request.method === "POST" && options.onCreateSession)
       return options.onCreateSession(request, (changes) => database.push(changes))
@@ -283,6 +286,15 @@ describe("app routing against server-v3", () => {
     fireEvent.keyDown(previewResize, { key: "ArrowRight" })
     expect(previewResize).toHaveAttribute("aria-valuenow", String(previewWidth - 10))
     expect(await within(preview).findByText("# Repo")).toBeInTheDocument()
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 })
+    fireEvent.resize(window)
+    expect(treeResize).toHaveAttribute("aria-valuenow", "180")
+    expect(previewResize).toHaveAttribute("aria-valuenow", "180")
+
+    await user.type(within(tree).getByRole("textbox", { name: "Find in project" }), "read")
+    expect(within(tree).queryByRole("button", { name: "README.md" })).not.toBeInTheDocument()
+    expect(await within(tree).findByRole("button", { name: "README.md" })).toBeInTheDocument()
 
     await user.click(within(preview).getByRole("button", { name: "Close file preview" }))
     expect(screen.queryByRole("complementary", { name: "File preview" })).not.toBeInTheDocument()

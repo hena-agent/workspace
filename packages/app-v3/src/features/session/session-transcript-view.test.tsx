@@ -1,13 +1,14 @@
 import { describe, expect, test } from "bun:test"
+import type { ComponentProps } from "react"
 import userEvent from "@testing-library/user-event"
-import { render, screen } from "@/test/test-utils"
+import { render, screen, within } from "@/test/test-utils"
 import { SessionTranscriptView } from "./session-transcript-view"
 import { agents, models, sessions } from "@/test/fixtures"
 import { getPermissionRequest, getQuestionRequest, listMessages, listTodos } from "@/test/queries"
 
 function noop() {}
 
-function renderView(sessionId: string) {
+function renderView(sessionId: string, props?: Partial<ComponentProps<typeof SessionTranscriptView>>) {
   const session = sessions.find((s) => s.id === sessionId)!
   const sessionOwner = { sessionId, connectionId: session.connectionId, projectId: session.projectId }
   return render(
@@ -32,6 +33,7 @@ function renderView(sessionId: string) {
       onAllowPermissionOnce={noop}
       onAllowPermissionAlways={noop}
       onAnswerQuestion={noop}
+      {...props}
     />,
   )
 }
@@ -94,5 +96,24 @@ describe("SessionTranscriptView", () => {
     await user.type(screen.getByLabelText("Message"), "Status update?")
     await user.click(screen.getByRole("button", { name: "Send message" }))
     expect(sent).toEqual(["Status update?"])
+  })
+
+  test("uses queue actions for durable queued inputs", async () => {
+    const user = userEvent.setup()
+    const moved: string[] = []
+    const canceled: string[] = []
+    renderView("sess-transcript", {
+      queuedInputs: [{ id: "q1", text: "First queued prompt" }, { id: "q2", text: "Second queued prompt" }],
+      onMoveInput: (id, direction) => moved.push(`${id}:${direction}`),
+      onCancelInput: (id) => canceled.push(id),
+    })
+
+    const queue = screen.getByLabelText("Queued messages")
+    const first = queue.querySelector<HTMLElement>('[data-queue-input-id="q1"]')!
+    await user.click(within(first).getByRole("button", { name: "Down" }))
+    await user.click(within(first).getByRole("button", { name: "Cancel" }))
+
+    expect(moved).toEqual(["q1:1"])
+    expect(canceled).toEqual(["q1"])
   })
 })

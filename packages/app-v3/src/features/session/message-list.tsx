@@ -1,4 +1,6 @@
 import type { SessionMessage } from "@/lib/types"
+import { ConversationEmptyState } from "@/components/ai-elements/conversation"
+import { Shimmer } from "@/components/ai-elements/shimmer"
 import {
   MessageScroller,
   MessageScrollerButton,
@@ -17,20 +19,18 @@ export function MessageList({ messages, working }: { messages: SessionMessage[];
         <MessageScrollerViewport>
           <MessageScrollerContent aria-label="Messages" aria-busy={working} className="gap-0 py-2">
             {messages.length === 0 && !working ? (
-              <div className="flex min-h-full items-center justify-center p-8 text-center text-sm text-muted-foreground">
-                <p>No messages yet. Say something to get started.</p>
-              </div>
+              <ConversationEmptyState title="No messages yet" description="Say something to get started." />
             ) : (
               <>
-                {messages.map((message) => (
+                {messages.map((message, index) => (
                   <MessageScrollerItem key={message.id} messageId={message.id} scrollAnchor={message.role === "user"}>
-                    <MessageRow message={message} />
+                    <MessageRow message={message} working={working && index === messages.length - 1} />
                   </MessageScrollerItem>
                 ))}
                 {showsThinking(messages, working) ? (
                   <MessageScrollerItem>
                     <Marker role="status" className="px-6 py-3 md:px-7">
-                      <MarkerContent>Thinking...</MarkerContent>
+                      <MarkerContent><Shimmer>Thinking...</Shimmer></MarkerContent>
                     </Marker>
                   </MessageScrollerItem>
                 ) : null}

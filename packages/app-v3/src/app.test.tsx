@@ -6,7 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ConnectionProvider } from "@/connection/provider"
 import { encodeServerSlug } from "@/lib/server-url"
 import { mockMatchMedia } from "@/test/mock-match-media"
-import { fireEvent, render, screen, within } from "@/test/test-utils"
+import { fireEvent, render, screen, waitFor, within } from "@/test/test-utils"
 import { routeTree } from "./routeTree.gen"
 
 const origin = "http://localhost:4096"
@@ -15,6 +15,7 @@ const originalInnerWidth = window.innerWidth
 afterEach(() => {
   localStorage.removeItem("hena.connections.v1")
   localStorage.removeItem("hena.tombstones.v1")
+  localStorage.removeItem(`hena.last-session.v1.${slug}`)
   Object.defineProperty(window, "innerWidth", { configurable: true, value: originalInnerWidth })
 })
 
@@ -51,7 +52,9 @@ type PushedChange = {
 // SQLite-backed `collection_row` table would.
 function collectionDatabase() {
   const repoProject = { id: "global", worktree: "/repo", name: "Repo", time: { created: 1, updated: 1 } }
+  const docsProject = { id: "docs", worktree: "/docs", name: "Docs", time: { created: 2, updated: 2 } }
   const repoLocationKey = JSON.stringify({ directory: "/repo" })
+  const docsLocationKey = JSON.stringify({ directory: "/docs" })
   const liveSession = {
     id: "ses_live",
     projectID: "global",
@@ -60,10 +63,27 @@ function collectionDatabase() {
     working: false,
     time: { created: 1, updated: 1 },
   }
+  const docsSession = {
+    id: "ses_docs",
+    projectID: "docs",
+    title: "Docs session",
+    location: { directory: "/docs" },
+    working: false,
+    time: { created: 2, updated: 2 },
+  }
   const collections: Record<string, Map<string, StoredRow>> = {
-    projects: new Map([["global", { key: "global", revision: "1", row: repoProject }]]),
-    locations: new Map([[repoLocationKey, { key: repoLocationKey, revision: "1", row: { directory: "/repo" } }]]),
-    sessions: new Map([["ses_live", { key: "ses_live", revision: "1", row: liveSession }]]),
+    projects: new Map([
+      ["global", { key: "global", revision: "1", row: repoProject }],
+      ["docs", { key: "docs", revision: "1", row: docsProject }],
+    ]),
+    locations: new Map([
+      [repoLocationKey, { key: repoLocationKey, revision: "1", row: { directory: "/repo" } }],
+      [docsLocationKey, { key: docsLocationKey, revision: "1", row: { directory: "/docs" } }],
+    ]),
+    sessions: new Map([
+      ["ses_live", { key: "ses_live", revision: "1", row: liveSession }],
+      ["ses_docs", { key: "ses_docs", revision: "1", row: docsSession }],
+    ]),
     permissions: new Map(),
     questions: new Map(),
   }
@@ -259,6 +279,25 @@ describe("app routing against server-v3", () => {
     expect(await screen.findByRole("heading", { name: "Live session" })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`)
     expect(screen.queryByRole("navigation", { name: "Session views" })).not.toBeInTheDocument()
+  })
+
+  test("restores the last selected session when switching projects", async () => {
+    const user = userEvent.setup()
+    const router = renderApp(`/${slug}/global`)
+
+    const sessions = (await screen.findAllByRole("navigation", { name: "Sessions" }))[0]
+    await user.click(within(sessions).getByText("Live session"))
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`))
+
+    const rail = (await screen.findAllByRole("navigation", { name: "Projects" }))[0]
+    await user.click(within(rail).getByRole("button", { name: /Docs/ }))
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/docs`))
+    await user.click(within(sessions).getByText("Docs session"))
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/docs/session/ses_docs`))
+
+    await user.click(within(rail).getByRole("button", { name: /Repo/ }))
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`))
+    expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
   })
 
   test("opens resizable preview and tree panels from the titlebar", async () => {

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { encodeServerSlug } from "@/lib/server-url"
 import { listDrafts, loadDraft, removeDraft, saveDraft } from "./drafts"
+import { loadLastSession, saveLastSession } from "./last-session"
 import { applyProjectOrder, loadProjectOrder, saveProjectOrder } from "./project-order"
 import { clearSeenWatermarks, markSessionSeen, wasSeenAfter } from "./seen"
 
@@ -58,6 +59,15 @@ describe("local client state", () => {
     expect(wasSeenAfter(url, "session", 21)).toBe(false)
     clearSeenWatermarks(url)
     expect(wasSeenAfter(url, "session", 1)).toBe(false)
+  })
+
+  test("remembers the last session for each project", () => {
+    saveLastSession(url, "alpha", "session-1")
+    saveLastSession(url, "beta", "session-2")
+    saveLastSession(url, "alpha", "session-3")
+
+    expect(loadLastSession(url, "alpha")).toBe("session-3")
+    expect(loadLastSession(url, "beta")).toBe("session-2")
   })
 
   test("persists project order and puts newly discovered projects first", () => {

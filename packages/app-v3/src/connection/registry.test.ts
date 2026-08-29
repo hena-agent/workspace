@@ -26,14 +26,16 @@ describe("connection registry", () => {
     expect(registry.remove("http://127.0.0.1:4106")).toBe(false)
   })
 
-  test("clears project order when a connection is removed", () => {
+  test("clears project state when a connection is removed", () => {
     const url = "https://example.com/hena"
     const registry = createConnectionRegistry()
     registry.add(url)
     localStorage.setItem(`hena.project-order.v1.${encodeServerSlug(url)}`, "stored")
+    localStorage.setItem(`hena.last-session.v1.${encodeServerSlug(url)}`, "stored")
 
     registry.remove(url)
 
     expect(localStorage.getItem(`hena.project-order.v1.${encodeServerSlug(url)}`)).toBeNull()
+    expect(localStorage.getItem(`hena.last-session.v1.${encodeServerSlug(url)}`)).toBeNull()
   })
 })

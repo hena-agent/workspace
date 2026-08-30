@@ -173,6 +173,14 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     }),
                   ),
                 ),
+                Effect.catchTag("Session.AttachConflictError", (error) =>
+                  Effect.fail(
+                    new ConflictError({
+                      message: `Project attach is in progress: ${error.projectID}`,
+                      resource: error.projectID,
+                    }),
+                  ),
+                ),
               ),
           }
         }),

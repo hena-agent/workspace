@@ -1,4 +1,5 @@
-import { sqliteTable, text, integer, primaryKey } from "drizzle-orm/sqlite-core"
+import { sql } from "drizzle-orm"
+import { sqliteTable, text, integer, primaryKey, uniqueIndex } from "drizzle-orm/sqlite-core"
 import * as DatabasePath from "../database/path"
 import { Timestamps } from "../database/schema.sql"
 import { ProjectSchema } from "./schema"
@@ -32,5 +33,10 @@ export const ProjectDirectoryTable = sqliteTable(
       .notNull()
       .$default(() => Date.now()),
   },
-  (table) => [primaryKey({ columns: [table.project_id, table.directory] })],
+  (table) => [
+    primaryKey({ columns: [table.project_id, table.directory] }),
+    uniqueIndex("project_directory_attach_directory_idx")
+      .on(table.directory)
+      .where(sql`${table.strategy} = 'attach'`),
+  ],
 )

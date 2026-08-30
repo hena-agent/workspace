@@ -1,7 +1,7 @@
 export * as ProjectAttach from "./attach"
 
 import { Context, DateTime, Effect, Exit, Layer, Schema } from "effect"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import path from "path"
 import { Database } from "../database/database"
 import { makeGlobalNode } from "../effect/app-node"
@@ -50,7 +50,7 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Pro
 
 export class AttachError extends Schema.TaggedErrorClass<AttachError>()("ProjectAttach.AttachError", {
   projectID: ProjectSchema.ID,
-  reason: Schema.Literals(["not_chat", "invalid_target", "target_not_empty", "move_failed"]),
+  reason: Schema.Literals(["not_chat", "invalid_target", "target_not_empty", "target_in_use", "move_failed"]),
 }) {}
 
 export type Error = NotFoundError | AttachError
@@ -175,11 +175,7 @@ const layer = Layer.effect(
         Effect.catchCause((cause) => Effect.logWarning("Failed to wake Sessions after project attach", { cause })),
       )
 
-    const rollback = Effect.fn("ProjectAttach.rollback")(function* (
-      file: AbsolutePath,
-      manifest: Manifest,
-      preserveTarget: boolean,
-    ) {
+    const rollback = Effect.fn("ProjectAttach.rollback")(function* (file: AbsolutePath, manifest: Manifest) {
       const project = yield* db
         .select({ worktree: ProjectTable.worktree, mode: ProjectTable.mode })
         .from(ProjectTable)
@@ -216,17 +212,16 @@ const layer = Layer.effect(
         return yield* Effect.die("Attach source ownership is ambiguous")
       }
 
-      if (stagingExists) yield* fs.remove(staging(manifest), { recursive: true, force: true }).pipe(Effect.orDie)
+      if (stagingExists) {
+        if (!(yield* owns(manifest, staging(manifest)))) return yield* Effect.die("Attach staging ownership is ambiguous")
+        yield* fs.remove(staging(manifest), { recursive: true, force: true }).pipe(Effect.orDie)
+      }
       if (targetExists) {
         if (targetOwned) {
-          if (preserveTarget) {
-            const recovered = AbsolutePath.make(`${manifest.target}.hena-recovered-${manifest.id}`)
-            if (yield* fs.exists(recovered).pipe(Effect.orDie))
-              return yield* Effect.die("Recovered attach target already exists")
-            yield* fs.rename(manifest.target, recovered).pipe(Effect.orDie)
-          } else {
-            yield* fs.remove(manifest.target, { recursive: true, force: true }).pipe(Effect.orDie)
-          }
+          const recovered = AbsolutePath.make(`${manifest.target}.hena-recovered-${manifest.id}`)
+          if (yield* fs.exists(recovered).pipe(Effect.orDie))
+            return yield* Effect.die("Recovered attach target already exists")
+          yield* fs.rename(manifest.target, recovered).pipe(Effect.orDie)
         } else {
           const untouched =
             manifest.targetExisted &&
@@ -266,8 +261,10 @@ const layer = Layer.effect(
           return yield* Effect.die("Attach cleanup ownership is ambiguous")
         yield* fs.remove(manifest.source, { recursive: true, force: true }).pipe(Effect.orDie)
       }
-      if (yield* fs.exists(staging(manifest)).pipe(Effect.orDie))
+      if (yield* fs.exists(staging(manifest)).pipe(Effect.orDie)) {
+        if (!(yield* owns(manifest, staging(manifest)))) return yield* Effect.die("Attach staging ownership is ambiguous")
         yield* fs.remove(staging(manifest), { recursive: true, force: true }).pipe(Effect.orDie)
+      }
       yield* fs.remove(marker(manifest, manifest.target), { force: true }).pipe(Effect.orDie)
       yield* fs.remove(file, { force: true }).pipe(Effect.orDie)
       ProjectAttachState.unblock(manifest.projectID)
@@ -290,10 +287,7 @@ const layer = Layer.effect(
         .sort()
         .reduceRight((body, directory) => orDieLock(flock.withLock(body, `project-attach-path:${directory}`)), effect)
 
-    const recoverUnlocked = Effect.fn("ProjectAttach.recoverUnlocked")(function* (
-      file: AbsolutePath,
-      preserveTarget = true,
-    ) {
+    const recoverUnlocked = Effect.fn("ProjectAttach.recoverUnlocked")(function* (file: AbsolutePath) {
       if (!(yield* fs.exists(file).pipe(Effect.orDie))) return
       const manifest = yield* readManifest(file)
       ProjectAttachState.block(manifest.projectID)
@@ -305,7 +299,7 @@ const layer = Layer.effect(
         .pipe(Effect.orDie)
       if (project?.mode === "workspace" && project.worktree === manifest.target)
         return yield* finishCommitted(file, manifest)
-      return yield* rollback(file, manifest, preserveTarget)
+      return yield* rollback(file, manifest)
     })
 
     const recover: Interface["recover"] = Effect.fn("ProjectAttach.recover")(function* (file) {
@@ -313,7 +307,7 @@ const layer = Layer.effect(
       const manifest = yield* readManifest(file)
       yield* withProjectLock(
         manifest.projectID,
-        withPathLocks([manifest.source, manifest.target], recoverUnlocked(file, true)),
+        withPathLocks([manifest.source, manifest.target], recoverUnlocked(file)),
       )
     })
 
@@ -327,6 +321,7 @@ const layer = Layer.effect(
           errorOnExist: true,
           force: false,
           preserveTimestamps: true,
+          verbatimSymlinks: true,
         })
       })
       yield* fs.rename(manifest.source, backup(manifest)).pipe(Effect.orDie)
@@ -410,10 +405,13 @@ const layer = Layer.effect(
               .get()
               .pipe(Effect.orDie)
             if (!initial) return yield* new NotFoundError({ projectID: input.projectID })
-            const file = manifestFile(input.projectID, initial.worktree)
+            const file =
+              initial.mode === "chat"
+                ? manifestFile(input.projectID, initial.worktree)
+                : AbsolutePath.make(path.join(global.data, "projects", `${manifestPrefix}${input.projectID}.json`))
             if (yield* fs.exists(file).pipe(Effect.orDie)) {
               const pending = yield* readManifest(file)
-              yield* withPathLocks([pending.source, pending.target], recoverUnlocked(file, true))
+              yield* withPathLocks([pending.source, pending.target], recoverUnlocked(file))
             }
 
             const project = yield* db
@@ -423,8 +421,6 @@ const layer = Layer.effect(
               .get()
               .pipe(Effect.orDie)
             if (!project) return yield* new NotFoundError({ projectID: input.projectID })
-            if (project.mode !== "chat")
-              return yield* new AttachError({ projectID: input.projectID, reason: "not_chat" })
 
             const requestedTarget = path.resolve(input.directory)
             const requestedTargetExists = yield* fs.exists(requestedTarget).pipe(Effect.orDie)
@@ -436,6 +432,9 @@ const layer = Layer.effect(
             const source = AbsolutePath.make(yield* fs.resolve(project.worktree))
             if (requestedTargetExists && target !== requestedTarget)
               return yield* new AttachError({ projectID: input.projectID, reason: "invalid_target" })
+            if (project.mode === "workspace" && source === target) return
+            if (project.mode !== "chat")
+              return yield* new AttachError({ projectID: input.projectID, reason: "not_chat" })
             const relative = path.relative(source, target)
             if (!relative || (!relative.startsWith("..") && !path.isAbsolute(relative)))
               return yield* new AttachError({ projectID: input.projectID, reason: "invalid_target" })
@@ -485,30 +484,49 @@ const layer = Layer.effect(
               })),
             })
             yield* fs.makeDirectory(path.dirname(target), { recursive: true }).pipe(Effect.orDie)
-            ProjectAttachState.block(project.id)
-            yield* writeManifest(file, manifest).pipe(
-              Effect.onError(() => Effect.sync(() => ProjectAttachState.unblock(project.id))),
-            )
+            return yield* withPathLocks(
+              [source, target],
+              Effect.gen(function* () {
+                const owner = yield* db
+                  .select({ projectID: ProjectDirectoryTable.project_id })
+                  .from(ProjectDirectoryTable)
+                  .where(
+                    and(
+                      eq(ProjectDirectoryTable.directory, target),
+                      eq(ProjectDirectoryTable.strategy, "attach"),
+                    ),
+                  )
+                  .get()
+                  .pipe(Effect.orDie)
+                if (owner)
+                  return yield* new AttachError({ projectID: project.id, reason: "target_in_use" })
 
-            const result = yield* Effect.exit(withPathLocks([source, target], execute(file, manifest)))
-            if (Exit.isSuccess(result)) return
-            const recovery = yield* Effect.exit(withPathLocks([source, target], recoverUnlocked(file, false)))
-            if (Exit.isFailure(recovery)) {
-              yield* Effect.logError("Project attach rollback failed", {
-                projectID: project.id,
-                cause: result.cause,
-                recoveryCause: recovery.cause,
-              })
-              return yield* new AttachError({ projectID: project.id, reason: "move_failed" })
-            }
-            const attached = yield* db
-              .select({ worktree: ProjectTable.worktree, mode: ProjectTable.mode })
-              .from(ProjectTable)
-              .where(eq(ProjectTable.id, project.id))
-              .get()
-              .pipe(Effect.orDie)
-            if (attached?.mode === "workspace" && attached.worktree === target) return
-            return yield* new AttachError({ projectID: project.id, reason: "move_failed" })
+                ProjectAttachState.block(project.id)
+                yield* writeManifest(file, manifest).pipe(
+                  Effect.onError(() => Effect.sync(() => ProjectAttachState.unblock(project.id))),
+                )
+
+                const result = yield* Effect.exit(execute(file, manifest))
+                if (Exit.isSuccess(result)) return
+                const recovery = yield* Effect.exit(recoverUnlocked(file))
+                if (Exit.isFailure(recovery)) {
+                  yield* Effect.logError("Project attach rollback failed", {
+                    projectID: project.id,
+                    cause: result.cause,
+                    recoveryCause: recovery.cause,
+                  })
+                  return yield* new AttachError({ projectID: project.id, reason: "move_failed" })
+                }
+                const attached = yield* db
+                  .select({ worktree: ProjectTable.worktree, mode: ProjectTable.mode })
+                  .from(ProjectTable)
+                  .where(eq(ProjectTable.id, project.id))
+                  .get()
+                  .pipe(Effect.orDie)
+                if (attached?.mode === "workspace" && attached.worktree === target) return
+                return yield* new AttachError({ projectID: project.id, reason: "move_failed" })
+              }),
+            )
           }),
         ),
       )

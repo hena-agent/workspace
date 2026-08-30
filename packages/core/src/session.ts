@@ -22,6 +22,7 @@ import { SessionV1 } from "./v1/session"
 import { InstallationVersion } from "./installation/version"
 import { Slug } from "./util/slug"
 import { ProjectTable } from "./project/sql"
+import { ProjectAttachState } from "./project/attach-state"
 import path from "path"
 import { fromRow } from "./session/info"
 import { SessionRunner } from "./session/runner/index"
@@ -38,6 +39,7 @@ import { Revert } from "@hena/schema/revert"
 import { FSUtil } from "./fs-util"
 import { Hash } from "./util/hash"
 import { SessionDurable } from "@hena/schema/durable-event-manifest"
+import { Global } from "./global"
 
 export const RevertState = Revert.State
 export type RevertState = Revert.State
@@ -105,6 +107,10 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
   sessionID: SessionSchema.ID,
   messageID: SessionMessage.ID,
 }) {}
+export class AttachConflictError extends Schema.TaggedErrorClass<AttachConflictError>()("Session.AttachConflictError", {
+  sessionID: SessionSchema.ID,
+  projectID: ProjectV2.ID,
+}) {}
 export const MessageNotFoundError = SessionRevert.MessageNotFoundError
 export type MessageNotFoundError = SessionRevert.MessageNotFoundError
 
@@ -113,6 +119,7 @@ export type Error =
   | MessageDecodeError
   | OperationUnavailableError
   | PromptConflictError
+  | AttachConflictError
   | QueueRevisionConflictError
   | QueueStateConflictError
 
@@ -156,7 +163,7 @@ export interface Interface {
     prompt: PromptInput.Prompt
     delivery?: SessionInput.Delivery
     resume?: boolean
-  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
+  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError | AttachConflictError>
   readonly cancelInput: (input: {
     sessionID: SessionSchema.ID
     messageID: SessionMessage.ID
@@ -209,6 +216,7 @@ const layer = Layer.effect(
     const store = yield* SessionStore.Service
     const locations = yield* LocationServiceMap.Service
     const fs = yield* FSUtil.Service
+    const global = yield* Global.Service
     const decodeMessage = Schema.decodeUnknownEffect(SessionMessage.Message)
     const isDurableSessionEvent = Schema.is(SessionEvent.Durable)
     const decode = (row: typeof SessionMessageTable.$inferSelect) =>
@@ -403,7 +411,23 @@ const layer = Layer.effect(
       prompt: Effect.fn("V2Session.prompt")((input) =>
         Effect.uninterruptible(
           Effect.gen(function* () {
-            yield* result.get(input.sessionID)
+            const session = yield* result.get(input.sessionID)
+            const project = yield* db
+              .select({ worktree: ProjectTable.worktree })
+              .from(ProjectTable)
+              .where(eq(ProjectTable.id, session.projectID))
+              .get()
+              .pipe(Effect.orDie)
+            if (!project) return yield* Effect.die(`Project not found: ${session.projectID}`)
+            const manifest = path.join(path.dirname(project.worktree), `.hena-attach-${session.projectID}.json`)
+            const recoveryManifest = path.join(global.data, "projects", `.hena-attach-${session.projectID}.json`)
+            if (ProjectAttachState.isBlocked(session.projectID))
+              return yield* new AttachConflictError({ sessionID: input.sessionID, projectID: session.projectID })
+            const blockedOnDisk =
+              (yield* fs.exists(manifest).pipe(Effect.orDie)) ||
+              (manifest !== recoveryManifest && (yield* fs.exists(recoveryManifest).pipe(Effect.orDie)))
+            if (blockedOnDisk || ProjectAttachState.isBlocked(session.projectID))
+              return yield* new AttachConflictError({ sessionID: input.sessionID, projectID: session.projectID })
             const prompt = resolvePrompt(input.prompt)
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery = input.delivery ?? "steer"
@@ -559,5 +583,6 @@ export const node = makeGlobalNode({
     LocationServiceMap.node,
     SessionProjector.node,
     FSUtil.node,
+    Global.node,
   ],
 })

@@ -304,6 +304,9 @@ export default {
         `CREATE UNIQUE INDEX \`permission_project_action_resource_idx\` ON \`permission\` (\`project_id\`,\`action\`,\`resource\`);`,
       )
       yield* tx.run(
+        `CREATE UNIQUE INDEX \`project_directory_attach_directory_idx\` ON \`project_directory\` (\`directory\`) WHERE "project_directory"."strategy" = 'attach';`,
+      )
+      yield* tx.run(
         `CREATE INDEX \`message_session_time_created_id_idx\` ON \`message\` (\`session_id\`,\`time_created\`,\`id\`);`,
       )
       yield* tx.run(`CREATE INDEX \`part_message_id_id_idx\` ON \`part\` (\`message_id\`,\`id\`);`)

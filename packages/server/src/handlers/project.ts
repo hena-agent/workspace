@@ -22,6 +22,8 @@ export const ProjectHandler = HttpApiBuilder.group(Api, "server.project", (handl
               return new InvalidRequestError({ message: "Attach target must be outside the managed project" })
             if (error.reason === "target_not_empty")
               return new ConflictError({ message: "Attach target must be empty", resource: ctx.payload.directory })
+            if (error.reason === "target_in_use")
+              return new ConflictError({ message: "Attach target is already in use", resource: ctx.payload.directory })
             if (error.reason === "not_chat")
               return new ConflictError({ message: "Only chat projects can be attached" })
             return new UnknownError({ message: "Failed to move the chat project" })

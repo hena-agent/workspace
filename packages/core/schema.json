@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "2e7e93b7-b661-4aee-968e-8034e26ca42b",
+  "id": "4c098da2-79e6-434f-94fa-be78fac30a31",
   "prevIds": [
-    "1b670bdc-b8d0-485b-a9ac-3776b48dc92f"
+    "2e7e93b7-b661-4aee-968e-8034e26ca42b"
   ],
   "ddl": [
     {
@@ -2360,6 +2360,20 @@
       "name": "permission_project_action_resource_idx",
       "entityType": "indexes",
       "table": "permission"
+    },
+    {
+      "columns": [
+        {
+          "value": "directory",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "\"project_directory\".\"strategy\" = 'attach'",
+      "origin": "manual",
+      "name": "project_directory_attach_directory_idx",
+      "entityType": "indexes",
+      "table": "project_directory"
     },
     {
       "columns": [

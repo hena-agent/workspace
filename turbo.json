@@ -34,7 +34,12 @@
       "outputs": []
     },
     "@hena/script#test": {
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.github/actions/run-opencode/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/actions/**",
+        "$TURBO_ROOT$/.github/workflows/**",
+        "$TURBO_ROOT$/.opencode/command/**"
+      ],
       "outputs": []
     }
   }

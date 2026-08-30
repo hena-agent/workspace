@@ -2,15 +2,15 @@
 
 The automated PR review and PR brief workflows select models from repository Actions variables. Review runs use a model matrix. Brief runs use one independently configured model and default to `opencode-go/ox-alpha-free@max`.
 
-Applies to `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_review-model.yml`, `.github/workflows/_opencode.yml`, `.github/actions/run-opencode/action.yml`, and `.opencode/command/thermo-nuclear-code-quality-review.md`.
+Applies to `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_review-model.yml`, `.github/workflows/_opencode.yml`, `.github/actions/setup-opencode/action.yml`, `.github/actions/run-opencode/action.yml`, and `.opencode/command/thermo-nuclear-code-quality-review.md`.
 
 ## Variables
 
-| Variable | Purpose | Default when unset |
-| --- | --- | --- |
-| `REVIEW_MODELS` | Comma-separated models that review each eligible PR in parallel | `openai/gpt-5.6-sol@high,anthropic/claude-sonnet-5@max,opencode-go/ox-alpha-free@max` |
-| `BRIEF_MODEL` | The single model that creates PR briefs | `opencode-go/ox-alpha-free@max` |
-| `REVIEWER_OPENCODE_VERSION` | Exact OpenCode CLI version override shared by both workflows | The pin in `.github/actions/run-opencode/action.yml` |
+| Variable                    | Purpose                                                         | Default when unset                                                                    |
+| --------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `REVIEW_MODELS`             | Comma-separated models that review each eligible PR in parallel | `openai/gpt-5.6-sol@high,anthropic/claude-sonnet-5@max,opencode-go/ox-alpha-free@max` |
+| `BRIEF_MODEL`               | The single model that creates PR briefs                         | `opencode-go/ox-alpha-free@max`                                                       |
+| `REVIEWER_OPENCODE_VERSION` | Exact OpenCode CLI version override shared by both workflows    | The pin in `.github/actions/setup-opencode/action.yml`                                |
 
 `REVIEW_MODELS=off` disables PR reviews without disabling briefs. `BRIEF_MODEL=off` disables briefs without disabling reviews.
 
@@ -43,20 +43,20 @@ Deleting a variable restores its workflow default.
 
 `_review-model.yml` accepts a required `configuration` input:
 
-| Value | Variable read | Output |
-| --- | --- | --- |
-| `review` | `REVIEW_MODELS` | A GitHub Actions matrix with one row per model |
-| `brief` | `BRIEF_MODEL` | One resolved model through the existing singular outputs |
+| Value    | Variable read   | Output                                                   |
+| -------- | --------------- | -------------------------------------------------------- |
+| `review` | `REVIEW_MODELS` | A GitHub Actions matrix with one row per model           |
+| `brief`  | `BRIEF_MODEL`   | One resolved model through the existing singular outputs |
 
 Each matrix row contains the resolved `model`, `variant`, display `label`, provider auth secret name, GitHub App client ID variable name, and App private key secret name. It contains credential names, never credential values.
 
 The provider map currently routes credentials as follows:
 
-| Provider | Auth secret | App client ID variable | App private key secret |
-| --- | --- | --- | --- |
-| `anthropic` | `OPENCODE_AUTH_JSON` | `HENA_REVIEWER_CLIENT_ID` | `HENA_REVIEWER_PRIVATE_KEY` |
-| `openai` | `OPENAI_OPENCODE_AUTH_JSON` | `GPT_REVIEWER_CLIENT_ID` | `GPT_REVIEWER_PRIVATE_KEY` |
-| `opencode-go` | `OPENCODE_GO_AUTH_JSON` | `HENA_REVIEWER_CLIENT_ID` | `HENA_REVIEWER_PRIVATE_KEY` |
+| Provider      | Auth secret                 | App client ID variable    | App private key secret      |
+| ------------- | --------------------------- | ------------------------- | --------------------------- |
+| `anthropic`   | `OPENCODE_AUTH_JSON`        | `HENA_REVIEWER_CLIENT_ID` | `HENA_REVIEWER_PRIVATE_KEY` |
+| `openai`      | `OPENAI_OPENCODE_AUTH_JSON` | `GPT_REVIEWER_CLIENT_ID`  | `GPT_REVIEWER_PRIVATE_KEY`  |
+| `opencode-go` | `OPENCODE_GO_AUTH_JSON`     | `HENA_REVIEWER_CLIENT_ID` | `HENA_REVIEWER_PRIVATE_KEY` |
 
 The resolver fails before model jobs start when it encounters malformed entries, duplicate entries, an unregistered provider, a missing App client ID variable, more than 256 review entries, or a malformed CLI version override. Model and variant availability are checked later against the installed OpenCode CLI.
 

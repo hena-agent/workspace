@@ -5,6 +5,7 @@ import path from "path"
 
 const root = path.resolve(import.meta.dir, "../../..")
 const actionDirectory = path.join(root, ".github/actions/run-opencode")
+const setupDirectory = path.join(root, ".github/actions/setup-opencode")
 const extractionFilter = path.join(actionDirectory, "extract-review.jq")
 const payloadFilter = path.join(actionDirectory, "review-payload.jq")
 const sanitizeCheckout = path.join(actionDirectory, "sanitize-review-checkout.sh")
@@ -25,6 +26,17 @@ describe("run-opencode review action", () => {
     expect(action).not.toContain("EXPECTED_COMMAND_SHA256")
   })
 
+  test("shares one pinned OpenCode setup", async () => {
+    const action = await Bun.file(path.join(actionDirectory, "action.yml")).text()
+    const setup = await Bun.file(path.join(setupDirectory, "action.yml")).text()
+    expect(action).toContain("uses: ./.github/actions/setup-opencode")
+    expect(action).not.toContain("MIN_EXPIRES_MS")
+    expect(setup).toContain("MIN_EXPIRES_MS")
+    expect(setup).toContain('OPENCODE_VERSION="${REQUESTED_VERSION:-1.18.22}"')
+    expect(setup).toContain("Verify model is available")
+    expect(setup).toContain("codex-web-search-auth-json must contain exactly one valid OpenAI CI credential")
+  })
+
   test("runs review commands from trusted workflow code", async () => {
     const workflow = await Bun.file(path.join(root, ".github/workflows/pr-review.yml")).text()
     const reusable = await Bun.file(path.join(root, ".github/workflows/_opencode.yml")).text()
@@ -35,6 +47,39 @@ describe("run-opencode review action", () => {
     expect(reusable).toContain("persist-credentials: false")
     expect(reusable).toContain("sanitize-review-checkout.sh .opencode-review-target")
     expect(reusable).toContain("review-directory: ${{ inputs.command != '' && '.opencode-review-target' || '' }}")
+  })
+
+  test("runs maintenance commands without exposing GitHub tokens", async () => {
+    const reusable = await Bun.file(path.join(root, ".github/workflows/_agent.yml")).text()
+    const scan = await Bun.file(path.join(root, ".github/workflows/agent-scan.yml")).text()
+    const resolve = await Bun.file(path.join(root, ".github/workflows/agent-resolve.yml")).text()
+    const models = await Bun.file(path.join(root, ".github/workflows/_review-model.yml")).text()
+
+    expect(scan).toContain('cron: "17 22 * * *"')
+    expect(scan).toContain("configuration: scan")
+    expect(resolve).toContain("types: [labeled]")
+    expect(resolve).toContain("github.event.label.name == 'agent-resolve'")
+    expect(reusable).toContain("persist-credentials: false")
+    expect(reusable).toContain("needs: [preflight, run]")
+    expect(reusable).toContain("Upload untrusted agent result")
+    expect(reusable).toContain("Download untrusted agent result")
+    expect(reusable).toContain("OPENCODE_DISABLE_PROJECT_CONFIG")
+    expect(reusable).toContain('external_directory: "deny"')
+    expect(reusable).toContain('bash: {"*": "allow"}')
+    expect(reusable).toContain(".github/actions/*")
+    expect(reusable).toContain("permission-checks: read")
+    expect(reusable).toContain("git diff --no-renames --name-only -z")
+    expect(reusable).toContain("Pull request head changed after CI validation")
+    const commandStep = reusable.match(/- name: Run maintenance command([\s\S]*?)(?=\n      - name:)/)?.[1]
+    expect(commandStep).toBeDefined()
+    expect(commandStep).not.toContain("GH_TOKEN")
+    const modelJob = reusable.match(/\n  run:\n([\s\S]*?)\n  publish:\n/)?.[1]
+    expect(modelJob).toBeDefined()
+    expect(modelJob).not.toContain("secrets.app-private-key")
+    expect(modelJob).not.toContain("permission-contents: write")
+    expect(models).toContain('DEFAULT_SCAN_MODEL="anthropic/claude-opus-5@max"')
+    expect(models).toContain('DEFAULT_RESOLVE_MODEL="openai/gpt-5.6-sol@high"')
+    expect(models).toContain('CLIENT_ID_VAR="HENA_AGENT_CLIENT_ID"')
   })
 
   test("sanitizes untrusted review files", async () => {

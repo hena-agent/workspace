@@ -102,7 +102,9 @@ runs:
       with:
         model: ${{ inputs.model }}
         variant: ${{ inputs.variant }}
+        command: ${{ inputs.command }}
         opencode-auth-json: ${{ inputs.opencode-auth-json }}
+        codex-web-search-auth-json: ${{ inputs.codex-web-search-auth-json }}
         timeout-minutes: ${{ inputs.timeout-minutes }}
         opencode-version: ${{ inputs.opencode-version }}
 
@@ -119,7 +121,6 @@ runs:
         OPENCODE_DISABLE_CLAUDE_CODE: "1"
         OPENCODE_DISABLE_EXTERNAL_SKILLS: "1"
         OPENCODE_DISABLE_PROJECT_CONFIG: "1"
-        CODEX_WEB_SEARCH_AUTH_JSON: ${{ inputs.codex-web-search-auth-json }}
       run: |
         set -euo pipefail
         if ! [[ "$COMMAND_ARGUMENTS" =~ ^[1-9][0-9]*$ ]]; then
@@ -130,10 +131,6 @@ runs:
         REVIEW_CONTEXT="$RUNNER_TEMP/opencode-review-context"
         install -d -m 700 "$REVIEW_CONTEXT/bin"
         BASE_SHA=$(jq -r '.pull_request.base.sha // empty' "$GITHUB_EVENT_PATH")
-
-        # Install only the trusted workflow checkout's command as global config.
-        install -d -m 700 "$HOME/.config/opencode/command"
-        install -m 600 ".opencode/command/$COMMAND.md" "$HOME/.config/opencode/command/$COMMAND.md"
 
         gh pr view "$COMMAND_ARGUMENTS" > "$REVIEW_CONTEXT/view"
         if ! gh pr diff "$COMMAND_ARGUMENTS" > "$REVIEW_CONTEXT/diff" 2> "$REVIEW_CONTEXT/diff-error"; then
@@ -187,62 +184,6 @@ runs:
         ')
         export OPENCODE_PERMISSION
 
-        # OPENCODE_DISABLE_PROJECT_CONFIG excludes the review checkout's config,
-        # plugins, and instruction files. OPENCODE_CONFIG_CONTENT restores only
-        # approved plugins and trusted instruction files.
-        PLUGINS='[]'
-
-        # @ex-machina/opencode-anthropic-auth supplies the subscription-backed
-        # Anthropic OAuth flow used by this reviewer. Trusted because it's a
-        # version-pinned package published to npm outside this repo, not
-        # something a PR to this repo can modify. Scoped to the Anthropic
-        # provider: dead weight, and unnecessary in-process plugin surface,
-        # for any other provider.
-        if [ "${MODEL%%/*}" = "anthropic" ]; then
-          PLUGINS=$(jq -c '. + ["@ex-machina/opencode-anthropic-auth@1.8.1"]' <<< "$PLUGINS")
-        fi
-
-        # Reference the trusted workflow checkout's bundled plugin explicitly because
-        # project plugin discovery is disabled for review commands.
-        if [ -f ".opencode/plugin/codex-web-search.ts" ]; then
-          PLUGINS=$(jq -c --arg path "file://$(pwd)/.opencode/plugin/codex-web-search.ts" '. + [$path]' <<< "$PLUGINS")
-
-          # codex_web_search reads its OpenAI credential via
-          # openCodeAuthEnvironment()/loadOpenCodeAuthFile(), which checks
-          # OPENCODE_AUTH_CONTENT first and otherwise reads
-          # ~/.local/share/opencode/auth.json's "openai" key. OPENCODE_AUTH_CONTENT
-          # is NOT scoped to this one plugin: OpenCode's own core model
-          # resolution reads it too, and it replaces rather than supplements
-          # the auth.json file — setting it to an openai-only credential
-          # verifiably breaks resolving the (unrelated) anthropic reviewer
-          # model (confirmed directly: same ProviderModelNotFoundError as
-          # anomalyco/opencode#21019, for a completely unrelated reason).
-          # Merge into the restored auth.json file instead, so both this
-          # provider-specific credential and whichever single credential was
-          # restored above for the selected model are visible via the same,
-          # unmodified file-based path.
-          if [ -n "$CODEX_WEB_SEARCH_AUTH_JSON" ]; then
-            AUTH_JSON="$HOME/.local/share/opencode/auth.json"
-            jq -s '.[0] * .[1]' "$AUTH_JSON" <(printf '%s' "$CODEX_WEB_SEARCH_AUTH_JSON") \
-              > "$AUTH_JSON.tmp"
-            mv "$AUTH_JSON.tmp" "$AUTH_JSON"
-            chmod 600 "$AUTH_JSON"
-          fi
-        else
-          echo "::notice::The trusted workflow commit has no bundled codex_web_search plugin; web search will be unavailable this run."
-        fi
-
-        INSTRUCTIONS=$(git ls-files -z -- \
-          ':(glob)**/AGENTS.md' \
-          ':(glob)**/CLAUDE.md' \
-          ':(glob)**/CONTEXT.md' \
-          | jq -Rsc --arg root "$PWD" 'split("\u0000") | map(select(length > 0) | $root + "/" + .)')
-        OPENCODE_CONFIG_CONTENT=$(jq -cn \
-          --argjson plugins "$PLUGINS" \
-          --argjson instructions "$INSTRUCTIONS" \
-          '{plugin: $plugins, instructions: $instructions}')
-        export OPENCODE_CONFIG_CONTENT
-
         export OPENCODE_REVIEW_PR="$COMMAND_ARGUMENTS"
         export OPENCODE_REVIEW_VIEW="$REVIEW_CONTEXT/view"
         export OPENCODE_REVIEW_DIFF="$REVIEW_CONTEXT/diff"
@@ -265,7 +206,7 @@ runs:
           jq -jrs \
             --arg operation "final-text" \
             --arg command "$COMMAND" \
-            -f "$GITHUB_ACTION_PATH/extract-review.jq" \
+            -f "$GITHUB_WORKSPACE/.github/actions/setup-opencode/extract-result.jq" \
             "$RUNNER_TEMP/opencode-command.ndjson" \
             > "$RUNNER_TEMP/opencode-command-result.md"
           exit 0
@@ -277,7 +218,7 @@ runs:
         if jq -jers \
           --arg operation "completed-review" \
           --arg command "$COMMAND" \
-          -f "$GITHUB_ACTION_PATH/extract-review.jq" \
+          -f "$GITHUB_WORKSPACE/.github/actions/setup-opencode/extract-result.jq" \
           "$RUNNER_TEMP/opencode-command.ndjson" \
           > "$RUNNER_TEMP/opencode-command-result.md"; then
           echo "::notice::Publishing the completed review task after a retryable final provider error."

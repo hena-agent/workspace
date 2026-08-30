@@ -7,7 +7,7 @@ Specification for two scheduled/event-driven OpenCode agents that maintain this 
 
 Status: approved design, produced from the design interview on 2026-08-30. Implementation lands as one integrated change.
 
-Applies to (new files): `.github/workflows/agent-scan.yml`, `.github/workflows/agent-resolve.yml`, `.github/workflows/_agent.yml`, `.github/actions/setup-opencode/action.yml`, `.opencode/command/agent-scan.md`, `.opencode/command/agent-resolve.md`. Applies to (modified files): `.github/workflows/_review-model.yml`, `.github/actions/run-opencode/action.yml` (setup extraction only). The review path (`pr-review.yml`, `pr-brief.yml`, `_opencode.yml`) is behaviorally untouched.
+Applies to (new files): `.github/workflows/agent-scan.yml`, `.github/workflows/agent-resolve.yml`, `.github/workflows/_agent-scan.yml`, `.github/workflows/_agent-resolve.yml`, `.github/actions/setup-opencode/action.yml`, `.opencode/command/agent-scan.md`, `.opencode/command/agent-resolve.md`. Applies to (modified files): `.github/workflows/_review-model.yml`, `.github/actions/run-opencode/action.yml` (setup extraction only). The review path (`pr-review.yml`, `pr-brief.yml`, `_opencode.yml`) is behaviorally untouched.
 
 ---
 
@@ -27,14 +27,13 @@ These decisions shape everything below and must not erode during implementation:
 agent-scan.yml (cron 22:17 UTC / dispatch)
   resolve ── _review-model.yml (configuration: scan) ── SCAN_MODEL
   gate    ── skip when >= 10 open agent-task issues
-  scan    ── _agent.yml (command: agent-scan)
-              preflight (safe runner)
-              -> model (read-only token, trusted checkout, prefetch, command, artifact)
-              -> publish (fresh runner, validate artifact, mint write token, create issue)
+  scan    ── _agent-scan.yml
+               model (read-only token, trusted checkout, prefetch, command, artifact)
+               -> publish (fresh runner, validate artifact, mint write token, create issue)
 
 agent-resolve.yml (issues.labeled agent-resolve / dispatch)
   resolve ── _review-model.yml (configuration: resolve) ── RESOLVE_MODEL
-  run     ── _agent.yml (command: agent-resolve, arguments: issue number)
+  run     ── _agent-resolve.yml (issue number)
               preflight (safe runner, one-open-PR guard)
               -> model (read-only token, context, command, Git-bundle artifact)
               -> publish (fresh runner, validate bundle, mint write token)
@@ -43,8 +42,8 @@ agent-resolve.yml (issues.labeled agent-resolve / dispatch)
 
 Shared infrastructure:
 
-- **`setup-opencode`** (new composite action): the setup half extracted verbatim from `run-opencode` — auth.json restore with the single-provider + lease validation, CLI version pin and cache, Bun setup, install, PATH, and model/variant verification. `run-opencode` calls it and keeps only its review-specific validation, run, and publish steps; review behavior is unchanged.
-- **`_agent.yml`** (new reusable workflow): owns the maintenance shape the way `_opencode.yml` owns the review shape. It supports exactly two commands (`agent-scan`, `agent-resolve`) and separates preflight, untrusted model execution, and trusted publication into different jobs.
+- **`setup-opencode`** (new composite action): the shared trusted boundary for auth validation/merge, CLI version pin and cache, Bun/CLI install, model/variant verification, trusted command installation, plugin selection, and instruction assembly. It exposes the exact resolved CLI version and owns the generic result-extraction filter. `run-opencode` keeps only review-specific context, sandbox, invocation, and publication.
+- **`_agent-scan.yml` and `_agent-resolve.yml`** (new reusable workflows): keep the two maintenance paths explicit instead of switching modes inside one large workflow. Both isolate untrusted model execution from trusted publication; the resolver also has a separate privileged preflight job.
 - **`_review-model.yml`**: gains `scan` and `resolve` configurations (section 4).
 
 ## 3. The Hena Agent GitHub App
@@ -87,12 +86,12 @@ gh variable delete SCAN_MODEL
 
 ## 5. Labels
 
-| Label           | Meaning                                                                                                                                                                                                                |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `agent-task`    | Filed by the scanner. Inventory marker: counted by the queue gate and fed to future scans as dedupe context. Does not trigger anything.                                                                                |
-| `agent-resolve` | Human request: run the resolver on this issue. Remove and re-add to retry (GitHub fires `labeled` once per add, matching the `pr-review` re-run convention). Works on any open issue, scanner-created or hand-written. |
+| Label           | Meaning                                                                                                                                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agent-task`    | Filed by the scanner. Inventory marker: counted by the queue gate and fed to future scans as dedupe context. Does not trigger anything.                                                                                                                 |
+| `agent-resolve` | Human request: run the resolver on this issue. Remove and re-add to retry (GitHub fires `labeled` once per add, matching the `pr-review` re-run convention). Works on any open issue with a conventional-commit title, scanner-created or hand-written. |
 
-Both use color `1D76DB` with descriptions matching the table.
+Both use color `1D76DB` with descriptions matching the table. Repository setup provisions them once; scanner runs never overwrite label descriptions or colors.
 
 ## 6. Scanner (`agent-scan`)
 
@@ -100,7 +99,7 @@ Both use color `1D76DB` with descriptions matching the table.
 
 - `schedule`: `17 22 * * *` (22:17 UTC = 07:17 KST daily; odd minute dodges GitHub's top-of-hour cron congestion). The issue is ready before the Korean workday starts.
 - `workflow_dispatch` with one optional input: `scope` — free-text category override (e.g., `security`) passed to the command as its argument.
-- Jobs: `resolve` (model config) -> `gate` -> `scan` (via `_agent.yml`). Concurrency group `agent-scan`, `cancel-in-progress: false` serializes normal cron/manual overlap.
+- Jobs: `resolve` (model config) -> `gate` -> `scan` (via `_agent-scan.yml`). Concurrency group `agent-scan`, `cancel-in-progress: false` serializes normal cron/manual overlap.
 - Timeout: 40 minutes.
 
 ### Queue gate
@@ -138,12 +137,14 @@ Final message: first line is the issue title in conventional-commit form (`type(
 
 - `issues: types: [labeled]`, gated to `github.event.label.name == 'agent-resolve'` and an open issue.
 - `workflow_dispatch` with required input `issue` (number) as a testing/backup path.
-- Jobs: `resolve` (model config) -> `run` (via `_agent.yml`, `command-arguments` = issue number). Concurrency group `agent-resolve-${issue}`, `cancel-in-progress: false` — an impatient re-label queues, then exits cheaply at the guard, rather than killing a nearly-done implementation.
+- Jobs: `resolve` (model config) -> `run` (via `_agent-resolve.yml`, `issue` = issue number). Concurrency group `agent-resolve-${issue}`, `cancel-in-progress: false` — an impatient re-label queues, then exits cheaply at the guard, rather than killing a nearly-done implementation.
 - Timeout: 60 minutes for the model job. The separate trusted publisher has a 25-minute cap, including up to 15 minutes of CI polling.
 
 ### Guard (trusted step, before model spend)
 
 If an open PR with head branch `agent-issue-{N}` exists, comment on the issue linking it ("attempt already open; close it and re-label to retry") and exit successfully. This makes the open PR itself the claim — stateless, nothing to leak when runs crash. Humans retry by closing the PR and re-adding the label.
+
+The same preflight rejects non-conventional issue titles before model spend. Humans can resolve any issue after renaming it to `type(scope): summary`.
 
 ### Context prefetch (read-only model job)
 
@@ -157,7 +158,7 @@ If an open PR with head branch `agent-issue-{N}` exists, comment on the issue li
 - Implement exactly what the issue describes; respect its Out of scope fence. If the issue is wrong or already fixed, say so in the final message and make no changes (the empty-diff check then fails the run with that explanation in the log, and the failure comment tells the human to close the issue if they agree).
 - Follow AGENTS.md conventions (injected explicitly; see section 8).
 - **Fix-until-green locally, inside this single invocation**: run `bun typecheck` and the relevant package test suites for every touched package (from package directories, never root) and iterate until they pass. CI is watched afterward, but there are no CI-driven fix rounds — local green is the agent's job.
-- Commit with conventional-commit messages under its own name; leave a clean worktree.
+- Commit with conventional-commit messages under its own name; leave a clean worktree. The model job enforces cleanliness before creating the Git bundle, so uncommitted edits cannot disappear between runners.
 
 ### Publish (trusted steps)
 
@@ -169,14 +170,15 @@ If an open PR with head branch `agent-issue-{N}` exists, comment on the issue li
 
 Merged PRs auto-close the issue through `Closes #{N}`.
 
-## 8. `_agent.yml` and run environment
+## 8. Reusable workflows and run environment
 
-Interface mirrors `_opencode.yml`: inputs `command`, `command-arguments`, `model`, `variant`, `app-client-id`, `opencode-version`, `timeout-minutes`; secrets `app-private-key`, `opencode-auth-json`, `codex-web-search-auth-json`. Jobs:
+Each maintenance path has a narrow reusable interface. `_agent-scan.yml` accepts `scope`; `_agent-resolve.yml` accepts `issue`; both accept `model`, `variant`, `app-client-id`, `opencode-version`, and `timeout-minutes`, plus the same App and provider secrets. Jobs:
 
-1. **Preflight** validates the invocation and performs the resolver's issue/claim guard. This job may use an App write token but runs no model code.
+1. **Resolver preflight** validates the invocation and performs the issue/claim guard. This job may use an App write token but runs no model code. Scanner model execution starts only after its caller's read-only queue gate.
 2. **Run** checks out `${{ github.workflow_sha }}` with `persist-credentials: false` using only the caller's read-only `GITHUB_TOKEN`, prefetches context, and calls `setup-opencode`. The setup action validates both the selected model credential and optional OpenAI web-search credential against the same lease rules before merging auth. The command runs with the selected permission profile, injected tracked instructions, trusted command, provider plugin, and web-search plugin. It extracts final text and uploads an untrusted result artifact; resolver artifacts include an incremental Git bundle rooted at the trusted base.
-3. **Publish** starts on a fresh runner, downloads the artifact, and mints a command-specific App token (issues-write only for scanning; checks-read plus contents/issues/PR write for resolving). Scanner publication rechecks the queue and exact-title duplicates. Resolver publication freshly checks out the trusted base, restores the bundle, verifies ancestry and a non-empty diff, checks both sides of renames with `--no-renames`, rejects protected paths and CI-skip directives, and rechecks issue/claim state before pushing.
-4. Separate failure-reporting paths comment on resolver issues when model execution or trusted publication fails.
+3. **Scan publish** starts on a fresh runner, downloads the text artifact, and mints an issues-write-only App token. It rechecks the queue and exact-title duplicates before creating one issue.
+4. **Resolver publish** starts on a different fresh runner, downloads the bundle artifact, and mints a checks-read plus contents/issues/PR-write token. It freshly checks out the trusted base, restores the bundle, verifies ancestry and a non-empty diff, checks both sides of renames with `--no-renames`, rejects protected paths and CI-skip directives, and rechecks issue/claim state before pushing. Both publishers use the resolved CLI version output from the model job; neither duplicates the setup pin.
+5. Separate failure-reporting paths comment on resolver issues when model execution or trusted publication fails.
 
 Caller workflows grant only what their own jobs use (`contents: read`, plus `issues: read` for the scan gate); all writes go through App tokens, which do not draw from `GITHUB_TOKEN` scopes.
 
@@ -213,6 +215,6 @@ Interview decisions and the reasoning that must survive refactors:
 | Local fix-until-green in one invocation, no CI-driven fix rounds | Simplicity; avoids multi-invocation orchestration and Actions-log App permissions                                                                         |
 | Red path keeps the draft                                         | Failed attempts are inspectable and rescuable; cleanup is an explicit human decision                                                                      |
 | Dedicated Hena Agent App, no Workflows permission                | Stable attribution; GitHub mechanically blocks CI self-modification                                                                                       |
-| `setup-opencode` extraction + `_agent.yml`                       | Review path is `pull_request_target`-sensitive; maintenance gets its own shape instead of mode flags in shared files                                      |
+| `setup-opencode` extraction + separate agent workflows           | Review path is `pull_request_target`-sensitive; scan and resolve keep explicit shapes without mode flags in shared files                                  |
 | Loose issue template, no publish-step parsing                    | Trust the model's writeup; title/body split is the only mechanical contract                                                                               |
 | Deterministic `agent-issue-{N}` branch                           | Doubles as the claim key and prior-attempt lookup; force-with-lease makes retries idempotent without blind overwrites                                     |

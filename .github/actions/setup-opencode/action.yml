@@ -8,6 +8,10 @@ inputs:
   variant:
     description: Model variant
     required: true
+  command:
+    description: Optional trusted command to install and configure
+    required: false
+    default: ""
   opencode-auth-json:
     description: Single-provider CI credential
     required: true
@@ -22,6 +26,11 @@ inputs:
   timeout-minutes:
     description: Calling job timeout; the OAuth lease must outlive it by 10 minutes
     required: true
+
+outputs:
+  opencode-version:
+    description: Exact installed OpenCode CLI version
+    value: ${{ steps.version.outputs.version }}
 
 runs:
   using: composite
@@ -51,23 +60,16 @@ runs:
         HEADROOM_MINUTES=10
         MIN_EXPIRES_MS=$(( ($(date +%s) + (TIMEOUT_MINUTES + HEADROOM_MINUTES) * 60) * 1000 ))
 
-        if ! printf '%s' "$OPENCODE_AUTH_JSON" | jq -e \
-          --arg provider "$PROVIDER" --arg sentinel "ci-refresh-disabled" --argjson min "$MIN_EXPIRES_MS" '
-          .[$provider] as $auth
-          | keys == [$provider]
-            and (
-              if $auth.type == "oauth" then
-                (($auth.access | type) == "string" and ($auth.access | test("\\S")))
-                and $auth.refresh == $sentinel
-                and (($auth.expires | type) == "number" and ($auth.expires | floor) == $auth.expires)
-                and $auth.expires >= $min
-              elif $auth.type == "api" then
-                (($auth.key | type) == "string" and ($auth.key | test("\\S")))
-              else
-                false
-              end
-            )
-        ' >/dev/null; then
+        validate_auth() {
+          printf '%s' "$1" | jq -e \
+            --arg provider "$2" \
+            --arg sentinel "ci-refresh-disabled" \
+            --argjson min "$MIN_EXPIRES_MS" \
+            -f "$GITHUB_ACTION_PATH/validate-auth.jq" \
+            >/dev/null
+        }
+
+        if ! validate_auth "$OPENCODE_AUTH_JSON" "$PROVIDER"; then
           echo "::error::The OpenCode auth secret must contain exactly one '$PROVIDER' credential: either an API key, or OAuth with refresh='ci-refresh-disabled' and at least $((TIMEOUT_MINUTES + HEADROOM_MINUTES))m remaining. Ask the credential owner to republish it."
           exit 1
         fi
@@ -77,26 +79,11 @@ runs:
         chmod 600 "$HOME/.local/share/opencode/auth.json"
 
         if [ -n "$CODEX_WEB_SEARCH_AUTH_JSON" ]; then
-          if ! printf '%s' "$CODEX_WEB_SEARCH_AUTH_JSON" | jq -e \
-            --arg sentinel "ci-refresh-disabled" --argjson min "$MIN_EXPIRES_MS" '
-            .openai as $auth
-            | keys == ["openai"]
-              and (
-                if $auth.type == "oauth" then
-                  (($auth.access | type) == "string" and ($auth.access | test("\\S")))
-                  and $auth.refresh == $sentinel
-                  and (($auth.expires | type) == "number" and ($auth.expires | floor) == $auth.expires)
-                  and $auth.expires >= $min
-                elif $auth.type == "api" then
-                  (($auth.key | type) == "string" and ($auth.key | test("\\S")))
-                else
-                  false
-                end
-              )
-          ' >/dev/null; then
+          if ! validate_auth "$CODEX_WEB_SEARCH_AUTH_JSON" openai; then
             echo "::error::codex-web-search-auth-json must contain exactly one valid OpenAI CI credential with the same lease required of the selected model."
             exit 1
           fi
+          # OPENCODE_AUTH_CONTENT would replace the selected model's auth, so merge the plugin credential into the file.
           jq -s '.[0] * .[1]' "$HOME/.local/share/opencode/auth.json" \
             <(printf '%s' "$CODEX_WEB_SEARCH_AUTH_JSON") \
             > "$HOME/.local/share/opencode/auth.json.tmp"
@@ -107,6 +94,7 @@ runs:
     # OPENCODE_VERSION is the source of truth for the cache key and install.
     # Bump intentionally; changing model IDs may require a newer catalog pin.
     - name: Pin opencode CLI version
+      id: version
       shell: bash
       env:
         REQUESTED_VERSION: ${{ inputs.opencode-version }}
@@ -118,6 +106,7 @@ runs:
           exit 1
         fi
         echo "OPENCODE_VERSION=$OPENCODE_VERSION" >> "$GITHUB_ENV"
+        echo "version=$OPENCODE_VERSION" >> "$GITHUB_OUTPUT"
         {
           echo "### OpenCode CLI"
           echo "- Version: \`$OPENCODE_VERSION\`"
@@ -182,3 +171,39 @@ runs:
           echo "::error::Variant '$VARIANT' is unavailable for '$MODEL' in OpenCode $OPENCODE_VERSION (available: $AVAILABLE). Correct the configured model."
           exit 1
         fi
+
+    - name: Configure trusted command
+      if: inputs.command != ''
+      shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
+        MODEL: ${{ inputs.model }}
+      run: |
+        set -euo pipefail
+        if ! [[ "$COMMAND" =~ ^[a-z0-9-]+$ ]] || [ ! -f ".opencode/command/$COMMAND.md" ]; then
+          echo "::error::trusted command '$COMMAND' is unavailable."
+          exit 1
+        fi
+        install -d -m 700 "$HOME/.config/opencode/command"
+        install -m 600 ".opencode/command/$COMMAND.md" "$HOME/.config/opencode/command/$COMMAND.md"
+
+        # Project config is disabled for trusted commands; reconstruct only approved plugins and tracked instructions.
+        PLUGINS='[]'
+        if [ "${MODEL%%/*}" = "anthropic" ]; then
+          PLUGINS=$(jq -c '. + ["@ex-machina/opencode-anthropic-auth@1.8.1"]' <<< "$PLUGINS")
+        fi
+        if [ -f ".opencode/plugin/codex-web-search.ts" ]; then
+          PLUGINS=$(jq -c --arg path "file://$(pwd)/.opencode/plugin/codex-web-search.ts" '. + [$path]' <<< "$PLUGINS")
+        else
+          echo "::notice::The trusted workflow commit has no bundled codex_web_search plugin; web search will be unavailable this run."
+        fi
+        INSTRUCTIONS=$(git ls-files -z -- \
+          ':(glob)**/AGENTS.md' \
+          ':(glob)**/CLAUDE.md' \
+          ':(glob)**/CONTEXT.md' \
+          | jq -Rsc --arg root "$PWD" 'split("\u0000") | map(select(length > 0) | $root + "/" + .)')
+        OPENCODE_CONFIG_CONTENT=$(jq -cn \
+          --argjson plugins "$PLUGINS" \
+          --argjson instructions "$INSTRUCTIONS" \
+          '{plugin: $plugins, instructions: $instructions}')
+        echo "OPENCODE_CONFIG_CONTENT=$OPENCODE_CONFIG_CONTENT" >> "$GITHUB_ENV"

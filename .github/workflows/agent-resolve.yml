@@ -33,10 +33,9 @@ jobs:
     needs: resolve
     if: needs.resolve.outputs.enabled == 'true'
     name: resolve (${{ needs.resolve.outputs.label }})
-    uses: ./.github/workflows/_agent.yml
+    uses: ./.github/workflows/_agent-resolve.yml
     with:
-      command: agent-resolve
-      command-arguments: ${{ github.event.issue.number || inputs.issue }}
+      issue: ${{ github.event.issue.number || inputs.issue }}
       model: ${{ needs.resolve.outputs.model }}
       variant: ${{ needs.resolve.outputs.variant }}
       app-client-id: ${{ vars[needs.resolve.outputs.client_id_var] }}

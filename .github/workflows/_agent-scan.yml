@@ -1,0 +1,221 @@
+name: _agent-scan
+
+on:
+  workflow_call:
+    inputs:
+      scope:
+        description: Optional scan scope
+        required: false
+        default: ""
+        type: string
+      model:
+        description: Provider/model id
+        required: true
+        type: string
+      variant:
+        description: Model variant
+        required: true
+        type: string
+      app-client-id:
+        description: Hena Agent GitHub App client ID
+        required: true
+        type: string
+      opencode-version:
+        description: Optional exact OpenCode CLI version override
+        required: false
+        default: ""
+        type: string
+      timeout-minutes:
+        description: Hard cap for the model job and OAuth lease check
+        required: true
+        type: number
+    secrets:
+      app-private-key:
+        description: Hena Agent GitHub App private key
+        required: true
+      opencode-auth-json:
+        description: Single-provider CI credential
+        required: true
+      codex-web-search-auth-json:
+        description: OpenAI credential for codex_web_search
+        required: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      opencode_version: ${{ steps.setup.outputs.opencode-version }}
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ github.token }}
+
+      - name: Prefetch scanner context
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SCAN_SCOPE: ${{ inputs.scope }}
+        run: |
+          set -euo pipefail
+          CONTEXT="$RUNNER_TEMP/agent-scan-context.json"
+          CUTOFF=$(date -u -d '90 days ago' +%Y-%m-%d)
+          gh api --paginate "repos/$REPOSITORY/issues?state=open&labels=agent-task&per_page=100" \
+            --jq '[.[] | select(.pull_request | not) | {number, title, body, html_url}]' \
+            > "$RUNNER_TEMP/open-agent-issues-pages.ndjson"
+          jq -s 'add' "$RUNNER_TEMP/open-agent-issues-pages.ndjson" > "$RUNNER_TEMP/open-agent-issues.json"
+          gh api --paginate "repos/$REPOSITORY/issues?state=closed&labels=agent-task&since=${CUTOFF}T00:00:00Z&per_page=100" \
+            --jq '[.[] | select(.pull_request | not) | {number, title, body, state_reason, closed_at, html_url}]' \
+            > "$RUNNER_TEMP/closed-agent-issues-pages.ndjson"
+          jq -s --arg cutoff "$CUTOFF" 'add | map(select(.closed_at >= $cutoff))' \
+            "$RUNNER_TEMP/closed-agent-issues-pages.ndjson" > "$RUNNER_TEMP/closed-agent-issues.json"
+          gh pr list --repo "$REPOSITORY" --state open --search 'author:app/dependabot' --limit 100 \
+            --json number,title,url > "$RUNNER_TEMP/open-dependabot-prs.json"
+          jq -n \
+            --arg scope "$SCAN_SCOPE" \
+            --slurpfile open "$RUNNER_TEMP/open-agent-issues.json" \
+            --slurpfile closed "$RUNNER_TEMP/closed-agent-issues.json" \
+            --slurpfile dependabot "$RUNNER_TEMP/open-dependabot-prs.json" \
+            '{scope: $scope, open_agent_issues: $open[0], recently_closed_agent_issues: $closed[0], open_dependabot_prs: $dependabot[0]}' \
+            > "$CONTEXT"
+          echo "AGENT_SCAN_CONTEXT=$CONTEXT" >> "$GITHUB_ENV"
+
+      - name: Set up OpenCode
+        id: setup
+        uses: ./.github/actions/setup-opencode
+        with:
+          model: ${{ inputs.model }}
+          variant: ${{ inputs.variant }}
+          command: agent-scan
+          opencode-auth-json: ${{ secrets.opencode-auth-json }}
+          codex-web-search-auth-json: ${{ secrets.codex-web-search-auth-json }}
+          timeout-minutes: ${{ inputs.timeout-minutes }}
+          opencode-version: ${{ inputs.opencode-version }}
+
+      - name: Run scanner command
+        shell: bash
+        env:
+          MODEL: ${{ inputs.model }}
+          VARIANT: ${{ inputs.variant }}
+          SCOPE: ${{ inputs.scope }}
+          JOB_TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
+          OPENCODE_DISABLE_CLAUDE_CODE: "1"
+          OPENCODE_DISABLE_EXTERNAL_SKILLS: "1"
+          OPENCODE_DISABLE_PROJECT_CONFIG: "1"
+        run: |
+          set -euo pipefail
+          OPENCODE_PERMISSION=$(jq -cn '
+            {
+              edit: "deny",
+              external_directory: "deny",
+              bash: {"*": "allow"},
+              question: "deny",
+              todowrite: "deny"
+            }
+          ')
+          export OPENCODE_PERMISSION
+
+          COMMAND_STATUS=0
+          timeout --signal=TERM "$((JOB_TIMEOUT_MINUTES - 5))m" opencode run \
+            --command agent-scan \
+            --model "$MODEL" \
+            --variant "$VARIANT" \
+            --format json \
+            "$SCOPE" \
+            | tee "$RUNNER_TEMP/opencode-command.ndjson" \
+            || COMMAND_STATUS=$?
+          if [ "$COMMAND_STATUS" -eq 0 ]; then
+            jq -jrs --arg operation final-text --arg command agent-scan \
+              -f ".github/actions/setup-opencode/extract-result.jq" \
+              "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"
+          elif jq -jers --arg operation completed-review --arg command agent-scan \
+            -f ".github/actions/setup-opencode/extract-result.jq" \
+            "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"; then
+            echo "::notice::Using the completed scan after a retryable final provider error."
+          else
+            exit "$COMMAND_STATUS"
+          fi
+          bash .github/actions/run-agent/package-result.sh \
+            agent-scan "$RUNNER_TEMP/opencode-command-result.md" "$RUNNER_TEMP/agent-artifact"
+
+      - name: Upload untrusted scan result
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: agent-result-${{ github.run_id }}-agent-scan
+          if-no-files-found: error
+          retention-days: 1
+          path: ${{ runner.temp }}/agent-artifact
+
+  publish:
+    needs: run
+    if: needs.run.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {}
+    steps:
+      - name: Mint scanner publishing token
+        id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.app-private-key }}
+          permission-issues: write
+
+      - name: Download untrusted scan result
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: agent-result-${{ github.run_id }}-agent-scan
+          path: ${{ runner.temp }}/agent-artifact
+
+      - name: Publish scanner issue
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          MODEL: ${{ inputs.model }}
+          VARIANT: ${{ inputs.variant }}
+          OPENCODE_VERSION: ${{ needs.run.outputs.opencode_version }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          RESULT="$RUNNER_TEMP/agent-artifact/result.md"
+          TITLE=$(jq -Rrs 'split("\n")[0]' "$RESULT")
+          BODY=$(jq -Rrs 'split("\n") | .[1:] | join("\n") | sub("^\\s+"; "")' "$RESULT")
+          if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
+            echo "::error::agent-scan returned an empty issue title or body."
+            exit 1
+          fi
+          DUPLICATES=$(gh api --paginate "repos/$REPOSITORY/issues?state=open&labels=agent-task&per_page=100" \
+            | jq -r --arg title "$TITLE" '.[] | select((.pull_request | not) and .title == $title) | .html_url')
+          if [ -n "$DUPLICATES" ]; then
+            echo "::error::agent-scan duplicated an open issue: $DUPLICATES"
+            exit 1
+          fi
+          COUNT=$(gh api "repos/$REPOSITORY/issues?state=open&labels=agent-task&per_page=100" \
+            --jq '[.[] | select(.pull_request | not)] | length')
+          if [ "$COUNT" -ge 10 ]; then
+            echo "::error::agent-task queue reached $COUNT issues while the scanner was running."
+            exit 1
+          fi
+
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          METADATA=$(jq -cn --arg model "$MODEL" --arg variant "$VARIANT" \
+            --arg opencode_version "$OPENCODE_VERSION" --arg run_url "$RUN_URL" \
+            '{model: $model, variant: $variant, opencode_version: $opencode_version, run_url: $run_url}')
+          {
+            printf '<!-- agent-task %s -->\n' "$METADATA"
+            # shellcheck disable=SC2016
+            printf '_OpenCode `%s` | `%s` (`%s`) | [workflow run](%s)_\n\n' "$OPENCODE_VERSION" "$MODEL" "$VARIANT" "$RUN_URL"
+            printf '%s\n' "$BODY"
+          } > "$RUNNER_TEMP/agent-issue-body.md"
+          URL=$(gh issue create --repo "$REPOSITORY" --title "$TITLE" \
+            --body-file "$RUNNER_TEMP/agent-issue-body.md" --label agent-task)
+          printf 'Created issue: %s\n' "$URL" >> "$GITHUB_STEP_SUMMARY"

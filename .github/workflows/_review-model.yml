@@ -99,37 +99,54 @@ jobs:
               }
             }
           ')
-          DEFAULT_REVIEW_MODELS="openai/gpt-5.6-sol@high,anthropic/claude-sonnet-5@max,opencode-go/ox-alpha-free@max"
-          DEFAULT_BRIEF_MODEL="opencode-go/ox-alpha-free@max"
-          DEFAULT_SCAN_MODEL="anthropic/claude-opus-5@max"
-          DEFAULT_RESOLVE_MODEL="openai/gpt-5.6-sol@high"
-
-          case "$CONFIGURATION" in
-            review)
-              VARIABLE="REVIEW_MODELS"
-              RAW_MODELS="$RAW_REVIEW_MODELS"
-              DEFAULT_MODELS="$DEFAULT_REVIEW_MODELS"
-              ;;
-            brief)
-              VARIABLE="BRIEF_MODEL"
-              RAW_MODELS="$RAW_BRIEF_MODEL"
-              DEFAULT_MODELS="$DEFAULT_BRIEF_MODEL"
-              ;;
-            scan)
-              VARIABLE="SCAN_MODEL"
-              RAW_MODELS="$RAW_SCAN_MODEL"
-              DEFAULT_MODELS="$DEFAULT_SCAN_MODEL"
-              ;;
-            resolve)
-              VARIABLE="RESOLVE_MODEL"
-              RAW_MODELS="$RAW_RESOLVE_MODEL"
-              DEFAULT_MODELS="$DEFAULT_RESOLVE_MODEL"
-              ;;
-            *)
-              echo "::error::configuration must be 'review', 'brief', 'scan', or 'resolve', got '$CONFIGURATION'."
-              exit 1
-              ;;
-          esac
+          CONFIGURATIONS=$(jq -nc \
+            --arg review "$RAW_REVIEW_MODELS" \
+            --arg brief "$RAW_BRIEF_MODEL" \
+            --arg scan "$RAW_SCAN_MODEL" \
+            --arg resolve "$RAW_RESOLVE_MODEL" '
+            {
+              review: {
+                variable: "REVIEW_MODELS",
+                raw: $review,
+                default: "openai/gpt-5.6-sol@high,anthropic/claude-sonnet-5@max,opencode-go/ox-alpha-free@max",
+                multiple: true
+              },
+              brief: {
+                variable: "BRIEF_MODEL",
+                raw: $brief,
+                default: "opencode-go/ox-alpha-free@max",
+                multiple: false
+              },
+              scan: {
+                variable: "SCAN_MODEL",
+                raw: $scan,
+                default: "anthropic/claude-opus-5@max",
+                multiple: false,
+                client_id_var: "HENA_AGENT_CLIENT_ID",
+                private_key_secret: "HENA_AGENT_PRIVATE_KEY"
+              },
+              resolve: {
+                variable: "RESOLVE_MODEL",
+                raw: $resolve,
+                default: "openai/gpt-5.6-sol@high",
+                multiple: false,
+                client_id_var: "HENA_AGENT_CLIENT_ID",
+                private_key_secret: "HENA_AGENT_PRIVATE_KEY"
+              }
+            }
+          ')
+          if ! jq -e --arg configuration "$CONFIGURATION" 'has($configuration)' <<< "$CONFIGURATIONS" >/dev/null; then
+            AVAILABLE=$(jq -r 'keys | join(", ")' <<< "$CONFIGURATIONS")
+            echo "::error::configuration must be one of $AVAILABLE, got '$CONFIGURATION'."
+            exit 1
+          fi
+          CONFIG=$(jq -c --arg configuration "$CONFIGURATION" '.[$configuration]' <<< "$CONFIGURATIONS")
+          VARIABLE=$(jq -r '.variable' <<< "$CONFIG")
+          RAW_MODELS=$(jq -r '.raw' <<< "$CONFIG")
+          DEFAULT_MODELS=$(jq -r '.default' <<< "$CONFIG")
+          MULTIPLE=$(jq -r '.multiple' <<< "$CONFIG")
+          CONFIG_CLIENT_ID_VAR=$(jq -r '.client_id_var // empty' <<< "$CONFIG")
+          CONFIG_PRIVATE_KEY_SECRET=$(jq -r '.private_key_secret // empty' <<< "$CONFIG")
 
           MODELS=$(jq -nr --arg value "$RAW_MODELS" '$value | gsub("^\\s+|\\s+$"; "")')
           OPENCODE_VERSION=$(jq -nr --arg value "$RAW_OPENCODE_VERSION" '$value | gsub("^\\s+|\\s+$"; "")')
@@ -181,7 +198,7 @@ jobs:
             exit 1
           fi
           MODEL_COUNT=$(jq -r 'length' <<< "$MODEL_LIST")
-          if [ "$CONFIGURATION" != "review" ] && [ "$MODEL_COUNT" -ne 1 ]; then
+          if [ "$MULTIPLE" != "true" ] && [ "$MODEL_COUNT" -ne 1 ]; then
             echo "::error::$VARIABLE must contain exactly one provider/model@variant value or 'off'."
             exit 1
           fi
@@ -215,12 +232,10 @@ jobs:
             AUTH_SECRET=$(jq -r --arg provider "$PROVIDER" '.[$provider].auth_secret' <<< "$MODEL_CONFIG")
             CLIENT_ID_VAR=$(jq -r --arg provider "$PROVIDER" '.[$provider].client_id_var' <<< "$MODEL_CONFIG")
             PRIVATE_KEY_SECRET=$(jq -r --arg provider "$PROVIDER" '.[$provider].private_key_secret' <<< "$MODEL_CONFIG")
-            if [ "$CONFIGURATION" = "scan" ] || [ "$CONFIGURATION" = "resolve" ]; then
-              CLIENT_ID_VAR="HENA_AGENT_CLIENT_ID"
-              PRIVATE_KEY_SECRET="HENA_AGENT_PRIVATE_KEY"
-            fi
+            CLIENT_ID_VAR="${CONFIG_CLIENT_ID_VAR:-$CLIENT_ID_VAR}"
+            PRIVATE_KEY_SECRET="${CONFIG_PRIVATE_KEY_SECRET:-$PRIVATE_KEY_SECRET}"
             if ! jq -e --arg name "$CLIENT_ID_VAR" '.[$name] | type == "string" and length > 0' <<< "$VARS_JSON" >/dev/null; then
-              echo "::error::Repository variable $CLIENT_ID_VAR is empty. Register the GitHub App for provider '$PROVIDER' before selecting it."
+              echo "::error::Repository variable $CLIENT_ID_VAR is empty. Register the GitHub App selected by configuration '$CONFIGURATION' before using provider '$PROVIDER'."
               exit 1
             fi
 

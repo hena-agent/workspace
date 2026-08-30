@@ -1,12 +1,17 @@
 import { describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "path"
 
 const root = path.resolve(import.meta.dir, "../../..")
 const actionDirectory = path.join(root, ".github/actions/run-opencode")
 const setupDirectory = path.join(root, ".github/actions/setup-opencode")
-const extractionFilter = path.join(actionDirectory, "extract-review.jq")
+const extractionFilter = path.join(setupDirectory, "extract-result.jq")
+const authFilter = path.join(setupDirectory, "validate-auth.jq")
+const runAgentDirectory = path.join(root, ".github/actions/run-agent")
+const packageResult = path.join(runAgentDirectory, "package-result.sh")
+const changedPaths = path.join(runAgentDirectory, "validate-changed-paths.sh")
+const checkRollup = path.join(runAgentDirectory, "check-rollup.jq")
 const payloadFilter = path.join(actionDirectory, "review-payload.jq")
 const sanitizeCheckout = path.join(actionDirectory, "sanitize-review-checkout.sh")
 const reviewCommand = "thermo-nuclear-code-quality-review"
@@ -14,9 +19,10 @@ const reviewCommand = "thermo-nuclear-code-quality-review"
 describe("run-opencode review action", () => {
   test("uses the committed review assets", async () => {
     const action = await Bun.file(path.join(actionDirectory, "action.yml")).text()
-    expect(action).toContain('-f "$GITHUB_ACTION_PATH/extract-review.jq"')
+    const setup = await Bun.file(path.join(setupDirectory, "action.yml")).text()
+    expect(action).toContain('-f "$GITHUB_WORKSPACE/.github/actions/setup-opencode/extract-result.jq"')
     expect(action).toContain('-f "$GITHUB_ACTION_PATH/review-payload.jq"')
-    expect(action).toContain('install -m 600 ".opencode/command/$COMMAND.md"')
+    expect(setup).toContain('install -m 600 ".opencode/command/$COMMAND.md"')
     expect(action).toContain('[ "$GITHUB_EVENT_NAME" != "pull_request_target" ]')
     expect(action).toContain('"$(git rev-parse HEAD)" != "$GITHUB_WORKFLOW_SHA"')
     expect(action).toContain("workflow checkout does not match the trusted workflow commit")
@@ -34,7 +40,12 @@ describe("run-opencode review action", () => {
     expect(setup).toContain("MIN_EXPIRES_MS")
     expect(setup).toContain('OPENCODE_VERSION="${REQUESTED_VERSION:-1.18.22}"')
     expect(setup).toContain("Verify model is available")
+    expect(setup).toContain("Configure trusted command")
+    expect(setup).toContain("value: ${{ steps.version.outputs.version }}")
     expect(setup).toContain("codex-web-search-auth-json must contain exactly one valid OpenAI CI credential")
+    expect(action).toContain("codex-web-search-auth-json: ${{ inputs.codex-web-search-auth-json }}")
+    expect(action).not.toContain("CODEX_WEB_SEARCH_AUTH_JSON")
+    expect(action).not.toContain("PLUGINS=")
   })
 
   test("runs review commands from trusted workflow code", async () => {
@@ -47,39 +58,167 @@ describe("run-opencode review action", () => {
     expect(reusable).toContain("persist-credentials: false")
     expect(reusable).toContain("sanitize-review-checkout.sh .opencode-review-target")
     expect(reusable).toContain("review-directory: ${{ inputs.command != '' && '.opencode-review-target' || '' }}")
+    expect(reusable).toContain(
+      "codex-web-search-auth-json: ${{ inputs.command != '' && secrets.codex-web-search-auth-json || '' }}",
+    )
   })
 
   test("runs maintenance commands without exposing GitHub tokens", async () => {
-    const reusable = await Bun.file(path.join(root, ".github/workflows/_agent.yml")).text()
+    const scanReusable = await Bun.file(path.join(root, ".github/workflows/_agent-scan.yml")).text()
+    const resolveReusable = await Bun.file(path.join(root, ".github/workflows/_agent-resolve.yml")).text()
     const scan = await Bun.file(path.join(root, ".github/workflows/agent-scan.yml")).text()
     const resolve = await Bun.file(path.join(root, ".github/workflows/agent-resolve.yml")).text()
     const models = await Bun.file(path.join(root, ".github/workflows/_review-model.yml")).text()
 
     expect(scan).toContain('cron: "17 22 * * *"')
     expect(scan).toContain("configuration: scan")
+    expect(scan).toContain("uses: ./.github/workflows/_agent-scan.yml")
     expect(resolve).toContain("types: [labeled]")
     expect(resolve).toContain("github.event.label.name == 'agent-resolve'")
-    expect(reusable).toContain("persist-credentials: false")
-    expect(reusable).toContain("needs: [preflight, run]")
-    expect(reusable).toContain("Upload untrusted agent result")
-    expect(reusable).toContain("Download untrusted agent result")
-    expect(reusable).toContain("OPENCODE_DISABLE_PROJECT_CONFIG")
-    expect(reusable).toContain('external_directory: "deny"')
-    expect(reusable).toContain('bash: {"*": "allow"}')
-    expect(reusable).toContain(".github/actions/*")
-    expect(reusable).toContain("permission-checks: read")
-    expect(reusable).toContain("git diff --no-renames --name-only -z")
-    expect(reusable).toContain("Pull request head changed after CI validation")
-    const commandStep = reusable.match(/- name: Run maintenance command([\s\S]*?)(?=\n      - name:)/)?.[1]
+    expect(resolve).toContain("uses: ./.github/workflows/_agent-resolve.yml")
+    expect(scanReusable).toContain("persist-credentials: false")
+    expect(resolveReusable).toContain("persist-credentials: false")
+    expect(resolveReusable).toContain("needs: [preflight, run]")
+    expect(scanReusable).toContain("Upload untrusted scan result")
+    expect(resolveReusable).toContain("Upload untrusted agent result")
+    expect(scanReusable).toContain("Download untrusted scan result")
+    expect(resolveReusable).toContain("Download untrusted agent result")
+    expect(scanReusable).toContain("OPENCODE_DISABLE_PROJECT_CONFIG")
+    expect(resolveReusable).toContain('external_directory: "deny"')
+    expect(resolveReusable).toContain('bash: {"*": "allow"}')
+    expect(resolveReusable).toContain("validate-changed-paths.sh")
+    expect(resolveReusable).toContain("check-rollup.jq")
+    expect(resolveReusable).toContain("permission-checks: read")
+    expect(resolveReusable).toContain("git diff --no-renames --name-only -z")
+    expect(resolveReusable).toContain("Pull request head changed after CI validation")
+    expect(resolveReusable).toContain("Draft pull request did not use the validated resolver commit")
+    expect(resolveReusable).toContain("EXPECTED_SHA: ${{ steps.pull-request.outputs.head_sha }}")
+    expect(resolveReusable).toContain("must use a conventional title")
+    expect(resolveReusable).toContain("no longer has a conventional title")
+    expect(scanReusable).not.toContain("agent-resolve")
+    expect(resolveReusable).not.toContain("agent-scan")
+    expect(scanReusable).not.toContain("gh label create")
+    expect(resolveReusable).not.toContain("gh label create")
+    expect(scanReusable).not.toContain("1.18.22")
+    expect(resolveReusable).not.toContain("1.18.22")
+    expect(scanReusable).not.toContain("PLUGINS=")
+    expect(resolveReusable).not.toContain("PLUGINS=")
+    const parsed = Bun.YAML.parse(resolveReusable) as {
+      jobs: { run: { steps: Array<Record<string, unknown>> } }
+    }
+    const commandStep = parsed.jobs.run.steps.find((step) => step.name === "Run resolver command")
     expect(commandStep).toBeDefined()
-    expect(commandStep).not.toContain("GH_TOKEN")
-    const modelJob = reusable.match(/\n  run:\n([\s\S]*?)\n  publish:\n/)?.[1]
-    expect(modelJob).toBeDefined()
+    expect(JSON.stringify(commandStep)).not.toContain("GH_TOKEN")
+    const modelJob = JSON.stringify(parsed.jobs.run)
     expect(modelJob).not.toContain("secrets.app-private-key")
     expect(modelJob).not.toContain("permission-contents: write")
-    expect(models).toContain('DEFAULT_SCAN_MODEL="anthropic/claude-opus-5@max"')
-    expect(models).toContain('DEFAULT_RESOLVE_MODEL="openai/gpt-5.6-sol@high"')
-    expect(models).toContain('CLIENT_ID_VAR="HENA_AGENT_CLIENT_ID"')
+    expect(models).toContain('default: "anthropic/claude-opus-5@max"')
+    expect(models).toContain('default: "openai/gpt-5.6-sol@high"')
+    expect(models).toContain('client_id_var: "HENA_AGENT_CLIENT_ID"')
+  })
+
+  test("rejects protected autonomous resolver paths", () => {
+    const allowed = ["packages/core/src/session.ts", "docs/AGENTS-guide.md", "packages/app/CONTEXT.ts"]
+    const blocked = [
+      ".github/workflows/ci.yml",
+      ".github/actions/example/action.yml",
+      ".opencode/command/agent.md",
+      "opencode.jsonc",
+      "script/translate-app.ts",
+      "AGENTS.md",
+      "packages/core/CLAUDE.md",
+      "packages/app/src/CONTEXT.md",
+    ]
+    expect(Bun.spawnSync(["bash", changedPaths], { stdin: Buffer.from(`${allowed.join("\0")}\0`) }).exitCode).toBe(0)
+    expect(
+      blocked.map((file) => Bun.spawnSync(["bash", changedPaths], { stdin: Buffer.from(`${file}\0`) }).exitCode),
+    ).toEqual(blocked.map(() => 1))
+  })
+
+  test("classifies check runs and status contexts", () => {
+    const checks = [
+      { __typename: "CheckRun", name: "test", status: "COMPLETED", conclusion: "SUCCESS" },
+      { __typename: "CheckRun", name: "lint", status: "COMPLETED", conclusion: "FAILURE" },
+      { __typename: "CheckRun", name: "build", status: "IN_PROGRESS", conclusion: null },
+      { __typename: "StatusContext", context: "deploy", state: "ERROR" },
+      { __typename: "StatusContext", context: "preview", state: "EXPECTED" },
+    ]
+    const result = jq(["-c", "-f", checkRollup], JSON.stringify(checks))
+    expect(result.exitCode).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({ failed: ["lint", "deploy"], pending: 2 })
+    expect(JSON.parse(jq(["-c", "-f", checkRollup], "[]").stdout)).toEqual({ failed: [], pending: 0 })
+  })
+
+  test("packages only committed resolver changes", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "opencode-agent-result-"))
+    const source = path.join(directory, "source")
+    const output = path.join(directory, "output")
+    const result = path.join(directory, "result.md")
+    await mkdir(source)
+    await writeFile(result, "summary")
+    expect(Bun.spawnSync(["git", "init", "--quiet", source]).exitCode).toBe(0)
+    expect(Bun.spawnSync(["git", "-C", source, "config", "user.name", "test"]).exitCode).toBe(0)
+    expect(Bun.spawnSync(["git", "-C", source, "config", "user.email", "test@example.com"]).exitCode).toBe(0)
+    await writeFile(path.join(source, "file"), "base")
+    expect(Bun.spawnSync(["git", "-C", source, "add", "file"]).exitCode).toBe(0)
+    expect(Bun.spawnSync(["git", "-C", source, "commit", "--quiet", "-m", "base"]).exitCode).toBe(0)
+    const base = Bun.spawnSync(["git", "-C", source, "rev-parse", "HEAD"]).stdout.toString().trim()
+    expect(Bun.spawnSync(["git", "-C", source, "switch", "--quiet", "-c", "agent-issue-1"]).exitCode).toBe(0)
+    await writeFile(path.join(source, "file"), "changed")
+    expect(Bun.spawnSync(["git", "-C", source, "commit", "--quiet", "-am", "change"]).exitCode).toBe(0)
+
+    await writeFile(path.join(source, "uncommitted"), "dropped")
+    expect(
+      Bun.spawnSync(["bash", packageResult, "agent-resolve", result, output, "agent-issue-1", base], {
+        cwd: source,
+      }).exitCode,
+    ).not.toBe(0)
+    await rm(path.join(source, "uncommitted"))
+    expect(
+      Bun.spawnSync(["bash", packageResult, "agent-resolve", result, output, "agent-issue-1", base], {
+        cwd: source,
+      }).exitCode,
+    ).toBe(0)
+    expect(Bun.spawnSync(["git", "-C", source, "bundle", "verify", path.join(output, "result.bundle")]).exitCode).toBe(
+      0,
+    )
+  })
+
+  test("validates API and expiring OAuth credentials", () => {
+    const min = 2_000_000_000_000
+    const args = [
+      "-e",
+      "--arg",
+      "provider",
+      "openai",
+      "--arg",
+      "sentinel",
+      "ci-refresh-disabled",
+      "--argjson",
+      "min",
+      String(min),
+      "-f",
+      authFilter,
+    ]
+    const valid = [
+      { openai: { type: "api", key: "secret" } },
+      {
+        openai: {
+          type: "oauth",
+          access: "access",
+          refresh: "ci-refresh-disabled",
+          expires: min,
+        },
+      },
+    ]
+    const invalid = [
+      { openai: { type: "api", key: "" } },
+      { openai: { type: "oauth", access: "access", refresh: "real-refresh", expires: min } },
+      { openai: { type: "oauth", access: "access", refresh: "ci-refresh-disabled", expires: min - 1 } },
+      { openai: { type: "api", key: "secret" }, anthropic: { type: "api", key: "other" } },
+    ]
+    expect(valid.map((value) => jq(args, JSON.stringify(value)).exitCode)).toEqual([0, 0])
+    expect(invalid.map((value) => jq(args, JSON.stringify(value)).exitCode)).toEqual([1, 1, 1, 1])
   })
 
   test("sanitizes untrusted review files", async () => {

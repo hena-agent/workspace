@@ -1,6 +1,6 @@
 # Review model configuration
 
-The automated PR review and PR brief workflows select models from repository Actions variables. Review runs use a model matrix. Brief runs use one independently configured model and default to `opencode-go/ox-alpha-free@max`.
+The automated PR review, PR brief, and maintenance workflows select models from repository Actions variables. Review runs use a model matrix. Brief, scan, and resolve runs each use one independently configured model. Maintenance behavior is specified in `.agents/docs/en/autonomous-maintenance.md`.
 
 Applies to `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, `.github/workflows/_review-model.yml`, `.github/workflows/_opencode.yml`, `.github/actions/setup-opencode/action.yml`, `.github/actions/run-opencode/action.yml`, and `.opencode/command/thermo-nuclear-code-quality-review.md`.
 
@@ -10,9 +10,11 @@ Applies to `.github/workflows/pr-review.yml`, `.github/workflows/pr-brief.yml`, 
 | --------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `REVIEW_MODELS`             | Comma-separated models that review each eligible PR in parallel | `openai/gpt-5.6-sol@high,anthropic/claude-sonnet-5@max,opencode-go/ox-alpha-free@max` |
 | `BRIEF_MODEL`               | The single model that creates PR briefs                         | `opencode-go/ox-alpha-free@max`                                                       |
-| `REVIEWER_OPENCODE_VERSION` | Exact OpenCode CLI version override shared by both workflows    | The pin in `.github/actions/setup-opencode/action.yml`                                |
+| `SCAN_MODEL`                | The single model that creates maintenance issues                | `anthropic/claude-opus-5@max`                                                         |
+| `RESOLVE_MODEL`             | The single model that resolves labeled issues                   | `openai/gpt-5.6-sol@high`                                                             |
+| `REVIEWER_OPENCODE_VERSION` | Exact OpenCode CLI version override shared by all workflows     | The pin in `.github/actions/setup-opencode/action.yml`                                |
 
-`REVIEW_MODELS=off` disables PR reviews without disabling briefs. `BRIEF_MODEL=off` disables briefs without disabling reviews.
+Setting any model variable to `off` disables only that workflow.
 
 All model entries require this form:
 
@@ -43,12 +45,16 @@ Deleting a variable restores its workflow default.
 
 `_review-model.yml` accepts a required `configuration` input:
 
-| Value    | Variable read   | Output                                                   |
-| -------- | --------------- | -------------------------------------------------------- |
-| `review` | `REVIEW_MODELS` | A GitHub Actions matrix with one row per model           |
-| `brief`  | `BRIEF_MODEL`   | One resolved model through the existing singular outputs |
+| Value     | Variable read   | Output                                                   |
+| --------- | --------------- | -------------------------------------------------------- |
+| `review`  | `REVIEW_MODELS` | A GitHub Actions matrix with one row per model           |
+| `brief`   | `BRIEF_MODEL`   | One resolved model through the existing singular outputs |
+| `scan`    | `SCAN_MODEL`    | One resolved model through the existing singular outputs |
+| `resolve` | `RESOLVE_MODEL` | One resolved model through the existing singular outputs |
 
 Each matrix row contains the resolved `model`, `variant`, display `label`, provider auth secret name, GitHub App client ID variable name, and App private key secret name. It contains credential names, never credential values.
+
+Scan and resolve configurations keep provider-specific model auth but override the publishing identity with `HENA_AGENT_CLIENT_ID` and `HENA_AGENT_PRIVATE_KEY`. Fork and Dependabot eligibility checks apply only to pull-request events; scheduled, issue, and manual events have no pull-request head to inspect.
 
 The provider map currently routes credentials as follows:
 
@@ -60,7 +66,7 @@ The provider map currently routes credentials as follows:
 
 The resolver fails before model jobs start when it encounters malformed entries, duplicate entries, an unregistered provider, a missing App client ID variable, more than 256 review entries, or a malformed CLI version override. Model and variant availability are checked later against the installed OpenCode CLI.
 
-Fork PRs and PRs authored by Dependabot resolve as disabled because repository credentials are unavailable. The two `off` settings are evaluated independently before those shared eligibility checks.
+Fork PRs and PRs authored by Dependabot resolve as disabled because repository credentials are unavailable. Each configuration's `off` setting is evaluated independently before those shared eligibility checks.
 
 ## Review triggers
 

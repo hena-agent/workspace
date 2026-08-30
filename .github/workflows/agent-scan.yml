@@ -56,10 +56,9 @@ jobs:
     needs: [resolve, gate]
     if: needs.resolve.outputs.enabled == 'true' && needs.gate.outputs.available == 'true'
     name: scan (${{ needs.resolve.outputs.label }})
-    uses: ./.github/workflows/_agent.yml
+    uses: ./.github/workflows/_agent-scan.yml
     with:
-      command: agent-scan
-      command-arguments: ${{ inputs.scope || '' }}
+      scope: ${{ inputs.scope || '' }}
       model: ${{ needs.resolve.outputs.model }}
       variant: ${{ needs.resolve.outputs.variant }}
       app-client-id: ${{ vars[needs.resolve.outputs.client_id_var] }}

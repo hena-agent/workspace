@@ -1,0 +1,587 @@
+name: _agent-resolve
+
+on:
+  workflow_call:
+    inputs:
+      issue:
+        description: Open issue number to resolve
+        required: true
+        type: string
+      model:
+        description: Provider/model id
+        required: true
+        type: string
+      variant:
+        description: Model variant
+        required: true
+        type: string
+      app-client-id:
+        description: Hena Agent GitHub App client ID
+        required: true
+        type: string
+      opencode-version:
+        description: Optional exact OpenCode CLI version override
+        required: false
+        default: ""
+        type: string
+      timeout-minutes:
+        description: Hard cap for the model job and OAuth lease check
+        required: true
+        type: number
+    secrets:
+      app-private-key:
+        description: Hena Agent GitHub App private key
+        required: true
+      opencode-auth-json:
+        description: Single-provider CI credential
+        required: true
+      codex-web-search-auth-json:
+        description: OpenAI credential for codex_web_search
+        required: false
+
+# The model and publisher run on different runners. The model receives no App
+# private key or write token; its artifact is untrusted input that the fresh
+# publishing job validates before performing GitHub writes.
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      app_slug: ${{ steps.app-token.outputs.app-slug }}
+      branch: ${{ steps.guard.outputs.branch }}
+      enabled: ${{ steps.guard.outputs.enabled }}
+      issue: ${{ steps.validate.outputs.issue }}
+    steps:
+      - name: Validate invocation
+        id: validate
+        shell: bash
+        env:
+          ISSUE: ${{ inputs.issue }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$ISSUE" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::agent-resolve requires one positive issue number, got '$ISSUE'."
+            exit 1
+          fi
+          echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
+
+      - name: Mint preflight app token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.app-private-key }}
+          permission-issues: write
+          permission-pull-requests: read
+
+      - name: Guard resolver issue
+        id: guard
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ steps.validate.outputs.issue }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          STATE=$(gh api "repos/$REPOSITORY/issues/$ISSUE" --jq '.state')
+          if [ "$STATE" != "open" ]; then
+            echo "::error::Issue #$ISSUE is not open."
+            exit 1
+          fi
+          TITLE=$(gh api "repos/$REPOSITORY/issues/$ISSUE" --jq '.title')
+          CONVENTIONAL_TITLE='^(feat|fix|docs|chore|refactor|test)(\([^)]+\))?: .+'
+          if ! [[ "$TITLE" =~ $CONVENTIONAL_TITLE ]]; then
+            echo "::error::Issue #$ISSUE must use a conventional title before agent-resolve can run."
+            exit 1
+          fi
+
+          BRANCH="agent-issue-$ISSUE"
+          OPEN_PR=$(gh pr list --repo "$REPOSITORY" --state open --head "$BRANCH" --limit 1 --json number,url)
+          if [ "$(jq 'length' <<< "$OPEN_PR")" -gt 0 ]; then
+            URL=$(jq -r '.[0].url' <<< "$OPEN_PR")
+            gh issue comment "$ISSUE" --repo "$REPOSITORY" --body "An agent attempt is already open: $URL. Close it and re-add \`agent-resolve\` to retry."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Existing attempt: $URL" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      opencode_version: ${{ steps.setup.outputs.opencode-version }}
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ github.token }}
+
+      - name: Configure agent git identity
+        shell: bash
+        env:
+          APP_SLUG: ${{ needs.preflight.outputs.app_slug }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BOT_ID=$(gh api "users/${APP_SLUG}%5Bbot%5D" --jq '.id')
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${BOT_ID}+${APP_SLUG}[bot]@users.noreply.github.com"
+
+      - name: Prefetch resolver context
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ needs.preflight.outputs.issue }}
+          BRANCH: ${{ needs.preflight.outputs.branch }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          CONTEXT="$RUNNER_TEMP/agent-resolve-context.json"
+          OWNER=${REPOSITORY%%/*}
+          NAME=${REPOSITORY#*/}
+          gh issue view "$ISSUE" --repo "$REPOSITORY" --json number,title,body,state,url \
+            > "$RUNNER_TEMP/resolve-issue.json"
+          gh api --paginate "repos/$REPOSITORY/issues/$ISSUE/comments?per_page=100" \
+            | jq -sc 'add' > "$RUNNER_TEMP/resolve-issue-comments.json"
+          gh pr list --repo "$REPOSITORY" --state closed --head "$BRANCH" --limit 100 \
+            --json number,title,body,url,state,closedAt,mergedAt \
+            > "$RUNNER_TEMP/prior-prs.json"
+          : > "$RUNNER_TEMP/prior-comments.ndjson"
+          : > "$RUNNER_TEMP/prior-reviews.ndjson"
+          : > "$RUNNER_TEMP/prior-inline-comments.ndjson"
+          : > "$RUNNER_TEMP/prior-review-threads.ndjson"
+          while IFS= read -r PR; do
+            gh api --paginate "repos/$REPOSITORY/issues/$PR/comments?per_page=100" \
+              | jq -sc --argjson pr "$PR" '{pull_request: $pr, comments: add}' \
+              >> "$RUNNER_TEMP/prior-comments.ndjson"
+            gh api --paginate "repos/$REPOSITORY/pulls/$PR/reviews?per_page=100" \
+              | jq -sc --argjson pr "$PR" '{pull_request: $pr, reviews: add}' \
+              >> "$RUNNER_TEMP/prior-reviews.ndjson"
+            gh api --paginate "repos/$REPOSITORY/pulls/$PR/comments?per_page=100" \
+              | jq -sc --argjson pr "$PR" '{pull_request: $pr, comments: add}' \
+              >> "$RUNNER_TEMP/prior-inline-comments.ndjson"
+            # shellcheck disable=SC2016
+            gh api graphql --paginate \
+              -f query='query($owner: String!, $name: String!, $pr: Int!, $endCursor: String) {
+                repository(owner: $owner, name: $name) {
+                  pullRequest(number: $pr) {
+                    reviewThreads(first: 100, after: $endCursor) {
+                      nodes { isResolved isOutdated path line comments(first: 100) { nodes { author { login } body url createdAt } } }
+                      pageInfo { hasNextPage endCursor }
+                    }
+                  }
+                }
+              }' \
+              -f owner="$OWNER" -f name="$NAME" -F pr="$PR" \
+              | jq -c --argjson pr "$PR" '{pull_request: $pr, threads: .data.repository.pullRequest.reviewThreads.nodes}' \
+              >> "$RUNNER_TEMP/prior-review-threads.ndjson"
+          done < <(jq -r '.[].number' "$RUNNER_TEMP/prior-prs.json")
+          jq -n \
+            --slurpfile issue "$RUNNER_TEMP/resolve-issue.json" \
+            --slurpfile issue_comments "$RUNNER_TEMP/resolve-issue-comments.json" \
+            --slurpfile attempts "$RUNNER_TEMP/prior-prs.json" \
+            --slurpfile comments "$RUNNER_TEMP/prior-comments.ndjson" \
+            --slurpfile reviews "$RUNNER_TEMP/prior-reviews.ndjson" \
+            --slurpfile inline "$RUNNER_TEMP/prior-inline-comments.ndjson" \
+            --slurpfile threads "$RUNNER_TEMP/prior-review-threads.ndjson" \
+            '{
+              issue: ($issue[0] + {comments: $issue_comments[0]}),
+              prior_attempts: $attempts[0],
+              prior_comments: $comments,
+              prior_reviews: $reviews,
+              prior_inline_comments: $inline,
+              prior_review_threads: $threads
+            }' \
+            > "$CONTEXT"
+          echo "AGENT_RESOLVE_CONTEXT=$CONTEXT" >> "$GITHUB_ENV"
+          echo "AGENT_BASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          git switch -c "$BRANCH"
+
+      - name: Set up OpenCode
+        id: setup
+        uses: ./.github/actions/setup-opencode
+        with:
+          model: ${{ inputs.model }}
+          variant: ${{ inputs.variant }}
+          command: agent-resolve
+          opencode-auth-json: ${{ secrets.opencode-auth-json }}
+          codex-web-search-auth-json: ${{ secrets.codex-web-search-auth-json }}
+          timeout-minutes: ${{ inputs.timeout-minutes }}
+          opencode-version: ${{ inputs.opencode-version }}
+
+      - name: Run resolver command
+        shell: bash
+        env:
+          MODEL: ${{ inputs.model }}
+          VARIANT: ${{ inputs.variant }}
+          COMMAND: agent-resolve
+          COMMAND_ARGUMENTS: ${{ inputs.issue }}
+          JOB_TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
+          BRANCH: ${{ needs.preflight.outputs.branch }}
+          OPENCODE_DISABLE_CLAUDE_CODE: "1"
+          OPENCODE_DISABLE_EXTERNAL_SKILLS: "1"
+          OPENCODE_DISABLE_PROJECT_CONFIG: "1"
+        run: |
+          set -euo pipefail
+          OPENCODE_PERMISSION=$(jq -cn '
+            {
+              edit: "allow",
+              external_directory: "deny",
+              bash: {"*": "allow"},
+              question: "deny",
+              todowrite: "deny"
+            }
+          ')
+          export OPENCODE_PERMISSION
+
+          COMMAND_MINUTES=$(( JOB_TIMEOUT_MINUTES - 10 ))
+          COMMAND_STATUS=0
+          timeout --signal=TERM "${COMMAND_MINUTES}m" opencode run \
+            --command "$COMMAND" \
+            --model "$MODEL" \
+            --variant "$VARIANT" \
+            --format json \
+            "$COMMAND_ARGUMENTS" \
+            | tee "$RUNNER_TEMP/opencode-command.ndjson" \
+            || COMMAND_STATUS=$?
+
+          if [ "$COMMAND_STATUS" -eq 0 ]; then
+            jq -jrs --arg operation final-text --arg command "$COMMAND" \
+              -f ".github/actions/setup-opencode/extract-result.jq" \
+              "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"
+          elif jq -jers --arg operation completed-review --arg command "$COMMAND" \
+            -f ".github/actions/setup-opencode/extract-result.jq" \
+            "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"; then
+            echo "::notice::Using the completed maintenance task after a retryable final provider error."
+          else
+            exit "$COMMAND_STATUS"
+          fi
+
+          bash .github/actions/run-agent/package-result.sh \
+            agent-resolve \
+            "$RUNNER_TEMP/opencode-command-result.md" \
+            "$RUNNER_TEMP/agent-artifact" \
+            "$BRANCH" \
+            "${AGENT_BASE_SHA:-}"
+
+      - name: Upload untrusted agent result
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: agent-result-${{ github.run_id }}-agent-resolve
+          if-no-files-found: error
+          retention-days: 1
+          path: ${{ runner.temp }}/agent-artifact
+
+  publish-resolver:
+    needs: [preflight, run]
+    if: needs.preflight.outputs.enabled == 'true' && needs.run.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions: {}
+    steps:
+      - name: Mint resolver publishing token
+        id: resolve-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.app-private-key }}
+          permission-checks: read
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
+      - name: Checkout trusted default branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ steps.resolve-token.outputs.token }}
+
+      - name: Download untrusted agent result
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: agent-result-${{ github.run_id }}-agent-resolve
+          path: ${{ runner.temp }}/agent-artifact
+
+      - name: Validate resolver result
+        id: validation
+        shell: bash
+        env:
+          BRANCH: ${{ needs.preflight.outputs.branch }}
+          ISSUE: ${{ needs.preflight.outputs.issue }}
+          GH_TOKEN: ${{ steps.resolve-token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          BASE_SHA=$(git rev-parse "$GITHUB_WORKFLOW_SHA")
+          git fetch "$RUNNER_TEMP/agent-artifact/result.bundle" \
+            "refs/heads/$BRANCH:refs/remotes/agent/result"
+          git switch -C "$BRANCH" refs/remotes/agent/result
+          if ! git merge-base --is-ancestor "$BASE_SHA" HEAD; then
+            echo "::error::agent result does not descend from the trusted base commit."
+            exit 1
+          fi
+          if git diff --quiet "$BASE_SHA..HEAD"; then
+            echo "::error::agent-resolve produced no code changes."
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::restored agent result has a dirty worktree."
+            exit 1
+          fi
+          if git log --format='%s%n%b' "$BASE_SHA..HEAD" | grep -Eiq '\[(skip ci|ci skip|no ci|skip actions|actions skip)\]'; then
+            echo "::error::agent commits may not contain CI-skip directives."
+            exit 1
+          fi
+
+          git diff --no-renames --name-only -z "$BASE_SHA...HEAD" \
+            | bash .github/actions/run-agent/validate-changed-paths.sh
+
+          STATE=$(gh api "repos/$REPOSITORY/issues/$ISSUE" --jq '.state')
+          if [ "$STATE" != "open" ]; then
+            echo "::error::Issue #$ISSUE was closed while the resolver was running."
+            exit 1
+          fi
+          OPEN_PR=$(gh pr list --repo "$REPOSITORY" --state open --head "$BRANCH" --limit 1 --json url)
+          if [ "$(jq 'length' <<< "$OPEN_PR")" -gt 0 ]; then
+            echo "::error::Another pull request claimed issue #$ISSUE while the resolver was running."
+            exit 1
+          fi
+
+          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Push resolver branch and open draft
+        id: pull-request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.resolve-token.outputs.token }}
+          ISSUE: ${{ needs.preflight.outputs.issue }}
+          BRANCH: ${{ needs.preflight.outputs.branch }}
+          MODEL: ${{ inputs.model }}
+          VARIANT: ${{ inputs.variant }}
+          OPENCODE_VERSION: ${{ needs.run.outputs.opencode_version }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          STATE=$(gh api "repos/$REPOSITORY/issues/$ISSUE" --jq '.state')
+          if [ "$STATE" != "open" ]; then
+            echo "::error::Issue #$ISSUE was closed before publication."
+            exit 1
+          fi
+          OPEN_PR=$(gh pr list --repo "$REPOSITORY" --state open --head "$BRANCH" --limit 1 --json url)
+          if [ "$(jq 'length' <<< "$OPEN_PR")" -gt 0 ]; then
+            echo "::error::Another pull request claimed issue #$ISSUE before publication."
+            exit 1
+          fi
+          BASE_BRANCH=$(gh api "repos/$REPOSITORY" --jq '.default_branch')
+          EXPECTED_SHA=$(git rev-parse HEAD)
+          REMOTE_SHA=$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)
+          AUTH_HEADER="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.https://github.com/.extraheader="$AUTH_HEADER" \
+            push "--force-with-lease=refs/heads/$BRANCH:$REMOTE_SHA" origin "HEAD:refs/heads/$BRANCH"
+          unset AUTH_HEADER
+
+          PUBLISHED_SHA=$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)
+          if [ "$PUBLISHED_SHA" != "$EXPECTED_SHA" ]; then
+            echo "::error::Resolver branch changed while it was being published."
+            exit 1
+          fi
+
+          STATE=$(gh api "repos/$REPOSITORY/issues/$ISSUE" --jq '.state')
+          OPEN_PR=$(gh pr list --repo "$REPOSITORY" --state open --head "$BRANCH" --limit 1 --json url)
+          if [ "$STATE" != "open" ] || [ "$(jq 'length' <<< "$OPEN_PR")" -gt 0 ]; then
+            echo "::error::Issue #$ISSUE became ineligible after its branch was pushed."
+            exit 1
+          fi
+
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          METADATA=$(jq -cn --argjson issue "$ISSUE" --arg model "$MODEL" --arg variant "$VARIANT" \
+            --arg opencode_version "$OPENCODE_VERSION" --arg run_url "$RUN_URL" \
+            '{issue: $issue, model: $model, variant: $variant, opencode_version: $opencode_version, run_url: $run_url}')
+          {
+            printf '<!-- agent-resolve %s -->\n' "$METADATA"
+            printf '%s\n\n' "$(<"$RUNNER_TEMP/agent-artifact/result.md")"
+            printf 'Closes #%s\n\n' "$ISSUE"
+            # shellcheck disable=SC2016
+            printf '_OpenCode `%s` | `%s` (`%s`) | [workflow run](%s)_\n' "$OPENCODE_VERSION" "$MODEL" "$VARIANT" "$RUN_URL"
+          } > "$RUNNER_TEMP/agent-pr-body.md"
+          TITLE=$(gh issue view "$ISSUE" --repo "$REPOSITORY" --json title --jq '.title')
+          CONVENTIONAL_TITLE='^(feat|fix|docs|chore|refactor|test)(\([^)]+\))?: .+'
+          if ! [[ "$TITLE" =~ $CONVENTIONAL_TITLE ]]; then
+            echo "::error::Issue #$ISSUE no longer has a conventional title."
+            exit 1
+          fi
+          if grep -Eiq '\[(skip ci|ci skip|no ci|skip actions|actions skip)\]' <<< "$TITLE"; then
+            echo "::error::Issue title contains a CI-skip directive and cannot become a PR title."
+            exit 1
+          fi
+          URL=$(gh pr create --repo "$REPOSITORY" --draft --base "$BASE_BRANCH" --head "$BRANCH" \
+            --title "$TITLE" --body-file "$RUNNER_TEMP/agent-pr-body.md")
+          PR_SHA=$(gh pr view "$URL" --repo "$REPOSITORY" --json headRefOid --jq '.headRefOid')
+          if [ "$PR_SHA" != "$EXPECTED_SHA" ]; then
+            gh pr close "$URL" --repo "$REPOSITORY"
+            echo "::error::Draft pull request did not use the validated resolver commit; closed it."
+            exit 1
+          fi
+          {
+            echo "number=${URL##*/}"
+            echo "url=$URL"
+            echo "head_sha=$EXPECTED_SHA"
+          } >> "$GITHUB_OUTPUT"
+          echo "Draft pull request: $URL" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Watch draft CI
+        id: checks
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.resolve-token.outputs.token }}
+          PR: ${{ steps.pull-request.outputs.number }}
+          EXPECTED_SHA: ${{ steps.pull-request.outputs.head_sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          SHA=$(gh pr view "$PR" --repo "$REPOSITORY" --json headRefOid --jq '.headRefOid')
+          if [ "$SHA" != "$EXPECTED_SHA" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            printf '%s\n' "Pull request head changed before CI validation began." \
+              > "$RUNNER_TEMP/agent-check-failure"
+            exit 0
+          fi
+          DEADLINE=$(( $(date +%s) + 15 * 60 ))
+          STABLE=0
+          sleep 120
+
+          while [ "$(date +%s)" -lt "$DEADLINE" ]; do
+            ROLLUP=$(gh pr view "$PR" --repo "$REPOSITORY" --json headRefOid,statusCheckRollup)
+            CURRENT_SHA=$(jq -r '.headRefOid' <<< "$ROLLUP")
+            if [ "$CURRENT_SHA" != "$SHA" ]; then
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              printf '%s\n' "Pull request head changed while CI was being validated." \
+                > "$RUNNER_TEMP/agent-check-failure"
+              exit 0
+            fi
+            CHECKS=$(jq '.statusCheckRollup' <<< "$ROLLUP")
+            if [ "$(jq 'length' <<< "$CHECKS")" -eq 0 ]; then
+              echo "ready=true" >> "$GITHUB_OUTPUT"
+              echo "head_sha=$SHA" >> "$GITHUB_OUTPUT"
+              echo "No checks appeared during the grace period." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+            SUMMARY=$(jq -c -f .github/actions/run-agent/check-rollup.jq <<< "$CHECKS")
+            FAILED=$(jq -r '.failed | join(", ")' <<< "$SUMMARY")
+            if [ -n "$FAILED" ]; then
+              echo "ready=false" >> "$GITHUB_OUTPUT"
+              printf 'Failed checks: %s\n' "$FAILED" > "$RUNNER_TEMP/agent-check-failure"
+              exit 0
+            fi
+            PENDING=$(jq '.pending' <<< "$SUMMARY")
+            if [ "$PENDING" -eq 0 ]; then
+              if [ "$STABLE" -eq 1 ]; then
+                echo "ready=true" >> "$GITHUB_OUTPUT"
+                echo "head_sha=$SHA" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+              STABLE=1
+            else
+              STABLE=0
+            fi
+            sleep 30
+          done
+
+          echo "ready=false" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "Timed out waiting for pull request checks." \
+            > "$RUNNER_TEMP/agent-check-failure"
+
+      - name: Mark pull request ready
+        if: steps.checks.outputs.ready == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.resolve-token.outputs.token }}
+          PR: ${{ steps.pull-request.outputs.number }}
+          EXPECTED_SHA: ${{ steps.checks.outputs.head_sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          CURRENT_SHA=$(gh pr view "$PR" --repo "$REPOSITORY" --json headRefOid --jq '.headRefOid')
+          if [ "$CURRENT_SHA" != "$EXPECTED_SHA" ]; then
+            echo "::error::Pull request head changed after CI validation."
+            exit 1
+          fi
+          gh pr ready "$PR" --repo "$REPOSITORY"
+          CURRENT_SHA=$(gh pr view "$PR" --repo "$REPOSITORY" --json headRefOid --jq '.headRefOid')
+          if [ "$CURRENT_SHA" != "$EXPECTED_SHA" ]; then
+            gh pr ready "$PR" --repo "$REPOSITORY" --undo
+            echo "::error::Pull request head changed during the ready transition; returned it to draft."
+            exit 1
+          fi
+          echo "Ready pull request: ${{ steps.pull-request.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report failed resolver CI
+        if: steps.checks.outputs.ready == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.resolve-token.outputs.token }}
+          ISSUE: ${{ needs.preflight.outputs.issue }}
+          REPOSITORY: ${{ github.repository }}
+          PR_URL: ${{ steps.pull-request.outputs.url }}
+        run: |
+          REASON=$(<"$RUNNER_TEMP/agent-check-failure")
+          gh issue comment "$ISSUE" --repo "$REPOSITORY" \
+            --body "The resolver left a draft pull request at $PR_URL because CI did not pass. $REASON"
+          echo "::error::$REASON"
+          exit 1
+
+      - name: Report resolver publishing failure
+        if: failure() && steps.checks.outputs.ready != 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.resolve-token.outputs.token }}
+          ISSUE: ${{ needs.preflight.outputs.issue }}
+          REPOSITORY: ${{ github.repository }}
+          PR_URL: ${{ steps.pull-request.outputs.url }}
+        run: |
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          DETAIL=""
+          if [ -n "$PR_URL" ]; then
+            DETAIL=" Draft: $PR_URL."
+          fi
+          gh issue comment "$ISSUE" --repo "$REPOSITORY" \
+            --body "The resolver could not publish a ready pull request.$DETAIL See $RUN_URL."
+
+  report-run-failure:
+    needs: [preflight, run]
+    if: always() && needs.preflight.outputs.enabled == 'true' && needs.run.result != 'success' && needs.run.result != 'skipped'
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Mint issue comment token
+        id: token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ inputs.app-client-id }}
+          private-key: ${{ secrets.app-private-key }}
+          permission-issues: write
+
+      - name: Report failed resolver run
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          ISSUE: ${{ needs.preflight.outputs.issue }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          gh issue comment "$ISSUE" --repo "$REPOSITORY" \
+            --body "The resolver failed before it could open a pull request. See $RUN_URL."

@@ -115,7 +115,7 @@ jobs:
           model: ${{ inputs.model }}
           variant: ${{ inputs.variant }}
           opencode-auth-json: ${{ secrets.opencode-auth-json }}
-          codex-web-search-auth-json: ${{ secrets.codex-web-search-auth-json }}
+          codex-web-search-auth-json: ${{ inputs.command != '' && secrets.codex-web-search-auth-json || '' }}
           github-token: ${{ steps.publish-token.outputs.token }}
           review-token: ${{ steps.review-token.outputs.token }}
           prompt: ${{ inputs.prompt }}

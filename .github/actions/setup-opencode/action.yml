@@ -1,0 +1,209 @@
+name: Set up OpenCode
+description: Restore OpenCode auth, install the pinned CLI and Bun, and verify the selected model.
+
+inputs:
+  model:
+    description: Provider/model id
+    required: true
+  variant:
+    description: Model variant
+    required: true
+  command:
+    description: Optional trusted command to install and configure
+    required: false
+    default: ""
+  opencode-auth-json:
+    description: Single-provider CI credential
+    required: true
+  opencode-version:
+    description: Optional exact OpenCode CLI version override
+    required: false
+    default: ""
+  codex-web-search-auth-json:
+    description: Optional OpenAI credential merged after applying the same CI lease validation
+    required: false
+    default: ""
+  timeout-minutes:
+    description: Calling job timeout; the OAuth lease must outlive it by 10 minutes
+    required: true
+
+outputs:
+  opencode-version:
+    description: Exact installed OpenCode CLI version
+    value: ${{ steps.version.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Restore OpenCode auth.json
+      shell: bash
+      env:
+        MODEL: ${{ inputs.model }}
+        OPENCODE_AUTH_JSON: ${{ inputs.opencode-auth-json }}
+        CODEX_WEB_SEARCH_AUTH_JSON: ${{ inputs.codex-web-search-auth-json }}
+        TIMEOUT_MINUTES: ${{ inputs.timeout-minutes }}
+      run: |
+        set -euo pipefail
+        if [ -z "${OPENCODE_AUTH_JSON}" ]; then
+          echo "::error::OPENCODE_AUTH_JSON is empty. This typically happens for PRs from forks, where repo secrets are not exposed."
+          exit 1
+        fi
+        if ! [[ "$TIMEOUT_MINUTES" =~ ^[1-9][0-9]*$ ]]; then
+          echo "::error::timeout-minutes must be a positive whole number, got '$TIMEOUT_MINUTES'."
+          exit 1
+        fi
+        PROVIDER="${MODEL%%/*}"
+        if [ "$PROVIDER" = "$MODEL" ] || [ -z "$PROVIDER" ]; then
+          echo "::error::model must use provider/model form, got '$MODEL'."
+          exit 1
+        fi
+        HEADROOM_MINUTES=10
+        MIN_EXPIRES_MS=$(( ($(date +%s) + (TIMEOUT_MINUTES + HEADROOM_MINUTES) * 60) * 1000 ))
+
+        validate_auth() {
+          printf '%s' "$1" | jq -e \
+            --arg provider "$2" \
+            --arg sentinel "ci-refresh-disabled" \
+            --argjson min "$MIN_EXPIRES_MS" \
+            -f "$GITHUB_ACTION_PATH/validate-auth.jq" \
+            >/dev/null
+        }
+
+        if ! validate_auth "$OPENCODE_AUTH_JSON" "$PROVIDER"; then
+          echo "::error::The OpenCode auth secret must contain exactly one '$PROVIDER' credential: either an API key, or OAuth with refresh='ci-refresh-disabled' and at least $((TIMEOUT_MINUTES + HEADROOM_MINUTES))m remaining. Ask the credential owner to republish it."
+          exit 1
+        fi
+
+        install -d -m 700 "$HOME/.local/share/opencode"
+        printf '%s' "$OPENCODE_AUTH_JSON" > "$HOME/.local/share/opencode/auth.json"
+        chmod 600 "$HOME/.local/share/opencode/auth.json"
+
+        if [ -n "$CODEX_WEB_SEARCH_AUTH_JSON" ]; then
+          if ! validate_auth "$CODEX_WEB_SEARCH_AUTH_JSON" openai; then
+            echo "::error::codex-web-search-auth-json must contain exactly one valid OpenAI CI credential with the same lease required of the selected model."
+            exit 1
+          fi
+          # OPENCODE_AUTH_CONTENT would replace the selected model's auth, so merge the plugin credential into the file.
+          jq -s '.[0] * .[1]' "$HOME/.local/share/opencode/auth.json" \
+            <(printf '%s' "$CODEX_WEB_SEARCH_AUTH_JSON") \
+            > "$HOME/.local/share/opencode/auth.json.tmp"
+          mv "$HOME/.local/share/opencode/auth.json.tmp" "$HOME/.local/share/opencode/auth.json"
+          chmod 600 "$HOME/.local/share/opencode/auth.json"
+        fi
+
+    # OPENCODE_VERSION is the source of truth for the cache key and install.
+    # Bump intentionally; changing model IDs may require a newer catalog pin.
+    - name: Pin opencode CLI version
+      id: version
+      shell: bash
+      env:
+        REQUESTED_VERSION: ${{ inputs.opencode-version }}
+      run: |
+        set -euo pipefail
+        OPENCODE_VERSION="${REQUESTED_VERSION:-1.18.22}"
+        if ! [[ "$OPENCODE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::opencode-version must be an exact semantic version, got '$OPENCODE_VERSION'."
+          exit 1
+        fi
+        echo "OPENCODE_VERSION=$OPENCODE_VERSION" >> "$GITHUB_ENV"
+        echo "version=$OPENCODE_VERSION" >> "$GITHUB_OUTPUT"
+        {
+          echo "### OpenCode CLI"
+          echo "- Version: \`$OPENCODE_VERSION\`"
+          if [ -n "$REQUESTED_VERSION" ]; then
+            echo "- Source: \`REVIEWER_OPENCODE_VERSION\`"
+          else
+            echo "- Source: action pin"
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Set up Bun
+      uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      with:
+        bun-version-file: package.json
+
+    - name: Cache opencode CLI
+      id: cache
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: ~/.opencode/bin
+        key: opencode-${{ runner.os }}-${{ runner.arch }}-${{ env.OPENCODE_VERSION }}
+
+    - name: Install opencode CLI
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        VERSION: ${{ env.OPENCODE_VERSION }}
+      run: curl -fsSL https://opencode.ai/install | bash
+
+    - name: Add opencode to PATH
+      shell: bash
+      run: echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
+
+    - name: Verify model is available
+      shell: bash
+      env:
+        MODEL: ${{ inputs.model }}
+        VARIANT: ${{ inputs.variant }}
+        OPENCODE_VERSION: ${{ env.OPENCODE_VERSION }}
+      run: |
+        set -euo pipefail
+        PROVIDER="${MODEL%%/*}"
+        if ! MODELS=$(opencode models "$PROVIDER" --verbose 2>&1); then
+          printf '%s\n' "$MODELS"
+          echo "::error::OpenCode $OPENCODE_VERSION could not load provider '$PROVIDER'. Verify its single-provider auth secret."
+          exit 1
+        fi
+        if ! VARIANTS=$(MODEL="$MODEL" bun -e '
+          import { modelVariants } from "./script/translate-app.ts"
+          try {
+            process.stdout.write(JSON.stringify(Object.keys(modelVariants(await Bun.stdin.text(), process.env.MODEL!))))
+          } catch (error) {
+            process.stderr.write(error instanceof Error ? error.message : String(error))
+            process.exit(1)
+          }
+        ' <<< "$MODELS" 2>&1); then
+          echo "::error::OpenCode $OPENCODE_VERSION could not resolve '$MODEL': $VARIANTS. Correct the configured model or set REVIEWER_OPENCODE_VERSION to a release whose catalog contains it."
+          exit 1
+        fi
+        if ! jq -e --arg variant "$VARIANT" 'index($variant) != null' <<< "$VARIANTS" >/dev/null; then
+          AVAILABLE=$(jq -r 'join(", ")' <<< "$VARIANTS")
+          echo "::error::Variant '$VARIANT' is unavailable for '$MODEL' in OpenCode $OPENCODE_VERSION (available: $AVAILABLE). Correct the configured model."
+          exit 1
+        fi
+
+    - name: Configure trusted command
+      if: inputs.command != ''
+      shell: bash
+      env:
+        COMMAND: ${{ inputs.command }}
+        MODEL: ${{ inputs.model }}
+      run: |
+        set -euo pipefail
+        if ! [[ "$COMMAND" =~ ^[a-z0-9-]+$ ]] || [ ! -f ".opencode/command/$COMMAND.md" ]; then
+          echo "::error::trusted command '$COMMAND' is unavailable."
+          exit 1
+        fi
+        install -d -m 700 "$HOME/.config/opencode/command"
+        install -m 600 ".opencode/command/$COMMAND.md" "$HOME/.config/opencode/command/$COMMAND.md"
+
+        # Project config is disabled for trusted commands; reconstruct only approved plugins and tracked instructions.
+        PLUGINS='[]'
+        if [ "${MODEL%%/*}" = "anthropic" ]; then
+          PLUGINS=$(jq -c '. + ["@ex-machina/opencode-anthropic-auth@1.8.1"]' <<< "$PLUGINS")
+        fi
+        if [ -f ".opencode/plugin/codex-web-search.ts" ]; then
+          PLUGINS=$(jq -c --arg path "file://$(pwd)/.opencode/plugin/codex-web-search.ts" '. + [$path]' <<< "$PLUGINS")
+        else
+          echo "::notice::The trusted workflow commit has no bundled codex_web_search plugin; web search will be unavailable this run."
+        fi
+        INSTRUCTIONS=$(git ls-files -z -- \
+          ':(glob)**/AGENTS.md' \
+          ':(glob)**/CLAUDE.md' \
+          ':(glob)**/CONTEXT.md' \
+          | jq -Rsc --arg root "$PWD" 'split("\u0000") | map(select(length > 0) | $root + "/" + .)')
+        OPENCODE_CONFIG_CONTENT=$(jq -cn \
+          --argjson plugins "$PLUGINS" \
+          --argjson instructions "$INSTRUCTIONS" \
+          '{plugin: $plugins, instructions: $instructions}')
+        echo "OPENCODE_CONFIG_CONTENT=$OPENCODE_CONFIG_CONTENT" >> "$GITHUB_ENV"

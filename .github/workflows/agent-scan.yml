@@ -1,0 +1,70 @@
+name: agent-scan
+
+on:
+  schedule:
+    # 07:17 Korea Standard Time. The odd minute avoids GitHub's busy hour boundary.
+    - cron: "17 22 * * *"
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Optional scan category or repository area
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: agent-scan
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    uses: ./.github/workflows/_review-model.yml
+    with:
+      configuration: scan
+
+  gate:
+    needs: resolve
+    if: needs.resolve.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      available: ${{ steps.queue.outputs.available }}
+    steps:
+      - name: Check agent issue queue
+        id: queue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          COUNT=$(gh api "repos/$REPOSITORY/issues?state=open&labels=agent-task&per_page=100" \
+            --jq '[.[] | select(.pull_request | not)] | length')
+          if [ "$COUNT" -ge 10 ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Scanner paused: $COUNT open agent-task issues." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
+          echo "Scanner queue: $COUNT/10 open agent-task issues." >> "$GITHUB_STEP_SUMMARY"
+
+  scan:
+    needs: [resolve, gate]
+    if: needs.resolve.outputs.enabled == 'true' && needs.gate.outputs.available == 'true'
+    name: scan (${{ needs.resolve.outputs.label }})
+    uses: ./.github/workflows/_agent-scan.yml
+    with:
+      scope: ${{ inputs.scope || '' }}
+      model: ${{ needs.resolve.outputs.model }}
+      variant: ${{ needs.resolve.outputs.variant }}
+      app-client-id: ${{ vars[needs.resolve.outputs.client_id_var] }}
+      opencode-version: ${{ needs.resolve.outputs.opencode_version }}
+      timeout-minutes: 40
+    secrets:
+      app-private-key: ${{ secrets[needs.resolve.outputs.private_key_secret] }}
+      opencode-auth-json: ${{ secrets[needs.resolve.outputs.auth_secret] }}
+      codex-web-search-auth-json: ${{ secrets.OPENAI_OPENCODE_AUTH_JSON }}

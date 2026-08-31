@@ -1,0 +1,47 @@
+name: agent-resolve
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Open issue number to resolve
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  checks: read
+
+concurrency:
+  group: agent-resolve-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.label.name == 'agent-resolve' && github.event.issue.state == 'open')
+    uses: ./.github/workflows/_review-model.yml
+    with:
+      configuration: resolve
+
+  run:
+    needs: resolve
+    if: needs.resolve.outputs.enabled == 'true'
+    name: resolve (${{ needs.resolve.outputs.label }})
+    uses: ./.github/workflows/_agent-resolve.yml
+    with:
+      issue: ${{ github.event.issue.number || inputs.issue }}
+      model: ${{ needs.resolve.outputs.model }}
+      variant: ${{ needs.resolve.outputs.variant }}
+      app-client-id: ${{ vars[needs.resolve.outputs.client_id_var] }}
+      opencode-version: ${{ needs.resolve.outputs.opencode_version }}
+      timeout-minutes: 60
+    secrets:
+      app-private-key: ${{ secrets[needs.resolve.outputs.private_key_secret] }}
+      opencode-auth-json: ${{ secrets[needs.resolve.outputs.auth_secret] }}
+      codex-web-search-auth-json: ${{ secrets.OPENAI_OPENCODE_AUTH_JSON }}

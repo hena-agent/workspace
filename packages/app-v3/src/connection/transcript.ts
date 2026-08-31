@@ -1,9 +1,14 @@
 import type { ScopeRef } from "./store"
 
 export const TranscriptCollections = ["messages", "parts"] as const
+export const TranscriptStatusKey = "status"
 
 export function isTranscriptCollection(collection: string): collection is typeof TranscriptCollections[number] {
   return collection === "messages" || collection === "parts"
+}
+
+export function transcriptRowCollection(key: string) {
+  return TranscriptCollections.find((collection) => key.startsWith(`${collection}\u0000`))
 }
 
 export function transcriptScopes(sessionId: string): ScopeRef[] {

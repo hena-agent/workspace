@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { createTransaction } from "@tanstack/db"
 import { createConnectionStore } from "./store"
+import { TranscriptStatusKey } from "./transcript"
 
 describe("connection store", () => {
   test("batches canonical snapshot notifications", () => {
@@ -44,7 +45,8 @@ describe("connection store", () => {
 
     expect(store.rows("messages", "session-1")).toEqual([{ id: "message-1" }])
     expect(store.rows("parts", "session-1")).toEqual([{ id: "part-1", messageID: "message-1", type: "text", text: "Durable" }])
-    expect(store.transcript("session-1").toArray).toHaveLength(2)
+    expect(store.transcript("session-1").toArray.filter((row) => row.__key !== TranscriptStatusKey)).toHaveLength(2)
+    expect(store.transcript("session-1").toArray.find((row) => row.__key === TranscriptStatusKey)?.row.ready).toBe(false)
     expect(store.isReady("messages", "session-1")).toBe(true)
     expect(store.isReady("parts", "session-1")).toBe(true)
     expect(store.isSynchronizing("messages", "session-1")).toBe(true)

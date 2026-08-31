@@ -1,5 +1,5 @@
 import { createCollection } from "@tanstack/db"
-import { isTranscriptCollection, TranscriptCollections } from "./transcript"
+import { isTranscriptCollection, isTranscriptCurrent, TranscriptCollections, TranscriptStatusKey } from "./transcript"
 
 type Row = Record<string, unknown>
 type StoredRow = { __key: string; __revision?: string; row: Row }
@@ -60,6 +60,8 @@ export function createConnectionStore(options: StoreOptions = {}) {
     scopes.set(key, created)
     return created
   }
+  const isReady = (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.ready ?? false
+  const isSynchronizing = (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.synchronizing ?? false
   const notify = () => {
     if (batchDepth > 0) {
       pendingNotification = true
@@ -78,6 +80,9 @@ export function createConnectionStore(options: StoreOptions = {}) {
     transcript.control.begin()
     transcript.authoritative.clear()
     for (const key of Array.from(transcript.collection.keys())) transcript.control.write({ type: "delete", key })
+    const status = { __key: TranscriptStatusKey, row: { ready: isTranscriptCurrent({ isReady, isSynchronizing }, sessionId) } }
+    transcript.authoritative.set(TranscriptStatusKey, status)
+    transcript.control.write({ type: "insert", value: status })
     TranscriptCollections.forEach((collection) => {
       scopes.get(scopeIdentity(collection, sessionId))?.authoritative.forEach((item) => {
         const value = { ...item, __key: `${collection}\u0000${item.__key}` }
@@ -229,8 +234,8 @@ export function createConnectionStore(options: StoreOptions = {}) {
       return Array.from(getScope(collection, scopeKey).authoritative.values(), (item) => item.row)
     },
     cursor: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.cursor ?? 0,
-    isReady: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.ready ?? false,
-    isSynchronizing: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.synchronizing ?? false,
+    isReady,
+    isSynchronizing,
     scopeRefs: () => Array.from(scopes.values(), (scope) => scope.ref),
     subscribe(listener: () => void) {
       listeners.add(listener)
@@ -448,7 +453,9 @@ export function createConnectionStore(options: StoreOptions = {}) {
         scope.cursor = 0
         scope.synchronizing = true
       })
-      new Set(reset.flatMap((scope) => isTranscriptCollection(scope.ref.collection) ? [scope.ref.scopeKey] : [])).forEach(clearDeltasForSession)
+      const transcriptSessions = new Set(reset.flatMap((scope) => isTranscriptCollection(scope.ref.collection) ? [scope.ref.scopeKey] : []))
+      transcriptSessions.forEach(clearDeltasForSession)
+      transcriptSessions.forEach(publishTranscript)
       if (reset.length > 0) notify()
     },
     dropSession(sessionId: string) {

@@ -17,7 +17,7 @@ import type {
   FileNode,
 } from "@/lib/types"
 import { createConnectionStore, type DeltaIdentity } from "@/connection/store"
-import { isTranscriptCurrent } from "@/connection/transcript"
+import { transcriptRowCollection, TranscriptStatusKey } from "@/connection/transcript"
 import { getMutationStateVersion, isMessagePending, subscribeMutationState } from "@/mutations/session"
 import { useSeenWatermarks, wasSeenAfter } from "@/local-state/seen"
 
@@ -100,11 +100,6 @@ export function useSessionLocation(agent: ReturnTypeOfAgent | undefined, id: str
 }
 
 export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
-  const ready = useSyncExternalStore(
-    agent ? agent.store.subscribe : emptySubscribe,
-    () => agent ? isTranscriptCurrent(agent.store, sessionId) : false,
-    () => false,
-  )
   useSyncExternalStore(subscribeMutationState, getMutationStateVersion, getMutationStateVersion)
   useSyncExternalStore(
     agent ? (listener) => agent.store.subscribeDeltaIdentities(sessionId, listener) : emptySubscribe,
@@ -117,6 +112,7 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
     () => 0,
   )
   const transcript = useTranscriptRows(agent, sessionId)
+  const ready = transcript.ready
   const localRows = agent?.localMessages.rows(sessionId) ?? []
   const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
   const projected = (ready ? transcript.messages : []).map((message) => messageView(agent, sessionId, message, transcript.parts, deltas))
@@ -236,11 +232,13 @@ function useTranscriptRows(agent: ReturnTypeOfAgent | undefined, sessionId: stri
   "use no memo"
   // TanStack mutates live collection data without changing its array identity.
   const result = useLiveQuery((agent?.store ?? emptyStore).transcript(sessionId))
-  return (result.data ?? []).reduce<{ messages: Record<string, unknown>[]; parts: Record<string, unknown>[] }>((rows, item) => {
-    if (item.__key.startsWith("messages\u0000")) rows.messages.push(item.row)
-    if (item.__key.startsWith("parts\u0000")) rows.parts.push(item.row)
+  return (result.data ?? []).reduce<{ messages: Record<string, unknown>[]; parts: Record<string, unknown>[]; ready: boolean }>((rows, item) => {
+    if (item.__key === TranscriptStatusKey) rows.ready = item.row.ready === true
+    const collection = transcriptRowCollection(item.__key)
+    if (collection === "messages") rows.messages.push(item.row)
+    if (collection === "parts") rows.parts.push(item.row)
     return rows
-  }, { messages: [], parts: [] })
+  }, { messages: [], parts: [], ready: false })
 }
 
 function projectView(row: Record<string, unknown>, connectionId: string): Project {

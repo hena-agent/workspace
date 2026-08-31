@@ -7,7 +7,7 @@ import { ConnectionProvider } from "@/connection/provider"
 import { markSessionSeen } from "@/local-state/seen"
 import { encodeServerSlug } from "@/lib/server-url"
 import { mockMatchMedia } from "@/test/mock-match-media"
-import { fireEvent, render, screen, waitFor, within } from "@/test/test-utils"
+import { act, fireEvent, render, screen, waitFor, within } from "@/test/test-utils"
 import { routeTree } from "./routeTree.gen"
 
 const origin = "http://localhost:4096"
@@ -304,6 +304,82 @@ describe("app routing against server-v3", () => {
     await user.click(buttons.at(-1)!)
     expect(await screen.findByRole("heading", { name: "New session" })).toBeInTheDocument()
     expect(screen.getByRole("textbox", { name: "Message" })).toBeInTheDocument()
+  })
+
+  test("keeps an optimistic prompt visible while its transcript synchronizes", async () => {
+    const user = userEvent.setup()
+    const mutation = Promise.withResolvers<void>()
+    const snapshot = Promise.withResolvers<void>()
+    let waitingForSnapshot = false
+    const fetcher = collectionFetcher({
+      beforeSessionSnapshot: () => {
+        waitingForSnapshot = true
+        return snapshot.promise
+      },
+      onCreateSession: async (request, push) => {
+        const body = await request.json() as {
+          sessionID: string
+          messageID: string
+          location: { directory: string }
+          prompt: { text: string }
+        }
+        await mutation.promise
+        push([{
+          seq: 100,
+          collection: "sessions",
+          scopeKey: "",
+          rowKey: body.sessionID,
+          op: "insert",
+          txid: "tx-new-session",
+          row: {
+            id: body.sessionID,
+            projectID: "global",
+            title: body.prompt.text,
+            location: body.location,
+            working: true,
+            time: { created: 2, updated: 2 },
+          },
+        }])
+        return Response.json({
+          session: { id: body.sessionID, projectID: "global" },
+          admitted: {
+            id: body.messageID,
+            sessionID: body.sessionID,
+            prompt: body.prompt,
+            delivery: "steer",
+            admittedSeq: 1,
+            queuePosition: 0,
+            timeCreated: 2,
+          },
+          receipt: {
+            txid: "tx-new-session",
+            outcome: "applied",
+            through: { feedId: "feed", seq: 100 },
+            affectedScopes: [{ collection: "sessions", scopeKey: "" }],
+          },
+        })
+      },
+    })
+    renderApp(`/${slug}/global`, fetcher)
+
+    const buttons = await screen.findAllByRole("button", { name: "New session" })
+    await user.click(buttons.at(-1)!)
+    await user.type(await screen.findByRole("textbox", { name: "Message" }), "Pending prompt")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await waitFor(() => expect(waitingForSnapshot).toBe(true))
+
+    try {
+      const log = screen.getByRole("log", { name: "Messages" })
+      expect(within(log).getByText("Pending prompt")).toBeInTheDocument()
+      expect(within(log).getByText("You · Sending")).toBeInTheDocument()
+      expect(within(log).getByText("Thinking...")).toBeInTheDocument()
+    } finally {
+      await act(async () => {
+        mutation.resolve()
+        snapshot.resolve()
+      })
+    }
+    await waitFor(() => expect(screen.queryByText("You · Sending")).not.toBeInTheDocument())
   })
 
   test("redirects legacy review URLs to the centered transcript", async () => {

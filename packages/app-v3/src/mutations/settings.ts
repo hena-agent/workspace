@@ -1,7 +1,7 @@
 import { createTransaction } from "@tanstack/db"
 import type { Sync } from "@hena/schema/sync"
 import type { ConnectionAgent } from "@/connection/agent"
-import { receipt, requestQueueable } from "./lifecycle"
+import { awaitReceipt, requestQueueable } from "./lifecycle"
 
 export function replaceSettingOptimistically(agent: ConnectionAgent, input: { scope: string; key: string; value: Sync.SettingReplace["value"] }) {
   const current = agent.store.collection("settings", input.scope).toArray.find((item) => item.__key === input.key)
@@ -12,8 +12,7 @@ export function replaceSettingOptimistically(agent: ConnectionAgent, input: { sc
           param: { scope: encodeURIComponent(input.scope), key: input.key },
           json: { idempotencyKey, expectedRevision: current?.__revision, value: input.value },
       }))
-      const acknowledged = receipt(result)
-      await agent.store.awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes)
+      await awaitReceipt(agent, result)
     },
   })
   transaction.mutate(() => {

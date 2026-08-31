@@ -25,6 +25,21 @@ describe("MessageList", () => {
     expect(screen.getByRole("log", { name: "Messages" }).querySelector("[data-message-id]")).toBeNull()
   })
 
+  test("shows optimistic messages while their snapshots are synchronized", () => {
+    render(<MessageList messages={[{
+      id: "message-1",
+      sessionId: "session-1",
+      createdAt: 1,
+      role: "user",
+      text: "Pending prompt",
+      files: [],
+      pending: true,
+    }]} working ready={false} />)
+    expect(screen.getByText("Pending prompt")).toBeInTheDocument()
+    expect(screen.getByText("You · Sending")).toBeInTheDocument()
+    expect(screen.getByText("Thinking...")).toBeInTheDocument()
+  })
+
   test("renders every message in the log in order", () => {
     const messages = listMessages({
       sessionId: "sess-transcript",

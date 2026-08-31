@@ -21,6 +21,8 @@ describe("connection store", () => {
     })
 
     expect(store.isReady("messages", "session-1")).toBe(false)
+    store.applySnapshot("messages", "session-1", [], 2)
+    expect(store.isReady("messages", "session-1")).toBe(true)
   })
 
   test("publishes a replacement snapshot atomically", () => {

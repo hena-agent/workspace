@@ -4,7 +4,7 @@ import { Question } from "@hena/schema/question"
 import { Session } from "@hena/schema/session"
 import { SessionMessage } from "@hena/schema/session-message"
 import type { createConnectionAgent } from "@/connection/agent"
-import { MutationError, mutationError, receipt, requestQueueable } from "./lifecycle"
+import { awaitReceipt, MutationError, mutationError, requestQueueable } from "./lifecycle"
 
 type Agent = ReturnType<typeof createConnectionAgent>
 export type PromptFile = { uri: string; name?: string; description?: string }
@@ -287,11 +287,6 @@ function replyOnline(
   })
   transaction.mutate(() => agent.store.collection(collection, "").delete(id))
   return transaction.isPersisted.promise.then(() => result!)
-}
-
-async function awaitReceipt(agent: Agent, value: unknown) {
-  const acknowledged = receipt(value)
-  await agent.store.awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes)
 }
 
 function waitForAuthoritativeState(

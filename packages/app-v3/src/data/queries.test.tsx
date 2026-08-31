@@ -27,7 +27,7 @@ test("reasoning deltas project a provisional part before its durable row", async
   const agent = createConnectionAgent("http://hena.test")
 
   function View() {
-    return <MessageList messages={useMessages(agent, "session-1")} working />
+    return <MessageList messages={useMessages(agent, "session-1")} working ready />
   }
 
   const { container } = render(<View />)

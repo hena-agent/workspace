@@ -70,7 +70,7 @@ describe("connection protocol", () => {
     agent.dispose()
     await started
 
-    expect(subscriptions[0]?.sessions?.length).toBeLessThanOrEqual(100)
+    expect(subscriptions[0]?.sessions).toHaveLength(9)
   })
 
   test("discards an unfinished snapshot when restarting the stream", async () => {

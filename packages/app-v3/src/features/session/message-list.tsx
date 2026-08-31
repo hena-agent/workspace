@@ -15,11 +15,11 @@ import { MessageRow } from "./messages/message-row"
 export function MessageList({
   messages,
   working,
-  ready = true,
+  ready,
 }: {
   messages: SessionMessage[]
   working?: boolean
-  ready?: boolean
+  ready: boolean
 }) {
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="last-anchor">

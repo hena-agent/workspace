@@ -5,7 +5,7 @@ import { listMessages } from "@/test/queries"
 
 describe("MessageList", () => {
   test("shows an empty state when there are no messages", () => {
-    render(<MessageList messages={[]} />)
+    render(<MessageList messages={[]} ready />)
     expect(screen.getByText("No messages yet")).toBeInTheDocument()
     expect(screen.getByText("Say something to get started.")).toBeInTheDocument()
   })
@@ -21,7 +21,7 @@ describe("MessageList", () => {
       connectionId: "conn-local",
       projectId: "proj-hena",
     })
-    render(<MessageList messages={messages} />)
+    render(<MessageList messages={messages} ready />)
 
     const log = screen.getByRole("log", { name: "Messages" })
     expect(log.querySelectorAll("[data-message-id]")).toHaveLength(messages.length)
@@ -33,7 +33,7 @@ describe("MessageList", () => {
       connectionId: "conn-local",
       projectId: "proj-hena",
     })
-    render(<MessageList messages={messages} />)
+    render(<MessageList messages={messages} ready />)
     const log = screen.getByRole("log", { name: "Messages" })
     expect(log.querySelectorAll('[data-scroll-anchor="true"]')).toHaveLength(
       messages.filter((message) => message.role === "user").length,

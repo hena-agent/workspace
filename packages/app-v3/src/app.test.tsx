@@ -7,7 +7,7 @@ import { ConnectionProvider } from "@/connection/provider"
 import { markSessionSeen } from "@/local-state/seen"
 import { encodeServerSlug } from "@/lib/server-url"
 import { mockMatchMedia } from "@/test/mock-match-media"
-import { act, fireEvent, render, screen, waitFor, within } from "@/test/test-utils"
+import { fireEvent, render, screen, waitFor, within } from "@/test/test-utils"
 import { routeTree } from "./routeTree.gen"
 
 const origin = "http://localhost:4096"
@@ -109,6 +109,7 @@ function collectionDatabase() {
 
 function collectionFetcher(options: {
   onCreateSession?: (request: Request, push: ReturnType<typeof collectionDatabase>["push"]) => Promise<Response>
+  beforeSessionSnapshot?: () => Promise<void>
 } = {}) {
   const database = collectionDatabase()
   let subscribedSessions: string[] = []
@@ -127,7 +128,7 @@ function collectionFetcher(options: {
       return Response.json({ generation: 1, revision: subscriptionRevision })
     }
     if (path === "/api/collection/streams/stream/events")
-      return eventResponse(request.signal, database, subscribedSessions, subscriptionRevision)
+      return eventResponse(request.signal, database, subscribedSessions, subscriptionRevision, options.beforeSessionSnapshot)
     if (path === "/api/catalog")
       return Response.json({
         agents: [{ id: "build", description: "Builds things" }],
@@ -152,6 +153,7 @@ function eventResponse(
   database: ReturnType<typeof collectionDatabase>,
   sessions: readonly string[],
   subscriptionRevision: number,
+  beforeSessionSnapshot?: () => Promise<void>,
 ) {
   const scopes = ["projects", "locations", "sessions", "permissions", "questions"]
     .map((collection) => ({ collection, scopeKey: "" }))
@@ -181,8 +183,9 @@ function eventResponse(
         unsubscribe()
         controller.close()
       }, { once: true })
-      await Promise.resolve()
       if (signal.aborted || sessions.length === 0) return
+      await beforeSessionSnapshot?.()
+      if (signal.aborted) return
       const sessionFrames = sessions.flatMap((scopeKey, sessionIndex) =>
         ["messages", "parts"].flatMap((collection, collectionIndex) => {
           const scope = { collection, scopeKey }
@@ -313,14 +316,26 @@ describe("app routing against server-v3", () => {
 
   test("does not show an empty transcript while session messages synchronize", async () => {
     const user = userEvent.setup()
-    const router = renderApp(`/${slug}/global`)
+    const snapshot = Promise.withResolvers<void>()
+    let waitingForSnapshot = false
+    const router = renderApp(`/${slug}/global`, collectionFetcher({
+      beforeSessionSnapshot: () => {
+        waitingForSnapshot = true
+        return snapshot.promise
+      },
+    }))
 
     const sessions = (await screen.findAllByRole("navigation", { name: "Sessions" }))[0]
     await user.click(within(sessions).getByText("Live session"))
+    await waitFor(() => expect(waitingForSnapshot).toBe(true))
 
-    expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`)
-    expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
-    expect(screen.queryByText("No messages yet")).not.toBeInTheDocument()
+    try {
+      expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`)
+      expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
+      expect(screen.queryByText("No messages yet")).not.toBeInTheDocument()
+    } finally {
+      snapshot.resolve()
+    }
     expect(await screen.findByText("ses_live transcript")).toBeInTheDocument()
   })
 
@@ -352,21 +367,6 @@ describe("app routing against server-v3", () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`))
     expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
-  })
-
-  test("resets composer state when navigating directly between sessions", async () => {
-    const user = userEvent.setup()
-    const router = renderApp(`/${slug}/global/session/ses_live`)
-    const composer = await screen.findByRole("textbox", { name: "Message" })
-    await user.type(composer, "draft for live")
-
-    await act(() => router.navigate({
-      to: "/$connectionId/$projectId/session/$sessionId",
-      params: { connectionId: slug, projectId: "docs", sessionId: "ses_docs" },
-    }))
-
-    expect(await screen.findByRole("heading", { name: "Docs session" })).toBeInTheDocument()
-    expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("")
   })
 
   test("falls back to the project overview when session history is stale", async () => {

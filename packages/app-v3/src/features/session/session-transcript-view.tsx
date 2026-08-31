@@ -23,7 +23,7 @@ import type { DraftBody } from "@/local-state/drafts"
 export function SessionTranscriptView({
   session,
   messages,
-  messagesReady = true,
+  messagesReady,
   todos,
   permissionRequest,
   questionRequest,
@@ -54,7 +54,7 @@ export function SessionTranscriptView({
 }: {
   session: Session
   messages: SessionMessage[]
-  messagesReady?: boolean
+  messagesReady: boolean
   todos: Todo[]
   permissionRequest?: PermissionRequest
   questionRequest?: QuestionRequest

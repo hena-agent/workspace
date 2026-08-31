@@ -33,7 +33,6 @@ function SessionTranscriptRoute() {
   const queue = useQueuedInputs(agent, sessionId)
   const sessionsReady = useCollectionReady(agent, "sessions")
   const messagesReady = useCollectionReady(agent, "messages", sessionId)
-  const partsReady = useCollectionReady(agent, "parts", sessionId)
   const sessionFiles = useSessionFiles()
   const [agentId, setAgentId] = useState("")
   const [modelId, setModelId] = useState("")
@@ -67,7 +66,7 @@ function SessionTranscriptRoute() {
         <SessionTranscriptView
           session={session}
           messages={messages}
-          messagesReady={messagesReady && partsReady}
+          messagesReady={messagesReady}
           todos={todos}
           permissionRequest={permission}
           questionRequest={question}

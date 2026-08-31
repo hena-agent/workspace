@@ -17,6 +17,7 @@ import type {
   FileNode,
 } from "@/lib/types"
 import { createConnectionStore, type DeltaIdentity } from "@/connection/store"
+import { isTranscriptCurrent } from "@/connection/transcript"
 import { getMutationStateVersion, isMessagePending, subscribeMutationState } from "@/mutations/session"
 import { useSeenWatermarks, wasSeenAfter } from "@/local-state/seen"
 
@@ -99,9 +100,11 @@ export function useSessionLocation(agent: ReturnTypeOfAgent | undefined, id: str
 }
 
 export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
-  const messagesReady = useCollectionReady(agent, "messages", sessionId)
-  const partsReady = useCollectionReady(agent, "parts", sessionId)
-  const ready = messagesReady && partsReady
+  const ready = useSyncExternalStore(
+    agent ? agent.store.subscribe : emptySubscribe,
+    () => agent ? isTranscriptCurrent(agent.store, sessionId) : false,
+    () => false,
+  )
   useSyncExternalStore(subscribeMutationState, getMutationStateVersion, getMutationStateVersion)
   useSyncExternalStore(
     agent ? (listener) => agent.store.subscribeDeltaIdentities(sessionId, listener) : emptySubscribe,
@@ -234,8 +237,8 @@ function useTranscriptRows(agent: ReturnTypeOfAgent | undefined, sessionId: stri
   // TanStack mutates live collection data without changing its array identity.
   const result = useLiveQuery((agent?.store ?? emptyStore).transcript(sessionId))
   return (result.data ?? []).reduce<{ messages: Record<string, unknown>[]; parts: Record<string, unknown>[] }>((rows, item) => {
-    if (item.__source === "messages") rows.messages.push(item.row)
-    if (item.__source === "parts") rows.parts.push(item.row)
+    if (item.__key.startsWith("messages\u0000")) rows.messages.push(item.row)
+    if (item.__key.startsWith("parts\u0000")) rows.parts.push(item.row)
     return rows
   }, { messages: [], parts: [] })
 }

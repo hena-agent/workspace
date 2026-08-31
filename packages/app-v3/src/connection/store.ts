@@ -2,7 +2,7 @@ import { createCollection } from "@tanstack/db"
 import { isTranscriptCollection, TranscriptCollections } from "./transcript"
 
 type Row = Record<string, unknown>
-type StoredRow = { __key: string; __revision?: string; __source?: "messages" | "parts"; row: Row }
+type StoredRow = { __key: string; __revision?: string; row: Row }
 type ScopeControl = {
   begin: () => void
   write: (change:
@@ -80,7 +80,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
     for (const key of Array.from(transcript.collection.keys())) transcript.control.write({ type: "delete", key })
     TranscriptCollections.forEach((collection) => {
       scopes.get(scopeIdentity(collection, sessionId))?.authoritative.forEach((item) => {
-        const value = { ...item, __key: `${collection}\u0000${item.__key}`, __source: collection }
+        const value = { ...item, __key: `${collection}\u0000${item.__key}` }
         transcript.authoritative.set(value.__key, value)
         transcript.control.write({ type: "insert", value })
       })
@@ -125,7 +125,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
       }
       const item = scopes.get(scopeIdentity(change.collection, sessionId))?.authoritative.get(wireKey(change.rowKey))
       if (!item) return
-      const value = { ...item, __key: key, __source: change.collection as "messages" | "parts" }
+      const value = { ...item, __key: key }
       transcript.authoritative.set(key, value)
       transcript.control.write(transcript.collection.has(key) ? { type: "update", key, value } : { type: "insert", value })
     })
@@ -450,15 +450,6 @@ export function createConnectionStore(options: StoreOptions = {}) {
       })
       new Set(reset.flatMap((scope) => isTranscriptCollection(scope.ref.collection) ? [scope.ref.scopeKey] : [])).forEach(clearDeltasForSession)
       if (reset.length > 0) notify()
-    },
-    dropScope(collection: string, scopeKey: string) {
-      const key = scopeIdentity(collection, scopeKey)
-      const scope = scopes.get(key)
-      if (!scope) return
-      scopes.delete(key)
-      void scope.collection.cleanup()
-      if (isTranscriptCollection(collection)) publishTranscript(scopeKey)
-      notify()
     },
     dropSession(sessionId: string) {
       ;["messages", "parts", "sessionInputs", "todos"].forEach((collection) => {

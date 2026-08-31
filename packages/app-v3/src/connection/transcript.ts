@@ -19,7 +19,7 @@ export function coupledTranscriptScopes(scopes: readonly ScopeRef[]) {
   return Array.from(result.values())
 }
 
-export function isTranscriptReady(store: { isReady(collection: string, scopeKey: string): boolean }, sessionId: string) {
+function isTranscriptReady(store: { isReady(collection: string, scopeKey: string): boolean }, sessionId: string) {
   return TranscriptCollections.every((collection) => store.isReady(collection, sessionId))
 }
 

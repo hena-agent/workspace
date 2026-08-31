@@ -139,7 +139,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   }
 
   async function putSubscription() {
-    if (!resource) return false
+    if (!resource) return
     new Set(store.scopeRefs().flatMap((scope) =>
       isTranscriptCollection(scope.collection) ? [scope.scopeKey] : [],
     )).forEach((sessionId) => {

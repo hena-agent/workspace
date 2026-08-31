@@ -52,6 +52,29 @@ test("transcript rows wait for both message and part snapshots", async () => {
   act(() => agent.dispose())
 })
 
+test("empty transcripts return to a busy state while resynchronizing", async () => {
+  const agent = createConnectionAgent("http://hena.test")
+  agent.store.applySnapshot("messages", "session-1", [], 1)
+  agent.store.applySnapshot("parts", "session-1", [], 1)
+
+  function View() {
+    const transcript = useMessages(agent, "session-1")
+    return <MessageList messages={transcript.messages} ready={transcript.ready} />
+  }
+
+  render(<View />)
+  expect(await screen.findByText("No messages yet")).toBeVisible()
+
+  act(() => agent.store.resetCursors([
+    { collection: "messages", scopeKey: "session-1" },
+    { collection: "parts", scopeKey: "session-1" },
+  ]))
+
+  await waitFor(() => expect(screen.queryByText("No messages yet")).toBeNull())
+  expect(screen.getByRole("log", { name: "Messages" })).toHaveAttribute("aria-busy", "true")
+  act(() => agent.dispose())
+})
+
 test("paired snapshot publication keeps the previous live-query transcript until both commits", async () => {
   const agent = createConnectionAgent("http://hena.test")
   agent.store.applySnapshot("messages", "session-1", [{

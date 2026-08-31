@@ -25,8 +25,8 @@ export function MessageList({
     <MessageScrollerProvider autoScroll defaultScrollPosition="last-anchor">
       <MessageScroller className="min-h-0 flex-1">
         <MessageScrollerViewport>
-          <MessageScrollerContent aria-label="Messages" aria-busy={working} className="gap-0 py-2">
-            {ready && messages.length === 0 && !working ? (
+          <MessageScrollerContent aria-label="Messages" aria-busy={working || !ready} className="gap-0 py-2">
+            {!ready ? null : messages.length === 0 && !working ? (
               <ConversationEmptyState title="No messages yet" description="Say something to get started." />
             ) : (
               <>

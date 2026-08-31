@@ -29,6 +29,11 @@ type Snapshot = {
   rows: Sync.SnapshotRow[]
   bufferedRows: Sync.RowsFrame[]
 }
+type AttachmentState = {
+  snapshots: Map<string, Snapshot>
+  activeSnapshots: Map<string, string>
+  bufferedDeltas: Map<string, Sync.DeltaFrame[]>
+}
 type Decoders = Awaited<ReturnType<typeof loadDecoders>>
 
 const SessionCollections = ["messages", "parts", "sessionInputs", "todos"] as const
@@ -46,9 +51,6 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   })
   const listeners = new Set<() => void>()
   const linger = new Array<string>()
-  const snapshots = new Map<string, Snapshot>()
-  const activeSnapshots = new Map<string, string>()
-  const bufferedDeltas = new Map<string, Sync.DeltaFrame[]>()
   let focusedSession: string | undefined
   let status: ConnectionStatus = "idle"
   let lastSyncAt: number | undefined
@@ -168,6 +170,11 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
 
   async function attach(generation: number) {
     if (!resource) return
+    const attachment: AttachmentState = {
+      snapshots: new Map(),
+      activeSnapshots: new Map(),
+      bufferedDeltas: new Map(),
+    }
     abort = new AbortController()
     let liveness: ReturnType<typeof setTimeout> | undefined
     let livenessExpired = false
@@ -208,21 +215,18 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
         }
         if (decoded.runtimeId !== resource.feed.runtimeId)
           resource = { ...resource, feed: { ...resource.feed, runtimeId: decoded.runtimeId } }
-        applyFrame(decoded)
+        applyFrame(decoded, attachment)
         touch()
         setStatus("live")
       }
     } finally {
       if (liveness) clearTimeout(liveness)
       abort = undefined
-      snapshots.clear()
-      activeSnapshots.clear()
-      bufferedDeltas.clear()
     }
     if (livenessExpired) throw new Error("Collection stream became silent")
   }
 
-  function applyFrame(frame: StreamFrame) {
+  function applyFrame(frame: StreamFrame, attachment: AttachmentState) {
     if (frame.type === "heartbeat" || frame.type === "stream.ready") return
     if (frame.type === "error") {
       if (frame.code === "unsupported_protocol") throw new TerminalError("upgrade-required")
@@ -237,56 +241,56 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     }
     if (frame.type === "snapshot.begin") {
       const identity = scopeIdentity(frame.scope)
-      if (activeSnapshots.has(identity) || snapshots.has(frame.snapshotId)) throw new TerminalError("error")
-      snapshots.set(frame.snapshotId, {
+      if (attachment.activeSnapshots.has(identity) || attachment.snapshots.has(frame.snapshotId)) throw new TerminalError("error")
+      attachment.snapshots.set(frame.snapshotId, {
         scope: frame.scope,
         baseSeq: frame.baseSeq,
         replace: frame.replace,
         rows: [],
         bufferedRows: [],
       })
-      activeSnapshots.set(identity, frame.snapshotId)
+      attachment.activeSnapshots.set(identity, frame.snapshotId)
       return
     }
     if (frame.type === "snapshot.page") {
-      const snapshot = snapshots.get(frame.snapshotId)
+      const snapshot = attachment.snapshots.get(frame.snapshotId)
       if (!snapshot || scopeIdentity(snapshot.scope) !== scopeIdentity(frame.scope)) throw new TerminalError("error")
       snapshot.rows.push(...frame.rows)
       return
     }
     if (frame.type === "snapshot.end") {
-      const snapshot = snapshots.get(frame.snapshotId)
+      const snapshot = attachment.snapshots.get(frame.snapshotId)
       if (!snapshot || scopeIdentity(snapshot.scope) !== scopeIdentity(frame.scope)) throw new TerminalError("error")
       const keys = new Set(snapshot.rows.map((row) => wireKey(row.key)))
       if (keys.size !== frame.keyCount || snapshot.rows.length !== frame.keyCount || snapshot.baseSeq !== frame.throughSeq)
         throw new TerminalError("error")
       store.applySnapshot(snapshot.scope.collection, snapshot.scope.scopeKey, snapshot.rows, frame.throughSeq, snapshot.replace)
-      snapshots.delete(frame.snapshotId)
-      activeSnapshots.delete(scopeIdentity(snapshot.scope))
+      attachment.snapshots.delete(frame.snapshotId)
+      attachment.activeSnapshots.delete(scopeIdentity(snapshot.scope))
       snapshot.bufferedRows.forEach((rows) => applyRows({
         ...rows,
         changes: rows.changes.filter((change) => change.seq > frame.throughSeq),
       }))
-      flushDeltas(snapshot.scope.scopeKey)
+      flushDeltas(snapshot.scope.scopeKey, attachment)
       return
     }
     if (frame.type === "rows") {
       const buffered = new Set<string>()
       frame.changes.forEach((change) => {
-        const snapshotId = activeSnapshots.get(scopeIdentity(change))
+        const snapshotId = attachment.activeSnapshots.get(scopeIdentity(change))
         if (!snapshotId || buffered.has(snapshotId)) return
-        snapshots.get(snapshotId)?.bufferedRows.push(frame)
+        attachment.snapshots.get(snapshotId)?.bufferedRows.push(frame)
         buffered.add(snapshotId)
       })
-      const changes = frame.changes.filter((change) => !activeSnapshots.has(scopeIdentity(change)))
+      const changes = frame.changes.filter((change) => !attachment.activeSnapshots.has(scopeIdentity(change)))
       if (changes.length > 0) applyRows({ ...frame, changes })
       return
     }
     if (!claimedSessions().includes(frame.sessionId)) return
-    if (sessionHasSnapshot(frame.sessionId)) {
-      const pending = bufferedDeltas.get(frame.sessionId) ?? []
+    if (sessionHasSnapshot(frame.sessionId, attachment)) {
+      const pending = attachment.bufferedDeltas.get(frame.sessionId) ?? []
       pending.push(frame)
-      bufferedDeltas.set(frame.sessionId, pending)
+      attachment.bufferedDeltas.set(frame.sessionId, pending)
       return
     }
     store.applyDelta(frame)
@@ -296,14 +300,14 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     store.applyRows({ throughSeq: frame.throughSeq, changes: frame.changes as readonly Change[] })
   }
 
-  function sessionHasSnapshot(sessionId: string) {
-    return SessionCollections.some((collection) => activeSnapshots.has(scopeIdentity({ collection, scopeKey: sessionId })))
+  function sessionHasSnapshot(sessionId: string, attachment: AttachmentState) {
+    return SessionCollections.some((collection) => attachment.activeSnapshots.has(scopeIdentity({ collection, scopeKey: sessionId })))
   }
 
-  function flushDeltas(sessionId: string) {
-    if (sessionHasSnapshot(sessionId)) return
-    bufferedDeltas.get(sessionId)?.forEach((delta) => store.applyDelta(delta))
-    bufferedDeltas.delete(sessionId)
+  function flushDeltas(sessionId: string, attachment: AttachmentState) {
+    if (sessionHasSnapshot(sessionId, attachment)) return
+    attachment.bufferedDeltas.get(sessionId)?.forEach((delta) => store.applyDelta(delta))
+    attachment.bufferedDeltas.delete(sessionId)
   }
 
   return {

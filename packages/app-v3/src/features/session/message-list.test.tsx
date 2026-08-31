@@ -15,6 +15,16 @@ describe("MessageList", () => {
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument()
   })
 
+  test("does not show partial messages before their parts are synchronized", () => {
+    const messages = listMessages({
+      sessionId: "sess-transcript",
+      connectionId: "conn-local",
+      projectId: "proj-hena",
+    })
+    render(<MessageList messages={messages} ready={false} />)
+    expect(screen.getByRole("log", { name: "Messages" }).querySelector("[data-message-id]")).toBeNull()
+  })
+
   test("renders every message in the log in order", () => {
     const messages = listMessages({
       sessionId: "sess-transcript",

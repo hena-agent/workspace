@@ -51,7 +51,7 @@ describe("connection protocol", () => {
     ])
   })
 
-  test("bounds retained sessions below the protocol subscription limit", async () => {
+  test("retains the focused session and eight recent sessions", async () => {
     const subscriptions: { sessions?: string[] }[] = []
     const agent = createConnectionAgent("http://hena.test", async (input, init) => {
       const request = new Request(input, init)

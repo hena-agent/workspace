@@ -11,6 +11,18 @@ describe("connection store", () => {
     expect(store.isReady("projects")).toBe(true)
   })
 
+  test("marks a collection unready when its scope resets", () => {
+    const store = createConnectionStore()
+    store.applySnapshot("messages", "session-1", [], 1)
+
+    store.applyRows({
+      throughSeq: 2,
+      changes: [{ seq: 2, collection: "messages", scopeKey: "session-1", rowKey: [], op: "reset", row: null }],
+    })
+
+    expect(store.isReady("messages", "session-1")).toBe(false)
+  })
+
   test("publishes a replacement snapshot atomically", () => {
     const store = createConnectionStore()
     store.applySnapshot("projects", "", [

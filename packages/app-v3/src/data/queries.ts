@@ -37,6 +37,12 @@ export function useCollectionReady(agent: ReturnTypeOfAgent | undefined, collect
   )
 }
 
+export function useMessagesReady(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
+  const messagesReady = useCollectionReady(agent, "messages", sessionId)
+  const partsReady = useCollectionReady(agent, "parts", sessionId)
+  return messagesReady && partsReady
+}
+
 export function useFileTree(agent: ReturnTypeOfAgent | undefined, location: { directory: string; workspaceID?: string } | undefined, path?: string) {
   return useQuery({
     queryKey: [agent?.url, "fs.list", location?.directory, location?.workspaceID, path],

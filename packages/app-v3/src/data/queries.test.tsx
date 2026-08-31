@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { act, render, screen, waitFor } from "@testing-library/react"
 import { createConnectionAgent } from "@/connection/agent"
 import { MessageList } from "@/features/session/message-list"
-import { useMessages } from "./queries"
+import { useMessages, useMessagesReady } from "./queries"
 
 test("message views use their collection scope as the session id", async () => {
   const agent = createConnectionAgent("http://hena.test")
@@ -20,6 +20,31 @@ test("message views use their collection scope as the session id", async () => {
     await Bun.sleep(0)
   })
   expect(await screen.findByText("session-1")).toBeVisible()
+  act(() => agent.dispose())
+})
+
+test("transcript rows wait for both message and part snapshots", async () => {
+  const agent = createConnectionAgent("http://hena.test")
+
+  function View() {
+    return <MessageList messages={useMessages(agent, "session-1")} ready={useMessagesReady(agent, "session-1")} />
+  }
+
+  render(<View />)
+  await act(async () => {
+    agent.store.applySnapshot("messages", "session-1", [{
+      key: "message-1",
+      row: { id: "message-1", type: "user", text: "Snapshot complete", time: { created: 1 } },
+    }], 1)
+    await Bun.sleep(0)
+  })
+  expect(screen.queryByText("Snapshot complete")).not.toBeInTheDocument()
+
+  await act(async () => {
+    agent.store.applySnapshot("parts", "session-1", [], 1)
+    await Bun.sleep(0)
+  })
+  expect(await screen.findByText("Snapshot complete")).toBeVisible()
   act(() => agent.dispose())
 })
 

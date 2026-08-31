@@ -191,6 +191,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
         }
         if (change.op === "reset") {
           scope.authoritative.clear()
+          scope.ready = false
           for (const key of Array.from(scope.collection.keys())) scope.control.write({ type: "delete", key })
           if (change.collection === "messages") clearDeltasForSession(change.scopeKey)
           if (change.collection === "parts") clearPartDeltas(change.scopeKey)

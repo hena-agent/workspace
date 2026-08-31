@@ -11,9 +11,9 @@ export function replaceSettingOptimistically(agent: ConnectionAgent, input: { sc
       const result = await requestQueueable(() => agent.client.api.settings[":scope"][":key"].$put({
           param: { scope: encodeURIComponent(input.scope), key: input.key },
           json: { idempotencyKey, expectedRevision: current?.__revision, value: input.value },
-        }))
+      }))
       const acknowledged = receipt(result)
-      await awaitAuthoritative(agent, acknowledged)
+      await agent.store.awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes)
     },
   })
   transaction.mutate(() => {
@@ -27,13 +27,4 @@ export function replaceSettingOptimistically(agent: ConnectionAgent, input: { sc
     collection.insert({ __key: input.key, row: { key: input.key, scope: input.scope, value: input.value } })
   })
   return transaction.isPersisted.promise
-}
-
-function awaitAuthoritative(agent: ConnectionAgent, acknowledged: { readonly txid: string; readonly affectedScopes: readonly { readonly collection: string; readonly scopeKey: string }[] }) {
-  const awaitTxid = agent.store.awaitTxid as unknown as (
-    txid: string,
-    timeoutMs: number,
-    affectedScopes: readonly { collection: string; scopeKey: string }[],
-  ) => Promise<void>
-  return awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes)
 }

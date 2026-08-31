@@ -109,7 +109,6 @@ export type RunOpts = SpawnOpts & {
 // server actually bound to (port 0 means OS-assigned) is parsed off stdout.
 export type ServeOpts = SpawnOpts & {
   readonly port?: number
-  readonly hostname?: string
   readonly extraArgs?: string[]
   // How long to wait for the "listening on http://..." line before failing.
   // Default 30s — startup is dominated by bun's transpile + plugin init, not
@@ -316,7 +315,6 @@ export function withCliFixture<A, E>(
       // Default port 0 — let the OS pick a free port, parse the actual one
       // off stdout. Hard-coded ports flake under parallel tests.
       argv.push("--port", String(opts?.port ?? 0))
-      if (opts?.hostname) argv.push("--hostname", opts.hostname)
       if (opts?.extraArgs) argv.push(...opts.extraArgs)
 
       // Acquire the subprocess; release sends SIGTERM and awaits exit on

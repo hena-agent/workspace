@@ -71,7 +71,8 @@ Replace `<platform>` with your platform (e.g., `darwin-arm64`, `linux-x64`).
 
 - Core pieces:
   - `packages/hena`: Hena core business logic & server.
-  - `packages/app`: The shared web UI components, written in SolidJS
+  - `packages/app-v3`: The React web interface.
+  - `packages/server-v3`: The HTTP server and synchronization protocol.
   - `packages/desktop`: The native desktop app, built with Electron (wraps `packages/app`)
   - `packages/plugin`: Source for the compatible `@opencode-ai/plugin` SDK
 
@@ -82,26 +83,27 @@ During development, `bun dev` is the local equivalent of the built `hena` comman
 ```bash
 # Development (from project root)
 bun dev --help           # Show all available commands
-bun dev                  # Start headless API server
-bun dev serve            # Start headless API server explicitly
+bun dev                  # Start server-v3 and serve the built app-v3
+bun dev serve            # Same, explicitly
 bun dev web              # Start server + open web interface
 
 # Production
 hena --help          # Show all available commands
-hena                 # Start headless API server
-hena serve           # Start headless API server explicitly
+hena                 # Start server-v3 and its embedded app-v3
+hena serve           # Same, explicitly
 hena web             # Start server + open web interface
 ```
 
-### Running the API Server
+### Running Hena
 
-To start the Hena headless API server:
+Build app-v3 once, then start the server and UI on one origin:
 
 ```bash
+bun --cwd packages/app-v3 run build:embedded
 bun dev serve
 ```
 
-This starts the headless server on port 4096 by default. You can specify a different port:
+This starts Hena on port 4096 by default. You can specify a different port:
 
 ```bash
 bun dev serve --port 8080
@@ -109,16 +111,13 @@ bun dev serve --port 8080
 
 ### Running the Web App
 
-To test UI changes during development:
-
-1. **First, start the Hena server** (see [Running the API Server](#running-the-api-server) section above)
-2. **Then run the web app:**
+For app-v3 and server-v3 hot reloading, run this from the repository root:
 
 ```bash
-bun run --cwd packages/app dev
+bun run dev:v3
 ```
 
-This starts a local dev server at http://localhost:5173 (or similar port shown in output). Most UI changes can be tested here, but the server must be running for full functionality.
+Vite runs at `http://localhost:5173` and proxies `/api` to server-v3 at `http://127.0.0.1:4106`.
 
 ### Running the Desktop App
 

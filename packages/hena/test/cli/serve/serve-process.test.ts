@@ -1,5 +1,5 @@
 // Subprocess integration tests for `hena serve`. Spawns the real CLI in
-// headless mode and exercises it over HTTP — this is the only test tier that
+// mode and exercises it over HTTP — this is the only test tier that
 // catches bugs spanning argv → server boot → routing → instance loading.
 //
 // `serve` is long-lived: the harness returns a handle (url/port/kill/exited)
@@ -11,10 +11,10 @@ import { HttpClient } from "effect/unstable/http"
 import { cliIt } from "../../lib/cli-process"
 
 describe("hena serve (subprocess)", () => {
-  // Smoke test: server starts, binds a port, and /global/health responds.
+  // Smoke test: server starts, binds a port, and the v3 protocol responds.
   // If this fails, all other serve tests likely will too — debug here first.
   cliIt.live(
-    "starts, binds a port, and serves /global/health",
+    "starts, binds a port, and serves v3 capabilities",
     ({ hena }) =>
       Effect.gen(function* () {
         const server = yield* hena.serve()
@@ -22,13 +22,10 @@ describe("hena serve (subprocess)", () => {
         expect(server.url).toMatch(/^http:\/\//)
 
         const client = yield* HttpClient.HttpClient
-        const res = yield* client.get(`${server.url}/global/health`)
+        const res = yield* client.get(`${server.url}/api/collection/capabilities`)
         expect(res.status).toBe(200)
-        // GlobalHealth schema is { success: true, ... } | { success: false, error }.
-        // We don't lock in further shape here — any 200 with parseable JSON is
-        // enough proof the routing + auth-bypass + instance loading is alive.
         const body = yield* res.json
-        expect(body).toBeDefined()
+        expect(body).toMatchObject({ protocol: { min: 1, max: 1 }, auth: "none" })
       }),
     60_000,
   )

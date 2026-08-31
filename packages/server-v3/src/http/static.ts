@@ -1,16 +1,18 @@
 import { isAbsolute, normalize, resolve, sep } from "node:path"
 import { Hono } from "hono"
 
-export function createStaticRoutes(publicDir: string) {
+export type StaticFiles = Readonly<Record<string, string>>
+
+export function createStaticRoutes(input: { publicDir?: string; publicFiles?: StaticFiles }) {
   return new Hono().get("*", async (c) => {
     if (c.req.path.startsWith("/api")) return c.notFound()
     const pathname = decodePath(c.req.path)
     if (pathname === undefined) return c.notFound()
-    const index = Bun.file(resolve(publicDir, "index.html"))
-    const requested = safePath(publicDir, pathname)
-    const requestedFile = requested && await Bun.file(requested).exists() ? Bun.file(requested) : undefined
+    const index = await staticFile(input, "index.html")
+    const relative = safeRelativePath(pathname)
+    const requestedFile = relative === undefined ? undefined : await staticFile(input, relative)
     if (!requestedFile && isAssetPath(c.req.path)) return c.notFound()
-    const file = requestedFile ?? ((await index.exists()) ? index : undefined)
+    const file = requestedFile ?? index
     if (!file) return c.text("app-v3 is not built; run `bun run build` from packages/app-v3", 503)
     c.header("Cache-Control", cacheControl(c.req.path, file === index))
     return new Response(file, { headers: c.res.headers })
@@ -21,13 +23,21 @@ function isAssetPath(pathname: string) {
   return pathname.startsWith("/assets/") || pathname.split("/").at(-1)?.includes(".") === true
 }
 
-function safePath(root: string, pathname: string) {
+async function staticFile(input: { publicDir?: string; publicFiles?: StaticFiles }, relative: string) {
+  const embedded = input.publicFiles?.[relative]
+  if (embedded) return Bun.file(embedded)
+  if (!input.publicDir) return undefined
+  const file = Bun.file(resolve(input.publicDir, relative))
+  return (await file.exists()) ? file : undefined
+}
+
+function safeRelativePath(pathname: string) {
   const relative = normalize(pathname).replace(/^[/\\]+/, "")
-  const base = resolve(root)
-  const target = resolve(base, relative)
-  if (isAbsolute(relative) || target === base || !target.startsWith(base.endsWith(sep) ? base : `${base}${sep}`))
+  const root = resolve("/")
+  const target = resolve(root, relative)
+  if (isAbsolute(relative) || target === root || !target.startsWith(root.endsWith(sep) ? root : `${root}${sep}`))
     return undefined
-  return target
+  return relative
 }
 
 function decodePath(pathname: string) {

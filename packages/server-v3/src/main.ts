@@ -10,12 +10,19 @@ import { Flag } from "@hena/core/flag/flag"
 import { Global } from "@hena/core/global"
 import { ConfigV1 } from "@hena/core/v1/config/config"
 import { Option, Schema } from "effect"
+import type { StaticFiles } from "./http/static"
 
 export const Hostname = "127.0.0.1"
 
 if (import.meta.main) await start()
 
-export async function start(input?: { port?: number; publicDir?: string; corsOrigins?: readonly string[] }) {
+export async function start(input?: {
+  port?: number
+  publicDir?: string
+  publicFiles?: StaticFiles
+  corsOrigins?: readonly string[]
+  signals?: boolean
+}) {
   assertNoPassword()
   const corsOrigins = [...(await configuredCorsOrigins()), ...viteCorsOrigins(), ...(input?.corsOrigins ?? [])]
   const server = Bun.serve({
@@ -88,6 +95,7 @@ export async function start(input?: { port?: number; publicDir?: string; corsOri
         corsOrigins,
         logger: (record) => console.error(JSON.stringify(record)),
         publicDir: input?.publicDir ?? path.resolve(import.meta.dir, "../../app-v3/dist"),
+        publicFiles: input?.publicFiles,
       }).fetch,
     })
     const compaction = setInterval(() => database.compact(), 60 * 60_000)
@@ -104,8 +112,10 @@ export async function start(input?: { port?: number; publicDir?: string; corsOri
       })()
       return shutdown
     }
-    process.once("SIGINT", stop)
-    process.once("SIGTERM", stop)
+    if (input?.signals !== false) {
+      process.once("SIGINT", stop)
+      process.once("SIGTERM", stop)
+    }
     console.error(`server-v3 listening on ${server.url}`)
     return { server, stop }
   } catch (cause) {

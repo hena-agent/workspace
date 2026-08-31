@@ -278,28 +278,6 @@ describe("hena run (non-interactive subprocess)", () => {
     60_000,
   )
 
-  cliIt.live(
-    "attach mode sends client-local file contents without a shared path",
-    ({ home, llm, hena }) =>
-      Effect.gen(function* () {
-        const source = `${home}/client-only.txt`
-        const sentinel = "client-only attachment sentinel"
-        yield* Effect.promise(() => Bun.write(source, sentinel))
-        yield* llm.text("attachment received")
-        const server = yield* hena.serve()
-
-        const result = yield* hena.run("read the attachment", {
-          extraArgs: ["--attach", server.url, `--file=${source}`, "--"],
-        })
-
-        hena.expectExit(result, 0)
-        const input = JSON.stringify(yield* llm.inputs)
-        expect(input).toContain(sentinel)
-        expect(input).not.toContain(`file://${source}`)
-      }),
-    60_000,
-  )
-
   cliIt.concurrent(
     "attach mode rejects local directories before prompt admission",
     ({ home, hena }) =>

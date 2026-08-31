@@ -1,6 +1,5 @@
 import type { Argv, InferredOptionTypes } from "yargs"
 import { ConfigV1 } from "@hena/core/v1/config/config"
-import type { Config } from "@/config/config"
 import { Effect } from "effect"
 
 const options = {
@@ -32,10 +31,24 @@ const options = {
   },
 }
 
+const serverV3Options = {
+  port: {
+    type: "number" as const,
+    describe: "port to listen on",
+    default: 4096,
+  },
+  cors: options.cors,
+}
+
 export type NetworkOptions = InferredOptionTypes<typeof options>
+export type ServerV3NetworkOptions = InferredOptionTypes<typeof serverV3Options>
 
 export function withNetworkOptions<T>(yargs: Argv<T>) {
   return yargs.options(options)
+}
+
+export function withServerV3NetworkOptions<T>(yargs: Argv<T>) {
+  return yargs.options(serverV3Options)
 }
 
 export function hasArg(name: string) {
@@ -57,6 +70,19 @@ export const resolveNetworkOptions = Effect.fn("Cli.resolveNetworkOptions")(func
   const { Config } = yield* Effect.promise(() => import("@/config/config"))
   const config = yield* Config.Service.use((cfg) => cfg.getGlobal())
   return resolveNetworkOptionsNoConfig(args, config)
+})
+
+export const resolveServerV3NetworkOptions = Effect.fn("Cli.resolveServerV3NetworkOptions")(function* (
+  args: ServerV3NetworkOptions,
+) {
+  const { Config } = yield* Effect.promise(() => import("@/config/config"))
+  const config = yield* Config.Service.use((cfg) => cfg.getGlobal())
+  const configCors = config?.server?.cors ?? []
+  const argsCors = Array.isArray(args.cors) ? args.cors : args.cors ? [args.cors] : []
+  return {
+    port: hasArg("--port") ? args.port : (config?.server?.port ?? args.port),
+    cors: [...configCors, ...argsCors],
+  }
 })
 
 export function resolveNetworkOptionsNoConfig(args: NetworkOptions, config?: ConfigV1.Info) {

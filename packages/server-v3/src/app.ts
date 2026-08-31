@@ -16,11 +16,13 @@ import { createDeltaHub, type DeltaHub } from "./stream/delta"
 import { createOnlineRequestStore, type OnlineRequestStore } from "./core/online-requests"
 import { createOnlineRoutes } from "./routes/online"
 import { coreError, error, type ErrorCode } from "./http/error"
+import type { StaticFiles } from "./http/static"
 
 export function createApp(input: {
   database: SyncDatabase
   domain?: CoreDomain
   publicDir?: string
+  publicFiles?: StaticFiles
   corsOrigins?: readonly string[]
   deltas?: DeltaHub
   online?: OnlineRequestStore
@@ -86,8 +88,8 @@ export function createApp(input: {
     .route("/api", createCatalogRoutes(domain))
     .route("/api", createContentRoutes(input.database))
     .route("/api", createOnlineRoutes(domain))
-  if (!input.publicDir) return api
-  return api.route("/", createStaticRoutes(input.publicDir))
+  if (!input.publicDir && !input.publicFiles) return api
+  return api.route("/", createStaticRoutes({ publicDir: input.publicDir, publicFiles: input.publicFiles }))
 }
 
 type ErrorResponse = { error: { code: ErrorCode; message: string; details?: Record<string, unknown> } }

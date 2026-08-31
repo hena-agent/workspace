@@ -24,7 +24,7 @@ await Bun.build({
     HENA_CHANNEL: `'${Script.channel}'`,
   },
   files: {
-    "hena-web-ui.gen.ts": "",
+    "hena-web-ui.gen.ts": "export default undefined",
   },
 })
 

@@ -22,6 +22,18 @@ describe("serving", () => {
     expect(await response.text()).toBe("<main>app-v3</main>")
   })
 
+  test("serves embedded SPA routes", async () => {
+    database = createTestDatabase().database
+    const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
+    const index = `${directory}/index.html`
+    await Bun.write(index, "<main>embedded app-v3</main>")
+    const response = await createApp({ database, publicFiles: { "index.html": index } }).request("/session/id")
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get("cache-control")).toBe("no-cache")
+    expect(await response.text()).toBe("<main>embedded app-v3</main>")
+  })
+
   test("caches hashed assets immutably", async () => {
     database = createTestDatabase().database
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`

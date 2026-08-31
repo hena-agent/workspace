@@ -4,14 +4,12 @@ import { Question } from "@hena/schema/question"
 import { Session } from "@hena/schema/session"
 import { SessionMessage } from "@hena/schema/session-message"
 import type { ConnectionAgent } from "@/connection/agent"
-import type { UserMessage } from "@/lib/types"
 import { awaitReceipt, MutationError, mutationError, requestQueueable } from "./lifecycle"
 
 export type PromptFile = { uri: string; name?: string; description?: string }
 export type OnlineReplyResult = { outcome: "applied" | "already_resolved"; resolution: Record<string, unknown>; divergent: boolean }
 
 const pendingMessages = new Set<string>()
-const optimisticMessages = new Map<string, UserMessage[]>()
 const stoppingSessions = new Set<string>()
 const mutationListeners = new Set<() => void>()
 let mutationVersion = 0
@@ -27,26 +25,6 @@ export function getMutationStateVersion() {
 
 export function isMessagePending(messageID: string) {
   return pendingMessages.has(messageID)
-}
-
-export function listOptimisticMessages(agent: ConnectionAgent, sessionID: string) {
-  return optimisticMessages.get(stateKey(agent, sessionID)) ?? []
-}
-
-export function clearOptimisticMessages(agent: ConnectionAgent, sessionID: string, messageID?: string) {
-  const key = stateKey(agent, sessionID)
-  const messages = optimisticMessages.get(key)
-  if (!messages) return
-  if (!messageID) {
-    optimisticMessages.delete(key)
-    notifyMutationState()
-    return
-  }
-  const retained = messages.filter((message) => message.id !== messageID)
-  if (retained.length === messages.length) return
-  if (retained.length > 0) optimisticMessages.set(key, retained)
-  if (retained.length === 0) optimisticMessages.delete(key)
-  notifyMutationState()
 }
 
 export function isSessionStopping(agent: ConnectionAgent | undefined, sessionID: string) {
@@ -67,18 +45,10 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
   const created = Date.now()
   const idempotencyKey = crypto.randomUUID()
   const prompt = promptPayload(input.text, input.files)
+  const message = { id: messageID, sessionID, type: "user", text: input.text, files: input.files, time: { created } }
   const resolvedProjectID = Promise.withResolvers<string>()
   markPending(messageID, true)
-  markOptimistic(agent, {
-    id: messageID,
-    sessionId: sessionID,
-    createdAt: created,
-    role: "user",
-    text: input.text,
-    files: input.files?.map((file) => file.name || file.uri),
-    pending: true,
-    optimistic: true,
-  })
+  agent.store.stageLocalRow("messages", sessionID, messageID, message)
   const transaction = createTransaction({
     mutationFn: async () => {
       const result = await requestQueueable(() => agent.client.api.session.$post({
@@ -115,14 +85,14 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
     })
     agent.store.collection("messages", sessionID).insert({
       __key: messageID,
-      row: { id: messageID, sessionID, type: "user", text: input.text, files: input.files, time: { created } },
+      row: message,
     })
   })
   void transaction.isPersisted.promise.then(
     () => markPending(messageID, false),
     () => {
+      agent.store.dropLocalRow("messages", sessionID, messageID)
       markPending(messageID, false)
-      clearOptimisticMessages(agent, sessionID, messageID)
     },
   )
   return { sessionID, messageID, transaction, projectID: resolvedProjectID.promise }
@@ -140,18 +110,10 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
   const created = Date.now()
   const idempotencyKey = crypto.randomUUID()
   const prompt = promptPayload(input.text, input.files)
+  const message = { id: messageID, sessionID: input.sessionID, type: "user", text: input.text, files: input.files, time: { created } }
   if (input.delivery === "steer") {
     markPending(messageID, true)
-    markOptimistic(agent, {
-      id: messageID,
-      sessionId: input.sessionID,
-      createdAt: created,
-      role: "user",
-      text: input.text,
-      files: input.files?.map((file) => file.name || file.uri),
-      pending: true,
-      optimistic: true,
-    })
+    agent.store.stageLocalRow("messages", input.sessionID, messageID, message)
   }
   const transaction = createTransaction({
     mutationFn: async () => {
@@ -175,7 +137,7 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
     if (input.delivery === "steer") {
       agent.store.collection("messages", input.sessionID).insert({
         __key: messageID,
-        row: { id: messageID, sessionID: input.sessionID, type: "user", text: input.text, files: input.files, time: { created } },
+        row: message,
       })
       agent.store.collection("sessions", "").update(input.sessionID, (draft) => {
         draft.row = { ...draft.row, working: true }
@@ -198,8 +160,8 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
   void transaction.isPersisted.promise.then(
     () => markPending(messageID, false),
     () => {
+      agent.store.dropLocalRow("messages", input.sessionID, messageID)
       markPending(messageID, false)
-      clearOptimisticMessages(agent, input.sessionID, messageID)
     },
   )
   return { messageID, transaction }
@@ -402,12 +364,6 @@ function setStopping(agent: ConnectionAgent, sessionID: string, value: boolean) 
 function markPending(messageID: string, value: boolean) {
   if (value) pendingMessages.add(messageID)
   else pendingMessages.delete(messageID)
-  notifyMutationState()
-}
-
-function markOptimistic(agent: ConnectionAgent, message: UserMessage) {
-  const key = stateKey(agent, message.sessionId)
-  optimisticMessages.set(key, [...(optimisticMessages.get(key) ?? []), message])
   notifyMutationState()
 }
 

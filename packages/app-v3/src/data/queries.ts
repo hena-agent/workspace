@@ -1,6 +1,6 @@
 import { useLiveQuery } from "@tanstack/react-db"
 import { useQuery } from "@tanstack/react-query"
-import { useEffect, useSyncExternalStore } from "react"
+import { useSyncExternalStore } from "react"
 import type { ReturnTypeOfAgent } from "./types"
 import type {
   Agent,
@@ -17,7 +17,7 @@ import type {
   FileNode,
 } from "@/lib/types"
 import { createConnectionStore, type DeltaIdentity } from "@/connection/store"
-import { clearOptimisticMessages, getMutationStateVersion, isMessagePending, listOptimisticMessages, subscribeMutationState } from "@/mutations/session"
+import { getMutationStateVersion, isMessagePending, subscribeMutationState } from "@/mutations/session"
 import { useSeenWatermarks, wasSeenAfter } from "@/local-state/seen"
 
 const emptyStore = createConnectionStore()
@@ -110,19 +110,15 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
   )
   const messages = useRows(agent, "messages", sessionId)
   const parts = useRows(agent, "parts", sessionId)
-  const optimistic = agent && !ready ? listOptimisticMessages(agent, sessionId) : []
-  useEffect(() => {
-    if (agent && ready) clearOptimisticMessages(agent, sessionId)
-  }, [agent, ready, sessionId])
+  const localRows = agent?.store.localRows("messages", sessionId) ?? []
+  const localIDs = new Set(localRows.map((message) => string(message.id)))
   const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
-  const projected = messages
+  const projected = (ready ? messages : messages.filter((message) => localIDs.has(string(message.id))))
     .map((message) => messageView(agent, sessionId, message, parts, deltas))
-    .sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
   const known = new Set(projected.map((message) => message.id))
-  const local = optimistic.flatMap((message) => known.has(message.id) ? [] : [{
-    ...message,
-    pending: isMessagePending(message.id),
-  }])
+  const local = localRows.flatMap((message) => known.has(string(message.id))
+    ? []
+    : [messageView(agent, sessionId, message, parts, deltas)])
   const provisional = deltas
     .filter((delta) => !known.has(delta.messageId))
     .reduce<Extract<SessionMessage, { role: "assistant" }>[]>((result, delta) => {
@@ -278,7 +274,6 @@ function messageView(agent: ReturnTypeOfAgent | undefined, sessionId: string, ro
     sessionId,
     createdAt: number(record(row.time).created),
     pending: isMessagePending(string(row.id)),
-    optimistic: !agent?.store.isAuthoritative("messages", sessionId, string(row.id)),
   }
   if (type === "user") {
     const files = array(row.files).map((file) => string(record(file).name || record(file).uri))

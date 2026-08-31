@@ -21,22 +21,21 @@ export function MessageList({
   working?: boolean
   ready: boolean
 }) {
-  const visibleMessages = ready ? messages : messages.filter((message) => message.optimistic)
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="last-anchor">
       <MessageScroller className="min-h-0 flex-1">
         <MessageScrollerViewport>
           <MessageScrollerContent aria-label="Messages" aria-busy={working || !ready} className="gap-0 py-2">
-            {ready && visibleMessages.length === 0 && !working ? (
+            {ready && messages.length === 0 && !working ? (
               <ConversationEmptyState title="No messages yet" description="Say something to get started." />
             ) : (
               <>
-                {visibleMessages.map((message, index) => (
+                {messages.map((message, index) => (
                   <MessageScrollerItem key={message.id} messageId={message.id} scrollAnchor={message.role === "user"}>
-                    <MessageRow message={message} working={working && index === visibleMessages.length - 1} />
+                    <MessageRow message={message} working={working && index === messages.length - 1} />
                   </MessageScrollerItem>
                 ))}
-                {showsThinking(visibleMessages, working) ? (
+                {showsThinking(messages, working) ? (
                   <MessageScrollerItem>
                     <Marker role="status" className="px-6 py-3 md:px-7">
                       <MarkerContent><Shimmer>Thinking...</Shimmer></MarkerContent>

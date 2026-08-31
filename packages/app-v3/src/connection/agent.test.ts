@@ -100,6 +100,16 @@ describe("connection protocol", () => {
     await started
   })
 
+  test("does not carry local rows across agent recreation", () => {
+    const first = createConnectionAgent("http://hena.test")
+    first.store.stageLocalRow("messages", "session-1", "message-1", { id: "message-1" })
+    first.dispose()
+
+    const second = createConnectionAgent("http://hena.test")
+    expect(second.store.localRows("messages", "session-1")).toEqual([])
+    second.dispose()
+  })
+
   test("refuses servers whose protocol range excludes version one", async () => {
     const agent = createConnectionAgent("http://hena.test", async () =>
       Response.json({ feedId: "feed", protocol: { min: 2, max: 3 }, auth: "none" }))

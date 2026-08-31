@@ -94,6 +94,14 @@ export function createConnectionStore(options: StoreOptions = {}) {
       clearDelta(key)
     })
   }
+  const reconcileLocalMessages = (sessionId: string) => {
+    const messages = scopes.get(scopeIdentity("messages", sessionId))
+    const parts = scopes.get(scopeIdentity("parts", sessionId))
+    if (!messages?.ready || !parts?.ready) return
+    messages.local.forEach((_, key) => {
+      if (messages.authoritative.has(key)) messages.local.delete(key)
+    })
+  }
   const finalize = (collection: string, scopeKey: string, rowKey: string | readonly string[], row: Row | null) => {
     if (collection === "parts" && Array.isArray(rowKey) && rowKey.length === 3) {
       const partKind = rowKey[1] === "tool" ? "tool-input" : rowKey[1]
@@ -134,8 +142,17 @@ export function createConnectionStore(options: StoreOptions = {}) {
     authoritativeRows(collection: string, scopeKey = "") {
       return Array.from(getScope(collection, scopeKey).authoritative.values(), (item) => item.row)
     },
-    isAuthoritative: (collection: string, scopeKey: string, key: string | readonly string[]) =>
-      getScope(collection, scopeKey).authoritative.has(wireKey(key)),
+    localRows(collection: string, scopeKey = "") {
+      return Array.from(getScope(collection, scopeKey).local.values(), (item) => item.row)
+    },
+    stageLocalRow(collection: string, scopeKey: string, key: string | readonly string[], row: Row) {
+      getScope(collection, scopeKey).local.set(wireKey(key), stored(key, row))
+      notify()
+    },
+    dropLocalRow(collection: string, scopeKey: string, key: string | readonly string[]) {
+      if (!scopes.get(scopeIdentity(collection, scopeKey))?.local.delete(wireKey(key))) return
+      notify()
+    },
     cursor: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.cursor ?? 0,
     isReady: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.ready ?? false,
     scopeRefs: () => Array.from(scopes.values(), (scope) => scope.ref),
@@ -179,6 +196,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
         scope.control.markReady()
       }
       scope.cursor = throughSeq
+      if (collection === "messages" || collection === "parts") reconcileLocalMessages(scopeKey)
       notify()
     },
     applyRows(frame: { throughSeq: number; changes: readonly Change[] }) {
@@ -220,6 +238,9 @@ export function createConnectionStore(options: StoreOptions = {}) {
         scope.control.commit()
         scope.open = false
         scope.cursor = resetScopes.has(key) ? 0 : Math.max(scope.cursor, frame.throughSeq)
+      })
+      affected.forEach((scope) => {
+        if (scope.ref.collection === "messages" || scope.ref.collection === "parts") reconcileLocalMessages(scope.ref.scopeKey)
       })
       if (affected.size > 0) notify()
       const txids = frame.changes.flatMap((change) => change.txid ? [change.txid] : [])
@@ -397,6 +418,7 @@ function createScope(id: string) {
     ready: false,
     initialized: false,
     authoritative: new Map<string, StoredRow>(),
+    local: new Map<string, StoredRow>(),
     ref: { collection: id.slice(0, separator), scopeKey: id.slice(separator + 1) },
   }
 }

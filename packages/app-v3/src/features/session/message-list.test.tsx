@@ -15,16 +15,6 @@ describe("MessageList", () => {
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument()
   })
 
-  test("does not show partial messages before their parts are synchronized", () => {
-    const messages = listMessages({
-      sessionId: "sess-transcript",
-      connectionId: "conn-local",
-      projectId: "proj-hena",
-    })
-    render(<MessageList messages={messages} ready={false} />)
-    expect(screen.getByRole("log", { name: "Messages" }).querySelector("[data-message-id]")).toBeNull()
-  })
-
   test("shows optimistic messages while their snapshots are synchronized", () => {
     render(<MessageList messages={[{
       id: "message-1",
@@ -34,7 +24,6 @@ describe("MessageList", () => {
       text: "Pending prompt",
       files: [],
       pending: true,
-      optimistic: true,
     }]} working ready={false} />)
     expect(screen.getByText("Pending prompt")).toBeInTheDocument()
     expect(screen.getByText("You · Sending")).toBeInTheDocument()

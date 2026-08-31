@@ -1,4 +1,5 @@
 import { createCollection } from "@tanstack/db"
+import { isTranscriptCollection, isTranscriptCurrent, TranscriptCollections, TranscriptStatusKey } from "./transcript"
 
 type Row = Record<string, unknown>
 type StoredRow = { __key: string; __revision?: string; row: Row }
@@ -36,6 +37,7 @@ type StoreOptions = {
 
 export function createConnectionStore(options: StoreOptions = {}) {
   const scopes = new Map<string, ReturnType<typeof createScope>>()
+  const transcripts = new Map<string, ReturnType<typeof createScope>>()
   const listeners = new Set<() => void>()
   const waiters = new Map<string, Set<{ resolve: () => void; timer: ReturnType<typeof setTimeout> }>>()
   const recentTxids = new Set<string>()
@@ -44,7 +46,11 @@ export function createConnectionStore(options: StoreOptions = {}) {
   const deltaIdentityListeners = new Map<string, Set<() => void>>()
   const deltaIdentityRevisions = new Map<string, number>()
   const pendingDeltaNotifications = new Set<string>()
+  const pendingDeltaIdentityNotifications = new Set<string>()
+  const pendingTranscripts = new Set<string>()
   let deltaFrameScheduled = false
+  let batchDepth = 0
+  let pendingNotification = false
 
   const getScope = (collection: string, scopeKey: string) => {
     const key = scopeIdentity(collection, scopeKey)
@@ -54,7 +60,82 @@ export function createConnectionStore(options: StoreOptions = {}) {
     scopes.set(key, created)
     return created
   }
-  const notify = () => listeners.forEach((listener) => listener())
+  const isReady = (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.ready ?? false
+  const isSynchronizing = (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.synchronizing ?? false
+  const notify = () => {
+    if (batchDepth > 0) {
+      pendingNotification = true
+      return
+    }
+    listeners.forEach((listener) => listener())
+  }
+  const publishTranscript = (sessionId: string) => {
+    if (batchDepth > 0) {
+      pendingTranscripts.add(sessionId)
+      return
+    }
+    const transcript = transcripts.get(sessionId)
+    if (!transcript) return
+    if (!transcript.initialized && TranscriptCollections.some((collection) => !scopes.get(scopeIdentity(collection, sessionId))?.ready)) return
+    transcript.control.begin()
+    transcript.authoritative.clear()
+    for (const key of Array.from(transcript.collection.keys())) transcript.control.write({ type: "delete", key })
+    const status = { __key: TranscriptStatusKey, row: { ready: isTranscriptCurrent({ isReady, isSynchronizing }, sessionId) } }
+    transcript.authoritative.set(TranscriptStatusKey, status)
+    transcript.control.write({ type: "insert", value: status })
+    TranscriptCollections.forEach((collection) => {
+      scopes.get(scopeIdentity(collection, sessionId))?.authoritative.forEach((item) => {
+        const value = { ...item, __key: `${collection}\u0000${item.__key}` }
+        transcript.authoritative.set(value.__key, value)
+        transcript.control.write({ type: "insert", value })
+      })
+    })
+    transcript.control.commit()
+    if (transcript.initialized) return
+    transcript.initialized = true
+    transcript.ready = true
+    transcript.control.markReady()
+  }
+  const getTranscript = (sessionId: string) => {
+    const existing = transcripts.get(sessionId)
+    if (existing) return existing
+    const created = createScope(`transcript\u0000${sessionId}`)
+    transcripts.set(sessionId, created)
+    publishTranscript(sessionId)
+    return created
+  }
+  const publishTranscriptChanges = (sessionId: string, changes: readonly Change[]) => {
+    if (batchDepth > 0) {
+      pendingTranscripts.add(sessionId)
+      return
+    }
+    const transcript = transcripts.get(sessionId)
+    if (!transcript) return
+    transcript.control.begin()
+    changes.forEach((change) => {
+      const prefix = `${change.collection}\u0000`
+      if (change.op === "reset") {
+        Array.from(transcript.collection.keys()).forEach((key) => {
+          if (!key.startsWith(prefix)) return
+          transcript.authoritative.delete(key)
+          transcript.control.write({ type: "delete", key })
+        })
+        return
+      }
+      const key = `${prefix}${wireKey(change.rowKey)}`
+      if (change.op === "delete") {
+        transcript.authoritative.delete(key)
+        transcript.control.write({ type: "delete", key })
+        return
+      }
+      const item = scopes.get(scopeIdentity(change.collection, sessionId))?.authoritative.get(wireKey(change.rowKey))
+      if (!item) return
+      const value = { ...item, __key: key }
+      transcript.authoritative.set(key, value)
+      transcript.control.write(transcript.collection.has(key) ? { type: "update", key, value } : { type: "insert", value })
+    })
+    transcript.control.commit()
+  }
   const notifyDelta = (key: string) => {
     pendingDeltaNotifications.add(key)
     if (deltaFrameScheduled) return
@@ -67,6 +148,10 @@ export function createConnectionStore(options: StoreOptions = {}) {
     })
   }
   const notifyDeltaIdentities = (sessionId: string) => {
+    if (batchDepth > 0) {
+      pendingDeltaIdentityNotifications.add(sessionId)
+      return
+    }
     deltaIdentityRevisions.set(sessionId, (deltaIdentityRevisions.get(sessionId) ?? 0) + 1)
     deltaIdentityListeners.get(sessionId)?.forEach((listener) => listener())
   }
@@ -125,9 +210,23 @@ export function createConnectionStore(options: StoreOptions = {}) {
     const keys = Array.from(deltas.keys()).filter((key) => key.startsWith(prefix))
     keys.forEach(clearDelta)
   }
+  const settleReceipts = (changes: readonly Change[]) => {
+    changes.forEach((change) => {
+      const txid = change.txid
+      if (!txid) return
+      recentTxids.add(txid)
+      waiters.get(txid)?.forEach((waiter) => {
+        clearTimeout(waiter.timer)
+        waiter.resolve()
+      })
+      waiters.delete(txid)
+    })
+    while (recentTxids.size > 256) recentTxids.delete(recentTxids.values().next().value!)
+  }
 
   return {
     collection: (collection: string, scopeKey = "") => getScope(collection, scopeKey).collection,
+    transcript: (sessionId: string) => getTranscript(sessionId).collection,
     rows(collection: string, scopeKey = "") {
       return getScope(collection, scopeKey).collection.toArray.map((item) => item.row)
     },
@@ -135,11 +234,30 @@ export function createConnectionStore(options: StoreOptions = {}) {
       return Array.from(getScope(collection, scopeKey).authoritative.values(), (item) => item.row)
     },
     cursor: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.cursor ?? 0,
-    isReady: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.ready ?? false,
+    isReady,
+    isSynchronizing,
     scopeRefs: () => Array.from(scopes.values(), (scope) => scope.ref),
     subscribe(listener: () => void) {
       listeners.add(listener)
       return () => listeners.delete(listener)
+    },
+    batch(callback: () => void) {
+      batchDepth++
+      try {
+        callback()
+      } finally {
+        batchDepth--
+        if (batchDepth === 0) {
+          Array.from(pendingTranscripts).forEach(publishTranscript)
+          pendingTranscripts.clear()
+          Array.from(pendingDeltaIdentityNotifications).forEach(notifyDeltaIdentities)
+          pendingDeltaIdentityNotifications.clear()
+          if (pendingNotification) {
+            pendingNotification = false
+            notify()
+          }
+        }
+      }
     },
     applySnapshot(collection: string, scopeKey: string, rows: ReadonlyArray<{ key: string | readonly string[]; row: Row; revision?: string }>, throughSeq: number, replace = true) {
       const scope = getScope(collection, scopeKey)
@@ -171,19 +289,28 @@ export function createConnectionStore(options: StoreOptions = {}) {
           return key && deltas.has(key) ? [key] : []
         })))
       }
-      if (!scope.ready) {
-        scope.ready = true
+      scope.ready = true
+      scope.synchronizing = false
+      if (!scope.initialized) {
+        scope.initialized = true
         scope.control.markReady()
       }
       scope.cursor = throughSeq
+      if (isTranscriptCollection(collection)) publishTranscript(scopeKey)
       notify()
     },
     applyRows(frame: { throughSeq: number; changes: readonly Change[] }) {
       const affected = new Map<string, ReturnType<typeof createScope>>()
-      const resetScopes = new Map<string, ScopeRef>()
+      const resetScopes = new Set<string>()
+      const transcriptChanges = new Map<string, Change[]>()
       frame.changes.forEach((change) => {
         const scope = getScope(change.collection, change.scopeKey)
         if (change.seq <= scope.cursor) return
+        if (isTranscriptCollection(change.collection)) {
+          const changes = transcriptChanges.get(change.scopeKey) ?? []
+          changes.push(change)
+          transcriptChanges.set(change.scopeKey, changes)
+        }
         affected.set(scopeIdentity(change.collection, change.scopeKey), scope)
         if (!scope.open) {
           scope.control.begin()
@@ -191,10 +318,11 @@ export function createConnectionStore(options: StoreOptions = {}) {
         }
         if (change.op === "reset") {
           scope.authoritative.clear()
+          scope.ready = false
           for (const key of Array.from(scope.collection.keys())) scope.control.write({ type: "delete", key })
           if (change.collection === "messages") clearDeltasForSession(change.scopeKey)
           if (change.collection === "parts") clearPartDeltas(change.scopeKey)
-          resetScopes.set(scopeIdentity(change.collection, change.scopeKey), scope.ref)
+          resetScopes.add(scopeIdentity(change.collection, change.scopeKey))
           return
         }
         const key = wireKey(change.rowKey)
@@ -215,21 +343,13 @@ export function createConnectionStore(options: StoreOptions = {}) {
       affected.forEach((scope, key) => {
         scope.control.commit()
         scope.open = false
-        if (!resetScopes.has(key)) scope.cursor = Math.max(scope.cursor, frame.throughSeq)
+        scope.cursor = resetScopes.has(key) ? 0 : Math.max(scope.cursor, frame.throughSeq)
       })
+      transcriptChanges.forEach((changes, sessionId) => publishTranscriptChanges(sessionId, changes))
       if (affected.size > 0) notify()
-      const txids = frame.changes.flatMap((change) => change.txid ? [change.txid] : [])
-      txids.forEach((txid) => {
-        recentTxids.add(txid)
-        waiters.get(txid)?.forEach((waiter) => {
-          clearTimeout(waiter.timer)
-          waiter.resolve()
-        })
-        waiters.delete(txid)
-      })
-      while (recentTxids.size > 256) recentTxids.delete(recentTxids.values().next().value!)
-      return { resetScopes: Array.from(resetScopes.values()) }
+      settleReceipts(frame.changes)
     },
+    settleReceipts,
     awaitTxid(txid: string, timeoutMs = 10_000, affectedScopes?: readonly ScopeRef[]) {
       if (recentTxids.has(txid)) return Promise.resolve()
       return new Promise<void>((resolve) => {
@@ -326,19 +446,17 @@ export function createConnectionStore(options: StoreOptions = {}) {
     clearSessionDeltas(sessionId: string) {
       clearDeltasForSession(sessionId)
     },
-    dropCursors(targets?: readonly ScopeRef[]) {
+    resetCursors(targets?: readonly ScopeRef[]) {
       const identities = targets && new Set(targets.map((scope) => scopeIdentity(scope.collection, scope.scopeKey)))
-      scopes.forEach((scope, key) => {
-        if (!identities || identities.has(key)) scope.cursor = 0
+      const reset = Array.from(scopes.entries()).flatMap(([key, scope]) => !identities || identities.has(key) ? [scope] : [])
+      reset.forEach((scope) => {
+        scope.cursor = 0
+        scope.synchronizing = true
       })
-    },
-    dropScope(collection: string, scopeKey: string) {
-      const key = scopeIdentity(collection, scopeKey)
-      const scope = scopes.get(key)
-      if (!scope) return
-      scopes.delete(key)
-      void scope.collection.cleanup()
-      notify()
+      const transcriptSessions = new Set(reset.flatMap((scope) => isTranscriptCollection(scope.ref.collection) ? [scope.ref.scopeKey] : []))
+      transcriptSessions.forEach(clearDeltasForSession)
+      transcriptSessions.forEach(publishTranscript)
+      if (reset.length > 0) notify()
     },
     dropSession(sessionId: string) {
       ;["messages", "parts", "sessionInputs", "todos"].forEach((collection) => {
@@ -348,12 +466,19 @@ export function createConnectionStore(options: StoreOptions = {}) {
         scopes.delete(key)
         void scope.collection.cleanup()
       })
+      const transcript = transcripts.get(sessionId)
+      if (transcript) void transcript.collection.cleanup()
+      transcripts.delete(sessionId)
+      pendingTranscripts.delete(sessionId)
       this.clearSessionDeltas(sessionId)
       notify()
     },
     clear() {
       scopes.forEach((scope) => void scope.collection.cleanup())
       scopes.clear()
+      transcripts.forEach((scope) => void scope.collection.cleanup())
+      transcripts.clear()
+      pendingTranscripts.clear()
       Array.from(deltas.keys()).forEach(clearDelta)
       notify()
     },
@@ -375,6 +500,8 @@ function createScope(id: string) {
   let control: ScopeControl | undefined
   const collection = createCollection<StoredRow, string>({
     id: `hena:${id}`,
+    // The connection store owns scope eviction; zero disables TanStack's subscriber-based GC.
+    gcTime: 0,
     getKey: (item) => item.__key,
     sync: {
       sync: (input) => {
@@ -392,6 +519,9 @@ function createScope(id: string) {
     cursor: 0,
     open: false,
     ready: false,
+    synchronizing: false,
+    // TanStack collection readiness is one-shot; synchronization readiness may reset.
+    initialized: false,
     authoritative: new Map<string, StoredRow>(),
     ref: { collection: id.slice(0, separator), scopeKey: id.slice(separator + 1) },
   }

@@ -17,6 +17,7 @@ import type {
   FileNode,
 } from "@/lib/types"
 import { createConnectionStore, type DeltaIdentity } from "@/connection/store"
+import { transcriptRowCollection, TranscriptStatusKey } from "@/connection/transcript"
 import { getMutationStateVersion, isMessagePending, subscribeMutationState } from "@/mutations/session"
 import { useSeenWatermarks, wasSeenAfter } from "@/local-state/seen"
 
@@ -105,14 +106,21 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
     () => agent?.store.deltaIdentityRevision(sessionId) ?? 0,
     () => 0,
   )
-  const messages = useRows(agent, "messages", sessionId)
-  const parts = useRows(agent, "parts", sessionId)
+  useSyncExternalStore(
+    agent ? (listener) => agent.localMessages.subscribe(sessionId, listener) : emptySubscribe,
+    () => agent?.localMessages.revision(sessionId) ?? 0,
+    () => 0,
+  )
+  const transcript = useTranscriptRows(agent, sessionId)
+  const ready = transcript.ready
+  const localRows = agent?.localMessages.rows(sessionId) ?? []
   const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
-  const projected = messages
-    .map((message) => messageView(agent, sessionId, message, parts, deltas))
-    .sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
+  const projected = (ready ? transcript.messages : []).map((message) => messageView(agent, sessionId, message, transcript.parts, deltas))
   const known = new Set(projected.map((message) => message.id))
-  const provisional = deltas
+  const local = localRows.flatMap((message) => known.has(string(message.id))
+    ? []
+    : [messageView(agent, sessionId, message, transcript.parts, deltas)])
+  const provisional = (ready ? deltas : [])
     .filter((delta) => !known.has(delta.messageId))
     .reduce<Extract<SessionMessage, { role: "assistant" }>[]>((result, delta) => {
       const message = result.find((item) => item.id === delta.messageId)
@@ -120,7 +128,11 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
       if (!message) result.push({ id: delta.messageId, sessionId, createdAt: Number.MAX_SAFE_INTEGER, role: "assistant", parts: [deltaPartView(agent!, delta)] })
       return result
     }, [])
-  return [...projected, ...provisional]
+  return {
+    messages: [...projected, ...local, ...provisional]
+      .sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id)),
+    ready,
+  }
 }
 
 export function useTodos(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
@@ -216,6 +228,19 @@ function useRows(agent: ReturnTypeOfAgent | undefined, collection: string, scope
   return (result.data ?? []).map((item) => item.row)
 }
 
+function useTranscriptRows(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
+  "use no memo"
+  // TanStack mutates live collection data without changing its array identity.
+  const result = useLiveQuery((agent?.store ?? emptyStore).transcript(sessionId))
+  return (result.data ?? []).reduce<{ messages: Record<string, unknown>[]; parts: Record<string, unknown>[]; ready: boolean }>((rows, item) => {
+    if (item.__key === TranscriptStatusKey) rows.ready = item.row.ready === true
+    const collection = transcriptRowCollection(item.__key)
+    if (collection === "messages") rows.messages.push(item.row)
+    if (collection === "parts") rows.parts.push(item.row)
+    return rows
+  }, { messages: [], parts: [], ready: false })
+}
+
 function projectView(row: Record<string, unknown>, connectionId: string): Project {
   const time = record(row.time)
   const icon = record(row.icon)
@@ -258,7 +283,12 @@ function sessionView(row: Record<string, unknown>, permissions: Record<string, u
 
 function messageView(agent: ReturnTypeOfAgent | undefined, sessionId: string, row: Record<string, unknown>, parts: Record<string, unknown>[], deltas: VisibleDelta[]): SessionMessage {
   const type = string(row.type)
-  const base = { id: string(row.id), sessionId, createdAt: number(record(row.time).created), pending: isMessagePending(string(row.id)) }
+  const base = {
+    id: string(row.id),
+    sessionId,
+    createdAt: number(record(row.time).created),
+    pending: isMessagePending(string(row.id)),
+  }
   if (type === "user") {
     const files = array(row.files).map((file) => string(record(file).name || record(file).uri))
     return { ...base, role: "user", text: string(row.text), files: files.filter(Boolean) }

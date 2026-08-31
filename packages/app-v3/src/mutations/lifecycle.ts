@@ -1,3 +1,7 @@
+import { Sync } from "@hena/schema/sync"
+import { Schema } from "effect"
+import type { ConnectionAgent } from "@/connection/agent"
+
 export type MutationErrorCode =
   | "conflict"
   | "idempotency_conflict"
@@ -66,6 +70,11 @@ export function receipt(value: unknown) {
   return decoded.value
 }
 
+export async function awaitReceipt(agent: ConnectionAgent, value: unknown) {
+  const acknowledged = receipt(value)
+  await agent.store.awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes)
+}
+
 export function mutationError(value: unknown, status = 0) {
   const decoded = Schema.decodeUnknownOption(Sync.ErrorResponse)(value)
   if (decoded._tag === "None")
@@ -106,5 +115,3 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function delay(milliseconds: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, milliseconds))
 }
-import { Sync } from "@hena/schema/sync"
-import { Schema } from "effect"

@@ -5,9 +5,29 @@ import { listMessages } from "@/test/queries"
 
 describe("MessageList", () => {
   test("shows an empty state when there are no messages", () => {
-    render(<MessageList messages={[]} />)
+    render(<MessageList messages={[]} ready />)
     expect(screen.getByText("No messages yet")).toBeInTheDocument()
     expect(screen.getByText("Say something to get started.")).toBeInTheDocument()
+  })
+
+  test("does not show an empty state before messages are synchronized", () => {
+    render(<MessageList messages={[]} ready={false} />)
+    expect(screen.queryByText("No messages yet")).not.toBeInTheDocument()
+  })
+
+  test("shows optimistic messages while their snapshots are synchronized", () => {
+    render(<MessageList messages={[{
+      id: "message-1",
+      sessionId: "session-1",
+      createdAt: 1,
+      role: "user",
+      text: "Pending prompt",
+      files: [],
+      pending: true,
+    }]} working ready={false} />)
+    expect(screen.getByText("Pending prompt")).toBeInTheDocument()
+    expect(screen.getByText("You · Sending")).toBeInTheDocument()
+    expect(screen.getByText("Thinking...")).toBeInTheDocument()
   })
 
   test("renders every message in the log in order", () => {
@@ -16,7 +36,7 @@ describe("MessageList", () => {
       connectionId: "conn-local",
       projectId: "proj-hena",
     })
-    render(<MessageList messages={messages} />)
+    render(<MessageList messages={messages} ready />)
 
     const log = screen.getByRole("log", { name: "Messages" })
     expect(log.querySelectorAll("[data-message-id]")).toHaveLength(messages.length)
@@ -28,7 +48,7 @@ describe("MessageList", () => {
       connectionId: "conn-local",
       projectId: "proj-hena",
     })
-    render(<MessageList messages={messages} />)
+    render(<MessageList messages={messages} ready />)
     const log = screen.getByRole("log", { name: "Messages" })
     expect(log.querySelectorAll('[data-scroll-anchor="true"]')).toHaveLength(
       messages.filter((message) => message.role === "user").length,

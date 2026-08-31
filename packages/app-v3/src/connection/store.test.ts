@@ -1,14 +1,96 @@
 import { describe, expect, test } from "bun:test"
 import { createTransaction } from "@tanstack/db"
 import { createConnectionStore } from "./store"
+import { TranscriptStatusKey } from "./transcript"
 
 describe("connection store", () => {
+  test("batches canonical snapshot notifications", () => {
+    const store = createConnectionStore()
+    const observed: string[][] = []
+    store.subscribe(() => observed.push(store.rows("messages", "session-1").map((row) => String(row.id))))
+
+    store.batch(() => {
+      store.applySnapshot("messages", "session-1", [{ key: "message-1", row: { id: "message-1" } }], 1)
+      store.applySnapshot("parts", "session-1", [], 1)
+    })
+
+    expect(observed).toEqual([["message-1"]])
+  })
+
+  test("settles receipts for filtered recovery rows", async () => {
+    const store = createConnectionStore()
+    const settled = store.awaitTxid("txid", 100)
+    store.settleReceipts([{ seq: 1, collection: "messages", scopeKey: "session-1", rowKey: "", op: "reset", row: null, txid: "txid" }])
+
+    await settled
+  })
+
+  test("preserves canonical transcripts while resetting live state", () => {
+    const store = createConnectionStore()
+    const identity = { sessionId: "session-1", messageId: "message-1", partId: "part-1", partKind: "text" as const }
+    store.applySnapshot("messages", "session-1", [{ key: "message-1", row: { id: "message-1" } }], 1)
+    store.applySnapshot("parts", "session-1", [{
+      key: ["message-1", "text", "part-1"],
+      row: { id: "part-1", messageID: "message-1", type: "text", text: "Durable" },
+    }], 1)
+    store.transcript("session-1")
+    store.applyDelta({ ...identity, offset: 0, text: " live" })
+    let notifications = 0
+    store.subscribe(() => notifications++)
+
+    store.resetCursors([
+      { collection: "messages", scopeKey: "session-1" },
+      { collection: "parts", scopeKey: "session-1" },
+    ])
+
+    expect(store.rows("messages", "session-1")).toEqual([{ id: "message-1" }])
+    expect(store.rows("parts", "session-1")).toEqual([{ id: "part-1", messageID: "message-1", type: "text", text: "Durable" }])
+    expect(store.transcript("session-1").toArray.filter((row) => row.__key !== TranscriptStatusKey)).toHaveLength(2)
+    expect(store.transcript("session-1").toArray.find((row) => row.__key === TranscriptStatusKey)?.row.ready).toBe(false)
+    expect(store.isReady("messages", "session-1")).toBe(true)
+    expect(store.isReady("parts", "session-1")).toBe(true)
+    expect(store.isSynchronizing("messages", "session-1")).toBe(true)
+    expect(store.isSynchronizing("parts", "session-1")).toBe(true)
+    expect(store.cursor("messages", "session-1")).toBe(0)
+    expect(store.cursor("parts", "session-1")).toBe(0)
+    expect(store.delta(identity)).toBeUndefined()
+    expect(notifications).toBe(1)
+  })
+
+  test("publishes final delta identities after a snapshot batch", () => {
+    const store = createConnectionStore()
+    const identity = { sessionId: "session-1", messageId: "message-1", partId: "part-1", partKind: "text" as const }
+    store.applyDelta({ ...identity, offset: 0, text: "streaming" })
+    const observed: string[][] = []
+    store.subscribeDeltaIdentities("session-1", () => observed.push(store.deltaIdentities("session-1").map((item) => item.partId)))
+
+    store.batch(() => store.applySnapshot("parts", "session-1", [], 1))
+
+    expect(observed).toEqual([[]])
+    expect(store.delta(identity)).toBeUndefined()
+  })
+
   test("does not mark a collection ready before its authoritative snapshot", () => {
     const store = createConnectionStore()
     store.collection("projects")
     expect(store.isReady("projects")).toBe(false)
     store.applySnapshot("projects", "", [], 0)
     expect(store.isReady("projects")).toBe(true)
+  })
+
+  test("marks a collection unready when its scope resets", () => {
+    const store = createConnectionStore()
+    store.applySnapshot("messages", "session-1", [], 1)
+
+    store.applyRows({
+      throughSeq: 2,
+      changes: [{ seq: 2, collection: "messages", scopeKey: "session-1", rowKey: [], op: "reset", row: null }],
+    })
+
+    expect(store.isReady("messages", "session-1")).toBe(false)
+    expect(store.cursor("messages", "session-1")).toBe(0)
+    store.applySnapshot("messages", "session-1", [], 2)
+    expect(store.isReady("messages", "session-1")).toBe(true)
   })
 
   test("publishes a replacement snapshot atomically", () => {

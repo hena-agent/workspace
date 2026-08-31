@@ -15,6 +15,7 @@ function renderView(sessionId: string, props?: Partial<ComponentProps<typeof Ses
     <SessionTranscriptView
       session={session}
       messages={listMessages(sessionOwner)}
+      messagesReady
       todos={listTodos(sessionOwner)}
       permissionRequest={getPermissionRequest(sessionOwner)}
       questionRequest={getQuestionRequest(sessionOwner)}
@@ -70,6 +71,7 @@ describe("SessionTranscriptView", () => {
           connectionId: session.connectionId,
           projectId: session.projectId,
         })}
+        messagesReady
         todos={listTodos({
           sessionId: session.id,
           connectionId: session.connectionId,

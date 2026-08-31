@@ -3,11 +3,9 @@ import { Permission } from "@hena/schema/permission"
 import { Question } from "@hena/schema/question"
 import { Session } from "@hena/schema/session"
 import { SessionMessage } from "@hena/schema/session-message"
-import type { createConnectionAgent } from "@/connection/agent"
-import { MutationError, mutationError, receipt, requestQueueable } from "./lifecycle"
+import type { ConnectionAgent } from "@/connection/agent"
+import { awaitReceipt, MutationError, mutationError, requestQueueable } from "./lifecycle"
 
-type Agent = ReturnType<typeof createConnectionAgent>
-type Scope = { readonly collection: string; readonly scopeKey: string }
 export type PromptFile = { uri: string; name?: string; description?: string }
 export type OnlineReplyResult = { outcome: "applied" | "already_resolved"; resolution: Record<string, unknown>; divergent: boolean }
 
@@ -29,11 +27,11 @@ export function isMessagePending(messageID: string) {
   return pendingMessages.has(messageID)
 }
 
-export function isSessionStopping(agent: Agent | undefined, sessionID: string) {
+export function isSessionStopping(agent: ConnectionAgent | undefined, sessionID: string) {
   return agent ? stoppingSessions.has(stateKey(agent, sessionID)) : false
 }
 
-export function createSessionOptimistically(agent: Agent, input: {
+export function createSessionOptimistically(agent: ConnectionAgent, input: {
   projectID: string
   location: { directory: string; workspaceID?: string }
   text: string
@@ -47,8 +45,8 @@ export function createSessionOptimistically(agent: Agent, input: {
   const created = Date.now()
   const idempotencyKey = crypto.randomUUID()
   const prompt = promptPayload(input.text, input.files)
+  const message = { id: messageID, sessionID, type: "user", text: input.text, files: input.files, time: { created } }
   const resolvedProjectID = Promise.withResolvers<string>()
-  markPending(messageID, true)
   const transaction = createTransaction({
     mutationFn: async () => {
       const result = await requestQueueable(() => agent.client.api.session.$post({
@@ -79,20 +77,21 @@ export function createSessionOptimistically(agent: Agent, input: {
         tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
         time: { created, updated: created },
         working: true,
+        queueRevision: input.delivery === "queue" ? 1 : 0,
         agent: input.agentID,
         model: input.model,
       },
     })
-    agent.store.collection("messages", sessionID).insert({
-      __key: messageID,
-      row: { id: messageID, sessionID, type: "user", text: input.text, files: input.files, time: { created } },
-    })
+    if (input.delivery === "queue") insertQueuedInput(agent, sessionID, messageID, prompt, created, 0)
   })
-  void transaction.isPersisted.promise.finally(() => markPending(messageID, false)).catch(() => {})
+  if (input.delivery === "steer") {
+    settlePrompt(agent, sessionID, messageID, transaction.isPersisted.promise)
+    stageSteer(agent, sessionID, messageID, message)
+  }
   return { sessionID, messageID, transaction, projectID: resolvedProjectID.promise }
 }
 
-export function admitPromptOptimistically(agent: Agent, input: {
+export function admitPromptOptimistically(agent: ConnectionAgent, input: {
   sessionID: string
   text: string
   files?: PromptFile[]
@@ -104,7 +103,7 @@ export function admitPromptOptimistically(agent: Agent, input: {
   const created = Date.now()
   const idempotencyKey = crypto.randomUUID()
   const prompt = promptPayload(input.text, input.files)
-  if (input.delivery === "steer") markPending(messageID, true)
+  const message = { id: messageID, sessionID: input.sessionID, type: "user", text: input.text, files: input.files, time: { created } }
   const transaction = createTransaction({
     mutationFn: async () => {
       const result = await requestQueueable(() => agent.client.api.session[":sessionId"].prompt.$post({
@@ -121,37 +120,22 @@ export function admitPromptOptimistically(agent: Agent, input: {
         ...(input.agentID ? { agent: input.agentID } : {}),
         ...(input.model ? { model: input.model } : {}),
         ...(input.delivery === "queue" ? { queueRevision: number(draft.row.queueRevision) + 1 } : {}),
+        ...(input.delivery === "steer" ? { working: true } : {}),
         time: { ...object(draft.row.time), updated: created },
       }
     })
-    if (input.delivery === "steer") {
-      agent.store.collection("messages", input.sessionID).insert({
-        __key: messageID,
-        row: { id: messageID, sessionID: input.sessionID, type: "user", text: input.text, files: input.files, time: { created } },
-      })
-      agent.store.collection("sessions", "").update(input.sessionID, (draft) => {
-        draft.row = { ...draft.row, working: true }
-      })
-      return
+    if (input.delivery === "queue") {
+      insertQueuedInput(agent, input.sessionID, messageID, prompt, created, agent.store.rows("sessionInputs", input.sessionID).length)
     }
-    agent.store.collection("sessionInputs", input.sessionID).insert({
-      __key: messageID,
-      row: {
-        id: messageID,
-        sessionID: input.sessionID,
-        prompt,
-        delivery: "queue",
-        admittedSeq: Number.MAX_SAFE_INTEGER,
-        queuePosition: agent.store.rows("sessionInputs", input.sessionID).length,
-        timeCreated: created,
-      },
-    })
   })
-  void transaction.isPersisted.promise.finally(() => markPending(messageID, false)).catch(() => {})
+  if (input.delivery === "steer") {
+    settlePrompt(agent, input.sessionID, messageID, transaction.isPersisted.promise)
+    stageSteer(agent, input.sessionID, messageID, message)
+  }
   return { messageID, transaction }
 }
 
-export function interruptOptimistically(agent: Agent, sessionID: string) {
+export function interruptOptimistically(agent: ConnectionAgent, sessionID: string) {
   setStopping(agent, sessionID, true)
   return agent.client.api.session[":sessionId"].interrupt.$post({ param: { sessionId: sessionID } })
     .then(async (response) => {
@@ -161,7 +145,7 @@ export function interruptOptimistically(agent: Agent, sessionID: string) {
     .finally(() => setStopping(agent, sessionID, false))
 }
 
-export function archiveSessionOptimistically(agent: Agent, sessionID: string) {
+export function archiveSessionOptimistically(agent: ConnectionAgent, sessionID: string) {
   const idempotencyKey = crypto.randomUUID()
   const transaction = createTransaction({
     mutationFn: async () => {
@@ -180,7 +164,7 @@ export function archiveSessionOptimistically(agent: Agent, sessionID: string) {
   return transaction.isPersisted.promise
 }
 
-export function cancelInputOptimistically(agent: Agent, input: { sessionID: string; messageID: string; expectedRevision: number }) {
+export function cancelInputOptimistically(agent: ConnectionAgent, input: { sessionID: string; messageID: string; expectedRevision: number }) {
   const idempotencyKey = crypto.randomUUID()
   const transaction = createTransaction({
     mutationFn: async () => {
@@ -198,7 +182,7 @@ export function cancelInputOptimistically(agent: Agent, input: { sessionID: stri
   return transaction.isPersisted.promise
 }
 
-export function reorderInputsOptimistically(agent: Agent, input: { sessionID: string; messageIDs: string[]; expectedRevision: number }) {
+export function reorderInputsOptimistically(agent: ConnectionAgent, input: { sessionID: string; messageIDs: string[]; expectedRevision: number }) {
   const idempotencyKey = crypto.randomUUID()
   const transaction = createTransaction({
     mutationFn: async () => {
@@ -220,7 +204,7 @@ export function reorderInputsOptimistically(agent: Agent, input: { sessionID: st
   return transaction.isPersisted.promise
 }
 
-export function replyPermissionOptimistically(agent: Agent, input: {
+export function replyPermissionOptimistically(agent: ConnectionAgent, input: {
   id: string
   sessionID: string
   nonce: string
@@ -239,7 +223,7 @@ export function replyPermissionOptimistically(agent: Agent, input: {
   )
 }
 
-export function replyQuestionOptimistically(agent: Agent, input: {
+export function replyQuestionOptimistically(agent: ConnectionAgent, input: {
   id: string
   sessionID: string
   nonce: string
@@ -268,7 +252,7 @@ export function promptPayload(text: string, files: PromptFile[] = []) {
 }
 
 function replyOnline(
-  agent: Agent,
+  agent: ConnectionAgent,
   collection: "permissions" | "questions",
   id: string,
   request: () => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>,
@@ -290,14 +274,8 @@ function replyOnline(
   return transaction.isPersisted.promise.then(() => result!)
 }
 
-async function awaitReceipt(agent: Agent, value: unknown) {
-  const acknowledged = receipt(value)
-  const awaitTxid = agent.store.awaitTxid as unknown as (txid: string, timeoutMs: number, affectedScopes: readonly Scope[]) => Promise<void>
-  await awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes)
-}
-
 function waitForAuthoritativeState(
-  agent: Agent,
+  agent: ConnectionAgent,
   collection: string,
   scopeKey: string,
   predicate: (row: Record<string, unknown>) => boolean,
@@ -311,7 +289,7 @@ function waitForAuthoritativeState(
 }
 
 function waitForSyncedState(
-  agent: Agent,
+  agent: ConnectionAgent,
   collection: string,
   scopeKey: string,
   predicate: (row: Record<string, unknown>) => boolean,
@@ -321,7 +299,7 @@ function waitForSyncedState(
 }
 
 function waitForNotification(
-  agent: Agent,
+  agent: ConnectionAgent,
   collection: string,
   scopeKey: string,
   predicate: (rows: Record<string, unknown>[]) => boolean,
@@ -341,24 +319,52 @@ function waitForNotification(
   })
 }
 
-function setStopping(agent: Agent, sessionID: string, value: boolean) {
-  const anticipated = agent as Agent & { setSessionStopping?: (sessionID: string, stopping: boolean, timeoutMs: number) => void }
+function setStopping(agent: ConnectionAgent, sessionID: string, value: boolean) {
+  const anticipated = agent as ConnectionAgent & { setSessionStopping?: (sessionID: string, stopping: boolean, timeoutMs: number) => void }
   anticipated.setSessionStopping?.(sessionID, value, 5_000)
   const key = stateKey(agent, sessionID)
   if (value) stoppingSessions.add(key)
   else stoppingSessions.delete(key)
-  mutationVersion += 1
-  mutationListeners.forEach((listener) => listener())
+  notifyMutationState()
+}
+
+function settlePrompt(agent: ConnectionAgent, sessionID: string, messageID: string, persisted: Promise<unknown>) {
+  void persisted.then(
+    () => {
+      agent.localMessages.acknowledge(sessionID, messageID)
+      markPending(messageID, false)
+    },
+    () => {
+      agent.localMessages.drop(sessionID, messageID)
+      markPending(messageID, false)
+    },
+  )
+}
+
+function stageSteer(agent: ConnectionAgent, sessionID: string, messageID: string, message: Record<string, unknown>) {
+  markPending(messageID, true)
+  agent.localMessages.stage(sessionID, messageID, message)
+}
+
+function insertQueuedInput(agent: ConnectionAgent, sessionID: string, messageID: string, prompt: Record<string, unknown>, created: number, queuePosition: number) {
+  agent.store.collection("sessionInputs", sessionID).insert({
+    __key: messageID,
+    row: { id: messageID, sessionID, prompt, delivery: "queue", admittedSeq: Number.MAX_SAFE_INTEGER, queuePosition, timeCreated: created },
+  })
 }
 
 function markPending(messageID: string, value: boolean) {
   if (value) pendingMessages.add(messageID)
   else pendingMessages.delete(messageID)
+  notifyMutationState()
+}
+
+function notifyMutationState() {
   mutationVersion += 1
   mutationListeners.forEach((listener) => listener())
 }
 
-function stateKey(agent: Agent, sessionID: string) {
+function stateKey(agent: ConnectionAgent, sessionID: string) {
   return `${agent.url}\u0000${sessionID}`
 }
 
@@ -389,7 +395,7 @@ function number(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0
 }
 
-function incrementQueueRevision(agent: Agent, sessionID: string) {
+function incrementQueueRevision(agent: ConnectionAgent, sessionID: string) {
   agent.store.collection("sessions", "").update(sessionID, (draft) => {
     draft.row = { ...draft.row, queueRevision: number(draft.row.queueRevision) + 1 }
   })

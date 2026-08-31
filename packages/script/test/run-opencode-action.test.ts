@@ -12,7 +12,7 @@ const runAgentDirectory = path.join(root, ".github/actions/run-agent")
 const packageResult = path.join(runAgentDirectory, "package-result.sh")
 const changedPaths = path.join(runAgentDirectory, "validate-changed-paths.sh")
 const checkRollup = path.join(runAgentDirectory, "check-rollup.jq")
-const normalizeScanResult = path.join(runAgentDirectory, "normalize-scan-result.jq")
+const scanIssue = path.join(runAgentDirectory, "scan-issue.jq")
 const payloadFilter = path.join(actionDirectory, "review-payload.jq")
 const sanitizeCheckout = path.join(actionDirectory, "sanitize-review-checkout.sh")
 const reviewCommand = "thermo-nuclear-code-quality-review"
@@ -274,10 +274,16 @@ describe("run-opencode review action", () => {
       events(completedTask(body, "agent-scan"), { type: "text", part: { text: "The scan returned a finding." } }),
     )
     expect(extracted.exitCode).toBe(0)
-    const normalized = jq(["-Rrs", "-f", normalizeScanResult], extracted.stdout)
-    expect(normalized.exitCode).toBe(0)
-    expect(normalized.stdout).toBe("fix(core): preserve session state\n\n## Problem\n\nState is lost.\n")
-    expect(jq(["-Rrs", "-f", normalizeScanResult], "No issue here.").exitCode).not.toBe(0)
+    const conventional = "^(feat|fix|docs|chore|refactor|test)(\\([^)]+\\))?: .+"
+    const args = ["-Rrs", "--arg", "conventional", conventional, "-f", scanIssue]
+    expect(JSON.parse(jq(args, extracted.stdout).stdout)).toEqual({
+      title: "fix(core): preserve session state",
+      body: "## Problem\n\nState is lost.",
+    })
+    expect(jq(args, "## Problem\n\nfix(core): body text is not a title").stderr).toContain(
+      "agent-scan returned no conventional issue title",
+    )
+    expect(jq(args, "fix(core): title without a body").stderr).toContain("agent-scan returned an empty issue body")
   })
 
   test("rejects a successful command without final text", () => {

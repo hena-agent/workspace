@@ -104,17 +104,19 @@ test("local prompts remain visible until both authoritative snapshots complete",
 
   render(<View />)
   await act(async () => {
-    agent.localMessages.applySnapshot(agent.store, "messages", "session-1", [{
+    agent.store.applySnapshot("messages", "session-1", [{
       key: "message-1",
       row: { id: "message-1", type: "user", text: "Local prompt", time: { created: 1 } },
     }], 1)
+    agent.localMessages.reconcile(agent.store, "session-1")
     await Bun.sleep(0)
   })
   expect(await screen.findByText("Local prompt")).toBeVisible()
   expect(agent.localMessages.rows("session-1")).toHaveLength(1)
 
   await act(async () => {
-    agent.localMessages.applySnapshot(agent.store, "parts", "session-1", [], 1)
+    agent.store.applySnapshot("parts", "session-1", [], 1)
+    agent.localMessages.reconcile(agent.store, "session-1")
     await Bun.sleep(0)
   })
   expect(screen.getByText("Local prompt")).toBeVisible()
@@ -148,6 +150,8 @@ test("local prompt changes notify transcript consumers directly", async () => {
 
 test("reasoning deltas project a provisional part before its durable row", async () => {
   const agent = createConnectionAgent("http://hena.test")
+  agent.store.applySnapshot("messages", "session-1", [], 0)
+  agent.store.applySnapshot("parts", "session-1", [], 0)
 
   function View() {
     return <MessageList messages={useMessages(agent, "session-1").messages} working ready />
@@ -161,6 +165,12 @@ test("reasoning deltas project a provisional part before its durable row", async
   await waitFor(() => expect(container.querySelector('[data-slot="collapsible-content"]')).toHaveTextContent("Live reasoning"))
   expect(container.querySelector('[data-slot="collapsible-content"]')).toHaveAttribute("data-state", "open")
   expect(container.querySelector('[data-slot="collapsible-content"] [data-sd-animate]')).toBeInTheDocument()
+
+  act(() => agent.store.dropCursors([
+    { collection: "messages", scopeKey: "session-1" },
+    { collection: "parts", scopeKey: "session-1" },
+  ]))
+  await waitFor(() => expect(container.querySelector('[data-slot="collapsible-content"]')).toBeNull())
 
   await act(async () => {
     agent.store.applySnapshot("messages", "session-1", [{

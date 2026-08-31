@@ -222,14 +222,15 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     if (livenessExpired) throw new Error("Collection stream became silent")
   }
 
-  function applyRows(frame: Sync.RowsFrame, transactionChanges = frame.changes as readonly Change[]) {
-    localMessages.applyRows(store, { throughSeq: frame.throughSeq, changes: frame.changes as readonly Change[] }, transactionChanges)
-  }
-
   function createFrameApplier() {
     const snapshots = new Map<string, Snapshot>()
     const activeSnapshots = new Map<string, string>()
     const bufferedDeltas = new Map<string, Sync.DeltaFrame[]>()
+
+    function applyRows(frame: Sync.RowsFrame) {
+      store.applyRows({ throughSeq: frame.throughSeq, changes: frame.changes as readonly Change[] })
+      new Set(frame.changes.map((change) => change.scopeKey)).forEach((sessionId) => localMessages.reconcile(store, sessionId))
+    }
 
     function applyFrame(frame: StreamFrame) {
       if (frame.type === "heartbeat" || frame.type === "stream.ready") return
@@ -269,13 +270,14 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
         const keys = new Set(snapshot.rows.map((row) => wireKey(row.key)))
         if (keys.size !== frame.keyCount || snapshot.rows.length !== frame.keyCount || snapshot.baseSeq !== frame.throughSeq)
           throw new TerminalError("error")
-        localMessages.applySnapshot(store, snapshot.scope.collection, snapshot.scope.scopeKey, snapshot.rows, frame.throughSeq, snapshot.replace)
+        store.applySnapshot(snapshot.scope.collection, snapshot.scope.scopeKey, snapshot.rows, frame.throughSeq, snapshot.replace)
+        localMessages.reconcile(store, snapshot.scope.scopeKey)
         snapshots.delete(frame.snapshotId)
         activeSnapshots.delete(scopeIdentity(snapshot.scope))
         snapshot.bufferedRows.forEach((rows) => applyRows({
           ...rows,
           changes: rows.changes.filter((change) => change.seq > frame.throughSeq),
-        }, rows.changes as readonly Change[]))
+        }))
         flushDeltas(snapshot.scope.scopeKey)
         return
       }
@@ -288,7 +290,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
           buffered.add(snapshotId)
         })
         const changes = frame.changes.filter((change) => !activeSnapshots.has(scopeIdentity(change)))
-        if (changes.length > 0) applyRows({ ...frame, changes }, frame.changes as readonly Change[])
+        if (changes.length > 0) applyRows({ ...frame, changes })
         return
       }
       if (!claimedSessions().includes(frame.sessionId)) return
@@ -358,10 +360,10 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   function retain(sessionId: string) {
     remove(linger, sessionId)
     linger.unshift(sessionId)
-      linger.splice(LingeredSessions).forEach((evicted) => {
-        localMessages.dropSession(evicted)
-        store.dropSession(evicted)
-      })
+    linger.splice(LingeredSessions).forEach((evicted) => {
+      localMessages.dropSession(evicted)
+      store.dropSession(evicted)
+    })
   }
 }
 

@@ -47,8 +47,10 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
   const prompt = promptPayload(input.text, input.files)
   const message = { id: messageID, sessionID, type: "user", text: input.text, files: input.files, time: { created } }
   const resolvedProjectID = Promise.withResolvers<string>()
-  markPending(messageID, true)
-  agent.localMessages.stage(sessionID, messageID, message)
+  if (input.delivery === "steer") {
+    markPending(messageID, true)
+    agent.localMessages.stage(sessionID, messageID, message)
+  }
   const transaction = createTransaction({
     mutationFn: async () => {
       const result = await requestQueueable(() => agent.client.api.session.$post({
@@ -79,22 +81,25 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
         tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
         time: { created, updated: created },
         working: true,
+        queueRevision: input.delivery === "queue" ? 1 : 0,
         agent: input.agentID,
         model: input.model,
       },
     })
-    agent.store.collection("messages", sessionID).insert({
+    if (input.delivery === "queue") agent.store.collection("sessionInputs", sessionID).insert({
       __key: messageID,
-      row: message,
+      row: {
+        id: messageID,
+        sessionID,
+        prompt,
+        delivery: "queue",
+        admittedSeq: Number.MAX_SAFE_INTEGER,
+        queuePosition: 0,
+        timeCreated: created,
+      },
     })
   })
-  void transaction.isPersisted.promise.then(
-    () => markPending(messageID, false),
-    () => {
-      agent.localMessages.drop(sessionID, messageID)
-      markPending(messageID, false)
-    },
-  )
+  if (input.delivery === "steer") settlePrompt(agent, sessionID, messageID, transaction.isPersisted.promise)
   return { sessionID, messageID, transaction, projectID: resolvedProjectID.promise }
 }
 
@@ -135,10 +140,6 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
       }
     })
     if (input.delivery === "steer") {
-      agent.store.collection("messages", input.sessionID).insert({
-        __key: messageID,
-        row: message,
-      })
       agent.store.collection("sessions", "").update(input.sessionID, (draft) => {
         draft.row = { ...draft.row, working: true }
       })
@@ -157,13 +158,7 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
       },
     })
   })
-  void transaction.isPersisted.promise.then(
-    () => markPending(messageID, false),
-    () => {
-      agent.localMessages.drop(input.sessionID, messageID)
-      markPending(messageID, false)
-    },
-  )
+  if (input.delivery === "steer") settlePrompt(agent, input.sessionID, messageID, transaction.isPersisted.promise)
   return { messageID, transaction }
 }
 
@@ -358,6 +353,19 @@ function setStopping(agent: ConnectionAgent, sessionID: string, value: boolean) 
   if (value) stoppingSessions.add(key)
   else stoppingSessions.delete(key)
   notifyMutationState()
+}
+
+function settlePrompt(agent: ConnectionAgent, sessionID: string, messageID: string, persisted: Promise<unknown>) {
+  void persisted.then(
+    () => {
+      agent.localMessages.acknowledge(agent.store, sessionID, messageID)
+      markPending(messageID, false)
+    },
+    () => {
+      agent.localMessages.drop(sessionID, messageID)
+      markPending(messageID, false)
+    },
+  )
 }
 
 function markPending(messageID: string, value: boolean) {

@@ -116,15 +116,13 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
   const messages = useRows(agent, "messages", sessionId)
   const parts = useRows(agent, "parts", sessionId)
   const localRows = agent?.localMessages.rows(sessionId) ?? []
-  const localIDs = new Set(localRows.map((message) => string(message.id)))
   const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
-  const projected = (ready ? messages : messages.filter((message) => localIDs.has(string(message.id))))
-    .map((message) => messageView(agent, sessionId, message, parts, deltas))
+  const projected = (ready ? messages : []).map((message) => messageView(agent, sessionId, message, parts, deltas))
   const known = new Set(projected.map((message) => message.id))
   const local = localRows.flatMap((message) => known.has(string(message.id))
     ? []
     : [messageView(agent, sessionId, message, parts, deltas)])
-  const provisional = deltas
+  const provisional = (ready ? deltas : [])
     .filter((delta) => !known.has(delta.messageId))
     .reduce<Extract<SessionMessage, { role: "assistant" }>[]>((result, delta) => {
       const message = result.find((item) => item.id === delta.messageId)

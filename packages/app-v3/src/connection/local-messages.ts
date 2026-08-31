@@ -1,10 +1,11 @@
-import type { Change, createConnectionStore } from "./store"
+import type { createConnectionStore } from "./store"
 
 type Row = Record<string, unknown>
 type Store = ReturnType<typeof createConnectionStore>
+type Entry = { row: Row; acknowledged: boolean }
 
 export function createLocalMessages() {
-  const sessions = new Map<string, Map<string, Row>>()
+  const sessions = new Map<string, Map<string, Entry>>()
   const listeners = new Map<string, Set<() => void>>()
   const revisions = new Map<string, number>()
 
@@ -19,18 +20,25 @@ export function createLocalMessages() {
     return true
   }
   const reconcile = (store: Store, sessionId: string) => {
-    if (!store.isReady("messages", sessionId) || !store.isReady("parts", sessionId)) return false
-    const authoritative = new Set(store.authoritativeRows("messages", sessionId).flatMap((row) =>
+    const entries = sessions.get(sessionId)
+    if (!entries || !store.isReady("messages", sessionId) || !store.isReady("parts", sessionId)) return false
+    const messages = new Set(store.authoritativeRows("messages", sessionId).flatMap((row) =>
       typeof row.id === "string" ? [row.id] : [],
     ))
-    const removed = Array.from(sessions.get(sessionId)?.keys() ?? []).filter((messageId) => authoritative.has(messageId))
+    const inputsReady = store.isReady("sessionInputs", sessionId)
+    const inputs = new Set(inputsReady
+      ? store.authoritativeRows("sessionInputs", sessionId).flatMap((row) => typeof row.id === "string" ? [row.id] : [])
+      : [])
+    const removed = Array.from(entries).flatMap(([messageId, entry]) =>
+      messages.has(messageId) || (entry.acknowledged && inputsReady && !inputs.has(messageId)) ? [messageId] : [],
+    )
     removed.forEach((messageId) => remove(sessionId, messageId))
     return removed.length > 0
   }
 
   return {
     rows(sessionId: string) {
-      return Array.from(sessions.get(sessionId)?.values() ?? [])
+      return Array.from(sessions.get(sessionId)?.values() ?? [], (entry) => entry.row)
     },
     revision(sessionId: string) {
       return revisions.get(sessionId) ?? 0
@@ -46,36 +54,21 @@ export function createLocalMessages() {
     },
     stage(sessionId: string, messageId: string, row: Row) {
       const messages = sessions.get(sessionId) ?? new Map()
-      messages.set(messageId, row)
+      messages.set(messageId, { row, acknowledged: false })
       sessions.set(sessionId, messages)
       notify(sessionId)
+    },
+    acknowledge(store: Store, sessionId: string, messageId: string) {
+      const entry = sessions.get(sessionId)?.get(messageId)
+      if (!entry) return
+      entry.acknowledged = true
+      if (reconcile(store, sessionId)) notify(sessionId)
     },
     drop(sessionId: string, messageId: string) {
       if (remove(sessionId, messageId)) notify(sessionId)
     },
-    applySnapshot(store: Store, collection: string, sessionId: string, rows: ReadonlyArray<{ key: string | readonly string[]; row: Row; revision?: string }>, throughSeq: number, replace = true) {
-      store.applySnapshot(collection, sessionId, rows, throughSeq, replace)
-      if ((collection === "messages" || collection === "parts") && reconcile(store, sessionId)) notify(sessionId)
-    },
-    applyRows(store: Store, frame: { throughSeq: number; changes: readonly Change[] }, transactionChanges = frame.changes) {
-      const applicable = frame.changes.filter((change) => change.seq > store.cursor(change.collection, change.scopeKey))
-      const promoted = new Set(transactionChanges.flatMap((change) =>
-        change.collection === "messages" && change.op !== "delete" && change.txid
-          ? [`${change.txid}\u0000${change.scopeKey}\u0000${wireKey(change.rowKey)}`]
-          : [],
-      ))
-      const changed = new Set(applicable.flatMap((change) => {
-        if (change.collection !== "sessionInputs" || change.op !== "delete") return []
-        if (promoted.has(`${change.txid}\u0000${change.scopeKey}\u0000${wireKey(change.rowKey)}`)) return []
-        return remove(change.scopeKey, wireKey(change.rowKey)) ? [change.scopeKey] : []
-      }))
-      store.applyRows(frame)
-      applicable.forEach((change) => {
-        if ((change.collection === "messages" || change.collection === "parts") && reconcile(store, change.scopeKey)) {
-          changed.add(change.scopeKey)
-        }
-      })
-      changed.forEach(notify)
+    reconcile(store: Store, sessionId: string) {
+      if (reconcile(store, sessionId)) notify(sessionId)
     },
     dropSession(sessionId: string) {
       if (!sessions.delete(sessionId)) return
@@ -92,8 +85,4 @@ export function createLocalMessages() {
       revisions.clear()
     },
   }
-}
-
-function wireKey(key: string | readonly string[]) {
-  return typeof key === "string" ? key : JSON.stringify(key)
 }

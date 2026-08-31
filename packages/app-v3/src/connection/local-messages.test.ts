@@ -8,32 +8,43 @@ describe("local messages", () => {
     const local = createLocalMessages()
     const message = { id: "message-1", type: "user", text: "Prompt" }
     local.stage("session-1", "message-1", message)
-    local.applyRows(store, {
-      throughSeq: 1,
-      changes: [{ seq: 1, collection: "sessionInputs", scopeKey: "session-1", rowKey: "message-1", op: "insert", row: { id: "message-1" } }],
-    })
+    store.applySnapshot("messages", "session-1", [], 1)
+    store.applySnapshot("parts", "session-1", [], 1)
+    store.applySnapshot("sessionInputs", "session-1", [{ key: "message-1", row: { id: "message-1" } }], 1)
+    local.acknowledge(store, "session-1", "message-1")
     expect(local.rows("session-1")).toEqual([message])
 
-    local.applyRows(store, {
+    store.applyRows({
       throughSeq: 2,
       changes: [{ seq: 2, collection: "sessionInputs", scopeKey: "session-1", rowKey: "message-1", op: "delete", row: null }],
     })
+    local.reconcile(store, "session-1")
     expect(local.rows("session-1")).toEqual([])
 
     local.stage("session-1", "message-2", { ...message, id: "message-2" })
-    const promotion = [
-      { seq: 3, collection: "sessionInputs", scopeKey: "session-1", rowKey: "message-2", op: "delete" as const, row: null, txid: "promote" },
-      { seq: 3, collection: "messages", scopeKey: "session-1", rowKey: "message-2", op: "insert" as const, row: { ...message, id: "message-2" }, txid: "promote" },
-    ]
-    local.applyRows(store, {
+    store.applyRows({
       throughSeq: 3,
-      changes: [promotion[0]!],
-    }, promotion)
+      changes: [{ seq: 3, collection: "sessionInputs", scopeKey: "session-1", rowKey: "message-2", op: "insert", row: { id: "message-2" } }],
+    })
+    local.acknowledge(store, "session-1", "message-2")
     expect(local.rows("session-1")).toHaveLength(1)
-    local.applyRows(store, { throughSeq: 3, changes: [promotion[1]!] }, promotion)
-    local.applySnapshot(store, "messages", "session-1", [{ key: "message-2", row: { ...message, id: "message-2" } }], 3)
-    local.applySnapshot(store, "parts", "session-1", [], 3)
+    store.applySnapshot("messages", "session-1", [{ key: "message-2", row: { ...message, id: "message-2" } }], 3)
+    local.reconcile(store, "session-1")
     expect(local.rows("session-1")).toEqual([])
     expect(store.rows("messages", "session-1")).toEqual([{ ...message, id: "message-2" }])
+  })
+
+  test("drops acknowledged prompts omitted by complete replacement snapshots", () => {
+    const store = createConnectionStore()
+    const local = createLocalMessages()
+    local.stage("session-1", "message-1", { id: "message-1" })
+    local.acknowledge(store, "session-1", "message-1")
+
+    store.applySnapshot("messages", "session-1", [], 2)
+    store.applySnapshot("parts", "session-1", [], 2)
+    store.applySnapshot("sessionInputs", "session-1", [], 2)
+    local.reconcile(store, "session-1")
+
+    expect(local.rows("session-1")).toEqual([])
   })
 })

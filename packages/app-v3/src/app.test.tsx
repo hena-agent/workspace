@@ -7,7 +7,7 @@ import { ConnectionProvider } from "@/connection/provider"
 import { markSessionSeen } from "@/local-state/seen"
 import { encodeServerSlug } from "@/lib/server-url"
 import { mockMatchMedia } from "@/test/mock-match-media"
-import { fireEvent, render, screen, waitFor, within } from "@/test/test-utils"
+import { act, fireEvent, render, screen, waitFor, within } from "@/test/test-utils"
 import { routeTree } from "./routeTree.gen"
 
 const origin = "http://localhost:4096"
@@ -89,15 +89,20 @@ function collectionDatabase() {
     questions: new Map(),
   }
   const controllers = new Set<(changes: readonly PushedChange[]) => void>()
+  let throughSeq = 0
   return {
     snapshot(collection: string) {
       return Array.from(collections[collection]?.values() ?? [])
+    },
+    throughSeq() {
+      return throughSeq
     },
     subscribe(push: (changes: readonly PushedChange[]) => void) {
       controllers.add(push)
       return () => controllers.delete(push)
     },
     push(changes: readonly PushedChange[]) {
+      throughSeq = Math.max(throughSeq, ...changes.map((change) => change.seq))
       changes.forEach((change) => {
         const key = typeof change.rowKey === "string" ? change.rowKey : JSON.stringify(change.rowKey)
         collections[change.collection]?.set(key, { key, revision: change.rowRevision ?? "1", row: change.row })
@@ -111,6 +116,8 @@ function collectionFetcher(options: {
   onCreateSession?: (request: Request, push: ReturnType<typeof collectionDatabase>["push"]) => Promise<Response>
 } = {}) {
   const database = collectionDatabase()
+  let subscribedSessions: string[] = []
+  let subscriptionRevision = 0
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = input instanceof Request ? input : new Request(input, init)
     const path = new URL(request.url).pathname
@@ -118,9 +125,14 @@ function collectionFetcher(options: {
       return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
     if (path === "/api/collection/streams" && request.method === "POST")
       return Response.json({ streamId: "stream", generation: 1, expiresAt: Date.now() + 300_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
-    if (path === "/api/collection/streams/stream/subscription")
-      return Response.json({ generation: 1, revision: 1 })
-    if (path === "/api/collection/streams/stream/events") return eventResponse(request.signal, database)
+    if (path === "/api/collection/streams/stream/subscription") {
+      const subscription = await request.json() as { sessions: string[] }
+      subscribedSessions = subscription.sessions
+      subscriptionRevision++
+      return Response.json({ generation: 1, revision: subscriptionRevision })
+    }
+    if (path === "/api/collection/streams/stream/events")
+      return eventResponse(request.signal, database, subscribedSessions, subscriptionRevision)
     if (path === "/api/catalog")
       return Response.json({
         agents: [{ id: "build", description: "Builds things" }],
@@ -140,21 +152,26 @@ function collectionFetcher(options: {
   }
 }
 
-function eventResponse(signal: AbortSignal, database: ReturnType<typeof collectionDatabase>) {
-  const scopeNames = ["projects", "locations", "sessions", "permissions", "questions"]
-  const common = { protocolVersion: 1, feedId: "feed", runtimeId: "runtime", streamId: "stream", generation: 1, subscriptionRevision: 1 }
-  const frames = scopeNames.flatMap((collection, index) => {
-    const rows = database.snapshot(collection)
-    const scope = { collection, scopeKey: "" }
+function eventResponse(
+  signal: AbortSignal,
+  database: ReturnType<typeof collectionDatabase>,
+  sessions: readonly string[],
+  subscriptionRevision: number,
+) {
+  const scopes = ["projects", "locations", "sessions", "permissions", "questions"]
+    .map((collection) => ({ collection, scopeKey: "" }))
+  const common = { protocolVersion: 1, feedId: "feed", runtimeId: "runtime", streamId: "stream", generation: 1, subscriptionRevision }
+  const frames = scopes.flatMap((scope, index) => {
+    const rows = database.snapshot(scope.collection)
     const snapshotId = `snapshot-${index}`
     return [
-      { ...common, type: "snapshot.begin", snapshotId, baseSeq: 0, replace: true, scope },
+      { ...common, type: "snapshot.begin", snapshotId, baseSeq: database.throughSeq(), replace: true, scope },
       { ...common, type: "snapshot.page", snapshotId, scope, rows },
-      { ...common, type: "snapshot.end", snapshotId, scope, keyCount: rows.length, throughSeq: 0 },
+      { ...common, type: "snapshot.end", snapshotId, scope, keyCount: rows.length, throughSeq: database.throughSeq() },
     ]
   })
   return new Response(new ReadableStream({
-    start(controller) {
+    async start(controller) {
       controller.enqueue(new TextEncoder().encode(frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")))
       const unsubscribe = database.subscribe((changes) => {
         const affectedScopes = [{ collection: "sessions", scopeKey: "" }, { collection: "projects", scopeKey: "" }]
@@ -169,6 +186,23 @@ function eventResponse(signal: AbortSignal, database: ReturnType<typeof collecti
         unsubscribe()
         controller.close()
       }, { once: true })
+      await Promise.resolve()
+      if (signal.aborted || sessions.length === 0) return
+      const sessionFrames = sessions.flatMap((scopeKey, sessionIndex) =>
+        ["messages", "parts"].flatMap((collection, collectionIndex) => {
+          const scope = { collection, scopeKey }
+          const snapshotId = `session-${sessionIndex}-${collectionIndex}`
+          const rows = collection === "messages" ? [{
+            key: `message-${scopeKey}`,
+            row: { id: `message-${scopeKey}`, type: "user", text: `${scopeKey} transcript`, time: { created: 1 } },
+          }] : []
+          return [
+            { ...common, type: "snapshot.begin", snapshotId, baseSeq: 0, replace: true, scope },
+            { ...common, type: "snapshot.page", snapshotId, scope, rows },
+            { ...common, type: "snapshot.end", snapshotId, scope, keyCount: rows.length, throughSeq: 0 },
+          ]
+        }))
+      controller.enqueue(new TextEncoder().encode(sessionFrames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")))
     },
   }), { headers: { "content-type": "text/event-stream" } })
 }
@@ -248,7 +282,7 @@ describe("adding a project through the rail", () => {
 
     const rail = screen.getAllByRole("navigation", { name: "Projects" })[0]
     const selectedProject = await within(rail).findByRole("button", { name: /MyNewProject/ })
-    expect(selectedProject.getAttribute("aria-pressed")).toBe("true")
+    await waitFor(() => expect(selectedProject.getAttribute("aria-pressed")).toBe("true"))
     expect(selectedProject).toHaveClass("border-2", "border-[var(--legacy-icon-strong)]")
     expect(within(rail).getByRole("button", { name: /Repo/ }).getAttribute("aria-pressed")).toBe("false")
     const sessions = screen.getAllByRole("navigation", { name: "Sessions" })[0]
@@ -277,9 +311,42 @@ describe("app routing against server-v3", () => {
   test("redirects legacy review URLs to the centered transcript", async () => {
     const router = renderApp(`/${slug}/global/session/ses_live/review`)
 
-    expect(await screen.findByRole("heading", { name: "Live session" })).toBeInTheDocument()
-    expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`)
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument())
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`))
     expect(screen.queryByRole("navigation", { name: "Session views" })).not.toBeInTheDocument()
+  })
+
+  test("does not show an empty transcript while session messages synchronize", async () => {
+    const user = userEvent.setup()
+    const router = renderApp(`/${slug}/global`)
+
+    const sessions = (await screen.findAllByRole("navigation", { name: "Sessions" }))[0]
+    await user.click(within(sessions).getByText("Live session"))
+
+    expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`)
+    expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
+    expect(screen.queryByText("No messages yet")).not.toBeInTheDocument()
+  })
+
+  test("navigates ready sessions without changing the stream subscription", async () => {
+    const user = userEvent.setup()
+    const base = collectionFetcher()
+    let subscriptions = 0
+    const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = input instanceof Request ? input : new Request(input, init)
+      if (new URL(request.url).pathname.endsWith("/subscription")) subscriptions++
+      return base(request)
+    }
+    const router = renderApp(`/${slug}/global`, fetcher)
+    const sessions = (await screen.findAllByRole("navigation", { name: "Sessions" }))[0]
+    const live = await within(sessions).findByText("Live session")
+    const settledSubscriptions = subscriptions
+
+    await user.click(live)
+
+    expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`)
+    await Bun.sleep(20)
+    expect(subscriptions).toBe(settledSubscriptions)
   })
 
   test("restores the last selected session when switching projects", async () => {
@@ -312,6 +379,32 @@ describe("app routing against server-v3", () => {
     expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
   })
 
+  test("opens the project session chooser from recent projects on mobile", async () => {
+    const user = userEvent.setup()
+    markSessionSeen(origin, "ses_live", 1)
+    const router = renderApp(`/${slug}`, collectionFetcher(), { desktop: false })
+
+    await user.click(await screen.findByRole("button", { name: /\/repo/ }))
+
+    await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/global`))
+    expect(await within(await screen.findByRole("main")).findByText("Live session")).toBeInTheDocument()
+  })
+
+  test("resets composer state when navigating directly between sessions", async () => {
+    const user = userEvent.setup()
+    const router = renderApp(`/${slug}/global/session/ses_live`)
+    const composer = await screen.findByRole("textbox", { name: "Message" })
+    await user.type(composer, "draft for live")
+
+    await act(() => router.navigate({
+      to: "/$connectionId/$projectId/session/$sessionId",
+      params: { connectionId: slug, projectId: "docs", sessionId: "ses_docs" },
+    }))
+
+    expect(await screen.findByRole("heading", { name: "Docs session" })).toBeInTheDocument()
+    expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue("")
+  })
+
   test("falls back to the project overview when session history is stale", async () => {
     markSessionSeen(origin, "ses_missing", 1)
     const router = renderApp(`/${slug}/global`)
@@ -332,7 +425,7 @@ describe("app routing against server-v3", () => {
     const user = userEvent.setup()
     renderApp(`/${slug}/global/session/ses_live`)
 
-    expect(await screen.findByRole("heading", { name: "Live session" })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument())
     const serverButton = screen.getByRole("button", { name: /Manage servers/ })
     const toggle = screen.getByRole("button", { name: "Toggle file tree" })
     expect(serverButton.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()

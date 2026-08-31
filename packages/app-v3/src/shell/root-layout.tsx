@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react"
-import { Outlet, useLocation, useNavigate, useParams } from "@tanstack/react-router"
+import { Outlet, useLocation, useNavigate, useParams, useRouter } from "@tanstack/react-router"
 import { PanelRightClose, PanelRightOpen } from "lucide-react"
 import { CommandPalette } from "@/features/command-palette/command-palette"
 import { useConnectionAgent, useServers } from "@/connection/provider"
@@ -11,11 +11,14 @@ import { SessionFilesProvider, useSessionFiles } from "@/features/session/sessio
 import { ServerSelectionModal } from "@/features/server/server-selection-modal"
 import { decodeServerSlug } from "@/lib/server-url"
 import type { Project } from "@/lib/types"
-import { projectNotification, useProject, useProjects, useSessions } from "@/data/queries"
+import { projectNotification, useProject, useProjects, useReadySessions, useSessions } from "@/data/queries"
 import { archiveSessionOptimistically } from "@/mutations/session"
 import { applyProjectOrder, loadProjectOrder, saveProjectOrder } from "@/local-state/project-order"
+import { recentlySeen } from "@/local-state/seen"
+import { useMediaQuery } from "@/hooks/use-media-query"
 import { AppShell } from "./app-shell"
 
+const DESKTOP_QUERY = "(min-width: 1280px)"
 const DRAFT_INSTANCE_ID = Array.from(crypto.getRandomValues(new Uint32Array(4)), (value) => value.toString(36)).join(
   "-",
 )
@@ -83,6 +86,7 @@ function ConnectionGateState({ title, detail, action }: { title: string; detail:
 
 function ShellLayout() {
   const navigate = useNavigate()
+  const router = useRouter()
   const search = useLocation({ select: (location) => location.search })
   const params = useParams({ strict: false }) as {
     connectionId?: string
@@ -98,7 +102,9 @@ function ShellLayout() {
   const [addProjectOpen, setAddProjectOpen] = useState(false)
   const [projectOrders, setProjectOrders] = useState<Record<string, string[]>>({})
   const [now] = useState(Date.now)
+  const [sessionRouteReady, setSessionRouteReady] = useState(false)
   const draftSequence = useRef(0)
+  const isDesktop = useMediaQuery(DESKTOP_QUERY)
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -131,12 +137,48 @@ function ShellLayout() {
   const projects = applyProjectOrder(draftProject ? [...syncedProjects, draftProject] : syncedProjects, projectOrder)
   const project = useProject(agent, params.projectId) ?? draftProject
   const serverSessions = useSessions(agent)
-  const projectSessions = serverSessions.filter((session) => session.projectId === project?.id)
+  const readySessions = useReadySessions(agent, serverSessions)
+  const navigableSessions = sessionRouteReady ? readySessions : []
+  const projectSessions = navigableSessions.filter((session) => session.projectId === project?.id)
+  const sessionSubscription = serverSessions.map((session) => session.id).sort().join("\0")
+
+  useEffect(() => {
+    if (agent && sessionSubscription) agent.prefetch(sessionSubscription.split("\0"))
+  }, [agent, sessionSubscription])
+
+  useEffect(() => {
+    setSessionRouteReady(false)
+    if (!params.connectionId) return
+    const controller = new AbortController()
+    void router.preloadRoute({
+      to: "/$connectionId/$projectId/session/$sessionId",
+      params: { connectionId: params.connectionId, projectId: "preload", sessionId: "preload" },
+    }).then(() => {
+      if (!controller.signal.aborted) setSessionRouteReady(true)
+    })
+    return () => controller.abort()
+  }, [params.connectionId, router])
+
+  function openSession(sessionId: string, projectId: string) {
+    if (!agent?.isSessionReady(sessionId) || !params.connectionId || !sessionRouteReady) return
+    void navigate({
+      to: "/$connectionId/$projectId/session/$sessionId",
+      params: { connectionId: params.connectionId, projectId, sessionId },
+    })
+  }
 
   function goToProject(target: Project) {
     if (target.id === draftProject?.id) return
     const server = servers.connections.find((candidate) => candidate.url === target.connectionId)
     if (!server) return
+    const sessionId = isDesktop && agent?.url === target.connectionId
+      ? recentlySeen(agent.url).findLast((id) =>
+          navigableSessions.some((session) => session.id === id && session.projectId === target.id))
+      : undefined
+    if (sessionId) {
+      void openSession(sessionId, target.id)
+      return
+    }
     void navigate({
       to: "/$connectionId/$projectId",
       params: { connectionId: servers.getSlug(server), projectId: target.id },
@@ -216,11 +258,7 @@ function ShellLayout() {
         activeSessionId: params.sessionId,
         now,
         onSelectSession: (id) => {
-          if (!params.connectionId || !params.projectId) return
-          void navigate({
-            to: "/$connectionId/$projectId/session/$sessionId",
-            params: { connectionId: params.connectionId, projectId: params.projectId, sessionId: id },
-          })
+          if (params.projectId) openSession(id, params.projectId)
         },
         onArchiveSession: (id) => {
           if (!agent) return
@@ -282,21 +320,13 @@ function ShellLayout() {
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         projects={projects}
-        sessions={serverSessions.filter((session) => !session.archived)}
+        sessions={navigableSessions}
         serverCommands={[]}
         connections={servers.connections}
         onSelectProject={(target) => runAfterMobileNavClose(() => goToProject(target))}
         onSelectSession={(session) =>
           runAfterMobileNavClose(() => {
-            if (!params.connectionId) return
-            void navigate({
-              to: "/$connectionId/$projectId/session/$sessionId",
-              params: {
-                connectionId: params.connectionId,
-                projectId: session.projectId,
-                sessionId: session.id,
-              },
-            })
+            openSession(session.id, session.projectId)
           })
         }
         onRunServerCommand={() => runAfterMobileNavClose(() => {})}

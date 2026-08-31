@@ -292,8 +292,8 @@ function replyOnline(
 
 async function awaitReceipt(agent: Agent, value: unknown) {
   const acknowledged = receipt(value)
-  const awaitTxid = agent.store.awaitTxid as unknown as (txid: string, timeoutMs: number, affectedScopes: readonly Scope[]) => Promise<void>
-  await awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes)
+  const awaitTxid = agent.store.awaitTxid as unknown as (txid: string, timeoutMs: number, affectedScopes: readonly Scope[], throughSeq: number) => Promise<void>
+  await awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes, acknowledged.through.seq)
 }
 
 function waitForAuthoritativeState(

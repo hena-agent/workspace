@@ -1,6 +1,5 @@
-import { useLiveQuery } from "@tanstack/react-db"
 import { useQuery } from "@tanstack/react-query"
-import { useSyncExternalStore } from "react"
+import { useRef, useSyncExternalStore } from "react"
 import type { ReturnTypeOfAgent } from "./types"
 import type {
   Agent,
@@ -88,6 +87,17 @@ export function useSessions(agent: ReturnTypeOfAgent | undefined, projectId?: st
 
 export function useSession(agent: ReturnTypeOfAgent | undefined, id: string | undefined) {
   return useSessions(agent).find((session) => session.id === id)
+}
+
+export function useReadySessions(agent: ReturnTypeOfAgent | undefined, sessions: Session[]) {
+  const ready = useSyncExternalStore(
+    agent ? agent.store.subscribe : emptySubscribe,
+    () => sessions.filter((session) => agent?.isSessionReady(session.id)).map((session) => session.id).join("\0"),
+    () => "",
+  )
+  if (!ready) return []
+  const ids = new Set(ready.split("\0"))
+  return sessions.filter((session) => ids.has(session.id))
 }
 
 export function useSessionLocation(agent: ReturnTypeOfAgent | undefined, id: string | undefined) {
@@ -212,8 +222,26 @@ export function projectNotification(projectId: string, sessions: Session[]): Pro
 
 function useRows(agent: ReturnTypeOfAgent | undefined, collection: string, scope: string) {
   const source = (agent?.store ?? emptyStore).collection(collection, scope)
-  const result = useLiveQuery(source)
-  return (result.data ?? []).map((item) => item.row)
+  const tracker = useRef<ReturnType<typeof collectionTracker>>(undefined)
+  if (tracker.current?.source !== source) tracker.current = collectionTracker(source)
+  useSyncExternalStore(tracker.current.subscribe, tracker.current.snapshot, tracker.current.snapshot)
+  return source.toArray.map((item) => item.row)
+}
+
+function collectionTracker(source: ReturnType<typeof emptyStore.collection>) {
+  let revision = 0
+  return {
+    source,
+    subscribe(listener: () => void) {
+      const subscription = source.subscribeChanges(() => {
+        revision++
+        listener()
+      })
+      revision++
+      return () => subscription.unsubscribe()
+    },
+    snapshot: () => revision,
+  }
 }
 
 function projectView(row: Record<string, unknown>, connectionId: string): Project {

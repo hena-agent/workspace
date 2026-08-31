@@ -23,6 +23,7 @@ import type { DraftBody } from "@/local-state/drafts"
 export function SessionTranscriptView({
   session,
   messages,
+  messagesReady = true,
   todos,
   permissionRequest,
   questionRequest,
@@ -53,6 +54,7 @@ export function SessionTranscriptView({
 }: {
   session: Session
   messages: SessionMessage[]
+  messagesReady?: boolean
   todos: Todo[]
   permissionRequest?: PermissionRequest
   questionRequest?: QuestionRequest
@@ -89,7 +91,7 @@ export function SessionTranscriptView({
         onFork={onFork}
         onArchive={onArchive}
       />
-      <MessageList messages={messages} working={session.status === "working"} />
+      <MessageList messages={messages} working={session.status === "working"} ready={messagesReady} />
       <div className="flex flex-col gap-2 border-t p-3">
         <TodoDock todos={todos} />
         {mutationNotice ? <p role="status" className="rounded-md border px-3 py-2 text-sm text-muted-foreground">{mutationNotice}</p> : null}

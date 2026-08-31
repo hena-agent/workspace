@@ -15,6 +15,8 @@ export interface ConnectionAgent {
   readonly errorMessage: string | undefined
   subscribe(listener: () => void): () => boolean
   start(): Promise<void>
+  prefetch(sessionIds: readonly string[]): void
+  isSessionReady(sessionId: string): boolean
   claim(sessionId: string): () => void
   retry(): void
   dispose(): void
@@ -32,8 +34,8 @@ type Snapshot = {
 type Decoders = Awaited<ReturnType<typeof loadDecoders>>
 
 const SessionCollections = ["messages", "parts", "sessionInputs", "todos"] as const
+const TranscriptCollections = ["messages", "parts"] as const
 const VolatileCollections = new Set(["permissions", "questions", "agents", "models", "providers"])
-const LingeredSessions = 8
 
 export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): ConnectionAgent {
   let refresh = (_scopes?: readonly ScopeRef[]) => {}
@@ -218,6 +220,9 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     } finally {
       if (liveness) clearTimeout(liveness)
       abort = undefined
+      snapshots.clear()
+      activeSnapshots.clear()
+      bufferedDeltas.clear()
     }
     if (livenessExpired) throw new Error("Collection stream became silent")
   }
@@ -306,6 +311,11 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     bufferedDeltas.delete(sessionId)
   }
 
+  function isSessionReady(sessionId: string) {
+    return TranscriptCollections.every((collection) =>
+      store.isMaterialized(collection, sessionId, collection === "messages"))
+  }
+
   return {
     url,
     client,
@@ -318,17 +328,27 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
       return () => listeners.delete(listener)
     },
     start,
+    prefetch(sessionIds: readonly string[]) {
+      const previous = claimedSessions()
+      sessionIds.slice().reverse().forEach((sessionId) => {
+        if (focusedSession !== sessionId) retain(sessionId)
+      })
+      if (!sameSessions(previous, claimedSessions())) requestRestart()
+    },
+    isSessionReady,
     claim(sessionId: string) {
+      const beforeClaim = claimedSessions()
       const previous = focusedSession
       focusedSession = sessionId
       remove(linger, sessionId)
       if (previous && previous !== sessionId) retain(previous)
-      requestRestart()
+      if (!sameSessions(beforeClaim, claimedSessions())) requestRestart()
       return () => {
         if (focusedSession !== sessionId) return
+        const beforeRelease = claimedSessions()
         focusedSession = undefined
         retain(sessionId)
-        requestRestart()
+        if (!sameSessions(beforeRelease, claimedSessions())) requestRestart()
       }
     },
     retry() {
@@ -348,7 +368,6 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   function retain(sessionId: string) {
     remove(linger, sessionId)
     linger.unshift(sessionId)
-    linger.splice(LingeredSessions).forEach((evicted) => store.dropSession(evicted))
   }
 }
 
@@ -411,6 +430,12 @@ function wireKey(key: string | readonly string[]) {
 function remove(values: string[], value: string) {
   const index = values.indexOf(value)
   if (index !== -1) values.splice(index, 1)
+}
+
+function sameSessions(left: readonly string[], right: readonly string[]) {
+  if (left.length !== right.length) return false
+  const sessions = new Set(right)
+  return left.every((session) => sessions.has(session))
 }
 
 function reconnectDelay(attempt: number) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useLayoutEffect, useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { SessionTranscriptView } from "@/features/session/session-transcript-view"
@@ -12,14 +12,18 @@ import { markSessionSeen } from "@/local-state/seen"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/")({
   component: SessionTranscriptRoute,
-  remountDeps: ({ params }) => params,
 })
 
 function SessionTranscriptRoute() {
   const { connectionId, projectId, sessionId } = Route.useParams()
+  return <SessionTranscript key={`${connectionId}\0${projectId}\0${sessionId}`} />
+}
+
+function SessionTranscript() {
+  const { connectionId, projectId, sessionId } = Route.useParams()
   const queryClient = useQueryClient()
   const agent = useConnectionAgent(connectionId)
-  useEffect(() => agent?.claim(sessionId), [agent, sessionId])
+  useLayoutEffect(() => agent?.claim(sessionId), [agent, sessionId])
   const session = useSession(agent, sessionId)
   const location = useSessionLocation(agent, sessionId)
   const catalog = useCatalog(agent, location)
@@ -32,6 +36,8 @@ function SessionTranscriptRoute() {
   const questionWire = usePendingRequest(agent, "questions", sessionId)
   const queue = useQueuedInputs(agent, sessionId)
   const sessionsReady = useCollectionReady(agent, "sessions")
+  const messagesReady = useCollectionReady(agent, "messages", sessionId)
+  const partsReady = useCollectionReady(agent, "parts", sessionId)
   const sessionFiles = useSessionFiles()
   const [agentId, setAgentId] = useState("")
   const [modelId, setModelId] = useState("")
@@ -65,6 +71,7 @@ function SessionTranscriptRoute() {
         <SessionTranscriptView
           session={session}
           messages={messages}
+          messagesReady={messagesReady && partsReady}
           todos={todos}
           permissionRequest={permission}
           questionRequest={question}

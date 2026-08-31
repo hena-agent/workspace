@@ -41,7 +41,7 @@ export function SessionListItem({
     <div
       data-active={active ? "true" : "false"}
       className={cn(
-        "group/session relative w-full min-w-0 cursor-default rounded-[6px] pr-3 pl-2 transition-colors focus-within:bg-[var(--legacy-surface-raised-hover)] hover:bg-[var(--legacy-surface-raised-hover)]",
+        "group/session relative w-full min-w-0 cursor-default rounded-[6px] pr-3 pl-2 transition-colors duration-75 focus-within:bg-[var(--legacy-surface-raised-hover)] hover:bg-[var(--legacy-surface-raised-hover)]",
         active && "bg-[var(--legacy-surface-active)]",
       )}
     >
@@ -63,10 +63,10 @@ export function SessionListItem({
         </button>
         {onArchive ? <div
           className={cn(
-            "shrink-0 overflow-hidden transition-[width,opacity]",
+            "w-[var(--hit-area)] shrink-0 transition-opacity duration-75",
             mobile
-              ? "w-[var(--hit-area)] opacity-100"
-              : "pointer-events-none w-0 opacity-0 group-focus-within/session:pointer-events-auto group-focus-within/session:w-[var(--hit-area)] group-focus-within/session:opacity-100 group-hover/session:pointer-events-auto group-hover/session:w-[var(--hit-area)] group-hover/session:opacity-100",
+              ? "opacity-100"
+              : "pointer-events-none opacity-0 group-focus-within/session:pointer-events-auto group-focus-within/session:opacity-100 group-hover/session:pointer-events-auto group-hover/session:opacity-100",
           )}
         >
           <Button

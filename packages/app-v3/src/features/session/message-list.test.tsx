@@ -10,6 +10,11 @@ describe("MessageList", () => {
     expect(screen.getByText("Say something to get started.")).toBeInTheDocument()
   })
 
+  test("does not show an empty state before messages are synchronized", () => {
+    render(<MessageList messages={[]} ready={false} />)
+    expect(screen.queryByText("No messages yet")).not.toBeInTheDocument()
+  })
+
   test("renders every message in the log in order", () => {
     const messages = listMessages({
       sessionId: "sess-transcript",

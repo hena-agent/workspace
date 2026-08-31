@@ -167,16 +167,28 @@ describe("connection protocol", () => {
       snapshotFrame("snapshot.begin", "messages", { snapshotId: "messages", baseSeq: 2, replace: true }),
       snapshotFrame("snapshot.page", "messages", { snapshotId: "messages", rows: [{ key: "new", row: { id: "new", text: "New transcript" } }] }),
       snapshotFrame("snapshot.end", "messages", { snapshotId: "messages", keyCount: 1, throughSeq: 2 }),
+      snapshotFrame("snapshot.begin", "sessionInputs", { snapshotId: "inputs", baseSeq: 2, replace: true }),
+      rowsFrame(3, [
+        { seq: 3, collection: "parts", scopeKey: "session-1", rowKey: ["new", "text", "part-1"], op: "insert", row: { id: "part-1", messageID: "new", type: "text", text: "First" } },
+        { seq: 3, collection: "sessionInputs", scopeKey: "session-1", rowKey: "input-1", op: "insert", row: { id: "input-1" } },
+      ]),
+      rowsFrame(4, [
+        { seq: 4, collection: "messages", scopeKey: "session-1", rowKey: "new", op: "update", row: { id: "new", text: "Updated transcript" } },
+        { seq: 4, collection: "parts", scopeKey: "session-1", rowKey: ["new", "text", "part-2"], op: "insert", row: { id: "part-2", messageID: "new", type: "text", text: "Second" } },
+      ]),
+      snapshotFrame("snapshot.end", "sessionInputs", { snapshotId: "inputs", keyCount: 0, throughSeq: 2 }),
     ])
     await Bun.sleep(0)
     expect(agent.store.rows("messages", "session-1")).toEqual([{ id: "old", text: "Old transcript" }])
+    expect(agent.store.rows("sessionInputs", "session-1")).toEqual([{ id: "input-1" }])
 
     replacement.send([
       snapshotFrame("snapshot.begin", "parts", { snapshotId: "parts", baseSeq: 2, replace: true }),
       snapshotFrame("snapshot.end", "parts", { snapshotId: "parts", keyCount: 0, throughSeq: 2 }),
     ])
     await waitUntil(() => agent.store.rows("messages", "session-1").some((row) => row.id === "new"))
-    expect(agent.store.rows("messages", "session-1")).toEqual([{ id: "new", text: "New transcript" }])
+    expect(agent.store.rows("messages", "session-1")).toEqual([{ id: "new", text: "Updated transcript" }])
+    expect(agent.store.rows("parts", "session-1").map((row) => row.id)).toEqual(["part-1", "part-2"])
     agent.dispose()
     await started
   })
@@ -263,6 +275,22 @@ function snapshotFrame(type: string, collection: string, value: Record<string, u
     type,
     scope: { collection, scopeKey: "session-1" },
     ...value,
+  }
+}
+
+function rowsFrame(throughSeq: number, changes: Record<string, unknown>[]) {
+  return {
+    protocolVersion: 1,
+    feedId: "feed",
+    runtimeId: "runtime",
+    streamId: "stream",
+    generation: 0,
+    subscriptionRevision: 2,
+    type: "rows",
+    affectedScopes: changes.map((change) => ({ collection: change.collection, scopeKey: change.scopeKey })),
+    fromSeq: throughSeq,
+    throughSeq,
+    changes,
   }
 }
 

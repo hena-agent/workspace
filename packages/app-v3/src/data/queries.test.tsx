@@ -42,50 +42,13 @@ test("transcript rows wait for both message and part snapshots", async () => {
     await Bun.sleep(0)
   })
   expect(screen.queryByText("Snapshot complete")).not.toBeInTheDocument()
+  expect(agent.store.transcript("session-1").toArray).toEqual([])
 
   await act(async () => {
     agent.store.applySnapshot("parts", "session-1", [], 1)
     await Bun.sleep(0)
   })
   expect(await screen.findByText("Snapshot complete")).toBeVisible()
-  act(() => agent.dispose())
-})
-
-test("hard invalidation hides rows until both replacement snapshots complete", async () => {
-  const agent = createConnectionAgent("http://hena.test")
-  agent.store.applySnapshot("messages", "session-1", [{
-    key: "message-1",
-    row: { id: "message-1", type: "user", text: "Old transcript", time: { created: 1 } },
-  }], 1)
-  agent.store.applySnapshot("parts", "session-1", [], 1)
-
-  function View() {
-    const transcript = useMessages(agent, "session-1")
-    return <MessageList messages={transcript.messages} ready={transcript.ready} />
-  }
-
-  render(<View />)
-  expect(await screen.findByText("Old transcript")).toBeVisible()
-  act(() => agent.store.dropCursors([
-    { collection: "messages", scopeKey: "session-1" },
-    { collection: "parts", scopeKey: "session-1" },
-  ]))
-  await waitFor(() => expect(screen.queryByText("Old transcript")).toBeNull())
-
-  await act(async () => {
-    agent.store.applySnapshot("messages", "session-1", [{
-      key: "message-2",
-      row: { id: "message-2", type: "user", text: "New transcript", time: { created: 2 } },
-    }], 2)
-    await Bun.sleep(0)
-  })
-  expect(screen.queryByText("New transcript")).toBeNull()
-
-  await act(async () => {
-    agent.store.applySnapshot("parts", "session-1", [], 2)
-    await Bun.sleep(0)
-  })
-  expect(await screen.findByText("New transcript")).toBeVisible()
   act(() => agent.dispose())
 })
 
@@ -194,13 +157,17 @@ test("reasoning deltas project a provisional part before its durable row", async
   expect(container.querySelector('[data-slot="collapsible-content"]')).toHaveAttribute("data-state", "open")
   expect(container.querySelector('[data-slot="collapsible-content"] [data-sd-animate]')).toBeInTheDocument()
 
-  act(() => agent.store.dropCursors([
-    { collection: "messages", scopeKey: "session-1" },
-    { collection: "parts", scopeKey: "session-1" },
-  ]))
+  act(() => agent.store.applyRows({
+    throughSeq: 1,
+    changes: [
+      { seq: 1, collection: "messages", scopeKey: "session-1", rowKey: "", op: "reset", row: null },
+      { seq: 1, collection: "parts", scopeKey: "session-1", rowKey: "", op: "reset", row: null },
+    ],
+  }))
   await waitFor(() => expect(container.querySelector('[data-slot="collapsible-content"]')).toBeNull())
 
   await act(async () => {
+    agent.store.applyDelta({ sessionId: "session-1", messageId: "message-1", partId: "reasoning-1", partKind: "reasoning", offset: 0, text: "Live reasoning" })
     agent.store.applySnapshot("messages", "session-1", [{
       key: "message-1",
       row: { id: "message-1", type: "assistant", time: { created: 1 } },

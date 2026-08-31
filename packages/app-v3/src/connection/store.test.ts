@@ -19,11 +19,7 @@ describe("connection store", () => {
   test("settles receipts for filtered recovery rows", async () => {
     const store = createConnectionStore()
     const settled = store.awaitTxid("txid", 100)
-    store.applyRows({
-      throughSeq: 1,
-      changes: [],
-      receiptChanges: [{ seq: 1, collection: "messages", scopeKey: "session-1", rowKey: "", op: "reset", row: null, txid: "txid" }],
-    })
+    store.settleReceipts([{ seq: 1, collection: "messages", scopeKey: "session-1", rowKey: "", op: "reset", row: null, txid: "txid" }])
 
     await settled
   })
@@ -62,30 +58,6 @@ describe("connection store", () => {
     expect(store.cursor("messages", "session-1")).toBe(0)
     store.applySnapshot("messages", "session-1", [], 2)
     expect(store.isReady("messages", "session-1")).toBe(true)
-  })
-
-  test("invalidates transcript readiness atomically before replacement snapshots", () => {
-    const store = createConnectionStore()
-    const states: boolean[][] = []
-    store.applySnapshot("messages", "session-1", [], 1)
-    store.applySnapshot("parts", "session-1", [], 1)
-    store.subscribe(() => states.push([
-      store.isReady("messages", "session-1"),
-      store.isReady("parts", "session-1"),
-    ]))
-
-    store.dropCursors([
-      { collection: "messages", scopeKey: "session-1" },
-      { collection: "parts", scopeKey: "session-1" },
-    ])
-    expect(states).toEqual([[false, false]])
-    expect(store.cursor("messages", "session-1")).toBe(0)
-    expect(store.cursor("parts", "session-1")).toBe(0)
-
-    store.applySnapshot("messages", "session-1", [], 2)
-    expect(states.at(-1)).toEqual([true, false])
-    store.applySnapshot("parts", "session-1", [], 2)
-    expect(states.at(-1)).toEqual([true, true])
   })
 
   test("publishes a replacement snapshot atomically", () => {

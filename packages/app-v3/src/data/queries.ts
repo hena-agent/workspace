@@ -113,24 +113,15 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
     () => agent?.localMessages.revision(sessionId) ?? 0,
     () => 0,
   )
-  const messages = useRows(agent, "messages", sessionId)
-  const parts = useRows(agent, "parts", sessionId)
-  useSyncExternalStore(
-    agent ? agent.store.subscribe : emptySubscribe,
-    () => agent?.store.revision() ?? 0,
-    () => 0,
-  )
+  const transcript = useTranscriptRows(agent, sessionId)
   const localRows = agent?.localMessages.rows(sessionId) ?? []
   const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
-  const transcript = agent?.store.isBatching()
-    ? { messages: agent.store.batchRows("messages", sessionId), parts: agent.store.batchRows("parts", sessionId), deltas }
-    : { messages, parts, deltas }
-  const projected = (ready ? transcript.messages : []).map((message) => messageView(agent, sessionId, message, transcript.parts, transcript.deltas))
+  const projected = (ready ? transcript.messages : []).map((message) => messageView(agent, sessionId, message, transcript.parts, deltas))
   const known = new Set(projected.map((message) => message.id))
   const local = localRows.flatMap((message) => known.has(string(message.id))
     ? []
-    : [messageView(agent, sessionId, message, transcript.parts, transcript.deltas)])
-  const provisional = (ready ? transcript.deltas : [])
+    : [messageView(agent, sessionId, message, transcript.parts, deltas)])
+  const provisional = (ready ? deltas : [])
     .filter((delta) => !known.has(delta.messageId))
     .reduce<Extract<SessionMessage, { role: "assistant" }>[]>((result, delta) => {
       const message = result.find((item) => item.id === delta.messageId)
@@ -236,6 +227,17 @@ function useRows(agent: ReturnTypeOfAgent | undefined, collection: string, scope
   const source = (agent?.store ?? emptyStore).collection(collection, scope)
   const result = useLiveQuery(source)
   return (result.data ?? []).map((item) => item.row)
+}
+
+function useTranscriptRows(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
+  "use no memo"
+  // TanStack mutates live collection data without changing its array identity.
+  const result = useLiveQuery((agent?.store ?? emptyStore).transcript(sessionId))
+  return (result.data ?? []).reduce<{ messages: Record<string, unknown>[]; parts: Record<string, unknown>[] }>((rows, item) => {
+    if (item.__source === "messages") rows.messages.push(item.row)
+    if (item.__source === "parts") rows.parts.push(item.row)
+    return rows
+  }, { messages: [], parts: [] })
 }
 
 function projectView(row: Record<string, unknown>, connectionId: string): Project {

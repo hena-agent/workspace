@@ -1,4 +1,5 @@
 import type { createConnectionStore } from "./store"
+import { isTranscriptCurrent } from "./transcript"
 
 type Row = Record<string, unknown>
 type Store = ReturnType<typeof createConnectionStore>
@@ -25,13 +26,7 @@ export function createLocalMessages(store: Store) {
   const reconcile = (sessionId: string) => {
     const entries = sessions.get(sessionId)
     // Keep the local copy until parts catch up so message promotion cannot create a blank transcript.
-    if (
-      !entries ||
-      !store.isReady("messages", sessionId) ||
-      !store.isReady("parts", sessionId) ||
-      store.isSynchronizing("messages", sessionId) ||
-      store.isSynchronizing("parts", sessionId)
-    ) return false
+    if (!entries || !isTranscriptCurrent(store, sessionId)) return false
     const messages = new Set(store.authoritativeRows("messages", sessionId).flatMap((row) =>
       typeof row.id === "string" ? [row.id] : [],
     ))
@@ -45,12 +40,13 @@ export function createLocalMessages(store: Store) {
     removed.forEach((messageId) => remove(sessionId, messageId))
     return removed.length > 0
   }
+  const reconcileSession = (sessionId: string) => {
+    if (!reconcile(sessionId)) return
+    notify(sessionId)
+    cleanup(sessionId)
+  }
   const unsubscribe = store.subscribe(() => {
-    sessions.forEach((_, sessionId) => {
-      if (!reconcile(sessionId)) return
-      notify(sessionId)
-      cleanup(sessionId)
-    })
+    sessions.forEach((_, sessionId) => reconcileSession(sessionId))
   })
 
   return {
@@ -80,9 +76,7 @@ export function createLocalMessages(store: Store) {
       const entry = sessions.get(sessionId)?.get(messageId)
       if (!entry) return
       entry.acknowledged = true
-      if (!reconcile(sessionId)) return
-      notify(sessionId)
-      cleanup(sessionId)
+      reconcileSession(sessionId)
     },
     drop(sessionId: string, messageId: string) {
       if (!remove(sessionId, messageId)) return

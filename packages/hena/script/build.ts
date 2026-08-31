@@ -23,9 +23,9 @@ const skipEmbedWebUi = process.argv.includes("--skip-embed-web-ui")
 
 const createEmbeddedWebUIBundle = async () => {
   console.log(`Building Web UI to embed in the binary`)
-  const appDir = path.join(import.meta.dirname, "../../app")
+  const appDir = path.join(import.meta.dirname, "../../app-v3")
   const dist = path.join(appDir, "dist")
-  await $`HENA_CHANNEL=${Script.channel} bun run --cwd ${appDir} build`
+  await $`HENA_CHANNEL=${Script.channel} bun run --cwd ${appDir} build:embedded`
   const files = (await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: dist })))
     .map((file) => file.replaceAll("\\", "/"))
     .filter((file) => !file.endsWith(".map"))
@@ -173,10 +173,7 @@ for (const item of targets) {
     files: {
       ...(embeddedFileMap ? { "hena-web-ui.gen.ts": embeddedFileMap } : {}),
     },
-    entrypoints: [
-      "./src/index.ts",
-      ...(embeddedFileMap ? ["hena-web-ui.gen.ts"] : []),
-    ],
+    entrypoints: ["./src/index.ts", ...(embeddedFileMap ? ["hena-web-ui.gen.ts"] : [])],
     define: {
       FFF_LIBC: JSON.stringify(item.abi === "musl" ? "musl" : "gnu"),
       HENA_VERSION: `'${Script.version}'`,

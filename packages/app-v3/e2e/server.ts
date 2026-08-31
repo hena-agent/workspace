@@ -23,10 +23,10 @@ if (auth) {
   await writeFile(path.join(directory, "data", "hena", "auth.json"), JSON.stringify({ "opencode-go": auth }), { mode: 0o600 })
 }
 
-const { start } = await import("../../server-v3/src/main")
+const { start } = await import("@hena/server-v3/start")
 const running = await start({
   port: Number(process.env.E2E_PORT ?? 4117),
-  publicDir: path.resolve(import.meta.dir, "../dist"),
+  staticSource: { type: "disk", directory: path.resolve(import.meta.dir, "../dist") },
   corsOrigins: ["http://127.0.0.1:4117", "http://127.0.0.1:4118"],
 })
 let cleaning = false

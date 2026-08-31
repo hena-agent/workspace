@@ -8,7 +8,7 @@ import { createSettingRoutes } from "./routes/settings"
 import { unavailableCoreDomain, type CoreDomain } from "./core/domain"
 import { createSessionRoutes } from "./routes/session"
 import { exactOriginCors } from "./http/cors"
-import { createStaticRoutes } from "./http/static"
+import { createStaticRoutes, type StaticSource } from "./http/static"
 import { createFileSystemRoutes } from "./routes/filesystem"
 import { createCatalogRoutes } from "./routes/catalog"
 import { createContentRoutes } from "./routes/content"
@@ -20,7 +20,7 @@ import { coreError, error, type ErrorCode } from "./http/error"
 export function createApp(input: {
   database: SyncDatabase
   domain?: CoreDomain
-  publicDir?: string
+  staticSource?: StaticSource
   corsOrigins?: readonly string[]
   deltas?: DeltaHub
   online?: OnlineRequestStore
@@ -86,8 +86,8 @@ export function createApp(input: {
     .route("/api", createCatalogRoutes(domain))
     .route("/api", createContentRoutes(input.database))
     .route("/api", createOnlineRoutes(domain))
-  if (!input.publicDir) return api
-  return api.route("/", createStaticRoutes(input.publicDir))
+  if (!input.staticSource) return api
+  return api.route("/", createStaticRoutes(input.staticSource))
 }
 
 type ErrorResponse = { error: { code: ErrorCode; message: string; details?: Record<string, unknown> } }

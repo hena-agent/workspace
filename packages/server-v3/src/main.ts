@@ -10,12 +10,23 @@ import { Flag } from "@hena/core/flag/flag"
 import { Global } from "@hena/core/global"
 import { ConfigV1 } from "@hena/core/v1/config/config"
 import { Option, Schema } from "effect"
+import type { StaticSource } from "./http/static"
 
 export const Hostname = "127.0.0.1"
 
-if (import.meta.main) await start()
+if (import.meta.main) {
+  const running = await start()
+  const stop = () => void running.stop()
+  process.once("SIGINT", stop)
+  process.once("SIGTERM", stop)
+  console.error(`server-v3 listening on ${running.server.url}`)
+}
 
-export async function start(input?: { port?: number; publicDir?: string; corsOrigins?: readonly string[] }) {
+export async function start(input?: {
+  port?: number
+  staticSource?: StaticSource
+  corsOrigins?: readonly string[]
+}) {
   assertNoPassword()
   const corsOrigins = [...(await configuredCorsOrigins()), ...viteCorsOrigins(), ...(input?.corsOrigins ?? [])]
   const server = Bun.serve({
@@ -87,7 +98,10 @@ export async function start(input?: { port?: number; publicDir?: string; corsOri
         online,
         corsOrigins,
         logger: (record) => console.error(JSON.stringify(record)),
-        publicDir: input?.publicDir ?? path.resolve(import.meta.dir, "../../app-v3/dist"),
+        staticSource: input?.staticSource ?? {
+          type: "disk",
+          directory: path.resolve(import.meta.dir, "../../app-v3/dist"),
+        },
       }).fetch,
     })
     const compaction = setInterval(() => database.compact(), 60 * 60_000)
@@ -97,16 +111,11 @@ export async function start(input?: { port?: number; publicDir?: string; corsOri
     const stop = () => {
       if (shutdown) return shutdown
       shutdown = (async () => {
-        process.off("SIGINT", stop)
-        process.off("SIGTERM", stop)
         await server.stop(true)
         await dispose()
       })()
       return shutdown
     }
-    process.once("SIGINT", stop)
-    process.once("SIGTERM", stop)
-    console.error(`server-v3 listening on ${server.url}`)
     return { server, stop }
   } catch (cause) {
     await server.stop(true)

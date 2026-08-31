@@ -66,10 +66,10 @@ Options:
                                           [string] [choices: "default", "json"] [default: "default"]
   -f, --file        file(s) to attach to message                                             [array]
       --title       title for the session (uses truncated prompt if no value provided)      [string]
-      --attach      attach to a running Hena server (e.g., http://localhost:4096)           [string]
-  -p, --password    basic auth password (defaults to HENA_SERVER_PASSWORD)                  [string]
-  -u, --username    basic auth username (defaults to HENA_SERVER_USERNAME or 'hena')        [string]
-      --dir         directory to run in, path on remote server if attaching                 [string]
+      --attach      attach to a legacy v2 Hena server                                       [string]
+  -p, --password    legacy server password (defaults to HENA_SERVER_PASSWORD)               [string]
+  -u, --username    legacy server username (defaults to HENA_SERVER_USERNAME or 'hena')     [string]
+      --dir         directory to run in, path on a legacy server if attaching               [string]
       --variant     model variant (provider-specific reasoning effort, e.g., high, max, minimal)
                                                                                             [string]
       --thinking    show thinking blocks                                                   [boolean]
@@ -178,7 +178,7 @@ Options:
 exports[`hena CLI help-text snapshots every documented command emits stable help text: hena serve --help 1`] = `
 "hena serve
 
-starts a headless Hena server
+start Hena server and web interface
 
 Options:
   -h, --help         show help                                                             [boolean]
@@ -186,7 +186,7 @@ Options:
       --print-logs   print logs to stderr                                                  [boolean]
       --log-level    log level                  [string] [choices: "DEBUG", "INFO", "WARN", "ERROR"]
       --pure         run without external plugins                                          [boolean]
-      --port         port to listen on                                         [number] [default: 0]
+      --port         port to listen on                                      [number] [default: 4096]
       --hostname     hostname to listen on                           [string] [default: "127.0.0.1"]
       --mdns         enable mDNS service discovery (defaults hostname to 0.0.0.0)
                                                                           [boolean] [default: false]
@@ -206,7 +206,7 @@ Options:
       --print-logs   print logs to stderr                                                  [boolean]
       --log-level    log level                  [string] [choices: "DEBUG", "INFO", "WARN", "ERROR"]
       --pure         run without external plugins                                          [boolean]
-      --port         port to listen on                                         [number] [default: 0]
+      --port         port to listen on                                      [number] [default: 4096]
       --hostname     hostname to listen on                           [string] [default: "127.0.0.1"]
       --mdns         enable mDNS service discovery (defaults hostname to 0.0.0.0)
                                                                           [boolean] [default: false]

@@ -1,5 +1,5 @@
-// Subprocess integration tests for `hena serve`. Spawns the real CLI in
-// headless mode and exercises it over HTTP — this is the only test tier that
+// Subprocess integration tests for `hena serve`. Spawns the real CLI and
+// exercises it over HTTP — this is the only test tier that
 // catches bugs spanning argv → server boot → routing → instance loading.
 //
 // `serve` is long-lived: the harness returns a handle (url/port/kill/exited)
@@ -11,10 +11,10 @@ import { HttpClient } from "effect/unstable/http"
 import { cliIt } from "../../lib/cli-process"
 
 describe("hena serve (subprocess)", () => {
-  // Smoke test: server starts, binds a port, and /global/health responds.
+  // Smoke test: server starts, binds a port, and the v3 protocol responds.
   // If this fails, all other serve tests likely will too — debug here first.
   cliIt.live(
-    "starts, binds a port, and serves /global/health",
+    "starts, binds a port, and serves v3 capabilities",
     ({ hena }) =>
       Effect.gen(function* () {
         const server = yield* hena.serve()
@@ -22,13 +22,10 @@ describe("hena serve (subprocess)", () => {
         expect(server.url).toMatch(/^http:\/\//)
 
         const client = yield* HttpClient.HttpClient
-        const res = yield* client.get(`${server.url}/global/health`)
+        const res = yield* client.get(`${server.url}/api/collection/capabilities`)
         expect(res.status).toBe(200)
-        // GlobalHealth schema is { success: true, ... } | { success: false, error }.
-        // We don't lock in further shape here — any 200 with parseable JSON is
-        // enough proof the routing + auth-bypass + instance loading is alive.
         const body = yield* res.json
-        expect(body).toBeDefined()
+        expect(body).toMatchObject({ protocol: { min: 1, max: 1 }, auth: "none" })
       }),
     60_000,
   )
@@ -55,6 +52,63 @@ describe("hena serve (subprocess)", () => {
         // (typically 143 on POSIX). We just require resolution within a sane
         // window — anything else means the kill didn't take.
         expect(typeof code === "number" || code === null).toBe(true)
+      }),
+    60_000,
+  )
+
+  cliIt.live(
+    "releases the port after SIGTERM",
+    ({ hena }) =>
+      Effect.gen(function* () {
+        const first = yield* hena.serve()
+        first.kill()
+        yield* Effect.promise(() => first.exited)
+
+        const replacement = yield* hena.serve({ port: first.port })
+        expect(replacement.port).toBe(first.port)
+      }),
+    60_000,
+  )
+
+  cliIt.live(
+    "reports unsupported password authentication",
+    ({ hena }) =>
+      Effect.gen(function* () {
+        const result = yield* hena.spawn(["serve", "--port", "0"], {
+          env: { HENA_SERVER_PASSWORD: "secret" },
+        })
+
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stderr).toContain("HENA_SERVER_PASSWORD is not supported")
+        expect(result.stderr).not.toContain("Unexpected error")
+      }),
+    60_000,
+  )
+
+  cliIt.live(
+    "reports a port conflict with the --port flag",
+    ({ hena }) =>
+      Effect.gen(function* () {
+        const running = yield* hena.serve()
+        const result = yield* hena.spawn(["serve", "--port", String(running.port)])
+
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stderr).toContain(`Port ${running.port} is already in use`)
+        expect(result.stderr).toContain("--port")
+        expect(result.stderr).not.toContain("Unexpected error")
+      }),
+    60_000,
+  )
+
+  cliIt.live(
+    "rejects unauthenticated non-loopback binding",
+    ({ hena }) =>
+      Effect.gen(function* () {
+        const result = yield* hena.spawn(["serve", "--hostname", "0.0.0.0"])
+
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stderr).toContain("only supports --hostname 127.0.0.1")
+        expect(result.stderr).not.toContain("Unknown argument")
       }),
     60_000,
   )

@@ -108,9 +108,14 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
     () => agent?.store.deltaIdentityRevision(sessionId) ?? 0,
     () => 0,
   )
+  useSyncExternalStore(
+    agent ? (listener) => agent.localMessages.subscribe(sessionId, listener) : emptySubscribe,
+    () => agent?.localMessages.revision(sessionId) ?? 0,
+    () => 0,
+  )
   const messages = useRows(agent, "messages", sessionId)
   const parts = useRows(agent, "parts", sessionId)
-  const localRows = agent?.store.localMessages(sessionId) ?? []
+  const localRows = agent?.localMessages.rows(sessionId) ?? []
   const localIDs = new Set(localRows.map((message) => string(message.id)))
   const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
   const projected = (ready ? messages : messages.filter((message) => localIDs.has(string(message.id))))

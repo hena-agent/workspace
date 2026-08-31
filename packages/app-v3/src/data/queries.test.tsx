@@ -50,9 +50,47 @@ test("transcript rows wait for both message and part snapshots", async () => {
   act(() => agent.dispose())
 })
 
+test("resnapshots do not combine new messages with stale parts", async () => {
+  const agent = createConnectionAgent("http://hena.test")
+  agent.store.applySnapshot("messages", "session-1", [{
+    key: "message-1",
+    row: { id: "message-1", type: "user", text: "Old transcript", time: { created: 1 } },
+  }], 1)
+  agent.store.applySnapshot("parts", "session-1", [], 1)
+
+  function View() {
+    const transcript = useMessages(agent, "session-1")
+    return <MessageList messages={transcript.messages} ready={transcript.ready} />
+  }
+
+  render(<View />)
+  expect(await screen.findByText("Old transcript")).toBeVisible()
+  act(() => agent.store.dropCursors([
+    { collection: "messages", scopeKey: "session-1" },
+    { collection: "parts", scopeKey: "session-1" },
+  ]))
+  await waitFor(() => expect(screen.queryByText("Old transcript")).toBeNull())
+
+  await act(async () => {
+    agent.store.applySnapshot("messages", "session-1", [{
+      key: "message-2",
+      row: { id: "message-2", type: "user", text: "New transcript", time: { created: 2 } },
+    }], 2)
+    await Bun.sleep(0)
+  })
+  expect(screen.queryByText("New transcript")).toBeNull()
+
+  await act(async () => {
+    agent.store.applySnapshot("parts", "session-1", [], 2)
+    await Bun.sleep(0)
+  })
+  expect(await screen.findByText("New transcript")).toBeVisible()
+  act(() => agent.dispose())
+})
+
 test("local prompts remain visible until both authoritative snapshots complete", async () => {
   const agent = createConnectionAgent("http://hena.test")
-  agent.store.stageLocalMessage("session-1", "message-1", {
+  agent.localMessages.stage("session-1", "message-1", {
     id: "message-1",
     type: "user",
     text: "Local prompt",
@@ -66,21 +104,45 @@ test("local prompts remain visible until both authoritative snapshots complete",
 
   render(<View />)
   await act(async () => {
-    agent.store.applySnapshot("messages", "session-1", [{
+    agent.localMessages.applySnapshot(agent.store, "messages", "session-1", [{
       key: "message-1",
       row: { id: "message-1", type: "user", text: "Local prompt", time: { created: 1 } },
     }], 1)
     await Bun.sleep(0)
   })
   expect(await screen.findByText("Local prompt")).toBeVisible()
-  expect(agent.store.localMessages("session-1")).toHaveLength(1)
+  expect(agent.localMessages.rows("session-1")).toHaveLength(1)
 
   await act(async () => {
-    agent.store.applySnapshot("parts", "session-1", [], 1)
+    agent.localMessages.applySnapshot(agent.store, "parts", "session-1", [], 1)
     await Bun.sleep(0)
   })
   expect(screen.getByText("Local prompt")).toBeVisible()
-  expect(agent.store.localMessages("session-1")).toEqual([])
+  expect(agent.localMessages.rows("session-1")).toEqual([])
+  act(() => agent.dispose())
+})
+
+test("local prompt changes notify transcript consumers directly", async () => {
+  const agent = createConnectionAgent("http://hena.test")
+  agent.store.applySnapshot("messages", "session-1", [], 1)
+  agent.store.applySnapshot("parts", "session-1", [], 1)
+
+  function View() {
+    const transcript = useMessages(agent, "session-1")
+    return <MessageList messages={transcript.messages} ready={transcript.ready} />
+  }
+
+  render(<View />)
+  act(() => agent.localMessages.stage("session-1", "message-1", {
+    id: "message-1",
+    type: "user",
+    text: "Direct local prompt",
+    time: { created: 1 },
+  }))
+  expect(await screen.findByText("Direct local prompt")).toBeVisible()
+
+  act(() => agent.localMessages.drop("session-1", "message-1"))
+  await waitFor(() => expect(screen.queryByText("Direct local prompt")).toBeNull())
   act(() => agent.dispose())
 })
 

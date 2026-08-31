@@ -1,6 +1,7 @@
 import type { Sync } from "@hena/schema/sync"
 import type { AppType } from "@hena/server-v3/protocol"
 import { hc } from "hono/client"
+import { createLocalMessages } from "./local-messages"
 import { createConnectionStore, type Change, type ScopeRef } from "./store"
 
 export type ConnectionStatus = "idle" | "connecting" | "live" | "reconnecting" | "upgrade-required" | "unauthorized" | "error"
@@ -10,6 +11,7 @@ export interface ConnectionAgent {
   readonly url: string
   readonly client: RpcClient
   readonly store: ReturnType<typeof createConnectionStore>
+  readonly localMessages: ReturnType<typeof createLocalMessages>
   readonly status: ConnectionStatus
   readonly lastSyncAt: number | undefined
   readonly errorMessage: string | undefined
@@ -38,6 +40,7 @@ const LingeredSessions = 8
 export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): ConnectionAgent {
   let refresh = (_scopes?: readonly ScopeRef[]) => {}
   const store = createConnectionStore({ onTxidTimeout: (scopes) => refresh(scopes) })
+  const localMessages = createLocalMessages()
   const client = hc<AppType>(url, {
     fetch: (input: RequestInfo | URL, init?: RequestInit) => fetcher(input, {
       ...init,
@@ -125,10 +128,11 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     if (!decoded) throw new TerminalError("error")
     resource = decoded
     subscriptionRevision = Math.max(subscriptionRevision, decoded.subscriptionRevision)
-    store.scopeRefs().forEach((scope) => {
+    const expiredScopes = store.scopeRefs().filter((scope) => {
       const cursor = store.cursor(scope.collection, scope.scopeKey)
-      if (cursor > 0 && cursor < decoded.feed.retainedFloor) store.dropCursors([scope])
+      return cursor > 0 && cursor < decoded.feed.retainedFloor
     })
+    store.dropCursors(expiredScopes)
   }
 
   async function putSubscription() {
@@ -199,6 +203,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
         attachmentGeneration ??= decoded.generation
         if (resource.generation !== decoded.generation) resource = { ...resource, generation: decoded.generation }
         if (decoded.feedId !== resource.feed.feedId) {
+          localMessages.clear()
           store.clear()
           resource = undefined
           requestRestart()
@@ -217,8 +222,8 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     if (livenessExpired) throw new Error("Collection stream became silent")
   }
 
-  function applyRows(frame: Sync.RowsFrame) {
-    store.applyRows({ throughSeq: frame.throughSeq, changes: frame.changes as readonly Change[] })
+  function applyRows(frame: Sync.RowsFrame, transactionChanges = frame.changes as readonly Change[]) {
+    localMessages.applyRows(store, { throughSeq: frame.throughSeq, changes: frame.changes as readonly Change[] }, transactionChanges)
   }
 
   function createFrameApplier() {
@@ -264,13 +269,13 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
         const keys = new Set(snapshot.rows.map((row) => wireKey(row.key)))
         if (keys.size !== frame.keyCount || snapshot.rows.length !== frame.keyCount || snapshot.baseSeq !== frame.throughSeq)
           throw new TerminalError("error")
-        store.applySnapshot(snapshot.scope.collection, snapshot.scope.scopeKey, snapshot.rows, frame.throughSeq, snapshot.replace)
+        localMessages.applySnapshot(store, snapshot.scope.collection, snapshot.scope.scopeKey, snapshot.rows, frame.throughSeq, snapshot.replace)
         snapshots.delete(frame.snapshotId)
         activeSnapshots.delete(scopeIdentity(snapshot.scope))
         snapshot.bufferedRows.forEach((rows) => applyRows({
           ...rows,
           changes: rows.changes.filter((change) => change.seq > frame.throughSeq),
-        }))
+        }, rows.changes as readonly Change[]))
         flushDeltas(snapshot.scope.scopeKey)
         return
       }
@@ -283,7 +288,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
           buffered.add(snapshotId)
         })
         const changes = frame.changes.filter((change) => !activeSnapshots.has(scopeIdentity(change)))
-        if (changes.length > 0) applyRows({ ...frame, changes })
+        if (changes.length > 0) applyRows({ ...frame, changes }, frame.changes as readonly Change[])
         return
       }
       if (!claimedSessions().includes(frame.sessionId)) return
@@ -313,6 +318,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     url,
     client,
     store,
+    localMessages,
     get status() { return status },
     get lastSyncAt() { return lastSyncAt },
     get errorMessage() { return errorMessage },
@@ -343,6 +349,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     dispose() {
       disposed = true
       abort?.abort()
+      localMessages.dispose()
       store.dispose()
       setStatus("idle")
     },
@@ -351,7 +358,10 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   function retain(sessionId: string) {
     remove(linger, sessionId)
     linger.unshift(sessionId)
-    linger.splice(LingeredSessions).forEach((evicted) => store.dropSession(evicted))
+      linger.splice(LingeredSessions).forEach((evicted) => {
+        localMessages.dropSession(evicted)
+        store.dropSession(evicted)
+      })
   }
 }
 

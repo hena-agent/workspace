@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { createConnectionAgent } from "@/connection/agent"
-import { createSessionOptimistically } from "./session"
+import { admitPromptOptimistically, createSessionOptimistically } from "./session"
 
 describe("session mutations", () => {
   test("stages new-session prompts in the selected delivery surface", () => {
@@ -29,5 +29,25 @@ describe("session mutations", () => {
 
     steerAgent.dispose()
     queueAgent.dispose()
+  })
+
+  test("stages existing-session prompts in the selected delivery surface", () => {
+    const agent = createConnectionAgent("http://hena.test", () => new Promise<Response>(() => {}))
+    agent.store.applySnapshot("sessions", "", [
+      { key: "steer", row: { id: "steer", working: false, queueRevision: 0, time: { updated: 1 } } },
+      { key: "queue", row: { id: "queue", working: false, queueRevision: 2, time: { updated: 1 } } },
+    ], 1)
+
+    const steer = admitPromptOptimistically(agent, { sessionID: "steer", text: "Steer prompt", delivery: "steer" })
+    const queued = admitPromptOptimistically(agent, { sessionID: "queue", text: "Queued prompt", delivery: "queue" })
+
+    expect(agent.localMessages.rows("steer")).toHaveLength(1)
+    expect(agent.store.rows("sessionInputs", "steer")).toEqual([])
+    expect(agent.store.rows("sessions").find((row) => row.id === "steer")?.working).toBe(true)
+    expect(agent.localMessages.rows("queue")).toEqual([])
+    expect(agent.store.rows("sessionInputs", "queue")).toEqual([expect.objectContaining({ id: queued.messageID, queuePosition: 0 })])
+    expect(agent.store.rows("sessions").find((row) => row.id === "queue")?.queueRevision).toBe(3)
+    expect(steer.messageID).toBeString()
+    agent.dispose()
   })
 })

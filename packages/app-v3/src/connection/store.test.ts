@@ -3,6 +3,44 @@ import { createTransaction } from "@tanstack/db"
 import { createConnectionStore } from "./store"
 
 describe("connection store", () => {
+  test("batches canonical snapshot notifications", () => {
+    const store = createConnectionStore()
+    const observed: string[][] = []
+    store.subscribe(() => observed.push(store.rows("messages", "session-1").map((row) => String(row.id))))
+
+    store.batch(() => {
+      store.applySnapshot("messages", "session-1", [{ key: "message-1", row: { id: "message-1" } }], 1)
+      store.applySnapshot("parts", "session-1", [], 1)
+    })
+
+    expect(observed).toEqual([["message-1"]])
+  })
+
+  test("settles receipts for filtered recovery rows", async () => {
+    const store = createConnectionStore()
+    const settled = store.awaitTxid("txid", 100)
+    store.applyRows({
+      throughSeq: 1,
+      changes: [],
+      receiptChanges: [{ seq: 1, collection: "messages", scopeKey: "session-1", rowKey: "", op: "reset", row: null, txid: "txid" }],
+    })
+
+    await settled
+  })
+
+  test("publishes final delta identities after a snapshot batch", () => {
+    const store = createConnectionStore()
+    const identity = { sessionId: "session-1", messageId: "message-1", partId: "part-1", partKind: "text" as const }
+    store.applyDelta({ ...identity, offset: 0, text: "streaming" })
+    const observed: string[][] = []
+    store.subscribeDeltaIdentities("session-1", () => observed.push(store.deltaIdentities("session-1").map((item) => item.partId)))
+
+    store.batch(() => store.applySnapshot("parts", "session-1", [], 1))
+
+    expect(observed).toEqual([[]])
+    expect(store.delta(identity)).toBeUndefined()
+  })
+
   test("does not mark a collection ready before its authoritative snapshot", () => {
     const store = createConnectionStore()
     store.collection("projects")

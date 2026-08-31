@@ -75,6 +75,33 @@ describe("connection protocol", () => {
     )
   })
 
+  test("backfills retained sessions when focus cleanup runs before the next claim", async () => {
+    const subscriptions: { sessions?: string[] }[] = []
+    const agent = createConnectionAgent("http://hena.test", async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url.endsWith("/capabilities")) return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
+      if (request.url.endsWith("/streams")) return Response.json({ streamId: "stream", generation: 0, expiresAt: Date.now() + 1_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
+      if (request.url.endsWith("/subscription")) {
+        subscriptions.push(await request.json() as { sessions?: string[] })
+        return Response.json({ revision: subscriptions.length, generation: 0 })
+      }
+      return sse([])
+    })
+    const release = Array.from({ length: 10 }).reduce<(() => void) | undefined>((previous, _, index) => {
+      previous?.()
+      return agent.claim(`session-${index + 1}`)
+    }, undefined)
+    release?.()
+    agent.claim("session-9")
+
+    const started = agent.start()
+    await waitUntil(() => subscriptions.length === 1)
+    expect(subscriptions[0]?.sessions).toHaveLength(9)
+    expect(subscriptions[0]?.sessions?.[0]).toBe("session-9")
+    agent.dispose()
+    await started
+  })
+
   test("discards an unfinished snapshot when restarting the stream", async () => {
     const common = { protocolVersion: 1, feedId: "feed", runtimeId: "runtime", streamId: "stream", generation: 1, subscriptionRevision: 1 }
     let attachments = 0
@@ -96,6 +123,60 @@ describe("connection protocol", () => {
     await waitUntil(() => agent.store.isReady("projects") || agent.status === "error")
     expect(agent.store.isReady("projects")).toBe(true)
     expect(agent.status).toBe("live")
+    agent.dispose()
+    await started
+  })
+
+  test("restarts one-sided transcript replacement with both cursors dropped", async () => {
+    const subscriptions: { cursors?: Record<string, unknown> }[] = []
+    const replacement = controlledSse()
+    let attachments = 0
+    const agent = createConnectionAgent("http://hena.test", async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url.endsWith("/capabilities")) return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
+      if (request.url.endsWith("/streams")) return Response.json({ streamId: "stream", generation: 0, expiresAt: Date.now() + 1_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
+      if (request.url.endsWith("/subscription")) {
+        subscriptions.push(await request.json() as { cursors?: Record<string, unknown> })
+        return Response.json({ revision: subscriptions.length, generation: 0 })
+      }
+      attachments++
+      if (attachments === 1) return sse([
+        snapshotFrame("snapshot.begin", "messages", { snapshotId: "replacement", baseSeq: 1, replace: true }),
+        snapshotFrame("snapshot.page", "messages", { snapshotId: "replacement", rows: [] }),
+        snapshotFrame("snapshot.end", "messages", { snapshotId: "replacement", keyCount: 0, throughSeq: 1 }),
+      ], request.signal)
+      return replacement.response(request.signal)
+    })
+    agent.store.applySnapshot("messages", "session-1", [{ key: "old", row: { id: "old", text: "Old transcript" } }], 1)
+    agent.store.applySnapshot("parts", "session-1", [], 1)
+
+    const started = agent.start()
+    await waitUntil(() => attachments === 2)
+
+    expect(subscriptions[0]?.cursors).toEqual(expect.objectContaining({
+      "messages:session-1": { feedId: "feed", seq: 1 },
+      "parts:session-1": { feedId: "feed", seq: 1 },
+    }))
+    expect(subscriptions[1]?.cursors).not.toHaveProperty("messages:session-1")
+    expect(subscriptions[1]?.cursors).not.toHaveProperty("parts:session-1")
+    expect(agent.store.isReady("messages", "session-1")).toBe(true)
+    expect(agent.store.isReady("parts", "session-1")).toBe(true)
+    expect(agent.store.rows("messages", "session-1")).toEqual([{ id: "old", text: "Old transcript" }])
+
+    replacement.send([
+      snapshotFrame("snapshot.begin", "messages", { snapshotId: "messages", baseSeq: 2, replace: true }),
+      snapshotFrame("snapshot.page", "messages", { snapshotId: "messages", rows: [{ key: "new", row: { id: "new", text: "New transcript" } }] }),
+      snapshotFrame("snapshot.end", "messages", { snapshotId: "messages", keyCount: 1, throughSeq: 2 }),
+    ])
+    await Bun.sleep(0)
+    expect(agent.store.rows("messages", "session-1")).toEqual([{ id: "old", text: "Old transcript" }])
+
+    replacement.send([
+      snapshotFrame("snapshot.begin", "parts", { snapshotId: "parts", baseSeq: 2, replace: true }),
+      snapshotFrame("snapshot.end", "parts", { snapshotId: "parts", keyCount: 0, throughSeq: 2 }),
+    ])
+    await waitUntil(() => agent.store.rows("messages", "session-1").some((row) => row.id === "new"))
+    expect(agent.store.rows("messages", "session-1")).toEqual([{ id: "new", text: "New transcript" }])
     agent.dispose()
     await started
   })
@@ -151,6 +232,38 @@ function sse(frames: Record<string, unknown>[], signal?: AbortSignal) {
       signal.addEventListener("abort", () => controller.error(new DOMException("Aborted", "AbortError")), { once: true })
     },
   }), { headers: { "content-type": "text/event-stream" } })
+}
+
+function controlledSse() {
+  let controller: ReadableStreamDefaultController<Uint8Array>
+  const encoder = new TextEncoder()
+  return {
+    response(signal: AbortSignal) {
+      return new Response(new ReadableStream<Uint8Array>({
+        start(value) {
+          controller = value
+          signal.addEventListener("abort", () => value.error(new DOMException("Aborted", "AbortError")), { once: true })
+        },
+      }), { headers: { "content-type": "text/event-stream" } })
+    },
+    send(frames: Record<string, unknown>[]) {
+      controller.enqueue(encoder.encode(frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")))
+    },
+  }
+}
+
+function snapshotFrame(type: string, collection: string, value: Record<string, unknown>) {
+  return {
+    protocolVersion: 1,
+    feedId: "feed",
+    runtimeId: "runtime",
+    streamId: "stream",
+    generation: 0,
+    subscriptionRevision: 2,
+    type,
+    scope: { collection, scopeKey: "session-1" },
+    ...value,
+  }
 }
 
 async function waitUntil(predicate: () => boolean) {

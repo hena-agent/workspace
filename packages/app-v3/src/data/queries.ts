@@ -115,14 +115,22 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
   )
   const messages = useRows(agent, "messages", sessionId)
   const parts = useRows(agent, "parts", sessionId)
+  useSyncExternalStore(
+    agent ? agent.store.subscribe : emptySubscribe,
+    () => agent?.store.revision() ?? 0,
+    () => 0,
+  )
   const localRows = agent?.localMessages.rows(sessionId) ?? []
   const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
-  const projected = (ready ? messages : []).map((message) => messageView(agent, sessionId, message, parts, deltas))
+  const transcript = agent?.store.isBatching()
+    ? { messages: agent.store.batchRows("messages", sessionId), parts: agent.store.batchRows("parts", sessionId), deltas }
+    : { messages, parts, deltas }
+  const projected = (ready ? transcript.messages : []).map((message) => messageView(agent, sessionId, message, transcript.parts, transcript.deltas))
   const known = new Set(projected.map((message) => message.id))
   const local = localRows.flatMap((message) => known.has(string(message.id))
     ? []
-    : [messageView(agent, sessionId, message, parts, deltas)])
-  const provisional = (ready ? deltas : [])
+    : [messageView(agent, sessionId, message, transcript.parts, transcript.deltas)])
+  const provisional = (ready ? transcript.deltas : [])
     .filter((delta) => !known.has(delta.messageId))
     .reduce<Extract<SessionMessage, { role: "assistant" }>[]>((result, delta) => {
       const message = result.find((item) => item.id === delta.messageId)

@@ -44,7 +44,13 @@ export function createConnectionStore(options: StoreOptions = {}) {
   const deltaIdentityListeners = new Map<string, Set<() => void>>()
   const deltaIdentityRevisions = new Map<string, number>()
   const pendingDeltaNotifications = new Set<string>()
+  const pendingDeltaIdentityNotifications = new Set<string>()
   let deltaFrameScheduled = false
+  let batchDepth = 0
+  let pendingNotification = false
+  let revision = 0
+  let batchRows: Map<string, Row[]> | undefined
+  let batchDeltas: typeof deltas | undefined
 
   const getScope = (collection: string, scopeKey: string) => {
     const key = scopeIdentity(collection, scopeKey)
@@ -54,7 +60,14 @@ export function createConnectionStore(options: StoreOptions = {}) {
     scopes.set(key, created)
     return created
   }
-  const notify = () => listeners.forEach((listener) => listener())
+  const notify = () => {
+    if (batchDepth > 0) {
+      pendingNotification = true
+      return
+    }
+    revision++
+    listeners.forEach((listener) => listener())
+  }
   const notifyDelta = (key: string) => {
     pendingDeltaNotifications.add(key)
     if (deltaFrameScheduled) return
@@ -67,6 +80,10 @@ export function createConnectionStore(options: StoreOptions = {}) {
     })
   }
   const notifyDeltaIdentities = (sessionId: string) => {
+    if (batchDepth > 0) {
+      pendingDeltaIdentityNotifications.add(sessionId)
+      return
+    }
     deltaIdentityRevisions.set(sessionId, (deltaIdentityRevisions.get(sessionId) ?? 0) + 1)
     deltaIdentityListeners.get(sessionId)?.forEach((listener) => listener())
   }
@@ -136,10 +153,38 @@ export function createConnectionStore(options: StoreOptions = {}) {
     },
     cursor: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.cursor ?? 0,
     isReady: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.ready ?? false,
+    isSynchronizing: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.synchronizing ?? false,
+    isBatching: () => batchDepth > 0,
+    batchRows(collection: string, scopeKey = "") {
+      return batchRows?.get(scopeIdentity(collection, scopeKey)) ?? []
+    },
+    revision: () => revision,
     scopeRefs: () => Array.from(scopes.values(), (scope) => scope.ref),
     subscribe(listener: () => void) {
       listeners.add(listener)
       return () => listeners.delete(listener)
+    },
+    batch(callback: () => void) {
+      if (batchDepth === 0) {
+        batchRows = new Map(Array.from(scopes, ([key, scope]) => [key, scope.collection.toArray.map((item) => item.row)]))
+        batchDeltas = new Map(deltas)
+      }
+      batchDepth++
+      try {
+        callback()
+      } finally {
+        batchDepth--
+        if (batchDepth === 0) {
+          batchRows = undefined
+          batchDeltas = undefined
+          Array.from(pendingDeltaIdentityNotifications).forEach(notifyDeltaIdentities)
+          pendingDeltaIdentityNotifications.clear()
+          if (pendingNotification) {
+            pendingNotification = false
+            notify()
+          }
+        }
+      }
     },
     applySnapshot(collection: string, scopeKey: string, rows: ReadonlyArray<{ key: string | readonly string[]; row: Row; revision?: string }>, throughSeq: number, replace = true) {
       const scope = getScope(collection, scopeKey)
@@ -172,6 +217,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
         })))
       }
       scope.ready = true
+      scope.synchronizing = false
       if (!scope.initialized) {
         scope.initialized = true
         scope.control.markReady()
@@ -179,7 +225,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
       scope.cursor = throughSeq
       notify()
     },
-    applyRows(frame: { throughSeq: number; changes: readonly Change[] }) {
+    applyRows(frame: { throughSeq: number; changes: readonly Change[]; receiptChanges?: readonly Change[] }) {
       const affected = new Map<string, ReturnType<typeof createScope>>()
       const resetScopes = new Set<string>()
       frame.changes.forEach((change) => {
@@ -220,7 +266,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
         scope.cursor = resetScopes.has(key) ? 0 : Math.max(scope.cursor, frame.throughSeq)
       })
       if (affected.size > 0) notify()
-      const txids = frame.changes.flatMap((change) => change.txid ? [change.txid] : [])
+      const txids = (frame.receiptChanges ?? frame.changes).flatMap((change) => change.txid ? [change.txid] : [])
       txids.forEach((txid) => {
         recentTxids.add(txid)
         waiters.get(txid)?.forEach((waiter) => {
@@ -295,11 +341,11 @@ export function createConnectionStore(options: StoreOptions = {}) {
       notifyDelta(key)
     },
     delta(identity: DeltaIdentity) {
-      return deltas.get(deltaKey(identity))?.snapshot
+      return (batchDeltas ?? deltas).get(deltaKey(identity))?.snapshot
     },
     deltaIdentities(sessionId: string) {
       const prefix = `${sessionId}\u0000`
-      return Array.from(deltas.keys())
+      return Array.from((batchDeltas ?? deltas).keys())
         .flatMap((key) => key.startsWith(prefix) ? [identityFromDeltaKey(key)] : [])
     },
     deltaIdentityRevision(sessionId: string) {
@@ -335,8 +381,18 @@ export function createConnectionStore(options: StoreOptions = {}) {
       changed.forEach((scope) => {
         scope.cursor = 0
         scope.ready = false
+        scope.synchronizing = false
       })
       if (changed.length > 0) notify()
+    },
+    resetCursors(targets?: readonly ScopeRef[]) {
+      const identities = targets && new Set(targets.map((scope) => scopeIdentity(scope.collection, scope.scopeKey)))
+      scopes.forEach((scope, key) => {
+        if (!identities || identities.has(key)) {
+          scope.cursor = 0
+          scope.synchronizing = true
+        }
+      })
     },
     dropScope(collection: string, scopeKey: string) {
       const key = scopeIdentity(collection, scopeKey)
@@ -398,6 +454,7 @@ function createScope(id: string) {
     cursor: 0,
     open: false,
     ready: false,
+    synchronizing: false,
     // TanStack collection readiness is one-shot; synchronization readiness may reset.
     initialized: false,
     authoritative: new Map<string, StoredRow>(),

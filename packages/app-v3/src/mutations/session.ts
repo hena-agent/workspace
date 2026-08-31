@@ -47,10 +47,7 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
   const prompt = promptPayload(input.text, input.files)
   const message = { id: messageID, sessionID, type: "user", text: input.text, files: input.files, time: { created } }
   const resolvedProjectID = Promise.withResolvers<string>()
-  if (input.delivery === "steer") {
-    markPending(messageID, true)
-    agent.localMessages.stage(sessionID, messageID, message)
-  }
+  if (input.delivery === "steer") stageSteer(agent, sessionID, messageID, message)
   const transaction = createTransaction({
     mutationFn: async () => {
       const result = await requestQueueable(() => agent.client.api.session.$post({
@@ -86,18 +83,7 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
         model: input.model,
       },
     })
-    if (input.delivery === "queue") agent.store.collection("sessionInputs", sessionID).insert({
-      __key: messageID,
-      row: {
-        id: messageID,
-        sessionID,
-        prompt,
-        delivery: "queue",
-        admittedSeq: Number.MAX_SAFE_INTEGER,
-        queuePosition: 0,
-        timeCreated: created,
-      },
-    })
+    if (input.delivery === "queue") insertQueuedInput(agent, sessionID, messageID, prompt, created, 0)
   })
   if (input.delivery === "steer") settlePrompt(agent, sessionID, messageID, transaction.isPersisted.promise)
   return { sessionID, messageID, transaction, projectID: resolvedProjectID.promise }
@@ -116,10 +102,7 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
   const idempotencyKey = crypto.randomUUID()
   const prompt = promptPayload(input.text, input.files)
   const message = { id: messageID, sessionID: input.sessionID, type: "user", text: input.text, files: input.files, time: { created } }
-  if (input.delivery === "steer") {
-    markPending(messageID, true)
-    agent.localMessages.stage(input.sessionID, messageID, message)
-  }
+  if (input.delivery === "steer") stageSteer(agent, input.sessionID, messageID, message)
   const transaction = createTransaction({
     mutationFn: async () => {
       const result = await requestQueueable(() => agent.client.api.session[":sessionId"].prompt.$post({
@@ -136,27 +119,13 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
         ...(input.agentID ? { agent: input.agentID } : {}),
         ...(input.model ? { model: input.model } : {}),
         ...(input.delivery === "queue" ? { queueRevision: number(draft.row.queueRevision) + 1 } : {}),
+        ...(input.delivery === "steer" ? { working: true } : {}),
         time: { ...object(draft.row.time), updated: created },
       }
     })
-    if (input.delivery === "steer") {
-      agent.store.collection("sessions", "").update(input.sessionID, (draft) => {
-        draft.row = { ...draft.row, working: true }
-      })
-      return
+    if (input.delivery === "queue") {
+      insertQueuedInput(agent, input.sessionID, messageID, prompt, created, agent.store.rows("sessionInputs", input.sessionID).length)
     }
-    agent.store.collection("sessionInputs", input.sessionID).insert({
-      __key: messageID,
-      row: {
-        id: messageID,
-        sessionID: input.sessionID,
-        prompt,
-        delivery: "queue",
-        admittedSeq: Number.MAX_SAFE_INTEGER,
-        queuePosition: agent.store.rows("sessionInputs", input.sessionID).length,
-        timeCreated: created,
-      },
-    })
   })
   if (input.delivery === "steer") settlePrompt(agent, input.sessionID, messageID, transaction.isPersisted.promise)
   return { messageID, transaction }
@@ -358,7 +327,7 @@ function setStopping(agent: ConnectionAgent, sessionID: string, value: boolean) 
 function settlePrompt(agent: ConnectionAgent, sessionID: string, messageID: string, persisted: Promise<unknown>) {
   void persisted.then(
     () => {
-      agent.localMessages.acknowledge(agent.store, sessionID, messageID)
+      agent.localMessages.acknowledge(sessionID, messageID)
       markPending(messageID, false)
     },
     () => {
@@ -366,6 +335,18 @@ function settlePrompt(agent: ConnectionAgent, sessionID: string, messageID: stri
       markPending(messageID, false)
     },
   )
+}
+
+function stageSteer(agent: ConnectionAgent, sessionID: string, messageID: string, message: Record<string, unknown>) {
+  markPending(messageID, true)
+  agent.localMessages.stage(sessionID, messageID, message)
+}
+
+function insertQueuedInput(agent: ConnectionAgent, sessionID: string, messageID: string, prompt: Record<string, unknown>, created: number, queuePosition: number) {
+  agent.store.collection("sessionInputs", sessionID).insert({
+    __key: messageID,
+    row: { id: messageID, sessionID, prompt, delivery: "queue", admittedSeq: Number.MAX_SAFE_INTEGER, queuePosition, timeCreated: created },
+  })
 }
 
 function markPending(messageID: string, value: boolean) {

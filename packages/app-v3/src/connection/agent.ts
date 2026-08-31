@@ -40,7 +40,7 @@ const LingeredSessions = 8
 export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): ConnectionAgent {
   let refresh = (_scopes?: readonly ScopeRef[]) => {}
   const store = createConnectionStore({ onTxidTimeout: (scopes) => refresh(scopes) })
-  const localMessages = createLocalMessages()
+  const localMessages = createLocalMessages(store)
   const client = hc<AppType>(url, {
     fetch: (input: RequestInfo | URL, init?: RequestInit) => fetcher(input, {
       ...init,
@@ -60,6 +60,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   let disposed = false
   let restartRevision = 0
   let decoders: Decoders | undefined
+  let subscriptionCursorKeys = new Set<string>()
 
   const notify = () => listeners.forEach((listener) => listener())
   const setStatus = (next: ConnectionStatus) => {
@@ -76,8 +77,9 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     restartRevision++
     abort?.abort()
   }
+  const resetCursors = (scopes?: readonly ScopeRef[]) => store.resetCursors(scopes && coupledTranscriptScopes(scopes))
   refresh = (scopes) => {
-    store.dropCursors(scopes)
+    resetCursors(scopes)
     requestRestart()
   }
 
@@ -132,12 +134,23 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
       const cursor = store.cursor(scope.collection, scope.scopeKey)
       return cursor > 0 && cursor < decoded.feed.retainedFloor
     })
-    store.dropCursors(expiredScopes)
+    resetCursors(expiredScopes)
   }
 
   async function putSubscription() {
     if (!resource) return false
+    new Set(store.scopeRefs().flatMap((scope) =>
+      scope.collection === "messages" || scope.collection === "parts" ? [scope.scopeKey] : [],
+    )).forEach((sessionId) => {
+      if (store.cursor("messages", sessionId) === 0 || store.cursor("parts", sessionId) === 0) {
+        resetCursors(transcriptScopes(sessionId))
+      }
+    })
     subscriptionRevision = Math.max(subscriptionRevision, resource.subscriptionRevision) + 1
+    subscriptionCursorKeys = new Set(store.scopeRefs().flatMap((scope) => {
+      if (VolatileCollections.has(scope.collection) || store.cursor(scope.collection, scope.scopeKey) === 0) return []
+      return [scopeIdentity(scope)]
+    }))
     const cursors = Object.fromEntries(store.scopeRefs().flatMap((scope) => {
       if (VolatileCollections.has(scope.collection)) return []
       const seq = store.cursor(scope.collection, scope.scopeKey)
@@ -169,6 +182,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
 
   async function attach(generation: number) {
     if (!resource) return
+    const attachmentRestartRevision = restartRevision
     const applyFrame = createFrameApplier()
     abort = new AbortController()
     let liveness: ReturnType<typeof setTimeout> | undefined
@@ -212,6 +226,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
         if (decoded.runtimeId !== resource.feed.runtimeId)
           resource = { ...resource, feed: { ...resource.feed, runtimeId: decoded.runtimeId } }
         applyFrame(decoded)
+        if (attachmentRestartRevision !== restartRevision) return
         touch()
         setStatus("live")
       }
@@ -225,11 +240,19 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   function createFrameApplier() {
     const snapshots = new Map<string, Snapshot>()
     const activeSnapshots = new Map<string, string>()
+    const completedTranscripts = new Map<string, Map<string, Snapshot & { throughSeq: number }>>()
     const bufferedDeltas = new Map<string, Sync.DeltaFrame[]>()
 
     function applyRows(frame: Sync.RowsFrame) {
-      store.applyRows({ throughSeq: frame.throughSeq, changes: frame.changes as readonly Change[] })
-      new Set(frame.changes.map((change) => change.scopeKey)).forEach((sessionId) => localMessages.reconcile(store, sessionId))
+      const resetSessions = new Set(frame.changes.flatMap((change) =>
+        change.op === "reset" && (change.collection === "messages" || change.collection === "parts") ? [change.scopeKey] : [],
+      ))
+      if (resetSessions.size > 0) {
+        resetCursors(Array.from(resetSessions).flatMap(transcriptScopes))
+        requestRestart()
+      }
+      const changes = frame.changes.filter((change) => !resetSessions.has(change.scopeKey) || (change.collection !== "messages" && change.collection !== "parts"))
+      store.applyRows({ throughSeq: frame.throughSeq, changes: changes as readonly Change[], receiptChanges: frame.changes as readonly Change[] })
     }
 
     function applyFrame(frame: StreamFrame) {
@@ -238,7 +261,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
         if (frame.code === "unsupported_protocol") throw new TerminalError("upgrade-required")
         if (frame.code === "unauthorized") throw new TerminalError("unauthorized")
         if (frame.code === "subscription_revision_conflict") resource = undefined
-        if (frame.code === "snapshot_required") store.dropCursors(frame.scopes)
+        if (frame.code === "snapshot_required") resetCursors(frame.scopes)
         if (["slow_consumer", "subscription_revision_conflict", "snapshot_required"].includes(frame.code)) {
           requestRestart()
           return
@@ -248,6 +271,14 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
       if (frame.type === "snapshot.begin") {
         const identity = scopeIdentity(frame.scope)
         if (activeSnapshots.has(identity) || snapshots.has(frame.snapshotId)) throw new TerminalError("error")
+        if (frame.replace && (frame.scope.collection === "messages" || frame.scope.collection === "parts")) {
+          const pair = transcriptScopes(frame.scope.scopeKey)
+          if (pair.some((scope) => subscriptionCursorKeys.has(scopeIdentity(scope)))) {
+            resetCursors(pair)
+            requestRestart()
+            return
+          }
+        }
         snapshots.set(frame.snapshotId, {
           scope: frame.scope,
           baseSeq: frame.baseSeq,
@@ -270,10 +301,30 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
         const keys = new Set(snapshot.rows.map((row) => wireKey(row.key)))
         if (keys.size !== frame.keyCount || snapshot.rows.length !== frame.keyCount || snapshot.baseSeq !== frame.throughSeq)
           throw new TerminalError("error")
-        store.applySnapshot(snapshot.scope.collection, snapshot.scope.scopeKey, snapshot.rows, frame.throughSeq, snapshot.replace)
-        localMessages.reconcile(store, snapshot.scope.scopeKey)
+        if (snapshot.replace && (snapshot.scope.collection === "messages" || snapshot.scope.collection === "parts")) {
+          const completed = completedTranscripts.get(snapshot.scope.scopeKey) ?? new Map<string, Snapshot & { throughSeq: number }>()
+          completed.set(snapshot.scope.collection, { ...snapshot, throughSeq: frame.throughSeq })
+          completedTranscripts.set(snapshot.scope.scopeKey, completed)
+          if (!completed.has("messages") || !completed.has("parts")) return
+          completedTranscripts.delete(snapshot.scope.scopeKey)
+          const pair = [completed.get("messages")!, completed.get("parts")!]
+          pair.forEach((item) => {
+            snapshots.delete(activeSnapshots.get(scopeIdentity(item.scope))!)
+            activeSnapshots.delete(scopeIdentity(item.scope))
+          })
+          store.batch(() => pair.forEach((item) =>
+            store.applySnapshot(item.scope.collection, item.scope.scopeKey, item.rows, item.throughSeq, item.replace),
+          ))
+          new Set(pair.flatMap((item) => item.bufferedRows)).forEach((rows) => applyRows({
+            ...rows,
+            changes: rows.changes.filter((change) => pair.every((item) => change.seq > item.throughSeq)),
+          }))
+          flushDeltas(snapshot.scope.scopeKey)
+          return
+        }
         snapshots.delete(frame.snapshotId)
         activeSnapshots.delete(scopeIdentity(snapshot.scope))
+        store.applySnapshot(snapshot.scope.collection, snapshot.scope.scopeKey, snapshot.rows, frame.throughSeq, snapshot.replace)
         snapshot.bufferedRows.forEach((rows) => applyRows({
           ...rows,
           changes: rows.changes.filter((change) => change.seq > frame.throughSeq),
@@ -333,6 +384,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
       const previous = focusedSession
       focusedSession = sessionId
       remove(linger, sessionId)
+      trimLinger()
       if (previous && previous !== sessionId) retain(previous)
       requestRestart()
       return () => {
@@ -360,7 +412,11 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   function retain(sessionId: string) {
     remove(linger, sessionId)
     linger.unshift(sessionId)
-    linger.splice(LingeredSessions).forEach((evicted) => {
+    trimLinger()
+  }
+
+  function trimLinger() {
+    linger.splice(focusedSession ? LingeredSessions : LingeredSessions + 1).forEach((evicted) => {
       localMessages.dropSession(evicted)
       store.dropSession(evicted)
     })
@@ -417,6 +473,22 @@ async function getJson(response: Response) {
 
 function scopeIdentity(scope: ScopeRef) {
   return `${scope.collection}\u0000${scope.scopeKey}`
+}
+
+function transcriptScopes(sessionId: string): ScopeRef[] {
+  return [
+    { collection: "messages", scopeKey: sessionId },
+    { collection: "parts", scopeKey: sessionId },
+  ]
+}
+
+function coupledTranscriptScopes(scopes: readonly ScopeRef[]) {
+  const result = new Map(scopes.map((scope) => [scopeIdentity(scope), scope]))
+  scopes.forEach((scope) => {
+    if (scope.collection !== "messages" && scope.collection !== "parts") return
+    transcriptScopes(scope.scopeKey).forEach((item) => result.set(scopeIdentity(item), item))
+  })
+  return Array.from(result.values())
 }
 
 function wireKey(key: string | readonly string[]) {

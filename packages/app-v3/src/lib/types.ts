@@ -112,6 +112,7 @@ export type MessageBase = {
   sessionId: string
   createdAt: number
   pending?: boolean
+  optimistic?: boolean
 }
 
 export type UserMessage = MessageBase & {

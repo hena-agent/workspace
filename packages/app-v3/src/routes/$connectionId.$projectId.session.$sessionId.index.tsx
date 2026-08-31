@@ -5,7 +5,7 @@ import { SessionTranscriptView } from "@/features/session/session-transcript-vie
 import { SessionFilesPanel, useSessionFiles } from "@/features/session/session-files-panel"
 import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
-import { loadFileMatches, useCatalog, useCollectionReady, useMessages, useMessagesReady, usePendingRequest, usePermission, useQuestion, useQueuedInputs, useSession, useSessionLocation, useSettings, useTodos } from "@/data/queries"
+import { loadFileMatches, useCatalog, useCollectionReady, useMessages, usePendingRequest, usePermission, useQuestion, useQueuedInputs, useSession, useSessionLocation, useSettings, useTodos } from "@/data/queries"
 import { admitPromptOptimistically, cancelInputOptimistically, interruptOptimistically, isSessionStopping, reorderInputsOptimistically, replyPermissionOptimistically, replyQuestionOptimistically } from "@/mutations/session"
 import { loadDraft, saveDraft } from "@/local-state/drafts"
 import { markSessionSeen } from "@/local-state/seen"
@@ -24,8 +24,7 @@ function SessionTranscriptRoute() {
   const location = useSessionLocation(agent, sessionId)
   const catalog = useCatalog(agent, location)
   const settings = useSettings(agent, location ? JSON.stringify(location) : "missing")
-  const messages = useMessages(agent, sessionId)
-  const messagesReady = useMessagesReady(agent, sessionId)
+  const transcript = useMessages(agent, sessionId)
   const todos = useTodos(agent, sessionId)
   const permission = usePermission(agent, sessionId)
   const question = useQuestion(agent, sessionId)
@@ -65,8 +64,8 @@ function SessionTranscriptRoute() {
       <div className="min-w-0 flex-1">
         <SessionTranscriptView
           session={session}
-          messages={messages}
-          messagesReady={messagesReady}
+          messages={transcript.messages}
+          messagesReady={transcript.ready}
           todos={todos}
           permissionRequest={permission}
           questionRequest={question}

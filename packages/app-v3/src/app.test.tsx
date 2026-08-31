@@ -373,13 +373,16 @@ describe("app routing against server-v3", () => {
       expect(within(log).getByText("Pending prompt")).toBeInTheDocument()
       expect(within(log).getByText("You · Sending")).toBeInTheDocument()
       expect(within(log).getByText("Thinking...")).toBeInTheDocument()
+      await act(async () => mutation.resolve())
+      await waitFor(() => expect(within(log).queryByText("You · Sending")).not.toBeInTheDocument())
+      expect(within(log).getByText("Pending prompt")).toBeInTheDocument()
+      expect(within(log).getByText("Thinking...")).toBeInTheDocument()
     } finally {
       await act(async () => {
         mutation.resolve()
         snapshot.resolve()
       })
     }
-    await waitFor(() => expect(screen.queryByText("You · Sending")).not.toBeInTheDocument())
   })
 
   test("redirects legacy review URLs to the centered transcript", async () => {

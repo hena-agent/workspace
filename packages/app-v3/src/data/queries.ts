@@ -1,6 +1,6 @@
 import { useLiveQuery } from "@tanstack/react-db"
 import { useQuery } from "@tanstack/react-query"
-import { useSyncExternalStore } from "react"
+import { useEffect, useSyncExternalStore } from "react"
 import type { ReturnTypeOfAgent } from "./types"
 import type {
   Agent,
@@ -17,7 +17,7 @@ import type {
   FileNode,
 } from "@/lib/types"
 import { createConnectionStore, type DeltaIdentity } from "@/connection/store"
-import { getMutationStateVersion, isMessagePending, subscribeMutationState } from "@/mutations/session"
+import { clearOptimisticMessages, getMutationStateVersion, isMessagePending, listOptimisticMessages, subscribeMutationState } from "@/mutations/session"
 import { useSeenWatermarks, wasSeenAfter } from "@/local-state/seen"
 
 const emptyStore = createConnectionStore()
@@ -35,12 +35,6 @@ export function useCollectionReady(agent: ReturnTypeOfAgent | undefined, collect
     () => agent?.store.isReady(collection, scopeKey) ?? false,
     () => false,
   )
-}
-
-export function useMessagesReady(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
-  const messagesReady = useCollectionReady(agent, "messages", sessionId)
-  const partsReady = useCollectionReady(agent, "parts", sessionId)
-  return messagesReady && partsReady
 }
 
 export function useFileTree(agent: ReturnTypeOfAgent | undefined, location: { directory: string; workspaceID?: string } | undefined, path?: string) {
@@ -105,6 +99,9 @@ export function useSessionLocation(agent: ReturnTypeOfAgent | undefined, id: str
 }
 
 export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
+  const messagesReady = useCollectionReady(agent, "messages", sessionId)
+  const partsReady = useCollectionReady(agent, "parts", sessionId)
+  const ready = messagesReady && partsReady
   useSyncExternalStore(subscribeMutationState, getMutationStateVersion, getMutationStateVersion)
   useSyncExternalStore(
     agent ? (listener) => agent.store.subscribeDeltaIdentities(sessionId, listener) : emptySubscribe,
@@ -113,11 +110,19 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
   )
   const messages = useRows(agent, "messages", sessionId)
   const parts = useRows(agent, "parts", sessionId)
+  const optimistic = agent && !ready ? listOptimisticMessages(agent, sessionId) : []
+  useEffect(() => {
+    if (agent && ready) clearOptimisticMessages(agent, sessionId)
+  }, [agent, ready, sessionId])
   const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
   const projected = messages
     .map((message) => messageView(agent, sessionId, message, parts, deltas))
     .sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id))
   const known = new Set(projected.map((message) => message.id))
+  const local = optimistic.flatMap((message) => known.has(message.id) ? [] : [{
+    ...message,
+    pending: isMessagePending(message.id),
+  }])
   const provisional = deltas
     .filter((delta) => !known.has(delta.messageId))
     .reduce<Extract<SessionMessage, { role: "assistant" }>[]>((result, delta) => {
@@ -126,7 +131,11 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
       if (!message) result.push({ id: delta.messageId, sessionId, createdAt: Number.MAX_SAFE_INTEGER, role: "assistant", parts: [deltaPartView(agent!, delta)] })
       return result
     }, [])
-  return [...projected, ...provisional]
+  return {
+    messages: [...projected, ...local, ...provisional]
+      .sort((left, right) => left.createdAt - right.createdAt || left.id.localeCompare(right.id)),
+    ready,
+  }
 }
 
 export function useTodos(agent: ReturnTypeOfAgent | undefined, sessionId: string) {
@@ -264,7 +273,13 @@ function sessionView(row: Record<string, unknown>, permissions: Record<string, u
 
 function messageView(agent: ReturnTypeOfAgent | undefined, sessionId: string, row: Record<string, unknown>, parts: Record<string, unknown>[], deltas: VisibleDelta[]): SessionMessage {
   const type = string(row.type)
-  const base = { id: string(row.id), sessionId, createdAt: number(record(row.time).created), pending: isMessagePending(string(row.id)) }
+  const base = {
+    id: string(row.id),
+    sessionId,
+    createdAt: number(record(row.time).created),
+    pending: isMessagePending(string(row.id)),
+    optimistic: !agent?.store.isAuthoritative("messages", sessionId, string(row.id)),
+  }
   if (type === "user") {
     const files = array(row.files).map((file) => string(record(file).name || record(file).uri))
     return { ...base, role: "user", text: string(row.text), files: files.filter(Boolean) }

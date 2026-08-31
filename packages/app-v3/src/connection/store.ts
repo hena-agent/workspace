@@ -134,6 +134,8 @@ export function createConnectionStore(options: StoreOptions = {}) {
     authoritativeRows(collection: string, scopeKey = "") {
       return Array.from(getScope(collection, scopeKey).authoritative.values(), (item) => item.row)
     },
+    isAuthoritative: (collection: string, scopeKey: string, key: string | readonly string[]) =>
+      getScope(collection, scopeKey).authoritative.has(wireKey(key)),
     cursor: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.cursor ?? 0,
     isReady: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.ready ?? false,
     scopeRefs: () => Array.from(scopes.values(), (scope) => scope.ref),
@@ -171,8 +173,9 @@ export function createConnectionStore(options: StoreOptions = {}) {
           return key && deltas.has(key) ? [key] : []
         })))
       }
-      if (!scope.ready) {
-        scope.ready = true
+      scope.ready = true
+      if (!scope.initialized) {
+        scope.initialized = true
         scope.control.markReady()
       }
       scope.cursor = throughSeq
@@ -180,7 +183,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
     },
     applyRows(frame: { throughSeq: number; changes: readonly Change[] }) {
       const affected = new Map<string, ReturnType<typeof createScope>>()
-      const resetScopes = new Map<string, ScopeRef>()
+      const resetScopes = new Set<string>()
       frame.changes.forEach((change) => {
         const scope = getScope(change.collection, change.scopeKey)
         if (change.seq <= scope.cursor) return
@@ -195,7 +198,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
           for (const key of Array.from(scope.collection.keys())) scope.control.write({ type: "delete", key })
           if (change.collection === "messages") clearDeltasForSession(change.scopeKey)
           if (change.collection === "parts") clearPartDeltas(change.scopeKey)
-          resetScopes.set(scopeIdentity(change.collection, change.scopeKey), scope.ref)
+          resetScopes.add(scopeIdentity(change.collection, change.scopeKey))
           return
         }
         const key = wireKey(change.rowKey)
@@ -216,7 +219,7 @@ export function createConnectionStore(options: StoreOptions = {}) {
       affected.forEach((scope, key) => {
         scope.control.commit()
         scope.open = false
-        if (!resetScopes.has(key)) scope.cursor = Math.max(scope.cursor, frame.throughSeq)
+        scope.cursor = resetScopes.has(key) ? 0 : Math.max(scope.cursor, frame.throughSeq)
       })
       if (affected.size > 0) notify()
       const txids = frame.changes.flatMap((change) => change.txid ? [change.txid] : [])
@@ -229,7 +232,6 @@ export function createConnectionStore(options: StoreOptions = {}) {
         waiters.delete(txid)
       })
       while (recentTxids.size > 256) recentTxids.delete(recentTxids.values().next().value!)
-      return { resetScopes: Array.from(resetScopes.values()) }
     },
     awaitTxid(txid: string, timeoutMs = 10_000, affectedScopes?: readonly ScopeRef[]) {
       if (recentTxids.has(txid)) return Promise.resolve()
@@ -393,6 +395,7 @@ function createScope(id: string) {
     cursor: 0,
     open: false,
     ready: false,
+    initialized: false,
     authoritative: new Map<string, StoredRow>(),
     ref: { collection: id.slice(0, separator), scopeKey: id.slice(separator + 1) },
   }

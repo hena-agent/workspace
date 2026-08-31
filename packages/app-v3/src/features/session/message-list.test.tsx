@@ -34,6 +34,7 @@ describe("MessageList", () => {
       text: "Pending prompt",
       files: [],
       pending: true,
+      optimistic: true,
     }]} working ready={false} />)
     expect(screen.getByText("Pending prompt")).toBeInTheDocument()
     expect(screen.getByText("You · Sending")).toBeInTheDocument()

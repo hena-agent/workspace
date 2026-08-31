@@ -2,13 +2,13 @@ import { expect, test } from "bun:test"
 import { act, render, screen, waitFor } from "@testing-library/react"
 import { createConnectionAgent } from "@/connection/agent"
 import { MessageList } from "@/features/session/message-list"
-import { useMessages, useMessagesReady } from "./queries"
+import { useMessages } from "./queries"
 
 test("message views use their collection scope as the session id", async () => {
   const agent = createConnectionAgent("http://hena.test")
 
   function View() {
-    return <div>{useMessages(agent, "session-1")[0]?.sessionId}</div>
+    return <div>{useMessages(agent, "session-1").messages[0]?.sessionId}</div>
   }
 
   render(<View />)
@@ -27,7 +27,8 @@ test("transcript rows wait for both message and part snapshots", async () => {
   const agent = createConnectionAgent("http://hena.test")
 
   function View() {
-    return <MessageList messages={useMessages(agent, "session-1")} ready={useMessagesReady(agent, "session-1")} />
+    const transcript = useMessages(agent, "session-1")
+    return <MessageList messages={transcript.messages} ready={transcript.ready} />
   }
 
   render(<View />)
@@ -52,7 +53,7 @@ test("reasoning deltas project a provisional part before its durable row", async
   const agent = createConnectionAgent("http://hena.test")
 
   function View() {
-    return <MessageList messages={useMessages(agent, "session-1")} working ready />
+    return <MessageList messages={useMessages(agent, "session-1").messages} working ready />
   }
 
   const { container } = render(<View />)

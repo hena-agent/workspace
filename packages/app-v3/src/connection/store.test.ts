@@ -21,6 +21,7 @@ describe("connection store", () => {
     })
 
     expect(store.isReady("messages", "session-1")).toBe(false)
+    expect(store.cursor("messages", "session-1")).toBe(0)
     store.applySnapshot("messages", "session-1", [], 2)
     expect(store.isReady("messages", "session-1")).toBe(true)
   })

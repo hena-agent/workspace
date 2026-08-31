@@ -3,7 +3,13 @@ import type { AppType } from "@hena/server-v3/protocol"
 import { hc } from "hono/client"
 import { createLocalMessages } from "./local-messages"
 import { createConnectionStore, type Change, type ScopeRef } from "./store"
-import { coupledTranscriptScopes, isTranscriptCollection, transcriptScopes } from "./transcript"
+import {
+  coupledTranscriptScopes,
+  isTranscriptCollection,
+  isTranscriptReconciliationCollection,
+  transcriptReconciliationScopes,
+  transcriptScopes,
+} from "./transcript"
 
 export type ConnectionStatus = "idle" | "connecting" | "live" | "reconnecting" | "upgrade-required" | "unauthorized" | "error"
 export type RpcClient = ReturnType<typeof hc<AppType>>
@@ -140,12 +146,12 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
 
   async function putSubscription() {
     if (!resource) return
+    const scopeKeys = new Set(store.scopeRefs().map(scopeIdentity))
     new Set(store.scopeRefs().flatMap((scope) =>
-      isTranscriptCollection(scope.collection) ? [scope.scopeKey] : [],
+      isTranscriptReconciliationCollection(scope.collection) ? [scope.scopeKey] : [],
     )).forEach((sessionId) => {
-      if (store.cursor("messages", sessionId) === 0 || store.cursor("parts", sessionId) === 0) {
-        resetCursors(transcriptScopes(sessionId))
-      }
+      const scopes = transcriptReconciliationScopes(sessionId)
+      if (scopes.some((scope) => scopeKeys.has(scopeIdentity(scope)) && store.cursor(scope.collection, scope.scopeKey) === 0)) resetCursors(scopes)
     })
     subscriptionRevision = Math.max(subscriptionRevision, resource.subscriptionRevision) + 1
     const cursorKeys = new Set(store.scopeRefs().flatMap((scope) => {
@@ -275,10 +281,10 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
       if (frame.type === "snapshot.begin") {
         const identity = scopeIdentity(frame.scope)
         if (activeSnapshots.has(identity) || snapshots.has(frame.snapshotId)) throw new TerminalError("error")
-        if (frame.replace && isTranscriptCollection(frame.scope.collection)) {
-          const pair = transcriptScopes(frame.scope.scopeKey)
-          if (pair.some((scope) => subscriptionCursorKeys.has(scopeIdentity(scope)))) {
-            resetCursors(pair)
+        if (frame.replace && isTranscriptReconciliationCollection(frame.scope.collection)) {
+          const scopes = transcriptReconciliationScopes(frame.scope.scopeKey)
+          if (scopes.some((scope) => subscriptionCursorKeys.has(scopeIdentity(scope)))) {
+            resetCursors(scopes)
             requestRestart()
             return
           }

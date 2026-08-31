@@ -193,6 +193,48 @@ describe("connection protocol", () => {
     await started
   })
 
+  test("restarts an isolated input replacement with transcript cursors dropped", async () => {
+    const subscriptions: { cursors?: Record<string, unknown> }[] = []
+    const replacement = controlledSse()
+    let attachments = 0
+    const agent = createConnectionAgent("http://hena.test", async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url.endsWith("/capabilities")) return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
+      if (request.url.endsWith("/streams")) return Response.json({ streamId: "stream", generation: 0, expiresAt: Date.now() + 1_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
+      if (request.url.endsWith("/subscription")) {
+        subscriptions.push(await request.json() as { cursors?: Record<string, unknown> })
+        return Response.json({ revision: subscriptions.length, generation: 0 })
+      }
+      attachments++
+      if (attachments === 1) return sse([
+        snapshotFrame("snapshot.begin", "sessionInputs", { snapshotId: "inputs", baseSeq: 2, replace: true }),
+        snapshotFrame("snapshot.end", "sessionInputs", { snapshotId: "inputs", keyCount: 0, throughSeq: 2 }),
+      ], request.signal)
+      return replacement.response(request.signal)
+    })
+    agent.store.applySnapshot("messages", "session-1", [{ key: "old", row: { id: "old", text: "Old transcript" } }], 1)
+    agent.store.applySnapshot("parts", "session-1", [], 1)
+    agent.store.applySnapshot("sessionInputs", "session-1", [{ key: "message-1", row: { id: "message-1" } }], 1)
+    agent.localMessages.stage("session-1", "message-1", { id: "message-1", text: "Local prompt" })
+    agent.localMessages.acknowledge("session-1", "message-1")
+
+    const started = agent.start()
+    await waitUntil(() => attachments === 2)
+
+    expect(subscriptions[0]?.cursors).toEqual(expect.objectContaining({
+      "messages:session-1": { feedId: "feed", seq: 1 },
+      "parts:session-1": { feedId: "feed", seq: 1 },
+      "sessionInputs:session-1": { feedId: "feed", seq: 1 },
+    }))
+    expect(subscriptions[1]?.cursors).not.toHaveProperty("messages:session-1")
+    expect(subscriptions[1]?.cursors).not.toHaveProperty("parts:session-1")
+    expect(subscriptions[1]?.cursors).not.toHaveProperty("sessionInputs:session-1")
+    expect(agent.localMessages.rows("session-1")).toHaveLength(1)
+    expect(agent.store.rows("messages", "session-1")).toEqual([{ id: "old", text: "Old transcript" }])
+    agent.dispose()
+    await started
+  })
+
   test("flushes transcript rows after an additive snapshot", async () => {
     const stream = controlledSse()
     const agent = createConnectionAgent("http://hena.test", async (input, init) => {

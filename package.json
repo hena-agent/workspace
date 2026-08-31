@@ -16,7 +16,7 @@
     "build:opencode-plugin": "bun run script/opencode/build-codex-web-search.ts",
     "check:opencode-plugin": "bun run script/opencode/build-codex-web-search.ts --check",
     "knip": "knip-bun",
-    "lint": "oxlint packages script .hena",
+    "lint": "oxlint",
     "typecheck": "bun turbo typecheck",
     "postinstall": "bun run --cwd packages/core fix-node-pty",
     "prepare": "husky",

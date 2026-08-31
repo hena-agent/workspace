@@ -41,5 +41,16 @@
     // Warn when spreading non-plain objects (Headers, class instances, etc.)
     "typescript/no-misused-spread": "warn"
   },
-  "ignorePatterns": ["**/node_modules", "**/dist", "**/.build", "**/*.d.ts", "**/sdk.gen.ts", "**/routeTree.gen.ts"]
+  "ignorePatterns": [
+    // Standalone project with its own lockfile and ESLint setup
+    "/sdks/vscode/**",
+    // Generated from script/opencode/codex-web-search.ts
+    "/.opencode/plugin/codex-web-search.ts",
+    "**/node_modules",
+    "**/dist",
+    "**/.build",
+    "**/*.d.ts",
+    "**/sdk.gen.ts",
+    "**/routeTree.gen.ts"
+  ]
 }

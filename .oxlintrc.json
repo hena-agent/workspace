@@ -42,10 +42,8 @@
     "typescript/no-misused-spread": "warn"
   },
   "ignorePatterns": [
-    // Standalone project with its own lockfile and ESLint setup
-    "/sdks/vscode/**",
-    // Generated from script/opencode/codex-web-search.ts
-    "/.opencode/plugin/codex-web-search.ts",
+    // Standalone project with its own ESLint setup; github/ remains covered here
+    "/sdks/vscode/",
     "**/node_modules",
     "**/dist",
     "**/.build",

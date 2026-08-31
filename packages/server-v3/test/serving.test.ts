@@ -15,10 +15,14 @@ describe("serving", () => {
     database = createTestDatabase().database
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
     await Bun.write(`${directory}/index.html`, "<main>app-v3</main>")
-    const response = await createApp({ database, publicDir: directory }).request("/server/project/session/id")
+    const response = await createApp({ database, staticSource: { type: "disk", directory } }).request(
+      "/server/project/session/id",
+    )
 
     expect(response.status).toBe(200)
     expect(response.headers.get("cache-control")).toBe("no-cache")
+    expect(response.headers.get("content-security-policy")).toContain("default-src 'self'")
+    expect(response.headers.get("content-security-policy")).toContain("object-src 'none'")
     expect(await response.text()).toBe("<main>app-v3</main>")
   })
 
@@ -27,18 +31,62 @@ describe("serving", () => {
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
     const index = `${directory}/index.html`
     await Bun.write(index, "<main>embedded app-v3</main>")
-    const response = await createApp({ database, publicFiles: { "index.html": index } }).request("/session/id")
+    const response = await createApp({
+      database,
+      staticSource: { type: "embedded", files: { "index.html": index } },
+    }).request("/session/id")
 
     expect(response.status).toBe(200)
     expect(response.headers.get("cache-control")).toBe("no-cache")
     expect(await response.text()).toBe("<main>embedded app-v3</main>")
   })
 
+  test("ignores inherited embedded file entries", async () => {
+    database = createTestDatabase().database
+    const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
+    const inherited = `${directory}/inherited.html`
+    const index = `${directory}/index.html`
+    await Promise.all([Bun.write(inherited, "inherited"), Bun.write(index, "index")])
+    const files = { "index.html": index }
+    Object.setPrototypeOf(files, { inherited })
+
+    const response = await createApp({ database, staticSource: { type: "embedded", files } }).request("/inherited")
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe("index")
+  })
+
+  test("does not resolve the SPA index when an asset exists", async () => {
+    database = createTestDatabase().database
+    const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
+    const asset = `${directory}/asset.js`
+    const index = `${directory}/index.html`
+    await Promise.all([Bun.write(asset, "asset"), Bun.write(index, "index")])
+    let indexReads = 0
+    const files = { "assets/app-a1b2c3.js": asset }
+    Object.defineProperty(files, "index.html", {
+      enumerable: true,
+      get: () => {
+        indexReads++
+        return index
+      },
+    })
+
+    const response = await createApp({ database, staticSource: { type: "embedded", files } }).request(
+      "/assets/app-a1b2c3.js",
+    )
+
+    expect(response.status).toBe(200)
+    expect(indexReads).toBe(0)
+  })
+
   test("caches hashed assets immutably", async () => {
     database = createTestDatabase().database
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
     await Bun.write(`${directory}/assets/app-a1b2c3.js`, "export {}")
-    const response = await createApp({ database, publicDir: directory }).request("/assets/app-a1b2c3.js")
+    const response = await createApp({ database, staticSource: { type: "disk", directory } }).request(
+      "/assets/app-a1b2c3.js",
+    )
 
     expect(response.headers.get("cache-control")).toBe("public, max-age=31536000, immutable")
   })
@@ -47,7 +95,9 @@ describe("serving", () => {
     database = createTestDatabase().database
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
     await Bun.write(`${directory}/assets/logo.svg`, "<svg />")
-    const response = await createApp({ database, publicDir: directory }).request("/assets/logo.svg")
+    const response = await createApp({ database, staticSource: { type: "disk", directory } }).request(
+      "/assets/logo.svg",
+    )
 
     expect(response.headers.get("cache-control")).toBe("no-cache")
   })
@@ -57,8 +107,9 @@ describe("serving", () => {
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
     await Bun.write(`${directory}/index.html`, "<main>app-v3</main>")
 
-    const asset = await createApp({ database, publicDir: directory }).request("/assets/missing-a1b2c3.js")
-    const file = await createApp({ database, publicDir: directory }).request("/missing.png")
+    const app = createApp({ database, staticSource: { type: "disk", directory } })
+    const asset = await app.request("/assets/missing-a1b2c3.js")
+    const file = await app.request("/missing.png")
 
     expect(asset.status).toBe(404)
     expect(asset.headers.get("cache-control")).toBeNull()
@@ -70,16 +121,31 @@ describe("serving", () => {
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
     await Bun.write(`${directory}/index.html`, "<main>app-v3</main>")
 
-    const response = await createApp({ database, publicDir: directory }).request("/%ZZ")
+    const response = await createApp({ database, staticSource: { type: "disk", directory } }).request("/%ZZ")
 
     expect(response.status).toBe(404)
+  })
+
+  test("does not serve files outside the static directory", async () => {
+    database = createTestDatabase().database
+    const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
+    await Bun.write(`${directory}/public/index.html`, "index")
+    await Bun.write(`${directory}/secret.txt`, "secret")
+
+    const response = await createApp({
+      database,
+      staticSource: { type: "disk", directory: `${directory}/public` },
+    }).request("/..%2Fsecret.txt")
+
+    expect(response.status).toBe(404)
+    expect(await response.text()).not.toContain("secret")
   })
 
   test("compresses large static responses", async () => {
     database = createTestDatabase().database
     const directory = `${process.env.TMPDIR ?? "/tmp"}/hena-app-v3-${crypto.randomUUID()}`
     await Bun.write(`${directory}/index.html`, `<main>${"content".repeat(500)}</main>`)
-    const response = await createApp({ database, publicDir: directory }).request("/", {
+    const response = await createApp({ database, staticSource: { type: "disk", directory } }).request("/", {
       headers: { "accept-encoding": "gzip" },
     })
 
@@ -88,7 +154,10 @@ describe("serving", () => {
 
   test("explains a missing build", async () => {
     database = createTestDatabase().database
-    const response = await createApp({ database, publicDir: "/path/that/does/not/exist" }).request("/")
+    const response = await createApp({
+      database,
+      staticSource: { type: "disk", directory: "/path/that/does/not/exist" },
+    }).request("/")
 
     expect(response.status).toBe(503)
     expect(await response.text()).toContain("bun run build")
@@ -148,10 +217,10 @@ describe("serving", () => {
     await runServer(":memory:")
   }, 30_000)
 
-  test("removes signal handlers during manual shutdown", async () => {
+  test("allows repeated manual shutdown", async () => {
     await runServer(
       ":memory:",
-      'import { start } from "./src/main.ts"; const signals = ["SIGINT", "SIGTERM"]; const before = signals.map((signal) => process.listenerCount(signal)); for (const _ of [0, 1]) { const instance = await start({ port: 0, publicDir: "/missing" }); await Promise.all([instance.stop(), instance.stop()]); } if (signals.some((signal, index) => process.listenerCount(signal) !== before[index])) throw new Error("signal handlers leaked");',
+      'import { start } from "./src/main.ts"; for (const _ of [0, 1]) { const instance = await start({ port: 0, staticSource: { type: "disk", directory: "/missing" } }); await Promise.all([instance.stop(), instance.stop()]); }',
     )
   }, 30_000)
 
@@ -159,7 +228,7 @@ describe("serving", () => {
     const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
     await runServer(
       path,
-      'import { Database } from "bun:sqlite"; import { start } from "./src/main.ts"; const first = await start({ port: 0, publicDir: "/missing" }); const database = new Database(process.env.HENA_DB); const runtime = () => database.query("SELECT runtime_id FROM collection_feed WHERE id = 1").get().runtime_id; const before = runtime(); const listeners = ["SIGINT", "SIGTERM"].map((signal) => process.listenerCount(signal)); let rejected = false; try { await start({ port: first.server.port, publicDir: "/missing" }) } catch { rejected = true } if (!rejected) throw new Error("second server started"); if (runtime() !== before) throw new Error("failed startup changed runtime identity"); if (["SIGINT", "SIGTERM"].some((signal, index) => process.listenerCount(signal) !== listeners[index])) throw new Error("failed startup leaked signal handlers"); const response = await fetch(new URL("/api/collection/capabilities", first.server.url)); if (!response.ok) throw new Error("first server stopped serving"); database.close(); await first.stop();',
+      'import { Database } from "bun:sqlite"; import { start } from "./src/main.ts"; const source = { type: "disk", directory: "/missing" }; const first = await start({ port: 0, staticSource: source }); const database = new Database(process.env.HENA_DB); const runtime = () => database.query("SELECT runtime_id FROM collection_feed WHERE id = 1").get().runtime_id; const before = runtime(); let rejected = false; try { await start({ port: first.server.port, staticSource: source }) } catch { rejected = true } if (!rejected) throw new Error("second server started"); if (runtime() !== before) throw new Error("failed startup changed runtime identity"); const response = await fetch(new URL("/api/collection/capabilities", first.server.url)); if (!response.ok) throw new Error("first server stopped serving"); database.close(); await first.stop();',
     )
     await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
   }, 30_000)
@@ -168,7 +237,7 @@ describe("serving", () => {
     const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
     await runServer(
       path,
-      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing", corsOrigins: ["https://custom.example"] }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "https://custom.example" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "https://custom.example") throw new Error("configured origin was rejected")',
+      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, staticSource: { type: "disk", directory: "/missing" }, corsOrigins: ["https://custom.example"] }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "https://custom.example" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "https://custom.example") throw new Error("configured origin was rejected")',
     )
     await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
   }, 30_000)
@@ -182,7 +251,7 @@ describe("serving", () => {
     )
     await runServer(
       path,
-      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "https://configured.example" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "https://configured.example") throw new Error("server.cors origin was rejected")',
+      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, staticSource: { type: "disk", directory: "/missing" } }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "https://configured.example" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "https://configured.example") throw new Error("server.cors origin was rejected")',
       { HENA_CONFIG_DIR: directory },
     )
     await Promise.all([
@@ -195,7 +264,7 @@ describe("serving", () => {
     const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
     await runServer(
       path,
-      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "http://hena.tailnet.test:5173" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "http://hena.tailnet.test:5173") throw new Error("Vite development origin was rejected")',
+      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, staticSource: { type: "disk", directory: "/missing" } }); const response = await fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin: "http://hena.tailnet.test:5173" } }); await instance.stop(); if (response.headers.get("access-control-allow-origin") !== "http://hena.tailnet.test:5173") throw new Error("Vite development origin was rejected")',
       { HENA_VITE_ALLOWED_HOSTS: "hena.tailnet.test" },
     )
     await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
@@ -204,14 +273,14 @@ describe("serving", () => {
   test("keeps idle event streams alive and closes them during shutdown", async () => {
     await runServer(
       ":memory:",
-      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); const created = await fetch(new URL("/api/collection/streams", instance.server.url), { method: "POST" }).then((response) => response.json()); await fetch(new URL(`/api/collection/streams/${created.streamId}/subscription`, instance.server.url), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ revision: 1, lists: false, sessions: [], cursors: {} }) }); const response = await fetch(new URL(`/api/collection/streams/${created.streamId}/events`, instance.server.url)); const reader = response.body.getReader(); await reader.read(); await Bun.sleep(11_000); if ((await reader.read()).done) throw new Error("idle stream disconnected"); await instance.stop();',
+      'import { start } from "./src/main.ts"; const instance = await start({ port: 0, staticSource: { type: "disk", directory: "/missing" } }); const created = await fetch(new URL("/api/collection/streams", instance.server.url), { method: "POST" }).then((response) => response.json()); await fetch(new URL(`/api/collection/streams/${created.streamId}/subscription`, instance.server.url), { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ revision: 1, lists: false, sessions: [], cursors: {} }) }); const response = await fetch(new URL(`/api/collection/streams/${created.streamId}/events`, instance.server.url)); const reader = response.body.getReader(); await reader.read(); await Bun.sleep(11_000); if ((await reader.read()).done) throw new Error("idle stream disconnected"); await instance.stop();',
     )
   }, 30_000)
 })
 
 async function runServer(
   database: string,
-  source = 'import { start } from "./src/main.ts"; const instance = await start({ port: 0, publicDir: "/missing" }); await instance.stop()',
+  source = 'import { start } from "./src/main.ts"; const instance = await start({ port: 0, staticSource: { type: "disk", directory: "/missing" } }); await instance.stop()',
   env?: Record<string, string>,
 ) {
   const child = Bun.spawn({

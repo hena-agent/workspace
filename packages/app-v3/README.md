@@ -5,7 +5,7 @@ This is a template for a new Vite project with React, TypeScript, and shadcn/ui.
 ## Development
 
 Run `bun run dev:v3` from the repository root to start Vite and server-v3 together with hot reload.
-Vite listens on `http://localhost:5173` and proxies `/api` to server-v3 on `http://127.0.0.1:4106`.
+Vite listens on `http://127.0.0.1:5173` and proxies `/api` to server-v3 on `http://127.0.0.1:4106`.
 
 ## Custom development hosts
 

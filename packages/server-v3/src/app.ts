@@ -8,7 +8,7 @@ import { createSettingRoutes } from "./routes/settings"
 import { unavailableCoreDomain, type CoreDomain } from "./core/domain"
 import { createSessionRoutes } from "./routes/session"
 import { exactOriginCors } from "./http/cors"
-import { createStaticRoutes } from "./http/static"
+import { createStaticRoutes, type StaticSource } from "./http/static"
 import { createFileSystemRoutes } from "./routes/filesystem"
 import { createCatalogRoutes } from "./routes/catalog"
 import { createContentRoutes } from "./routes/content"
@@ -16,13 +16,11 @@ import { createDeltaHub, type DeltaHub } from "./stream/delta"
 import { createOnlineRequestStore, type OnlineRequestStore } from "./core/online-requests"
 import { createOnlineRoutes } from "./routes/online"
 import { coreError, error, type ErrorCode } from "./http/error"
-import type { StaticFiles } from "./http/static"
 
 export function createApp(input: {
   database: SyncDatabase
   domain?: CoreDomain
-  publicDir?: string
-  publicFiles?: StaticFiles
+  staticSource?: StaticSource
   corsOrigins?: readonly string[]
   deltas?: DeltaHub
   online?: OnlineRequestStore
@@ -88,8 +86,8 @@ export function createApp(input: {
     .route("/api", createCatalogRoutes(domain))
     .route("/api", createContentRoutes(input.database))
     .route("/api", createOnlineRoutes(domain))
-  if (!input.publicDir && !input.publicFiles) return api
-  return api.route("/", createStaticRoutes({ publicDir: input.publicDir, publicFiles: input.publicFiles }))
+  if (!input.staticSource) return api
+  return api.route("/", createStaticRoutes(input.staticSource))
 }
 
 type ErrorResponse = { error: { code: ErrorCode; message: string; details?: Record<string, unknown> } }

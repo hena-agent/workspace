@@ -1,5 +1,5 @@
-// Subprocess integration tests for `hena serve`. Spawns the real CLI in
-// mode and exercises it over HTTP — this is the only test tier that
+// Subprocess integration tests for `hena serve`. Spawns the real CLI and
+// exercises it over HTTP — this is the only test tier that
 // catches bugs spanning argv → server boot → routing → instance loading.
 //
 // `serve` is long-lived: the harness returns a handle (url/port/kill/exited)
@@ -52,6 +52,63 @@ describe("hena serve (subprocess)", () => {
         // (typically 143 on POSIX). We just require resolution within a sane
         // window — anything else means the kill didn't take.
         expect(typeof code === "number" || code === null).toBe(true)
+      }),
+    60_000,
+  )
+
+  cliIt.live(
+    "releases the port after SIGTERM",
+    ({ hena }) =>
+      Effect.gen(function* () {
+        const first = yield* hena.serve()
+        first.kill()
+        yield* Effect.promise(() => first.exited)
+
+        const replacement = yield* hena.serve({ port: first.port })
+        expect(replacement.port).toBe(first.port)
+      }),
+    60_000,
+  )
+
+  cliIt.live(
+    "reports unsupported password authentication",
+    ({ hena }) =>
+      Effect.gen(function* () {
+        const result = yield* hena.spawn(["serve", "--port", "0"], {
+          env: { HENA_SERVER_PASSWORD: "secret" },
+        })
+
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stderr).toContain("HENA_SERVER_PASSWORD is not supported")
+        expect(result.stderr).not.toContain("Unexpected error")
+      }),
+    60_000,
+  )
+
+  cliIt.live(
+    "reports a port conflict with the --port flag",
+    ({ hena }) =>
+      Effect.gen(function* () {
+        const running = yield* hena.serve()
+        const result = yield* hena.spawn(["serve", "--port", String(running.port)])
+
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stderr).toContain(`Port ${running.port} is already in use`)
+        expect(result.stderr).toContain("--port")
+        expect(result.stderr).not.toContain("Unexpected error")
+      }),
+    60_000,
+  )
+
+  cliIt.live(
+    "rejects unauthenticated non-loopback binding",
+    ({ hena }) =>
+      Effect.gen(function* () {
+        const result = yield* hena.spawn(["serve", "--hostname", "0.0.0.0"])
+
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stderr).toContain("only supports --hostname 127.0.0.1")
+        expect(result.stderr).not.toContain("Unknown argument")
       }),
     60_000,
   )

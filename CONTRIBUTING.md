@@ -71,6 +71,7 @@ Replace `<platform>` with your platform (e.g., `darwin-arm64`, `linux-x64`).
 
 - Core pieces:
   - `packages/hena`: Hena core business logic & server.
+  - `packages/app`: The shared SolidJS web UI used by the desktop app.
   - `packages/app-v3`: The React web interface.
   - `packages/server-v3`: The HTTP server and synchronization protocol.
   - `packages/desktop`: The native desktop app, built with Electron (wraps `packages/app`)
@@ -117,7 +118,7 @@ For app-v3 and server-v3 hot reloading, run this from the repository root:
 bun run dev:v3
 ```
 
-Vite runs at `http://localhost:5173` and proxies `/api` to server-v3 at `http://127.0.0.1:4106`.
+Vite runs at `http://127.0.0.1:5173` and proxies `/api` to server-v3 at `http://127.0.0.1:4106`.
 
 ### Running the Desktop App
 

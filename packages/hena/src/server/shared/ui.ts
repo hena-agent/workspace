@@ -3,8 +3,7 @@ import { Effect, Stream } from "effect"
 import { HttpBody, HttpClient, HttpClientRequest, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { createHash } from "node:crypto"
 import { ProxyUtil } from "../proxy-util"
-
-let embeddedUIPromise: Promise<Record<string, string> | null> | undefined
+import { embeddedUI } from "./embedded-ui"
 
 export const UI_UPSTREAM = new URL("https://app.hena.dev")
 
@@ -39,13 +38,6 @@ function proxyResponseHeaders(headers: Record<string, string>) {
 
 export function upstreamURL(path: string) {
   return new URL(path, UI_UPSTREAM).toString()
-}
-
-export function embeddedUI(disableEmbeddedWebUi: boolean) {
-  if (disableEmbeddedWebUi) return Promise.resolve(null)
-  return (embeddedUIPromise ??=
-    // @ts-expect-error - generated file at build time
-    import("hena-web-ui.gen.ts").then((module) => module.default as Record<string, string>).catch(() => null))
 }
 
 function notFound() {

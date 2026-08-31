@@ -11,14 +11,17 @@ export const WebCommand = effectCmd({
   describe: "start Hena server and open web interface",
   instance: false,
   handler: Effect.fn("Cli.web")(function* (args) {
-    const server = yield* startServerV3(args)
-    UI.empty()
-    UI.println(UI.logo("  "))
-    UI.empty()
-    const displayUrl = server.server.url.toString()
-    UI.println(UI.Style.TEXT_INFO_BOLD + "  Web interface:    ", UI.Style.TEXT_NORMAL, displayUrl)
-    open(displayUrl).catch(() => {})
-
-    yield* waitForServerV3(server)
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        const running = yield* startServerV3(args)
+        UI.empty()
+        UI.println(UI.logo("  "))
+        UI.empty()
+        const displayUrl = running.server.url.toString()
+        UI.println(UI.Style.TEXT_INFO_BOLD + "  Web interface:    ", UI.Style.TEXT_NORMAL, displayUrl)
+        open(displayUrl).catch(() => {})
+        yield* waitForServerV3()
+      }),
+    )
   }),
 })

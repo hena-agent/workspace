@@ -293,6 +293,19 @@ describe("hena run (non-interactive subprocess)", () => {
   )
 
   cliIt.live(
+    "attach mode rejects server-v3 clearly",
+    ({ hena }) =>
+      Effect.gen(function* () {
+        const server = yield* hena.serve()
+        const result = yield* hena.run("say hi", { extraArgs: ["--attach", server.url] })
+
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stderr).toContain("--attach only supports legacy v2 servers")
+      }),
+    60_000,
+  )
+
+  cliIt.live(
     "SIGINT interrupts an active non-interactive run without leaking the process",
     ({ llm, hena }) =>
       Effect.gen(function* () {

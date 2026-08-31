@@ -9,9 +9,12 @@ export const ServeCommand = effectCmd({
   describe: "start Hena server and web interface",
   instance: false,
   handler: Effect.fn("Cli.serve")(function* (args) {
-    const server = yield* startServerV3(args)
-    console.log(`hena server listening on http://${server.server.hostname}:${server.server.port}`)
-
-    yield* waitForServerV3(server)
+    yield* Effect.scoped(
+      Effect.gen(function* () {
+        const running = yield* startServerV3(args)
+        console.log(`hena server listening on http://${running.server.hostname}:${running.server.port}`)
+        yield* waitForServerV3()
+      }),
+    )
   }),
 })

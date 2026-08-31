@@ -32,12 +32,12 @@ const options = {
 }
 
 const serverV3Options = {
+  ...options,
   port: {
     type: "number" as const,
     describe: "port to listen on",
     default: 4096,
   },
-  cors: options.cors,
 }
 
 export type NetworkOptions = InferredOptionTypes<typeof options>
@@ -77,11 +77,10 @@ export const resolveServerV3NetworkOptions = Effect.fn("Cli.resolveServerV3Netwo
 ) {
   const { Config } = yield* Effect.promise(() => import("@/config/config"))
   const config = yield* Config.Service.use((cfg) => cfg.getGlobal())
-  const configCors = config?.server?.cors ?? []
-  const argsCors = Array.isArray(args.cors) ? args.cors : args.cors ? [args.cors] : []
+  const resolved = resolveNetworkOptionsNoConfig(args, config)
   return {
-    port: hasArg("--port") ? args.port : (config?.server?.port ?? args.port),
-    cors: [...configCors, ...argsCors],
+    ...resolved,
+    cors: corsOrigins(args.cors),
   }
 })
 
@@ -99,8 +98,11 @@ export function resolveNetworkOptionsNoConfig(args: NetworkOptions, config?: Con
       ? "0.0.0.0"
       : (config?.server?.hostname ?? args.hostname)
   const configCors = config?.server?.cors ?? []
-  const argsCors = Array.isArray(args.cors) ? args.cors : args.cors ? [args.cors] : []
-  const cors = [...configCors, ...argsCors]
+  const cors = [...configCors, ...corsOrigins(args.cors)]
 
   return { hostname, port, mdns, mdnsDomain, cors }
+}
+
+function corsOrigins(cors: string | string[]) {
+  return Array.isArray(cors) ? cors : cors ? [cors] : []
 }

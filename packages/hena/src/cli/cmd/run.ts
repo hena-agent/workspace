@@ -6,7 +6,7 @@ import { pathToFileURL } from "url"
 import { open } from "node:fs/promises"
 import { Effect } from "effect"
 import { UI } from "../ui"
-import { effectCmd } from "../effect-cmd"
+import { effectCmd, fail } from "../effect-cmd"
 import { EOL } from "os"
 import { Filesystem } from "@/util/filesystem"
 import { createHenaClient, type HenaClient, type ToolPart } from "@hena/sdk/v2"
@@ -112,7 +112,7 @@ async function toolError(part: ToolPart) {
 export const RunCommand = effectCmd({
   command: "run [message..]",
   describe: "run Hena with a message",
-  // --attach connects to a remote server (no local instance needed); the
+  // --attach connects to a legacy v2 server (no local instance needed); the
   // default path runs an in-process server and needs the project instance.
   instance: (args) => !args.attach,
   // For --dir without --attach, load instance for the resolved target dir.
@@ -175,21 +175,21 @@ export const RunCommand = effectCmd({
       })
       .option("attach", {
         type: "string",
-        describe: "attach to a running Hena server (e.g., http://localhost:4096)",
+        describe: "attach to a legacy v2 Hena server",
       })
       .option("password", {
         alias: ["p"],
         type: "string",
-        describe: "basic auth password (defaults to HENA_SERVER_PASSWORD)",
+        describe: "legacy server password (defaults to HENA_SERVER_PASSWORD)",
       })
       .option("username", {
         alias: ["u"],
         type: "string",
-        describe: "basic auth username (defaults to HENA_SERVER_USERNAME or 'hena')",
+        describe: "legacy server username (defaults to HENA_SERVER_USERNAME or 'hena')",
       })
       .option("dir", {
         type: "string",
-        describe: "directory to run in, path on remote server if attaching",
+        describe: "directory to run in, path on a legacy server if attaching",
       })
       .option("variant", {
         type: "string",
@@ -215,6 +215,11 @@ export const RunCommand = effectCmd({
         default: false,
       }),
   handler: Effect.fn("Cli.run")(function* (args) {
+    const attach = args.attach
+    if (attach && (yield* Effect.promise(() => isServerV3(attach))))
+      return yield* fail(
+        "hena run --attach only supports legacy v2 servers. Run without --attach when using server-v3.",
+      )
     const { Agent } = yield* Effect.promise(() => import("@/agent/agent"))
     const { RuntimeFlags } = yield* Effect.promise(() => import("@/effect/runtime-flags"))
     const { InstanceRef } = yield* Effect.promise(() => import("@/effect/instance-ref"))
@@ -763,3 +768,11 @@ export const RunCommand = effectCmd({
     })
   }),
 })
+
+function isServerV3(baseUrl: string) {
+  if (!URL.canParse("/api/collection/capabilities", baseUrl)) return Promise.resolve(false)
+  return fetch(new URL("/api/collection/capabilities", baseUrl), { signal: AbortSignal.timeout(2_000) }).then(
+    (response) => response.ok,
+    () => false,
+  )
+}

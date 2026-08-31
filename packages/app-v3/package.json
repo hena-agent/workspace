@@ -5,7 +5,7 @@
   "description": "Hena Web UI V3 (React) — UI shell",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite",
     "start": "vite",
     "build": "bunx --package @typescript/native tsc -b && vite build",
     "build:embedded": "VITE_HENA_EMBEDDED=true bun run build",

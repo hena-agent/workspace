@@ -110,7 +110,7 @@ export function useMessages(agent: ReturnTypeOfAgent | undefined, sessionId: str
   )
   const messages = useRows(agent, "messages", sessionId)
   const parts = useRows(agent, "parts", sessionId)
-  const localRows = agent?.store.localRows("messages", sessionId) ?? []
+  const localRows = agent?.store.localMessages(sessionId) ?? []
   const localIDs = new Set(localRows.map((message) => string(message.id)))
   const deltas = (agent?.store.deltaIdentities(sessionId) ?? []).filter(isVisibleDelta)
   const projected = (ready ? messages : messages.filter((message) => localIDs.has(string(message.id))))

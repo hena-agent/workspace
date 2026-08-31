@@ -48,7 +48,7 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
   const message = { id: messageID, sessionID, type: "user", text: input.text, files: input.files, time: { created } }
   const resolvedProjectID = Promise.withResolvers<string>()
   markPending(messageID, true)
-  agent.store.stageLocalRow("messages", sessionID, messageID, message)
+  agent.store.stageLocalMessage(sessionID, messageID, message)
   const transaction = createTransaction({
     mutationFn: async () => {
       const result = await requestQueueable(() => agent.client.api.session.$post({
@@ -91,7 +91,7 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
   void transaction.isPersisted.promise.then(
     () => markPending(messageID, false),
     () => {
-      agent.store.dropLocalRow("messages", sessionID, messageID)
+      agent.store.dropLocalMessage(sessionID, messageID)
       markPending(messageID, false)
     },
   )
@@ -113,7 +113,7 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
   const message = { id: messageID, sessionID: input.sessionID, type: "user", text: input.text, files: input.files, time: { created } }
   if (input.delivery === "steer") {
     markPending(messageID, true)
-    agent.store.stageLocalRow("messages", input.sessionID, messageID, message)
+    agent.store.stageLocalMessage(input.sessionID, messageID, message)
   }
   const transaction = createTransaction({
     mutationFn: async () => {
@@ -160,7 +160,7 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
   void transaction.isPersisted.promise.then(
     () => markPending(messageID, false),
     () => {
-      agent.store.dropLocalRow("messages", input.sessionID, messageID)
+      agent.store.dropLocalMessage(input.sessionID, messageID)
       markPending(messageID, false)
     },
   )

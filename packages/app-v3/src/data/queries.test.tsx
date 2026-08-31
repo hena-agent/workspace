@@ -52,7 +52,7 @@ test("transcript rows wait for both message and part snapshots", async () => {
 
 test("local prompts remain visible until both authoritative snapshots complete", async () => {
   const agent = createConnectionAgent("http://hena.test")
-  agent.store.stageLocalRow("messages", "session-1", "message-1", {
+  agent.store.stageLocalMessage("session-1", "message-1", {
     id: "message-1",
     type: "user",
     text: "Local prompt",
@@ -73,14 +73,14 @@ test("local prompts remain visible until both authoritative snapshots complete",
     await Bun.sleep(0)
   })
   expect(await screen.findByText("Local prompt")).toBeVisible()
-  expect(agent.store.localRows("messages", "session-1")).toHaveLength(1)
+  expect(agent.store.localMessages("session-1")).toHaveLength(1)
 
   await act(async () => {
     agent.store.applySnapshot("parts", "session-1", [], 1)
     await Bun.sleep(0)
   })
   expect(screen.getByText("Local prompt")).toBeVisible()
-  expect(agent.store.localRows("messages", "session-1")).toEqual([])
+  expect(agent.store.localMessages("session-1")).toEqual([])
   act(() => agent.dispose())
 })
 

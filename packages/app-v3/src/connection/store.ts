@@ -142,15 +142,15 @@ export function createConnectionStore(options: StoreOptions = {}) {
     authoritativeRows(collection: string, scopeKey = "") {
       return Array.from(getScope(collection, scopeKey).authoritative.values(), (item) => item.row)
     },
-    localRows(collection: string, scopeKey = "") {
-      return Array.from(getScope(collection, scopeKey).local.values(), (item) => item.row)
+    localMessages(sessionId: string) {
+      return Array.from(getScope("messages", sessionId).local.values(), (item) => item.row)
     },
-    stageLocalRow(collection: string, scopeKey: string, key: string | readonly string[], row: Row) {
-      getScope(collection, scopeKey).local.set(wireKey(key), stored(key, row))
+    stageLocalMessage(sessionId: string, key: string | readonly string[], row: Row) {
+      getScope("messages", sessionId).local.set(wireKey(key), stored(key, row))
       notify()
     },
-    dropLocalRow(collection: string, scopeKey: string, key: string | readonly string[]) {
-      if (!scopes.get(scopeIdentity(collection, scopeKey))?.local.delete(wireKey(key))) return
+    dropLocalMessage(sessionId: string, key: string | readonly string[]) {
+      if (!scopes.get(scopeIdentity("messages", sessionId))?.local.delete(wireKey(key))) return
       notify()
     },
     cursor: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.cursor ?? 0,

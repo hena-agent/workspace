@@ -12,6 +12,7 @@ const runAgentDirectory = path.join(root, ".github/actions/run-agent")
 const packageResult = path.join(runAgentDirectory, "package-result.sh")
 const changedPaths = path.join(runAgentDirectory, "validate-changed-paths.sh")
 const checkRollup = path.join(runAgentDirectory, "check-rollup.jq")
+const normalizeScanResult = path.join(runAgentDirectory, "normalize-scan-result.jq")
 const payloadFilter = path.join(actionDirectory, "review-payload.jq")
 const sanitizeCheckout = path.join(actionDirectory, "sanitize-review-checkout.sh")
 const reviewCommand = "thermo-nuclear-code-quality-review"
@@ -266,6 +267,19 @@ describe("run-opencode review action", () => {
     expect(result.stdout).toBe("final review")
   })
 
+  test("extracts and normalizes a completed scan task", () => {
+    const body = "I found one issue.\n\nfix(core): preserve session state\n\n## Problem\n\nState is lost."
+    const extracted = jq(
+      extractionArgs("-jrs", "completed-task", "agent-scan"),
+      events(completedTask(body, "agent-scan"), { type: "text", part: { text: "The scan returned a finding." } }),
+    )
+    expect(extracted.exitCode).toBe(0)
+    const normalized = jq(["-Rrs", "-f", normalizeScanResult], extracted.stdout)
+    expect(normalized.exitCode).toBe(0)
+    expect(normalized.stdout).toBe("fix(core): preserve session state\n\n## Problem\n\nState is lost.\n")
+    expect(jq(["-Rrs", "-f", normalizeScanResult], "No issue here.").exitCode).not.toBe(0)
+  })
+
   test("rejects a successful command without final text", () => {
     const result = jq(extractionArgs("-jrs", "final-text"), events())
     expect(result.exitCode).not.toBe(0)
@@ -410,8 +424,8 @@ function completedTask(body: string, command: string) {
   }
 }
 
-function extractionArgs(flags: string, operation: string) {
-  return [flags, "--arg", "operation", operation, "--arg", "command", reviewCommand, "-f", extractionFilter]
+function extractionArgs(flags: string, operation: string, command = reviewCommand) {
+  return [flags, "--arg", "operation", operation, "--arg", "command", command, "-f", extractionFilter]
 }
 
 function jq(args: string[], input: string) {

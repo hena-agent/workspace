@@ -258,7 +258,7 @@ jobs:
             || COMMAND_STATUS=$?
 
           if [ "$COMMAND_STATUS" -eq 0 ]; then
-            jq -jrs --arg operation final-text --arg command "$COMMAND" \
+            jq -jrs --arg operation completed-task --arg command "$COMMAND" \
               -f ".github/actions/setup-opencode/extract-result.jq" \
               "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"
           elif jq -jers --arg operation completed-review --arg command "$COMMAND" \

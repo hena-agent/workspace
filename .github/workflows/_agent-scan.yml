@@ -134,7 +134,7 @@ jobs:
             | tee "$RUNNER_TEMP/opencode-command.ndjson" \
             || COMMAND_STATUS=$?
           if [ "$COMMAND_STATUS" -eq 0 ]; then
-            jq -jrs --arg operation final-text --arg command agent-scan \
+            jq -jrs --arg operation completed-task --arg command agent-scan \
               -f ".github/actions/setup-opencode/extract-result.jq" \
               "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"
           elif jq -jers --arg operation completed-review --arg command agent-scan \
@@ -144,8 +144,10 @@ jobs:
           else
             exit "$COMMAND_STATUS"
           fi
+          jq -Rrs -f .github/actions/run-agent/normalize-scan-result.jq \
+            "$RUNNER_TEMP/opencode-command-result.md" > "$RUNNER_TEMP/agent-scan-issue.md"
           bash .github/actions/run-agent/package-result.sh \
-            agent-scan "$RUNNER_TEMP/opencode-command-result.md" "$RUNNER_TEMP/agent-artifact"
+            agent-scan "$RUNNER_TEMP/agent-scan-issue.md" "$RUNNER_TEMP/agent-artifact"
 
       - name: Upload untrusted scan result
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -191,6 +193,11 @@ jobs:
           BODY=$(jq -Rrs 'split("\n") | .[1:] | join("\n") | sub("^\\s+"; "")' "$RESULT")
           if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
             echo "::error::agent-scan returned an empty issue title or body."
+            exit 1
+          fi
+          CONVENTIONAL_TITLE='^(feat|fix|docs|chore|refactor|test)(\([^)]+\))?: .+'
+          if ! [[ "$TITLE" =~ $CONVENTIONAL_TITLE ]]; then
+            echo "::error::agent-scan returned a non-conventional issue title."
             exit 1
           fi
           DUPLICATES=$(gh api --paginate "repos/$REPOSITORY/issues?state=open&labels=agent-task&per_page=100" \

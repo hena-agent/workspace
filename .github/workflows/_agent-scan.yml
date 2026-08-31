@@ -134,7 +134,7 @@ jobs:
             | tee "$RUNNER_TEMP/opencode-command.ndjson" \
             || COMMAND_STATUS=$?
           if [ "$COMMAND_STATUS" -eq 0 ]; then
-            jq -jrs --arg operation final-text --arg command agent-scan \
+            jq -jrs --arg operation completed-task --arg command agent-scan \
               -f ".github/actions/setup-opencode/extract-result.jq" \
               "$RUNNER_TEMP/opencode-command.ndjson" > "$RUNNER_TEMP/opencode-command-result.md"
           elif jq -jers --arg operation completed-review --arg command agent-scan \
@@ -160,8 +160,16 @@ jobs:
     if: needs.run.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions: {}
+    permissions:
+      contents: read
     steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+          token: ${{ github.token }}
+
       - name: Mint scanner publishing token
         id: token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -187,12 +195,11 @@ jobs:
         run: |
           set -euo pipefail
           RESULT="$RUNNER_TEMP/agent-artifact/result.md"
-          TITLE=$(jq -Rrs 'split("\n")[0]' "$RESULT")
-          BODY=$(jq -Rrs 'split("\n") | .[1:] | join("\n") | sub("^\\s+"; "")' "$RESULT")
-          if [ -z "$TITLE" ] || [ -z "$BODY" ]; then
-            echo "::error::agent-scan returned an empty issue title or body."
-            exit 1
-          fi
+          CONVENTIONAL_TITLE='^(feat|fix|docs|chore|refactor|test)(\([^)]+\))?: .+'
+          ISSUE=$(jq -Rrs --arg conventional "$CONVENTIONAL_TITLE" \
+            -f .github/actions/run-agent/scan-issue.jq "$RESULT")
+          TITLE=$(jq -r '.title' <<< "$ISSUE")
+          BODY=$(jq -r '.body' <<< "$ISSUE")
           DUPLICATES=$(gh api --paginate "repos/$REPOSITORY/issues?state=open&labels=agent-task&per_page=100" \
             | jq -r --arg title "$TITLE" '.[] | select((.pull_request | not) and .title == $title) | .html_url')
           if [ -n "$DUPLICATES" ]; then

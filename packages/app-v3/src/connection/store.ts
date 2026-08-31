@@ -34,17 +34,10 @@ type StoreOptions = {
   scheduleFrame?: (callback: () => void) => void
 }
 
-type ReceiptWaiter = {
-  resolve: () => void
-  timer: ReturnType<typeof setTimeout>
-  scopes?: readonly ScopeRef[]
-  throughSeq?: number
-}
-
 export function createConnectionStore(options: StoreOptions = {}) {
   const scopes = new Map<string, ReturnType<typeof createScope>>()
   const listeners = new Set<() => void>()
-  const waiters = new Map<string, Set<ReceiptWaiter>>()
+  const waiters = new Map<string, Set<{ resolve: () => void; timer: ReturnType<typeof setTimeout> }>>()
   const recentTxids = new Set<string>()
   const deltas = new Map<string, { text: string; bytes: number; incomplete: boolean; snapshot: { text: string; incomplete: boolean } }>()
   const deltaListeners = new Map<string, Set<() => void>>()
@@ -62,20 +55,6 @@ export function createConnectionStore(options: StoreOptions = {}) {
     return created
   }
   const notify = () => listeners.forEach((listener) => listener())
-  const resolveWaiter = (txid: string, waiter: ReceiptWaiter) => {
-    clearTimeout(waiter.timer)
-    waiter.resolve()
-    waiters.get(txid)?.delete(waiter)
-    if (waiters.get(txid)?.size === 0) waiters.delete(txid)
-  }
-  const resolveAdvancedWaiters = () => {
-    waiters.forEach((pending, txid) => pending.forEach((waiter) => {
-      const throughSeq = waiter.throughSeq
-      if (throughSeq === undefined || !waiter.scopes?.length) return
-      if (!waiter.scopes.every((scope) => (scopes.get(scopeIdentity(scope.collection, scope.scopeKey))?.cursor ?? 0) >= throughSeq)) return
-      resolveWaiter(txid, waiter)
-    }))
-  }
   const notifyDelta = (key: string) => {
     pendingDeltaNotifications.add(key)
     if (deltaFrameScheduled) return
@@ -155,16 +134,6 @@ export function createConnectionStore(options: StoreOptions = {}) {
     authoritativeRows(collection: string, scopeKey = "") {
       return Array.from(getScope(collection, scopeKey).authoritative.values(), (item) => item.row)
     },
-    isMaterialized(collection: string, scopeKey = "", allowExtras = false) {
-      const scope = scopes.get(scopeIdentity(collection, scopeKey))
-      if (!scope?.ready || (allowExtras
-        ? scope.collection.size < scope.authoritative.size
-        : scope.collection.size !== scope.authoritative.size)) return false
-      return Array.from(scope.authoritative).every(([key, value]) => {
-        const current = scope.collection.get(key)
-        return current?.__revision === value.__revision && current?.row === value.row
-      })
-    },
     cursor: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.cursor ?? 0,
     isReady: (collection: string, scopeKey = "") => scopes.get(scopeIdentity(collection, scopeKey))?.ready ?? false,
     scopeRefs: () => Array.from(scopes.values(), (scope) => scope.ref),
@@ -208,7 +177,6 @@ export function createConnectionStore(options: StoreOptions = {}) {
       }
       scope.cursor = throughSeq
       notify()
-      resolveAdvancedWaiters()
     },
     applyRows(frame: { throughSeq: number; changes: readonly Change[] }) {
       const affected = new Map<string, ReturnType<typeof createScope>>()
@@ -253,16 +221,17 @@ export function createConnectionStore(options: StoreOptions = {}) {
       const txids = frame.changes.flatMap((change) => change.txid ? [change.txid] : [])
       txids.forEach((txid) => {
         recentTxids.add(txid)
-        waiters.get(txid)?.forEach((waiter) => resolveWaiter(txid, waiter))
+        waiters.get(txid)?.forEach((waiter) => {
+          clearTimeout(waiter.timer)
+          waiter.resolve()
+        })
+        waiters.delete(txid)
       })
-      resolveAdvancedWaiters()
       while (recentTxids.size > 256) recentTxids.delete(recentTxids.values().next().value!)
       return { resetScopes: Array.from(resetScopes.values()) }
     },
-    awaitTxid(txid: string, timeoutMs = 10_000, affectedScopes?: readonly ScopeRef[], throughSeq?: number) {
+    awaitTxid(txid: string, timeoutMs = 10_000, affectedScopes?: readonly ScopeRef[]) {
       if (recentTxids.has(txid)) return Promise.resolve()
-      if (throughSeq !== undefined && affectedScopes?.length && affectedScopes.every((scope) =>
-        (scopes.get(scopeIdentity(scope.collection, scope.scopeKey))?.cursor ?? 0) >= throughSeq)) return Promise.resolve()
       return new Promise<void>((resolve) => {
         const waiter = {
           resolve,
@@ -273,8 +242,6 @@ export function createConnectionStore(options: StoreOptions = {}) {
             options.onTxidTimeout?.(affectedScopes)
             resolve()
           }, timeoutMs),
-          scopes: affectedScopes,
-          throughSeq,
         }
         const pending = waiters.get(txid) ?? new Set()
         pending.add(waiter)
@@ -371,6 +338,17 @@ export function createConnectionStore(options: StoreOptions = {}) {
       if (!scope) return
       scopes.delete(key)
       void scope.collection.cleanup()
+      notify()
+    },
+    dropSession(sessionId: string) {
+      ;["messages", "parts", "sessionInputs", "todos"].forEach((collection) => {
+        const key = scopeIdentity(collection, sessionId)
+        const scope = scopes.get(key)
+        if (!scope) return
+        scopes.delete(key)
+        void scope.collection.cleanup()
+      })
+      this.clearSessionDeltas(sessionId)
       notify()
     },
     clear() {

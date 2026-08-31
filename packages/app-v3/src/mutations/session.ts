@@ -7,7 +7,6 @@ import type { createConnectionAgent } from "@/connection/agent"
 import { MutationError, mutationError, receipt, requestQueueable } from "./lifecycle"
 
 type Agent = ReturnType<typeof createConnectionAgent>
-type Scope = { readonly collection: string; readonly scopeKey: string }
 export type PromptFile = { uri: string; name?: string; description?: string }
 export type OnlineReplyResult = { outcome: "applied" | "already_resolved"; resolution: Record<string, unknown>; divergent: boolean }
 
@@ -292,8 +291,7 @@ function replyOnline(
 
 async function awaitReceipt(agent: Agent, value: unknown) {
   const acknowledged = receipt(value)
-  const awaitTxid = agent.store.awaitTxid as unknown as (txid: string, timeoutMs: number, affectedScopes: readonly Scope[], throughSeq: number) => Promise<void>
-  await awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes, acknowledged.through.seq)
+  await agent.store.awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes)
 }
 
 function waitForAuthoritativeState(

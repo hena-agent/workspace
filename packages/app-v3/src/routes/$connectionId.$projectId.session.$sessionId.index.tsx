@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { createFileRoute } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { SessionTranscriptView } from "@/features/session/session-transcript-view"
@@ -12,18 +12,14 @@ import { markSessionSeen } from "@/local-state/seen"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/")({
   component: SessionTranscriptRoute,
+  remountDeps: ({ params }) => params,
 })
 
 function SessionTranscriptRoute() {
   const { connectionId, projectId, sessionId } = Route.useParams()
-  return <SessionTranscript key={`${connectionId}\0${projectId}\0${sessionId}`} />
-}
-
-function SessionTranscript() {
-  const { connectionId, projectId, sessionId } = Route.useParams()
   const queryClient = useQueryClient()
   const agent = useConnectionAgent(connectionId)
-  useLayoutEffect(() => agent?.claim(sessionId), [agent, sessionId])
+  useEffect(() => agent?.claim(sessionId), [agent, sessionId])
   const session = useSession(agent, sessionId)
   const location = useSessionLocation(agent, sessionId)
   const catalog = useCatalog(agent, location)

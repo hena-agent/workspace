@@ -47,24 +47,6 @@ describe("connection store", () => {
     expect(store.rows("sessions", "")).toEqual([{ id: "session-1", title: "Hello" }])
   })
 
-  test("resolves a receipt when replacement snapshots advance every affected scope", async () => {
-    const store = createConnectionStore()
-    const waiter = store.awaitTxid("tx-replaced", 100, [
-      { collection: "sessions", scopeKey: "" },
-      { collection: "projects", scopeKey: "" },
-    ], 9)
-    let resolved = false
-    void waiter.then(() => { resolved = true })
-
-    store.applySnapshot("sessions", "", [], 9)
-    await Bun.sleep(0)
-    expect(resolved).toBe(false)
-    store.applySnapshot("projects", "", [], 9)
-    await waiter
-
-    expect(resolved).toBe(true)
-  })
-
   test("tracks UTF-8 delta offsets and exposes gaps", () => {
     const store = createConnectionStore()
     const identity = { sessionId: "s", messageId: "m", partId: "p", partKind: "text" as const }
@@ -254,23 +236,6 @@ describe("connection store", () => {
     })
     store.applySnapshot("permissions", "", [], 0)
     await settled
-    persist()
-    await transaction.isPersisted.promise
-  })
-
-  test("can treat optimistic extra rows as materialized", async () => {
-    const store = createConnectionStore()
-    store.applySnapshot("messages", "session", [{ key: "message", row: { id: "message" } }], 0)
-    let persist = () => {}
-    const transaction = createTransaction({ mutationFn: () => new Promise<void>((resolve) => { persist = resolve }) })
-    transaction.mutate(() => store.collection("messages", "session").insert({
-      __key: "optimistic",
-      row: { id: "optimistic" },
-    }))
-
-    expect(store.isMaterialized("messages", "session")).toBe(false)
-    expect(store.isMaterialized("messages", "session", true)).toBe(true)
-
     persist()
     await transaction.isPersisted.promise
   })

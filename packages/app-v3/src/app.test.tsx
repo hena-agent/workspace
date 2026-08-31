@@ -89,20 +89,15 @@ function collectionDatabase() {
     questions: new Map(),
   }
   const controllers = new Set<(changes: readonly PushedChange[]) => void>()
-  let throughSeq = 0
   return {
     snapshot(collection: string) {
       return Array.from(collections[collection]?.values() ?? [])
-    },
-    throughSeq() {
-      return throughSeq
     },
     subscribe(push: (changes: readonly PushedChange[]) => void) {
       controllers.add(push)
       return () => controllers.delete(push)
     },
     push(changes: readonly PushedChange[]) {
-      throughSeq = Math.max(throughSeq, ...changes.map((change) => change.seq))
       changes.forEach((change) => {
         const key = typeof change.rowKey === "string" ? change.rowKey : JSON.stringify(change.rowKey)
         collections[change.collection]?.set(key, { key, revision: change.rowRevision ?? "1", row: change.row })
@@ -165,9 +160,9 @@ function eventResponse(
     const rows = database.snapshot(scope.collection)
     const snapshotId = `snapshot-${index}`
     return [
-      { ...common, type: "snapshot.begin", snapshotId, baseSeq: database.throughSeq(), replace: true, scope },
+      { ...common, type: "snapshot.begin", snapshotId, baseSeq: 0, replace: true, scope },
       { ...common, type: "snapshot.page", snapshotId, scope, rows },
-      { ...common, type: "snapshot.end", snapshotId, scope, keyCount: rows.length, throughSeq: database.throughSeq() },
+      { ...common, type: "snapshot.end", snapshotId, scope, keyCount: rows.length, throughSeq: 0 },
     ]
   })
   return new Response(new ReadableStream({
@@ -282,7 +277,7 @@ describe("adding a project through the rail", () => {
 
     const rail = screen.getAllByRole("navigation", { name: "Projects" })[0]
     const selectedProject = await within(rail).findByRole("button", { name: /MyNewProject/ })
-    await waitFor(() => expect(selectedProject.getAttribute("aria-pressed")).toBe("true"))
+    expect(selectedProject.getAttribute("aria-pressed")).toBe("true")
     expect(selectedProject).toHaveClass("border-2", "border-[var(--legacy-icon-strong)]")
     expect(within(rail).getByRole("button", { name: /Repo/ }).getAttribute("aria-pressed")).toBe("false")
     const sessions = screen.getAllByRole("navigation", { name: "Sessions" })[0]
@@ -311,8 +306,8 @@ describe("app routing against server-v3", () => {
   test("redirects legacy review URLs to the centered transcript", async () => {
     const router = renderApp(`/${slug}/global/session/ses_live/review`)
 
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument())
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`))
+    expect(await screen.findByRole("heading", { name: "Live session" })).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`)
     expect(screen.queryByRole("navigation", { name: "Session views" })).not.toBeInTheDocument()
   })
 
@@ -326,27 +321,7 @@ describe("app routing against server-v3", () => {
     expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`)
     expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
     expect(screen.queryByText("No messages yet")).not.toBeInTheDocument()
-  })
-
-  test("navigates ready sessions without changing the stream subscription", async () => {
-    const user = userEvent.setup()
-    const base = collectionFetcher()
-    let subscriptions = 0
-    const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const request = input instanceof Request ? input : new Request(input, init)
-      if (new URL(request.url).pathname.endsWith("/subscription")) subscriptions++
-      return base(request)
-    }
-    const router = renderApp(`/${slug}/global`, fetcher)
-    const sessions = (await screen.findAllByRole("navigation", { name: "Sessions" }))[0]
-    const live = await within(sessions).findByText("Live session")
-    const settledSubscriptions = subscriptions
-
-    await user.click(live)
-
-    expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`)
-    await Bun.sleep(20)
-    expect(subscriptions).toBe(settledSubscriptions)
+    expect(await screen.findByText("ses_live transcript")).toBeInTheDocument()
   })
 
   test("restores the last selected session when switching projects", async () => {
@@ -377,17 +352,6 @@ describe("app routing against server-v3", () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_live`))
     expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
-  })
-
-  test("opens the project session chooser from recent projects on mobile", async () => {
-    const user = userEvent.setup()
-    markSessionSeen(origin, "ses_live", 1)
-    const router = renderApp(`/${slug}`, collectionFetcher(), { desktop: false })
-
-    await user.click(await screen.findByRole("button", { name: /\/repo/ }))
-
-    await waitFor(() => expect(router.state.location.pathname).toBe(`/${slug}/global`))
-    expect(await within(await screen.findByRole("main")).findByText("Live session")).toBeInTheDocument()
   })
 
   test("resets composer state when navigating directly between sessions", async () => {
@@ -425,7 +389,7 @@ describe("app routing against server-v3", () => {
     const user = userEvent.setup()
     renderApp(`/${slug}/global/session/ses_live`)
 
-    await waitFor(() => expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument())
+    expect(await screen.findByRole("heading", { name: "Live session" })).toBeInTheDocument()
     const serverButton = screen.getByRole("button", { name: /Manage servers/ })
     const toggle = screen.getByRole("button", { name: "Toggle file tree" })
     expect(serverButton.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()

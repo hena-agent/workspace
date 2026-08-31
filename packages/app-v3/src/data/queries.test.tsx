@@ -2,39 +2,7 @@ import { expect, test } from "bun:test"
 import { act, render, screen, waitFor } from "@testing-library/react"
 import { createConnectionAgent } from "@/connection/agent"
 import { MessageList } from "@/features/session/message-list"
-import type { Session } from "@/lib/types"
-import { useMessages, useReadySessions } from "./queries"
-
-test("only exposes sessions with materialized transcripts", async () => {
-  const agent = createConnectionAgent("http://hena.test")
-  const sessions: Session[] = [{
-    id: "session-1",
-    projectId: "project",
-    connectionId: agent.url,
-    title: "Session",
-    status: "idle",
-    unread: false,
-    createdAt: 1,
-    updatedAt: 1,
-    archived: false,
-    shared: false,
-  }]
-
-  function View() {
-    return <div>{useReadySessions(agent, sessions).map((session) => session.title)}</div>
-  }
-
-  render(<View />)
-  act(() => agent.store.applySnapshot("messages", "session-1", [], 0))
-  expect(screen.queryByText("Session")).not.toBeInTheDocument()
-
-  await act(async () => {
-    agent.store.applySnapshot("parts", "session-1", [], 0)
-    await Bun.sleep(0)
-  })
-  expect(screen.getByText("Session")).toBeVisible()
-  act(() => agent.dispose())
-})
+import { useMessages } from "./queries"
 
 test("message views use their collection scope as the session id", async () => {
   const agent = createConnectionAgent("http://hena.test")

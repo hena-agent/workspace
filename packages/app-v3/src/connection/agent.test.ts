@@ -51,51 +51,26 @@ describe("connection protocol", () => {
     ])
   })
 
-  test("prefetches sessions in one restart and reuses them when claimed", async () => {
-    const firstSubscription = Promise.withResolvers<void>()
-    const subscriptions: unknown[] = []
-    const sessionIds = Array.from({ length: 12 }, (_, index) => `session-${index + 1}`)
+  test("bounds retained sessions below the protocol subscription limit", async () => {
+    const subscriptions: { sessions?: string[] }[] = []
     const agent = createConnectionAgent("http://hena.test", async (input, init) => {
       const request = new Request(input, init)
       if (request.url.endsWith("/capabilities")) return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
       if (request.url.endsWith("/streams")) return Response.json({ streamId: "stream", generation: 0, expiresAt: Date.now() + 1_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
       if (request.url.endsWith("/subscription")) {
-        subscriptions.push(await request.json())
-        if (subscriptions.length === 1) await firstSubscription.promise
-        return Response.json({ revision: subscriptions.length, generation: 0 })
+        subscriptions.push(await request.json() as { sessions?: string[] })
+        return Response.json({ revision: 1, generation: 0 })
       }
       return sse([])
     })
 
+    Array.from({ length: 101 }, (_, index) => `session-${index + 1}`).forEach((sessionId) => agent.claim(sessionId))
     const started = agent.start()
     await waitUntil(() => subscriptions.length === 1)
-    agent.prefetch(sessionIds)
-    firstSubscription.resolve()
-    await waitUntil(() => subscriptions.length === 2)
-    agent.claim("session-1")
-    await Bun.sleep(20)
     agent.dispose()
     await started
 
-    expect(subscriptions).toEqual([
-      expect.objectContaining({ sessions: [] }),
-      expect.objectContaining({ sessions: sessionIds }),
-    ])
-  })
-
-  test("reports when transcript collections are ready", async () => {
-    const agent = createConnectionAgent("http://hena.test")
-
-    agent.store.applySnapshot("sessionInputs", "session-1", [], 0)
-    agent.store.applySnapshot("todos", "session-1", [], 0)
-    agent.store.applySnapshot("messages", "session-1", [], 0)
-    await Bun.sleep(0)
-    expect(agent.isSessionReady("session-1")).toBe(false)
-
-    agent.store.applySnapshot("parts", "session-1", [], 0)
-    await Bun.sleep(0)
-    expect(agent.isSessionReady("session-1")).toBe(true)
-    agent.dispose()
+    expect(subscriptions[0]?.sessions?.length).toBeLessThanOrEqual(100)
   })
 
   test("discards an unfinished snapshot when restarting the stream", async () => {
@@ -115,7 +90,7 @@ describe("connection protocol", () => {
 
     const started = agent.start()
     await waitUntil(() => agent.status === "live")
-    agent.prefetch(["session-1"])
+    agent.claim("session-1")
     await waitUntil(() => agent.store.isReady("projects") || agent.status === "error")
     expect(agent.store.isReady("projects")).toBe(true)
     expect(agent.status).toBe("live")

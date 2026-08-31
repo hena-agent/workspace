@@ -443,12 +443,13 @@ export function createConnectionStore(options: StoreOptions = {}) {
     },
     resetCursors(targets?: readonly ScopeRef[]) {
       const identities = targets && new Set(targets.map((scope) => scopeIdentity(scope.collection, scope.scopeKey)))
-      scopes.forEach((scope, key) => {
-        if (!identities || identities.has(key)) {
-          scope.cursor = 0
-          scope.synchronizing = true
-        }
+      const reset = Array.from(scopes.entries()).flatMap(([key, scope]) => !identities || identities.has(key) ? [scope] : [])
+      reset.forEach((scope) => {
+        scope.cursor = 0
+        scope.synchronizing = true
       })
+      new Set(reset.flatMap((scope) => isTranscriptCollection(scope.ref.collection) ? [scope.ref.scopeKey] : [])).forEach(clearDeltasForSession)
+      if (reset.length > 0) notify()
     },
     dropScope(collection: string, scopeKey: string) {
       const key = scopeIdentity(collection, scopeKey)
@@ -501,6 +502,7 @@ function createScope(id: string) {
   let control: ScopeControl | undefined
   const collection = createCollection<StoredRow, string>({
     id: `hena:${id}`,
+    // The connection store owns scope eviction; zero disables TanStack's subscriber-based GC.
     gcTime: 0,
     getKey: (item) => item.__key,
     sync: {

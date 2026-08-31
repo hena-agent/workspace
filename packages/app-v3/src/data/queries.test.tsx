@@ -157,13 +157,10 @@ test("reasoning deltas project a provisional part before its durable row", async
   expect(container.querySelector('[data-slot="collapsible-content"]')).toHaveAttribute("data-state", "open")
   expect(container.querySelector('[data-slot="collapsible-content"] [data-sd-animate]')).toBeInTheDocument()
 
-  act(() => agent.store.applyRows({
-    throughSeq: 1,
-    changes: [
-      { seq: 1, collection: "messages", scopeKey: "session-1", rowKey: "", op: "reset", row: null },
-      { seq: 1, collection: "parts", scopeKey: "session-1", rowKey: "", op: "reset", row: null },
-    ],
-  }))
+  act(() => agent.store.resetCursors([
+    { collection: "messages", scopeKey: "session-1" },
+    { collection: "parts", scopeKey: "session-1" },
+  ]))
   await waitFor(() => expect(container.querySelector('[data-slot="collapsible-content"]')).toBeNull())
 
   await act(async () => {

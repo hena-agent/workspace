@@ -24,6 +24,37 @@ describe("connection store", () => {
     await settled
   })
 
+  test("preserves canonical transcripts while resetting live state", () => {
+    const store = createConnectionStore()
+    const identity = { sessionId: "session-1", messageId: "message-1", partId: "part-1", partKind: "text" as const }
+    store.applySnapshot("messages", "session-1", [{ key: "message-1", row: { id: "message-1" } }], 1)
+    store.applySnapshot("parts", "session-1", [{
+      key: ["message-1", "text", "part-1"],
+      row: { id: "part-1", messageID: "message-1", type: "text", text: "Durable" },
+    }], 1)
+    store.transcript("session-1")
+    store.applyDelta({ ...identity, offset: 0, text: " live" })
+    let notifications = 0
+    store.subscribe(() => notifications++)
+
+    store.resetCursors([
+      { collection: "messages", scopeKey: "session-1" },
+      { collection: "parts", scopeKey: "session-1" },
+    ])
+
+    expect(store.rows("messages", "session-1")).toEqual([{ id: "message-1" }])
+    expect(store.rows("parts", "session-1")).toEqual([{ id: "part-1", messageID: "message-1", type: "text", text: "Durable" }])
+    expect(store.transcript("session-1").toArray).toHaveLength(2)
+    expect(store.isReady("messages", "session-1")).toBe(true)
+    expect(store.isReady("parts", "session-1")).toBe(true)
+    expect(store.isSynchronizing("messages", "session-1")).toBe(true)
+    expect(store.isSynchronizing("parts", "session-1")).toBe(true)
+    expect(store.cursor("messages", "session-1")).toBe(0)
+    expect(store.cursor("parts", "session-1")).toBe(0)
+    expect(store.delta(identity)).toBeUndefined()
+    expect(notifications).toBe(1)
+  })
+
   test("publishes final delta identities after a snapshot batch", () => {
     const store = createConnectionStore()
     const identity = { sessionId: "session-1", messageId: "message-1", partId: "part-1", partKind: "text" as const }

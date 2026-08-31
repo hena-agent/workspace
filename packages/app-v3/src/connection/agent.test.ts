@@ -193,6 +193,37 @@ describe("connection protocol", () => {
     await started
   })
 
+  test("flushes transcript rows after an additive snapshot", async () => {
+    const stream = controlledSse()
+    const agent = createConnectionAgent("http://hena.test", async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url.endsWith("/capabilities")) return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
+      if (request.url.endsWith("/streams")) return Response.json({ streamId: "stream", generation: 0, expiresAt: Date.now() + 1_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
+      if (request.url.endsWith("/subscription")) return Response.json({ revision: 2, generation: 0 })
+      return stream.response(request.signal)
+    })
+    agent.store.applySnapshot("messages", "session-1", [{ key: "message-1", row: { id: "message-1", text: "Old" } }], 1)
+    agent.store.applySnapshot("parts", "session-1", [], 1)
+
+    const started = agent.start()
+    await stream.ready
+    const settled = agent.store.awaitTxid("txid", 1_000)
+    stream.send([
+      snapshotFrame("snapshot.begin", "messages", { snapshotId: "messages", baseSeq: 1, replace: false }),
+      rowsFrame(2, [
+        { seq: 2, collection: "messages", scopeKey: "session-1", rowKey: "message-1", op: "update", row: { id: "message-1", text: "Updated" }, txid: "txid" },
+        { seq: 2, collection: "parts", scopeKey: "session-1", rowKey: ["message-1", "text", "part-1"], op: "insert", row: { id: "part-1", messageID: "message-1", type: "text", text: "New" } },
+      ]),
+      snapshotFrame("snapshot.end", "messages", { snapshotId: "messages", keyCount: 0, throughSeq: 1 }),
+    ])
+    await settled
+
+    expect(agent.store.rows("messages", "session-1")).toEqual([{ id: "message-1", text: "Updated" }])
+    expect(agent.store.rows("parts", "session-1")).toEqual([{ id: "part-1", messageID: "message-1", type: "text", text: "New" }])
+    agent.dispose()
+    await started
+  })
+
   test("does not carry local rows across agent recreation", () => {
     const first = createConnectionAgent("http://hena.test")
     first.localMessages.stage("session-1", "message-1", { id: "message-1" })
@@ -249,11 +280,14 @@ function sse(frames: Record<string, unknown>[], signal?: AbortSignal) {
 function controlledSse() {
   let controller: ReadableStreamDefaultController<Uint8Array>
   const encoder = new TextEncoder()
+  const ready = Promise.withResolvers<void>()
   return {
+    ready: ready.promise,
     response(signal: AbortSignal) {
       return new Response(new ReadableStream<Uint8Array>({
         start(value) {
           controller = value
+          ready.resolve()
           signal.addEventListener("abort", () => value.error(new DOMException("Aborted", "AbortError")), { once: true })
         },
       }), { headers: { "content-type": "text/event-stream" } })

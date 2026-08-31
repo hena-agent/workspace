@@ -47,7 +47,6 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
   const prompt = promptPayload(input.text, input.files)
   const message = { id: messageID, sessionID, type: "user", text: input.text, files: input.files, time: { created } }
   const resolvedProjectID = Promise.withResolvers<string>()
-  if (input.delivery === "steer") stageSteer(agent, sessionID, messageID, message)
   const transaction = createTransaction({
     mutationFn: async () => {
       const result = await requestQueueable(() => agent.client.api.session.$post({
@@ -85,7 +84,10 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
     })
     if (input.delivery === "queue") insertQueuedInput(agent, sessionID, messageID, prompt, created, 0)
   })
-  if (input.delivery === "steer") settlePrompt(agent, sessionID, messageID, transaction.isPersisted.promise)
+  if (input.delivery === "steer") {
+    settlePrompt(agent, sessionID, messageID, transaction.isPersisted.promise)
+    stageSteer(agent, sessionID, messageID, message)
+  }
   return { sessionID, messageID, transaction, projectID: resolvedProjectID.promise }
 }
 
@@ -102,7 +104,6 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
   const idempotencyKey = crypto.randomUUID()
   const prompt = promptPayload(input.text, input.files)
   const message = { id: messageID, sessionID: input.sessionID, type: "user", text: input.text, files: input.files, time: { created } }
-  if (input.delivery === "steer") stageSteer(agent, input.sessionID, messageID, message)
   const transaction = createTransaction({
     mutationFn: async () => {
       const result = await requestQueueable(() => agent.client.api.session[":sessionId"].prompt.$post({
@@ -127,7 +128,10 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
       insertQueuedInput(agent, input.sessionID, messageID, prompt, created, agent.store.rows("sessionInputs", input.sessionID).length)
     }
   })
-  if (input.delivery === "steer") settlePrompt(agent, input.sessionID, messageID, transaction.isPersisted.promise)
+  if (input.delivery === "steer") {
+    settlePrompt(agent, input.sessionID, messageID, transaction.isPersisted.promise)
+    stageSteer(agent, input.sessionID, messageID, message)
+  }
   return { messageID, transaction }
 }
 

@@ -319,12 +319,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
           store.batch(() => pair.forEach((item) =>
             store.applySnapshot(item.scope.collection, item.scope.scopeKey, item.rows, item.throughSeq, item.replace),
           ))
-          const throughSeq = new Map(pair.map((item) => [scopeIdentity(item.scope), item.throughSeq]))
-          bufferedTranscriptRows.get(snapshot.scope.scopeKey)?.forEach((rows) => applyRows({
-            ...rows,
-            changes: rows.changes.filter((change) => change.seq > (throughSeq.get(scopeIdentity(change)) ?? -1)),
-          }))
-          bufferedTranscriptRows.delete(snapshot.scope.scopeKey)
+          flushTranscriptRows(snapshot.scope.scopeKey)
           flushDeltas(snapshot.scope.scopeKey)
           return
         }
@@ -335,6 +330,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
           ...rows,
           changes: rows.changes.filter((change) => change.seq > frame.throughSeq),
         }))
+        if (isTranscriptCollection(snapshot.scope.collection)) flushTranscriptRows(snapshot.scope.scopeKey)
         flushDeltas(snapshot.scope.scopeKey)
         return
       }
@@ -379,6 +375,15 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
 
     function sessionHasTranscriptSnapshot(sessionId: string) {
       return transcriptScopes(sessionId).some((scope) => activeSnapshots.has(scopeIdentity(scope)))
+    }
+
+    function flushTranscriptRows(sessionId: string) {
+      if (sessionHasTranscriptSnapshot(sessionId)) return
+      bufferedTranscriptRows.get(sessionId)?.forEach((rows) => applyRows({
+        ...rows,
+        changes: rows.changes.filter((change) => change.seq > store.cursor(change.collection, change.scopeKey)),
+      }))
+      bufferedTranscriptRows.delete(sessionId)
     }
 
     function flushDeltas(sessionId: string) {

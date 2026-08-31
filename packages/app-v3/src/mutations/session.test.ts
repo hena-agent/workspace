@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { createConnectionAgent } from "@/connection/agent"
-import { admitPromptOptimistically, createSessionOptimistically } from "./session"
+import { admitPromptOptimistically, createSessionOptimistically, getMutationStateVersion } from "./session"
 
 describe("session mutations", () => {
   test("stages new-session prompts in the selected delivery surface", () => {
@@ -48,6 +48,21 @@ describe("session mutations", () => {
     expect(agent.store.rows("sessionInputs", "queue")).toEqual([expect.objectContaining({ id: queued.messageID, queuePosition: 0 })])
     expect(agent.store.rows("sessions").find((row) => row.id === "queue")?.queueRevision).toBe(3)
     expect(steer.messageID).toBeString()
+    agent.dispose()
+  })
+
+  test("does not stage a steer prompt when its optimistic update throws", () => {
+    const agent = createConnectionAgent("http://hena.test", () => new Promise<Response>(() => {}))
+    const mutationVersion = getMutationStateVersion()
+
+    expect(() => admitPromptOptimistically(agent, {
+      sessionID: "missing",
+      text: "Do not orphan",
+      delivery: "steer",
+    })).toThrow(/not found/)
+
+    expect(agent.localMessages.rows("missing")).toEqual([])
+    expect(getMutationStateVersion()).toBe(mutationVersion)
     agent.dispose()
   })
 })

@@ -44,6 +44,9 @@ type Decoders = Awaited<ReturnType<typeof loadDecoders>>
 const SessionCollections = ["messages", "parts", "sessionInputs", "todos"] as const
 const VolatileCollections = new Set(["permissions", "questions", "agents", "models", "providers"])
 const LingeredSessions = 8
+// Mirrors `Sync.MaxSubscribedSessions`. Kept local so the schema module stays
+// out of the startup bundle; `agent.test.ts` pins the two together.
+const SubscribedSessions = 100
 
 export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): ConnectionAgent {
   let refresh = (_scopes?: readonly ScopeRef[]) => {}
@@ -82,9 +85,12 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   const touch = () => {
     lastSyncAt = Date.now()
   }
+  // The server rejects more than `SubscribedSessions` entries, so the focused
+  // session and the linger cache keep their slots and the active project fills
+  // whatever remains, newest first.
   const claimedSessions = () => Array.from(new Set(
-    [focusedSession, ...prefetchedSessions, ...linger].filter((session): session is string => !!session),
-  ))
+    [focusedSession, ...linger, ...prefetchedSessions].filter((session): session is string => !!session),
+  )).slice(0, SubscribedSessions)
   const requestRestart = () => {
     restartRevision++
     abort?.abort()
@@ -469,9 +475,9 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     trimLinger()
   }
 
-  function trimLinger(limit = focusedSession ? LingeredSessions : LingeredSessions + 1) {
+  function trimLinger() {
     // Route cleanup briefly clears focus before the next claim removes its session from this list.
-    const evicted = linger.splice(limit)
+    const evicted = linger.splice(focusedSession ? LingeredSessions : LingeredSessions + 1)
     const retained = new Set(claimedSessions())
     evicted.forEach((sessionId) => {
       if (retained.has(sessionId)) return

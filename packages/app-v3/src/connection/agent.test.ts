@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { Sync } from "@hena/schema/sync"
 import { createConnectionAgent, parseEventStream } from "./agent"
 
 describe("event stream parser", () => {
@@ -147,6 +148,33 @@ describe("connection protocol", () => {
     await started
 
     expect(subscriptions[0]?.sessions).toEqual(Array.from({ length: 9 }, (_, index) => `session-${index + 1}`))
+  })
+
+  test("bounds a large project to the protocol subscription limit", async () => {
+    const subscriptions: { sessions?: string[] }[] = []
+    const agent = createConnectionAgent("http://hena.test", async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url.endsWith("/capabilities")) return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
+      if (request.url.endsWith("/streams")) return Response.json({ streamId: "stream", generation: 0, expiresAt: Date.now() + 1_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
+      if (request.url.endsWith("/subscription")) {
+        subscriptions.push(await request.json() as { sessions?: string[] })
+        return Response.json({ revision: 1, generation: 0 })
+      }
+      return sse([])
+    })
+    agent.claim("lingered")
+    agent.claim("focused")
+    agent.prefetch(Array.from({ length: 200 }, (_, index) => `project-${index}`))
+
+    const started = agent.start()
+    await waitUntil(() => subscriptions.length === 1)
+    agent.dispose()
+    await started
+
+    const sessions = subscriptions[0]?.sessions ?? []
+    expect(sessions).toHaveLength(Sync.MaxSubscribedSessions)
+    expect(sessions.slice(0, 2)).toEqual(["focused", "lingered"])
+    expect(sessions.at(-1)).toBe(`project-${Sync.MaxSubscribedSessions - 3}`)
   })
 
   test("drops inactive project transcripts outside the linger cache", () => {

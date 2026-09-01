@@ -14,8 +14,9 @@ import { Marker, MarkerContent } from "@/components/ui/marker"
 import { MessageRow } from "./messages/message-row"
 
 // Mounting an entire transcript in one commit blocks the main thread in
-// proportion to its length, so the first commit is bounded to the newest
-// messages and the history above streams in through interruptible transitions.
+// proportion to its length, so the oldest messages start hidden and are
+// revealed through interruptible transitions. The hidden count only ever
+// shrinks, so a live append can never unmount history that is already rendered.
 const InitialMessages = 20
 const MessageChunk = 40
 
@@ -28,12 +29,12 @@ export function MessageList({
   working?: boolean
   ready: boolean
 }) {
-  const [limit, setLimit] = useState(InitialMessages)
+  const [hidden, setHidden] = useState(() => Math.max(0, messages.length - InitialMessages))
   useEffect(() => {
-    if (messages.length <= limit) return
-    startTransition(() => setLimit((current) => current + MessageChunk))
-  }, [limit, messages.length])
-  const visible = messages.length > limit ? messages.slice(messages.length - limit) : messages
+    if (hidden === 0) return
+    startTransition(() => setHidden((current) => Math.max(0, current - MessageChunk)))
+  }, [hidden])
+  const visible = hidden > 0 ? messages.slice(hidden) : messages
 
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="last-anchor">

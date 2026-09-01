@@ -182,11 +182,13 @@ export const Cursor = Schema.Struct({
   seq: NonNegativeInt,
 }).annotate({ identifier: "Sync.Cursor" })
 
+export const MaxSubscribedSessions = 100
+
 export interface Subscription extends Schema.Schema.Type<typeof Subscription> {}
 export const Subscription = Schema.Struct({
   revision: PositiveInt,
   lists: Schema.Boolean,
-  sessions: Schema.Array(Schema.String).check(Schema.isMaxLength(100)),
+  sessions: Schema.Array(Schema.String).check(Schema.isMaxLength(MaxSubscribedSessions)),
   cursors: Schema.Record(Schema.String, Cursor).check(
     Schema.makeFilter((cursors) => Object.keys(cursors).length <= 1_000 || "at most 1000 cursors"),
   ),

@@ -58,6 +58,9 @@ const requests: LLMRequest[] = []
 let response: LLMEvent[] = []
 let responses: LLMEvent[][] | undefined
 let responseStream: Stream.Stream<LLMEvent, LLMError> | undefined
+let titleResponse: LLMEvent[] | undefined
+let titleGate: Deferred.Deferred<void> | undefined
+let titleStarted: Deferred.Deferred<void> | undefined
 let streamGate: Deferred.Deferred<void> | undefined
 let streamStarted: Deferred.Deferred<void> | undefined
 let streamFailure: LLMError | undefined
@@ -72,6 +75,16 @@ const client = Layer.succeed(
     prepare: () => Effect.die("unused"),
     stream: ((request: LLMRequest) => {
       requests.push(request)
+      if (titleResponse && isTitleRequest(request)) {
+        const events = Stream.fromIterable(titleResponse)
+        titleResponse = undefined
+        return Stream.unwrap(
+          (titleStarted ? Deferred.succeed(titleStarted, undefined) : Effect.void).pipe(
+            Effect.andThen(titleGate ? Deferred.await(titleGate) : Effect.void),
+            Effect.as(events),
+          ),
+        )
+      }
       if (responseStream) {
         const stream = responseStream
         responseStream = undefined
@@ -306,6 +319,7 @@ const insertSession = (id: SessionV2.ID) =>
 
 const setup = Effect.gen(function* () {
   const { db } = yield* Database.Service
+  requests.length = 0
   response = []
   systemBaseline = "Initial context"
   systemRemoved = false
@@ -317,6 +331,9 @@ const setup = Effect.gen(function* () {
   responses = undefined
   streamFailure = undefined
   responseStream = undefined
+  titleResponse = undefined
+  titleGate = undefined
+  titleStarted = undefined
   streamGate = undefined
   streamStarted = undefined
   toolExecutionGate = undefined
@@ -359,6 +376,8 @@ const messageTexts = (request: LLMRequest, role: "user" | "system") =>
   request.messages.flatMap((message) =>
     message.role === role ? message.content.flatMap((content) => (content.type === "text" ? [content.text] : [])) : [],
   )
+const isTitleRequest = (request: LLMRequest) =>
+  messageTexts(request, "user").includes("Generate a title for this conversation:\n")
 const userTexts = (request: LLMRequest) => messageTexts(request, "user")
 const systemTexts = (request: LLMRequest) => messageTexts(request, "system")
 
@@ -550,6 +569,64 @@ const verifyPartialFlushOnInterruption = (kind: FragmentKind) =>
   })
 
 describe("SessionRunnerLLM", () => {
+  it.effect("generates and projects a title beside the first provider turn", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      yield* db
+        .update(SessionTable)
+        .set({ title: "New session - 2026-08-28T05:18:47.291Z" })
+        .where(eq(SessionTable.id, sessionID))
+        .run()
+        .pipe(Effect.orDie)
+      yield* (yield* AgentV2.Service).transform((editor) =>
+        editor.update(AgentV2.ID.make("title"), (agent) => {
+          agent.mode = "primary"
+          agent.hidden = true
+          agent.system = "You are a title generator. You output ONLY a thread title. Nothing else."
+        }),
+      )
+      const session = yield* SessionV2.Service
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Fix missing session titles" }), resume: false })
+      response = []
+      titleResponse = fragmentFixture("text", "text-title", [
+        "<think>Ignore this</think>\n",
+        "  Fix missing session titles  \nIgnored",
+      ]).completeEvents
+      titleGate = yield* Deferred.make<void>()
+      titleStarted = yield* Deferred.make<void>()
+      requests.length = 0
+      const events = yield* EventV2.Service
+      const updated = yield* events.subscribe(SessionEvent.TitleUpdated).pipe(
+        Stream.filter((event) => event.data.sessionID === sessionID),
+        Stream.take(1),
+        Stream.runCollect,
+        Effect.forkScoped,
+      )
+      yield* Effect.yieldNow
+
+      yield* session.resume(sessionID)
+      yield* Deferred.await(titleStarted)
+      expect((yield* session.get(sessionID)).title).toBe("New session - 2026-08-28T05:18:47.291Z")
+      yield* Deferred.succeed(titleGate, undefined)
+      const published = Array.from(yield* Fiber.join(updated))[0]
+
+      expect(published?.data.title).toBe("Fix missing session titles")
+      expect((yield* session.get(sessionID)).title).toBe("Fix missing session titles")
+      expect(requests).toHaveLength(2)
+      const titleRequest = requests.find(isTitleRequest)
+      expect(titleRequest?.model).toBe(model)
+      expect(titleRequest?.tools).toEqual([])
+      expect(titleRequest?.toolChoice).toBeUndefined()
+      expect(titleRequest?.generation).toBeUndefined()
+      expect(messageTexts(titleRequest!, "user")).toEqual([
+        "Generate a title for this conversation:\n",
+        "Fix missing session titles",
+      ])
+      expect(requests.find((request) => !isTitleRequest(request))?.messages).toHaveLength(1)
+    }),
+  )
+
   it.effect("advertises and executes a globally attached application tool", () =>
     Effect.gen(function* () {
       yield* setup

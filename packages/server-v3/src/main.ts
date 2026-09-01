@@ -28,10 +28,15 @@ export async function start(input?: {
   corsOrigins?: readonly string[]
 }) {
   assertNoPassword()
-  const corsOrigins = [...(await configuredCorsOrigins()), ...viteCorsOrigins(), ...(input?.corsOrigins ?? [])]
+  const corsOrigins = [
+    ...(await configuredCorsOrigins()),
+    ...viteCorsOrigins(),
+    ...portlessCorsOrigins(),
+    ...(input?.corsOrigins ?? []),
+  ]
   const server = Bun.serve({
     hostname: Hostname,
-    port: input?.port ?? readPort(process.argv) ?? 4106,
+    port: input?.port ?? readPort(process.argv) ?? portlessServerPort() ?? 4106,
     fetch: () => new Response("Server is starting", { status: 503 }),
     idleTimeout: 0,
   })
@@ -136,6 +141,11 @@ export function readPort(argv: readonly string[]) {
   return port
 }
 
+function portlessServerPort(port = process.env.PORT, portlessURL = process.env.PORTLESS_URL) {
+  const value = Number(port)
+  return portlessURL && Number.isInteger(value) && value > 0 && value <= 55_535 ? value + 10_000 : undefined
+}
+
 async function configuredCorsOrigins() {
   const directory = Flag.HENA_CONFIG_DIR ?? Global.Path.config
   const configs = await Promise.all(
@@ -165,4 +175,10 @@ function viteCorsOrigins(hosts = process.env.HENA_VITE_ALLOWED_HOSTS) {
     .map((host) => host.trim())
     .filter((host) => /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(host))
     .map((host) => `http://${host}:5173`)
+}
+
+function portlessCorsOrigins(
+  urls = [process.env.PORTLESS_URL, process.env.PORTLESS_TAILSCALE_URL],
+) {
+  return urls.filter((url): url is string => url !== undefined && URL.canParse(url)).map((url) => new URL(url).origin)
 }

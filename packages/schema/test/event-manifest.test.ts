@@ -9,8 +9,8 @@ import { WorkspaceEvent } from "../src/workspace-event"
 
 describe("public event manifest", () => {
   test("owns the complete public event surface", () => {
-    expect(EventManifest.ServerDefinitions.length).toBe(61)
-    expect(EventManifest.Definitions.length).toBe(87)
+    expect(EventManifest.ServerDefinitions.length).toBe(62)
+    expect(EventManifest.Definitions.length).toBe(88)
     expect(SessionV1.Event.Definitions).toEqual([
       SessionV1.Event.Created,
       SessionV1.Event.Updated,
@@ -23,8 +23,8 @@ describe("public event manifest", () => {
       SessionV1.Event.Diff,
       SessionV1.Event.Error,
     ])
-    expect(EventManifest.Latest.size).toBe(87)
-    expect(EventManifest.Durable.size).toBe(38)
+    expect(EventManifest.Latest.size).toBe(88)
+    expect(EventManifest.Durable.size).toBe(39)
   })
 
   test("uses canonical definitions for current public events", () => {
@@ -33,6 +33,7 @@ describe("public event manifest", () => {
     expect(Workspace.Event).toBe(WorkspaceEvent)
     expect(Workspace.Event.Definitions).toBe(WorkspaceEvent.Definitions)
     expect(EventManifest.Latest.get("session.next.step.ended")).toBe(SessionEvent.Step.Ended)
+    expect(EventManifest.Latest.get("session.next.title.updated")).toBe(SessionEvent.TitleUpdated)
     expect(EventManifest.Latest.get("session.next.compaction.discarded")).toBe(SessionEvent.Compaction.Discarded)
     expect(EventManifest.Latest.get("todo.updated")).toBe(SessionTodo.Event.Updated)
     expect(EventManifest.Latest.get("project.updated")).toBe(Project.Event.Updated)
@@ -50,6 +51,7 @@ describe("public event manifest", () => {
     expect(EventManifest.Durable.get("session.next.step.ended.2")).toBe(SessionEvent.Step.Ended)
     expect(EventManifest.Durable.get("session.next.input.canceled.1")).toBe(SessionEvent.InputCanceled)
     expect(EventManifest.Durable.get("session.next.input.reordered.1")).toBe(SessionEvent.InputReordered)
+    expect(EventManifest.Durable.get("session.next.title.updated.1")).toBe(SessionEvent.TitleUpdated)
     expect(SessionTodo.Event.Updated.durable).toBeUndefined()
     expect(EventManifest.Durable.get("session.next.compaction.discarded.1")).toBe(SessionEvent.Compaction.Discarded)
     expect(EventManifest.Durable.has("todo.updated.1")).toBe(false)

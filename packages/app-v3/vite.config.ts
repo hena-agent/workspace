@@ -6,6 +6,18 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import { viteApiProxy } from "./vite-proxy.ts"
 
+const portlessURLs = [process.env.PORTLESS_URL, process.env.PORTLESS_TAILSCALE_URL].filter(
+  (url): url is string => url !== undefined && URL.canParse(url),
+)
+const portlessPort = Number(process.env.PORT)
+const appPort = portlessURLs.length > 0 && Number.isInteger(portlessPort) && portlessPort > 0 ? portlessPort : undefined
+const allowedHosts = [
+  ...(process.env.HENA_VITE_ALLOWED_HOSTS?.split(",") ?? []),
+  ...portlessURLs.map((url) => new URL(url).hostname),
+]
+  .map((host) => host.trim())
+  .filter(Boolean)
+
 // https://vite.dev/config/
 export default defineConfig({
   base: process.env.HENA_APP_BASE_PATH ?? "/",
@@ -24,13 +36,12 @@ export default defineConfig({
   },
   server: {
     host: "127.0.0.1",
-    // Server-v3 maps exact entries to http://<host>:5173 CORS origins.
+    port: appPort,
+    // Keep explicit hosts so Vite's DNS rebinding protection remains enabled.
     strictPort: true,
-    allowedHosts: process.env.HENA_VITE_ALLOWED_HOSTS?.split(",")
-      .map((host) => host.trim())
-      .filter(Boolean),
+    allowedHosts: allowedHosts.length > 0 ? allowedHosts : undefined,
     proxy: {
-      "/api": viteApiProxy(process.env.HENA_SERVER_V3_URL ?? "http://127.0.0.1:4106"),
+      "/api": viteApiProxy(process.env.HENA_SERVER_V3_URL ?? `http://127.0.0.1:${appPort ? appPort + 10_000 : 4106}`),
     },
   },
 })

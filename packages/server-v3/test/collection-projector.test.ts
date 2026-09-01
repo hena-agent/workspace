@@ -20,6 +20,54 @@ import { Session } from "@hena/schema/session"
 import { SessionEvent } from "@hena/schema/session-event"
 
 describe("collection projector", () => {
+  test("publishes durable title updates to the sessions collection", async () => {
+    const layer = AppNodeBuilder.build(
+      LayerNode.group([Database.node, EventV2.node, SessionProjector.node, CollectionProjector]),
+      [[Database.node, Database.layerFromPath(":memory:")]],
+    )
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const { db: database } = yield* Database.Service
+        yield* database.run(
+          sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`,
+        )
+        yield* database.run(
+          sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_title', 'global', 'session', '/project', 'New session - 2026-08-28T05:18:47.291Z', '1', 1, 1)`,
+        )
+        yield* database.run(
+          sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`,
+        )
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.TitleUpdated.type,
+          data: { sessionID: "ses_title" },
+        })
+        yield* database.run(sql`DELETE FROM collection_change`)
+
+        yield* (yield* EventV2.Service).publish(SessionEvent.TitleUpdated, {
+          sessionID: Session.ID.make("ses_title"),
+          timestamp: DateTime.makeUnsafe(2),
+          title: "Generated title",
+        })
+
+        expect(yield* database.get<{ title: string }>(sql`SELECT title FROM session WHERE id = 'ses_title'`)).toEqual({
+          title: "Generated title",
+        })
+        const projected = yield* database.get<{ row: string }>(
+          sql`SELECT row FROM collection_row WHERE collection = 'sessions' AND scope_key = '' AND row_key = 'ses_title'`,
+        )
+        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+          id: "ses_title",
+          title: "Generated title",
+        })
+        expect(
+          yield* database.get<{ op: string }>(sql`SELECT op FROM collection_change WHERE collection = 'sessions'`),
+        ).toEqual({
+          op: "update",
+        })
+      }).pipe(Effect.provide(layer), Effect.scoped),
+    )
+  })
+
   test("projects working from admission through terminal settlement", async () => {
     await Effect.runPromise(
       Effect.gen(function* () {

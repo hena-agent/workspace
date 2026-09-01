@@ -270,6 +270,20 @@ describe("serving", () => {
     await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
   }, 30_000)
 
+  test("allows the Portless Tailscale origin", async () => {
+    const path = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.db`
+    await runServer(
+      path,
+      'import { start } from "./src/main.ts"; const instance = await start({ staticSource: { type: "disk", directory: "/missing" } }); const request = (origin) => fetch(new URL("/api/collection/capabilities", instance.server.url), { headers: { origin } }); const local = await request(process.env.PORTLESS_URL); const tailscale = await request(process.env.PORTLESS_TAILSCALE_URL); await instance.stop(); if (instance.server.port !== 14321) throw new Error("Portless server port was not paired"); if (local.headers.get("access-control-allow-origin") !== process.env.PORTLESS_URL) throw new Error("Portless local origin was rejected"); if (tailscale.headers.get("access-control-allow-origin") !== process.env.PORTLESS_TAILSCALE_URL) throw new Error("Portless Tailscale origin was rejected")',
+      {
+        PORT: "4321",
+        PORTLESS_URL: "https://hena-v3.localhost:1355",
+        PORTLESS_TAILSCALE_URL: "https://chris-mini.pug-mohs.ts.net:8444",
+      },
+    )
+    await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))
+  }, 30_000)
+
   test("keeps idle event streams alive and closes them during shutdown", async () => {
     await runServer(
       ":memory:",

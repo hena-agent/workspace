@@ -123,6 +123,7 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
         )
       },
       "session.next.moved": () => Effect.void,
+      "session.next.title.updated": () => Effect.void,
       "session.next.input.canceled": () => Effect.void,
       "session.next.input.reordered": () => Effect.void,
       "session.next.prompted": (event) => {

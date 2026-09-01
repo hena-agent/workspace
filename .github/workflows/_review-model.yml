@@ -92,6 +92,11 @@ jobs:
                 "client_id_var": "GPT_REVIEWER_CLIENT_ID",
                 "private_key_secret": "GPT_REVIEWER_PRIVATE_KEY"
               },
+              "opencode": {
+                "auth_secret": "OPENCODE_ZEN_AUTH_JSON",
+                "client_id_var": "HENA_REVIEWER_CLIENT_ID",
+                "private_key_secret": "HENA_REVIEWER_PRIVATE_KEY"
+              },
               "opencode-go": {
                 "auth_secret": "OPENCODE_GO_AUTH_JSON",
                 "client_id_var": "HENA_REVIEWER_CLIENT_ID",

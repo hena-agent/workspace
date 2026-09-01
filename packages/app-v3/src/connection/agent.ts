@@ -24,6 +24,7 @@ export interface ConnectionAgent {
   readonly errorMessage: string | undefined
   subscribe(listener: () => void): () => boolean
   start(): Promise<void>
+  prefetch(sessionIds: readonly string[]): void
   claim(sessionId: string): () => void
   retry(): void
   dispose(): void
@@ -56,6 +57,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   })
   const listeners = new Set<() => void>()
   const linger = new Array<string>()
+  let prefetchedSessions = new Array<string>()
   let focusedSession: string | undefined
   let status: ConnectionStatus = "idle"
   let lastSyncAt: number | undefined
@@ -74,11 +76,15 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     status = next
     notify()
   }
+  // Subscribers track status transitions. `lastSyncAt` is only read while
+  // reconnecting, where the banner runs its own ticker, so recording liveness
+  // for every frame must not re-render the app.
   const touch = () => {
     lastSyncAt = Date.now()
-    notify()
   }
-  const claimedSessions = () => Array.from(new Set([focusedSession, ...linger].filter((session): session is string => !!session)))
+  const claimedSessions = () => Array.from(new Set(
+    [focusedSession, ...prefetchedSessions, ...linger].filter((session): session is string => !!session),
+  ))
   const requestRestart = () => {
     restartRevision++
     abort?.abort()
@@ -414,18 +420,32 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
       return () => listeners.delete(listener)
     },
     start,
+    prefetch(sessionIds: readonly string[]) {
+      const beforePrefetch = claimedSessions()
+      prefetchedSessions = Array.from(new Set(sessionIds))
+      const afterPrefetch = claimedSessions()
+      const retained = new Set(afterPrefetch)
+      beforePrefetch.forEach((sessionId) => {
+        if (retained.has(sessionId)) return
+        localMessages.dropSession(sessionId)
+        store.dropSession(sessionId)
+      })
+      if (!sameSessions(beforePrefetch, afterPrefetch)) requestRestart()
+    },
     claim(sessionId: string) {
+      const beforeClaim = claimedSessions()
       const previous = focusedSession
       focusedSession = sessionId
       remove(linger, sessionId)
       trimLinger()
       if (previous && previous !== sessionId) retain(previous)
-      requestRestart()
+      if (!sameSessions(beforeClaim, claimedSessions())) requestRestart()
       return () => {
         if (focusedSession !== sessionId) return
+        const beforeRelease = claimedSessions()
         focusedSession = undefined
         retain(sessionId)
-        requestRestart()
+        if (!sameSessions(beforeRelease, claimedSessions())) requestRestart()
       }
     },
     retry() {
@@ -449,11 +469,14 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     trimLinger()
   }
 
-  function trimLinger() {
+  function trimLinger(limit = focusedSession ? LingeredSessions : LingeredSessions + 1) {
     // Route cleanup briefly clears focus before the next claim removes its session from this list.
-    linger.splice(focusedSession ? LingeredSessions : LingeredSessions + 1).forEach((evicted) => {
-      localMessages.dropSession(evicted)
-      store.dropSession(evicted)
+    const evicted = linger.splice(limit)
+    const retained = new Set(claimedSessions())
+    evicted.forEach((sessionId) => {
+      if (retained.has(sessionId)) return
+      localMessages.dropSession(sessionId)
+      store.dropSession(sessionId)
     })
   }
 }
@@ -517,6 +540,12 @@ function wireKey(key: string | readonly string[]) {
 function remove(values: string[], value: string) {
   const index = values.indexOf(value)
   if (index !== -1) values.splice(index, 1)
+}
+
+function sameSessions(left: readonly string[], right: readonly string[]) {
+  if (left.length !== right.length) return false
+  const sessions = new Set(right)
+  return left.every((session) => sessions.has(session))
 }
 
 function reconnectDelay(attempt: number) {

@@ -102,6 +102,90 @@ describe("connection protocol", () => {
     await started
   })
 
+  test("keeps the stream when focus moves to a retained session", async () => {
+    const subscriptions: unknown[] = []
+    const agent = createConnectionAgent("http://hena.test", async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url.endsWith("/capabilities")) return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
+      if (request.url.endsWith("/streams")) return Response.json({ streamId: "stream", generation: 0, expiresAt: Date.now() + 1_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
+      if (request.url.endsWith("/subscription")) {
+        subscriptions.push(await request.json())
+        return Response.json({ revision: subscriptions.length, generation: 0 })
+      }
+      return sse([], request.signal)
+    })
+    agent.prefetch(["session-1", "session-2"])
+    const started = agent.start()
+    await waitUntil(() => subscriptions.length === 1)
+
+    const release = agent.claim("session-1")
+    release()
+    agent.claim("session-2")
+    await Bun.sleep(20)
+    agent.dispose()
+    await started
+
+    expect(subscriptions).toHaveLength(1)
+  })
+
+  test("prefetches every session in the active project", async () => {
+    const subscriptions: { sessions?: string[] }[] = []
+    const agent = createConnectionAgent("http://hena.test", async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url.endsWith("/capabilities")) return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
+      if (request.url.endsWith("/streams")) return Response.json({ streamId: "stream", generation: 0, expiresAt: Date.now() + 1_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
+      if (request.url.endsWith("/subscription")) {
+        subscriptions.push(await request.json() as { sessions?: string[] })
+        return Response.json({ revision: 1, generation: 0 })
+      }
+      return sse([])
+    })
+    agent.prefetch(Array.from({ length: 9 }, (_, index) => `session-${index + 1}`))
+    const started = agent.start()
+    await waitUntil(() => subscriptions.length === 1)
+    agent.dispose()
+    await started
+
+    expect(subscriptions[0]?.sessions).toEqual(Array.from({ length: 9 }, (_, index) => `session-${index + 1}`))
+  })
+
+  test("drops inactive project transcripts outside the linger cache", () => {
+    const agent = createConnectionAgent("http://hena.test")
+    agent.store.applySnapshot("messages", "session-1", [{ key: "message-1", row: { id: "message-1" } }], 0)
+    agent.store.applySnapshot("messages", "session-2", [{ key: "message-2", row: { id: "message-2" } }], 0)
+    agent.prefetch(["session-1", "session-2"])
+
+    agent.prefetch(["session-2"])
+
+    expect(agent.store.rows("messages", "session-1")).toEqual([])
+    expect(agent.store.rows("messages", "session-2")).toEqual([{ id: "message-2" }])
+    agent.dispose()
+  })
+
+  test("notifies subscribers for status transitions instead of every frame", async () => {
+    const common = { protocolVersion: 1, feedId: "feed", runtimeId: "runtime", streamId: "stream", generation: 1, subscriptionRevision: 1 }
+    const agent = createConnectionAgent("http://hena.test", async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url.endsWith("/capabilities")) return Response.json({ feedId: "feed", protocol: { min: 1, max: 1 }, auth: "none" })
+      if (request.url.endsWith("/streams")) return Response.json({ streamId: "stream", generation: 0, expiresAt: Date.now() + 1_000, feed: { feedId: "feed", runtimeId: "runtime", retainedFloor: 0 }, subscriptionRevision: 0 })
+      if (request.url.endsWith("/subscription")) return Response.json({ revision: 1, generation: 0 })
+      return sse(Array.from({ length: 50 }, (_, index) => ({ ...common, type: "heartbeat", time: index + 1 })), request.signal)
+    })
+
+    let notifications = 0
+    agent.subscribe(() => { notifications++ })
+    const started = agent.start()
+    await waitUntil(() => agent.status === "live")
+    const afterLive = notifications
+    await Bun.sleep(20)
+    agent.dispose()
+    await started
+
+    expect(afterLive).toBeLessThan(5)
+    expect(notifications).toBe(afterLive + 1)
+    expect(agent.lastSyncAt).toBeGreaterThan(0)
+  })
+
   test("discards an unfinished snapshot when restarting the stream", async () => {
     const common = { protocolVersion: 1, feedId: "feed", runtimeId: "runtime", streamId: "stream", generation: 1, subscriptionRevision: 1 }
     let attachments = 0

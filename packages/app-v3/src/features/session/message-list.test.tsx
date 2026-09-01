@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { render, screen } from "@/test/test-utils"
+import { render, screen, waitFor } from "@/test/test-utils"
 import { MessageList } from "./message-list"
 import { listMessages } from "@/test/queries"
 
@@ -40,6 +40,23 @@ describe("MessageList", () => {
 
     const log = screen.getByRole("log", { name: "Messages" })
     expect(log.querySelectorAll("[data-message-id]")).toHaveLength(messages.length)
+  })
+
+  test("streams a transcript longer than the first bounded commit into the log", async () => {
+    const messages = Array.from({ length: 60 }, (_, index) => ({
+      id: `message-${index}`,
+      sessionId: "session-1",
+      createdAt: index,
+      role: "user" as const,
+      text: `Message ${index}`,
+      files: [],
+    }))
+    render(<MessageList messages={messages} ready />)
+
+    const log = screen.getByRole("log", { name: "Messages" })
+    await waitFor(() => expect(log.querySelectorAll("[data-message-id]")).toHaveLength(messages.length))
+    expect(Array.from(log.querySelectorAll("[data-message-id]"), (node) => node.getAttribute("data-message-id")))
+      .toEqual(messages.map((message) => message.id))
   })
 
   test("marks user messages as turn anchors and exposes a latest-message control", () => {

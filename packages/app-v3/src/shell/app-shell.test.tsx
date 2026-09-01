@@ -199,9 +199,9 @@ describe("AppShell", () => {
       </AppShell>,
     )
 
-    expect(screen.getAllByText("Open a project")).toHaveLength(1)
+    expect(screen.queryAllByText("Open a project")).toHaveLength(0)
     await user.click(screen.getByRole("button", { name: "Toggle sidebar" }))
-    expect(screen.getAllByText("Open a project")).toHaveLength(2)
+    expect(screen.getAllByText("Open a project")).toHaveLength(1)
   })
 
   test("mobile menu opens a narrow navigation drawer and closes from the titlebar", async () => {
@@ -322,7 +322,7 @@ describe("AppShell", () => {
     await user.click(screen.getByRole("button", { name: "Open menu" }))
     act(() => viewport.change(true))
 
-    await waitFor(() => expect(document.getElementById("mobile-navigation")).toHaveAttribute("aria-hidden", "true"))
+    await waitFor(() => expect(document.getElementById("mobile-navigation")).not.toBeInTheDocument())
     expect(window.history.state?.henaMobileNavigation).not.toBe(true)
     expect(screen.getByRole("main")).not.toHaveAttribute("inert")
   })

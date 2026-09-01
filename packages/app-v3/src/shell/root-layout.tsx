@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react"
-import { Outlet, useLocation, useNavigate, useParams } from "@tanstack/react-router"
+import { Outlet, useLocation, useNavigate, useParams, useRouter } from "@tanstack/react-router"
 import { PanelRightClose, PanelRightOpen } from "lucide-react"
 import { CommandPalette } from "@/features/command-palette/command-palette"
 import { useConnectionAgent, useServers } from "@/connection/provider"
@@ -83,7 +83,12 @@ function ConnectionGateState({ title, detail, action }: { title: string; detail:
 
 function ShellLayout() {
   const navigate = useNavigate()
+  const router = useRouter()
   const search = useLocation({ select: (location) => location.search })
+  const locationSessionId = useLocation({
+    select: (location) => router.matchRoutes(location.pathname).flatMap((match) =>
+      "sessionId" in match.params && typeof match.params.sessionId === "string" ? [match.params.sessionId] : [])[0],
+  })
   const params = useParams({ strict: false }) as {
     connectionId?: string
     projectId?: string
@@ -132,6 +137,27 @@ function ShellLayout() {
   const project = useProject(agent, params.projectId) ?? draftProject
   const serverSessions = useSessions(agent)
   const projectSessions = serverSessions.filter((session) => session.projectId === project?.id)
+  const projectSessionKey = projectSessions.map((session) => session.id).join("\0")
+
+  useEffect(() => {
+    if (!params.connectionId) return
+    void router.preloadRoute({
+      to: "/$connectionId/$projectId/session/$sessionId",
+      params: { connectionId: params.connectionId, projectId: "preload", sessionId: "preload" },
+    })
+  }, [params.connectionId, router])
+
+  useEffect(() => {
+    agent?.prefetch(projectSessionKey ? projectSessionKey.split("\0") : [])
+  }, [agent, projectSessionKey])
+
+  function openSession(sessionId: string, projectId: string) {
+    if (!params.connectionId) return
+    void navigate({
+      to: "/$connectionId/$projectId/session/$sessionId",
+      params: { connectionId: params.connectionId, projectId, sessionId },
+    })
+  }
 
   function goToProject(target: Project) {
     if (target.id === draftProject?.id) return
@@ -213,14 +239,10 @@ function ShellLayout() {
       sidebarPanel={{
         project,
         sessions: projectSessions,
-        activeSessionId: params.sessionId,
+        activeSessionId: locationSessionId ?? params.sessionId,
         now,
         onSelectSession: (id) => {
-          if (!params.connectionId || !params.projectId) return
-          void navigate({
-            to: "/$connectionId/$projectId/session/$sessionId",
-            params: { connectionId: params.connectionId, projectId: params.projectId, sessionId: id },
-          })
+          if (params.projectId) openSession(id, params.projectId)
         },
         onArchiveSession: (id) => {
           if (!agent) return
@@ -288,15 +310,7 @@ function ShellLayout() {
         onSelectProject={(target) => runAfterMobileNavClose(() => goToProject(target))}
         onSelectSession={(session) =>
           runAfterMobileNavClose(() => {
-            if (!params.connectionId) return
-            void navigate({
-              to: "/$connectionId/$projectId/session/$sessionId",
-              params: {
-                connectionId: params.connectionId,
-                projectId: session.projectId,
-                sessionId: session.id,
-              },
-            })
+            openSession(session.id, session.projectId)
           })
         }
         onRunServerCommand={() => runAfterMobileNavClose(() => {})}

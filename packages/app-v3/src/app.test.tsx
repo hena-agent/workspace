@@ -51,7 +51,7 @@ type PushedChange = {
 // remembered so a *reconnect* (which happens whenever the client re-subscribes, e.g. after
 // `agent.claim` fires again) still sees them in its fresh snapshot, exactly like server-v3's
 // SQLite-backed `collection_row` table would.
-function collectionDatabase() {
+function collectionDatabase(extraRepoSessions = 0) {
   const repoProject = { id: "global", worktree: "/repo", name: "Repo", time: { created: 1, updated: 1 } }
   const docsProject = { id: "docs", worktree: "/docs", name: "Docs", time: { created: 2, updated: 2 } }
   const repoLocationKey = JSON.stringify({ directory: "/repo" })
@@ -84,6 +84,21 @@ function collectionDatabase() {
     sessions: new Map([
       ["ses_live", { key: "ses_live", revision: "1", row: liveSession }],
       ["ses_docs", { key: "ses_docs", revision: "1", row: docsSession }],
+      ...Array.from({ length: extraRepoSessions }, (_, index) => {
+        const id = `ses_extra_${index}`
+        return [id, {
+          key: id,
+          revision: "1",
+          row: {
+            id,
+            projectID: "global",
+            title: `Session ${index}`,
+            location: { directory: "/repo" },
+            working: false,
+            time: { created: index + 2, updated: index + 2 },
+          },
+        }] as const
+      }),
     ]),
     permissions: new Map(),
     questions: new Map(),
@@ -110,8 +125,10 @@ function collectionDatabase() {
 function collectionFetcher(options: {
   onCreateSession?: (request: Request, push: ReturnType<typeof collectionDatabase>["push"]) => Promise<Response>
   beforeSessionSnapshot?: () => Promise<void>
+  extraRepoSessions?: number
+  onSessionSubscription?: (sessions: readonly string[]) => void
 } = {}) {
-  const database = collectionDatabase()
+  const database = collectionDatabase(options.extraRepoSessions)
   let subscribedSessions: string[] = []
   let subscriptionRevision = 0
   return async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -124,6 +141,7 @@ function collectionFetcher(options: {
     if (path === "/api/collection/streams/stream/subscription") {
       const subscription = await request.json() as { sessions: string[] }
       subscribedSessions = subscription.sessions
+      options.onSessionSubscription?.(subscription.sessions)
       subscriptionRevision++
       return Response.json({ generation: 1, revision: subscriptionRevision })
     }
@@ -416,6 +434,35 @@ describe("app routing against server-v3", () => {
       snapshot.resolve()
     }
     expect(await screen.findByText("ses_live transcript")).toBeInTheDocument()
+  })
+
+  test("opens lower prefetched sessions with pointer and keyboard without reconnecting", async () => {
+    const user = userEvent.setup()
+    const subscriptions: string[][] = []
+    const router = renderApp(`/${slug}/global/session/ses_extra_0`, collectionFetcher({
+      extraRepoSessions: 12,
+      onSessionSubscription: (sessions) => subscriptions.push([...sessions]),
+    }))
+
+    expect(await screen.findByText("ses_extra_0 transcript")).toBeInTheDocument()
+    await waitFor(() => expect(subscriptions.at(-1)).toHaveLength(13))
+    const subscriptionCount = subscriptions.length
+    const sessions = (await screen.findAllByRole("navigation", { name: "Sessions" }))[0]
+
+    await user.click(within(sessions).getByRole("button", { name: /Session 1$/ }))
+    expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_extra_1`)
+    expect(screen.getByRole("heading", { name: "Session 1" })).toBeInTheDocument()
+    expect(screen.getByText("ses_extra_1 transcript")).toBeInTheDocument()
+    expect(screen.queryByText("Connecting to the server...")).not.toBeInTheDocument()
+    expect(screen.queryByText("No messages yet")).not.toBeInTheDocument()
+
+    within(sessions).getByRole("button", { name: /Session 2$/ }).focus()
+    await user.keyboard("{Enter}")
+    expect(router.state.location.pathname).toBe(`/${slug}/global/session/ses_extra_2`)
+    expect(screen.getByRole("heading", { name: "Session 2" })).toBeInTheDocument()
+    expect(screen.getByText("ses_extra_2 transcript")).toBeInTheDocument()
+    await act(async () => Bun.sleep(20))
+    expect(subscriptions).toHaveLength(subscriptionCount)
   })
 
   test("restores the last selected session when switching projects", async () => {

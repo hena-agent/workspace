@@ -278,7 +278,7 @@ describe("serving", () => {
       {
         PORT: "4321",
         PORTLESS_URL: "https://hena-v3.localhost:1355",
-        PORTLESS_TAILSCALE_URL: "https://chris-mini.pug-mohs.ts.net:8444",
+        PORTLESS_TAILSCALE_URL: "https://workstation.example.ts.net:8444",
       },
     )
     await Promise.all([path, `${path}-shm`, `${path}-wal`].map((file) => rm(file, { force: true })))

@@ -242,7 +242,7 @@ const layer = Layer.effect(
           directory: input.location.directory,
           path: path.relative(project.directory, input.location.directory).replaceAll("\\", "/"),
           workspaceID: input.location.workspaceID ? WorkspaceV2.ID.make(input.location.workspaceID) : undefined,
-          title: `New session - ${new Date(now).toISOString()}`,
+          title: SessionSchema.defaultTitle(now),
           agent: input.agent,
           model: input.model
             ? {

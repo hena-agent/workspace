@@ -6,7 +6,6 @@ import {
   Message,
   SystemPart,
   isContextOverflowFailure,
-  type LLMRequest,
   type ProviderErrorEvent,
 } from "@hena/llm"
 import { Cause, DateTime, Effect, FiberSet, Layer, Option, Scope, Semaphore, Stream } from "effect"
@@ -30,7 +29,6 @@ import { SessionCompaction } from "../compaction"
 import { SessionEvent } from "../event"
 import { SessionHistory } from "../history"
 import { SessionInput } from "../input"
-import { SessionMessage } from "../message"
 import { SessionSchema } from "../schema"
 import { SessionStore } from "../store"
 import { type RunError, Service } from "./index"
@@ -38,6 +36,7 @@ import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
 import { toLLMMessages } from "./to-llm-message"
 import { MAX_STEPS_PROMPT } from "./max-steps"
+import { SessionTitle } from "./title"
 import { Snapshot } from "../../snapshot"
 import { makeLocationNode } from "../../effect/app-node"
 import { llmClient } from "../../effect/app-node-platform"
@@ -111,7 +110,7 @@ const layer = Layer.effect(
     const scope = yield* Scope.Scope
     const db = (yield* Database.Service).db
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
-    const titled = new Set<SessionSchema.ID>()
+    const titles = SessionTitle.make({ agents, events, llm, location, models, scope, store })
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
       const session = yield* store.get(sessionID)
       if (!session) return yield* Effect.die(`Session not found: ${sessionID}`)
@@ -175,63 +174,6 @@ const layer = Layer.effect(
         concurrency: "unbounded",
       }).pipe(Effect.map(SystemContext.combine))
 
-    const title = Effect.fn("SessionRunner.title")(function* (
-      session: SessionSchema.Info,
-      context: ReadonlyArray<SessionMessage.Message>,
-      model: LLMRequest["model"],
-    ) {
-      if (session.parentID || !/^New session - \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(session.title)) return
-      const users = context.filter((message) => message.type === "user")
-      if (users.length !== 1 || titled.has(session.id)) return
-      const agent = yield* agents.get(AgentV2.ID.make("title"))
-      if (!agent) return
-      titled.add(session.id)
-      yield* Effect.gen(function* () {
-        const titleModel = agent.model ? yield* models.resolve({ ...session, model: agent.model }) : model
-        const response = yield* llm
-          .stream(
-            LLM.request({
-              model: titleModel,
-              system: agent.system,
-              messages: [Message.user("Generate a title for this conversation:\n"), ...toLLMMessages(users, titleModel)],
-              tools: [],
-            }),
-          )
-          .pipe(
-            Stream.filter(LLMEvent.is.textDelta),
-            Stream.map((event) => event.text),
-            Stream.mkString,
-          )
-        const cleaned = response
-          .replace(/<think>[\s\S]*?<\/think>\s*/g, "")
-          .split("\n")
-          .map((line) => line.trim())
-          .find(Boolean)
-        if (!cleaned) return
-        const current = yield* store.get(session.id)
-        if (
-          !current ||
-          current.location.directory !== location.directory ||
-          current.location.workspaceID !== location.workspaceID ||
-          !/^New session - \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(current.title)
-        )
-          return
-        yield* events.publish(SessionEvent.TitleUpdated, {
-          sessionID: session.id,
-          timestamp: yield* DateTime.now,
-          title: cleaned.length > 100 ? `${cleaned.slice(0, 97)}...` : cleaned,
-        })
-      }).pipe(
-        Effect.timeout("30 seconds"),
-        Effect.catchCause((cause) =>
-          Cause.hasInterruptsOnly(cause)
-            ? Effect.void
-            : Effect.logWarning("failed to generate session title", { cause: Cause.pretty(cause) }),
-        ),
-        Effect.forkIn(scope, { startImmediately: true }),
-      )
-    })
-
     const runTurnAttempt = Effect.fn("SessionRunner.runTurn")(function* (
       sessionID: SessionSchema.ID,
       promotion: SessionInput.Delivery | undefined,
@@ -261,7 +203,7 @@ const layer = Layer.effect(
       const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
-      yield* title(session, context, model)
+      yield* titles.start(session, context, model)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
       const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id

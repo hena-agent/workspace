@@ -2,18 +2,16 @@ import path from "path"
 import tailwindcss from "@tailwindcss/vite"
 import { tanstackRouter } from "@tanstack/router-plugin/vite"
 import babel from "@rolldown/plugin-babel"
+import { portlessAppPort, portlessOrigins } from "@hena/server-v3/portless"
 import react, { reactCompilerPreset } from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import { viteApiProxy } from "./vite-proxy.ts"
 
-const portlessURLs = [process.env.PORTLESS_URL, process.env.PORTLESS_TAILSCALE_URL].filter(
-  (url): url is string => url !== undefined && URL.canParse(url),
-)
-const portlessPort = Number(process.env.PORT)
-const appPort = portlessURLs.length > 0 && Number.isInteger(portlessPort) && portlessPort > 0 ? portlessPort : undefined
+const portlessURLs = portlessOrigins().map((url) => new URL(url))
+const appPort = portlessAppPort()
 const allowedHosts = [
   ...(process.env.HENA_VITE_ALLOWED_HOSTS?.split(",") ?? []),
-  ...portlessURLs.map((url) => new URL(url).hostname),
+  ...portlessURLs.map((url) => url.hostname),
 ]
   .map((host) => host.trim())
   .filter(Boolean)

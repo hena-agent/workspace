@@ -44,7 +44,7 @@ const assistantRow = (
 }
 
 describe("SessionProjector", () => {
-  it.effect("projects title updates without adding message history", () =>
+  it.effect("projects title updates with durable recency and no message history", () =>
     Effect.gen(function* () {
       const { db } = yield* Database.Service
       yield* db
@@ -74,12 +74,12 @@ describe("SessionProjector", () => {
 
       expect(
         yield* db
-          .select({ title: SessionTable.title })
+          .select({ title: SessionTable.title, time_updated: SessionTable.time_updated })
           .from(SessionTable)
           .where(eq(SessionTable.id, sessionID))
           .get()
           .pipe(Effect.orDie),
-      ).toEqual({ title: "Generated title" })
+      ).toEqual({ title: "Generated title", time_updated: 9 })
       expect(yield* db.select().from(SessionMessageTable).all().pipe(Effect.orDie)).toEqual([])
       expect(
         yield* db

@@ -11,6 +11,7 @@ import { Global } from "@hena/core/global"
 import { ConfigV1 } from "@hena/core/v1/config/config"
 import { Option, Schema } from "effect"
 import type { StaticSource } from "./http/static"
+import { portlessOrigins, portlessServerPort } from "./portless"
 
 export const Hostname = "127.0.0.1"
 
@@ -31,7 +32,7 @@ export async function start(input?: {
   const corsOrigins = [
     ...(await configuredCorsOrigins()),
     ...viteCorsOrigins(),
-    ...portlessCorsOrigins(),
+    ...portlessOrigins(),
     ...(input?.corsOrigins ?? []),
   ]
   const server = Bun.serve({
@@ -141,11 +142,6 @@ export function readPort(argv: readonly string[]) {
   return port
 }
 
-function portlessServerPort(port = process.env.PORT, portlessURL = process.env.PORTLESS_URL) {
-  const value = Number(port)
-  return portlessURL && Number.isInteger(value) && value > 0 && value <= 55_535 ? value + 10_000 : undefined
-}
-
 async function configuredCorsOrigins() {
   const directory = Flag.HENA_CONFIG_DIR ?? Global.Path.config
   const configs = await Promise.all(
@@ -175,10 +171,4 @@ function viteCorsOrigins(hosts = process.env.HENA_VITE_ALLOWED_HOSTS) {
     .map((host) => host.trim())
     .filter((host) => /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(host))
     .map((host) => `http://${host}:5173`)
-}
-
-function portlessCorsOrigins(
-  urls = [process.env.PORTLESS_URL, process.env.PORTLESS_TAILSCALE_URL],
-) {
-  return urls.filter((url): url is string => url !== undefined && URL.canParse(url)).map((url) => new URL(url).origin)
 }

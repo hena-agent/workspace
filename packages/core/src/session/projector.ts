@@ -288,7 +288,7 @@ const layer = Layer.effectDiscard(
     yield* events.project(SessionEvent.TitleUpdated, (event) =>
       db
         .update(SessionTable)
-        .set({ title: event.data.title })
+        .set({ title: event.data.title, time_updated: DateTime.toEpochMillis(event.data.timestamp) })
         .where(eq(SessionTable.id, event.data.sessionID))
         .run()
         .pipe(Effect.orDie),

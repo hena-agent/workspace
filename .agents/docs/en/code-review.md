@@ -62,6 +62,7 @@ The provider map currently routes credentials as follows:
 | ------------- | --------------------------- | ------------------------- | --------------------------- |
 | `anthropic`   | `OPENCODE_AUTH_JSON`        | `HENA_REVIEWER_CLIENT_ID` | `HENA_REVIEWER_PRIVATE_KEY` |
 | `openai`      | `OPENAI_OPENCODE_AUTH_JSON` | `GPT_REVIEWER_CLIENT_ID`  | `GPT_REVIEWER_PRIVATE_KEY`  |
+| `opencode`    | `OPENCODE_ZEN_AUTH_JSON`    | `HENA_REVIEWER_CLIENT_ID` | `HENA_REVIEWER_PRIVATE_KEY` |
 | `opencode-go` | `OPENCODE_GO_AUTH_JSON`     | `HENA_REVIEWER_CLIENT_ID` | `HENA_REVIEWER_PRIVATE_KEY` |
 
 The resolver fails before model jobs start when it encounters malformed entries, duplicate entries, an unregistered provider, a missing App client ID variable, more than 256 review entries, or a malformed CLI version override. Model and variant availability are checked later against the installed OpenCode CLI.

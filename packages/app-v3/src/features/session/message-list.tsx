@@ -1,3 +1,4 @@
+import { startTransition, useEffect, useState } from "react"
 import type { SessionMessage } from "@/lib/types"
 import { ConversationEmptyState } from "@/components/ai-elements/conversation"
 import { Shimmer } from "@/components/ai-elements/shimmer"
@@ -12,6 +13,13 @@ import {
 import { Marker, MarkerContent } from "@/components/ui/marker"
 import { MessageRow } from "./messages/message-row"
 
+// Mounting an entire transcript in one commit blocks the main thread in
+// proportion to its length, so the oldest messages start hidden and are
+// revealed through interruptible transitions. The hidden count only ever
+// shrinks, so a live append can never unmount history that is already rendered.
+const InitialMessages = 20
+const MessageChunk = 40
+
 export function MessageList({
   messages,
   working,
@@ -21,6 +29,13 @@ export function MessageList({
   working?: boolean
   ready: boolean
 }) {
+  const [hidden, setHidden] = useState(() => Math.max(0, messages.length - InitialMessages))
+  useEffect(() => {
+    if (hidden === 0) return
+    startTransition(() => setHidden((current) => Math.max(0, current - MessageChunk)))
+  }, [hidden])
+  const visible = hidden > 0 ? messages.slice(hidden) : messages
+
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="last-anchor">
       <MessageScroller className="min-h-0 flex-1">
@@ -30,12 +45,12 @@ export function MessageList({
               <ConversationEmptyState title="No messages yet" description="Say something to get started." />
             ) : (
               <>
-                {messages.map((message, index) => (
+                {visible.map((message, index) => (
                   <MessageScrollerItem key={message.id} messageId={message.id} scrollAnchor={message.role === "user"}>
-                    <MessageRow message={message} working={working && index === messages.length - 1} />
+                    <MessageRow message={message} working={working && index === visible.length - 1} />
                   </MessageScrollerItem>
                 ))}
-                {showsThinking(messages, working) ? (
+                {showsThinking(visible, working) ? (
                   <MessageScrollerItem>
                     <Marker role="status" className="px-6 py-3 md:px-7">
                       <MarkerContent><Shimmer>Thinking...</Shimmer></MarkerContent>

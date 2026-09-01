@@ -252,13 +252,17 @@ export function AppShell({
         </Titlebar>
 
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
-          <MobileNavDrawer
-            open={mobileNavOpen}
-            drawerRef={mobileNavRef}
-            onOpenChange={(open) => (open ? openMobileNav() : closeMobileNav())}
-            rail={routedRail}
-            sidebarPanel={routedSidebar}
-          />
+          {/* The drawer holds a second rail and session list, so keeping it mounted
+              behind `xl:hidden` would double every shell render on desktop. */}
+          {isDesktop ? null : (
+            <MobileNavDrawer
+              open={mobileNavOpen}
+              drawerRef={mobileNavRef}
+              onOpenChange={(open) => (open ? openMobileNav() : closeMobileNav())}
+              rail={routedRail}
+              sidebarPanel={routedSidebar}
+            />
+          )}
 
           {isDesktop ? (
             <>

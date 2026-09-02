@@ -8,7 +8,7 @@ import {
   isContextOverflowFailure,
   type ProviderErrorEvent,
 } from "@hena/llm"
-import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
+import { Cause, DateTime, Effect, FiberSet, Layer, Option, Scope, Semaphore, Stream } from "effect"
 import { AgentV2 } from "../../agent"
 import { Config } from "../../config"
 import { Database } from "../../database/database"
@@ -36,6 +36,7 @@ import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
 import { toLLMMessages } from "./to-llm-message"
 import { MAX_STEPS_PROMPT } from "./max-steps"
+import { SessionTitle } from "./title"
 import { Snapshot } from "../../snapshot"
 import { makeLocationNode } from "../../effect/app-node"
 import { llmClient } from "../../effect/app-node-platform"
@@ -80,7 +81,8 @@ import { llmClient } from "../../effect/app-node-platform"
  * - Post-run maintenance
  *   - [ ] Settle final status and expose durable output events to replayable consumers.
  *   - [ ] Coalesce streamed deltas and add covering projected-history indexes.
- *   - [ ] Update title, summaries, compaction state, and cleanup in bounded background work.
+ *   - [x] Update the title in bounded background work.
+ *   - [ ] Update summaries, compaction state, and cleanup in bounded background work.
  *
  * Use `llm.stream(request)` for each provider turn. Keep tool execution and continuation here.
  * Durable continuation recovery remains a separate future slice with an explicit retry policy.
@@ -105,8 +107,10 @@ const layer = Layer.effect(
     const referenceGuidance = yield* ReferenceGuidance.Service
     const config = yield* Config.Service
     const snapshots = yield* Snapshot.Service
+    const scope = yield* Scope.Scope
     const db = (yield* Database.Service).db
     const compaction = SessionCompaction.make({ events, llm, config: yield* config.entries() })
+    const titles = SessionTitle.make({ agents, events, llm, location, models, scope, store })
     const getSession = Effect.fn("SessionRunner.getSession")(function* (sessionID: SessionSchema.ID) {
       const session = yield* store.get(sessionID)
       if (!session) return yield* Effect.die(`Session not found: ${sessionID}`)
@@ -199,6 +203,7 @@ const layer = Layer.effect(
       const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
+      yield* titles.start(session, context, model)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
       const toolMaterialization = isLastStep ? undefined : yield* tools.materialize(agent.info?.permissions)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id

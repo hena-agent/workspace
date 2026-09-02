@@ -5,7 +5,15 @@ This is a template for a new Vite project with React, TypeScript, and shadcn/ui.
 ## Development
 
 Run `bun run dev:v3` from the repository root to start Vite and server-v3 together with hot reload.
-Vite listens on `http://127.0.0.1:5173` and proxies `/api` to server-v3 on `http://127.0.0.1:4106`.
+Portless prints a local HTTPS URL for the app. It assigns loopback ports to this worktree and Vite proxies `/api`
+to server-v3 on its paired loopback port. Run `bun run dev:v3:tailscale` to also share the app on your tailnet, or
+`bun run dev:v3:local` to bypass Portless and use the fixed `5173/4106` pair.
+
+Portless asks Tailscale for the first free HTTPS port. If `443` and `8443` are occupied, the URL is:
+
+```text
+https://workstation.example.ts.net:8444
+```
 
 ## Custom development hosts
 

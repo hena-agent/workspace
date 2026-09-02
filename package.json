@@ -12,7 +12,9 @@
     "dev": "bun run --cwd packages/hena --conditions=browser src/index.ts",
     "dev:desktop": "bun --cwd packages/desktop dev",
     "dev:web": "bun --cwd packages/app dev",
-    "dev:v3": "bun run --parallel --no-orphans --filter @hena/app-v3 --filter @hena/server-v3 dev",
+    "dev:v3": "portless run --name hena-v3 bun run dev:v3:local",
+    "dev:v3:local": "bun run --parallel --no-orphans --filter @hena/app-v3 --filter @hena/server-v3 dev",
+    "dev:v3:tailscale": "portless run --name hena-v3 --tailscale bun run dev:v3:local",
     "dev:storybook": "bun --cwd packages/storybook storybook",
     "build:opencode-plugin": "bun run script/opencode/build-codex-web-search.ts",
     "check:opencode-plugin": "bun run script/opencode/build-codex-web-search.ts --check",
@@ -93,6 +95,7 @@
     "marked": "catalog:",
     "oxlint": "1.60.0",
     "oxlint-tsgolint": "0.21.0",
+    "portless": "0.15.6",
     "prettier": "3.6.2",
     "react-doctor": "0.9.12",
     "turbo": "2.10.2"

@@ -11,6 +11,7 @@ import { Global } from "@hena/core/global"
 import { ConfigV1 } from "@hena/core/v1/config/config"
 import { Option, Schema } from "effect"
 import type { StaticSource } from "./http/static"
+import { portlessOrigins, portlessServerPort } from "./portless"
 
 export const Hostname = "127.0.0.1"
 
@@ -28,10 +29,15 @@ export async function start(input?: {
   corsOrigins?: readonly string[]
 }) {
   assertNoPassword()
-  const corsOrigins = [...(await configuredCorsOrigins()), ...viteCorsOrigins(), ...(input?.corsOrigins ?? [])]
+  const corsOrigins = [
+    ...(await configuredCorsOrigins()),
+    ...viteCorsOrigins(),
+    ...portlessOrigins(),
+    ...(input?.corsOrigins ?? []),
+  ]
   const server = Bun.serve({
     hostname: Hostname,
-    port: input?.port ?? readPort(process.argv) ?? 4106,
+    port: input?.port ?? readPort(process.argv) ?? portlessServerPort() ?? 4106,
     fetch: () => new Response("Server is starting", { status: 503 }),
     idleTimeout: 0,
   })

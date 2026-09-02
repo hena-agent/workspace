@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./portless": "./src/portless.ts",
     "./protocol": "./src/protocol.ts",
     "./start": "./src/main.ts"
   },

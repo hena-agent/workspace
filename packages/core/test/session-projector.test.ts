@@ -44,6 +44,54 @@ const assistantRow = (
 }
 
 describe("SessionProjector", () => {
+  it.effect("projects title updates with durable recency and no message history", () =>
+    Effect.gen(function* () {
+      const { db } = yield* Database.Service
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          project_id: Project.ID.global,
+          slug: "test",
+          directory: "/project",
+          title: "New session - 2026-08-28T05:18:47.291Z",
+          version: "test",
+          time_updated: 7,
+        })
+        .run()
+        .pipe(Effect.orDie)
+
+      yield* (yield* EventV2.Service).publish(SessionEvent.TitleUpdated, {
+        sessionID,
+        timestamp: DateTime.makeUnsafe(9),
+        title: "Generated title",
+      })
+
+      expect(
+        yield* db
+          .select({ title: SessionTable.title, time_updated: SessionTable.time_updated })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get()
+          .pipe(Effect.orDie),
+      ).toEqual({ title: "Generated title", time_updated: 9 })
+      expect(yield* db.select().from(SessionMessageTable).all().pipe(Effect.orDie)).toEqual([])
+      expect(
+        yield* db
+          .select({ type: EventTable.type })
+          .from(EventTable)
+          .where(eq(EventTable.aggregate_id, sessionID))
+          .all()
+          .pipe(Effect.orDie),
+      ).toEqual([{ type: "session.next.title.updated.1" }])
+    }),
+  )
+
   it.effect("projects staged, cleared, and committed reverts", () =>
     Effect.gen(function* () {
       const db = (yield* Database.Service).db

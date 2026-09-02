@@ -19,6 +19,7 @@ export type Event =
   | EventSessionNextAgentSwitched
   | EventSessionNextModelSwitched
   | EventSessionNextMoved
+  | EventSessionNextTitleUpdated
   | EventSessionNextPrompted
   | EventSessionNextPromptAdmitted
   | EventSessionNextContextUpdated
@@ -850,6 +851,15 @@ export type GlobalEvent = {
       }
     | {
         id: string
+        type: "session.next.title.updated"
+        properties: {
+          timestamp: number
+          sessionID: string
+          title: string
+        }
+      }
+    | {
+        id: string
         type: "session.next.prompted"
         properties: {
           timestamp: number
@@ -1589,6 +1599,7 @@ export type GlobalEvent = {
     | SyncEventSessionNextAgentSwitched
     | SyncEventSessionNextModelSwitched
     | SyncEventSessionNextMoved
+    | SyncEventSessionNextTitleUpdated
     | SyncEventSessionNextPrompted
     | SyncEventSessionNextPromptAdmitted
     | SyncEventSessionNextContextUpdated
@@ -2666,6 +2677,7 @@ export type SessionDurableEvent =
   | SessionNextAgentSwitched
   | SessionNextModelSwitched
   | SessionNextMoved
+  | SessionNextTitleUpdated
   | SessionNextPrompted
   | SessionNextPromptAdmitted
   | SessionNextContextUpdated
@@ -2796,6 +2808,7 @@ export type V2Event =
   | SessionNextAgentSwitched
   | SessionNextModelSwitched
   | SessionNextMoved
+  | SessionNextTitleUpdated
   | SessionNextPrompted
   | SessionNextPromptAdmitted
   | SessionNextContextUpdated
@@ -3218,6 +3231,22 @@ export type SyncEventSessionNextMoved = {
       sessionID: string
       location: LocationRef
       subdirectory?: string
+    }
+  }
+}
+
+export type SyncEventSessionNextTitleUpdated = {
+  type: "sync"
+  id: string
+  syncEvent: {
+    type: "session.next.title.updated.1"
+    id: string
+    seq: number
+    aggregateID: string
+    data: {
+      timestamp: number
+      sessionID: string
+      title: string
     }
   }
 }
@@ -4143,6 +4172,25 @@ export type SessionNextMoved = {
     sessionID: string
     location: LocationRef
     subdirectory?: string
+  }
+}
+
+export type SessionNextTitleUpdated = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "session.next.title.updated"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    timestamp: number
+    sessionID: string
+    title: string
   }
 }
 
@@ -6171,6 +6219,16 @@ export type EventSessionNextMoved = {
     sessionID: string
     location: LocationRef
     subdirectory?: string
+  }
+}
+
+export type EventSessionNextTitleUpdated = {
+  id: string
+  type: "session.next.title.updated"
+  properties: {
+    timestamp: number
+    sessionID: string
+    title: string
   }
 }
 

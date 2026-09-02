@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { createApp } from "../src/app"
 import type { AppType } from "../src/app"
 import { assertNoPassword } from "../src/main"
+import { portlessAppPort, portlessServerPort } from "../src/portless"
 import type { SyncDatabase } from "../src/storage/database"
 import { createTestDatabase } from "./fixture"
 import { hc, type InferResponseType } from "hono/client"
@@ -48,6 +49,14 @@ describe("app", () => {
   test("refuses phase-one startup when a password is configured", () => {
     expect(() => assertNoPassword("secret")).toThrow("phase 2")
     expect(() => assertNoPassword("")).not.toThrow()
+  })
+
+  test("bounds Portless paired ports", () => {
+    expect(portlessAppPort("4321", "https://hena-v3.localhost")).toBe(4_321)
+    expect(portlessServerPort("4321", "https://hena-v3.localhost")).toBe(14_321)
+    expect(portlessServerPort("55535", "https://hena-v3.localhost")).toBe(65_535)
+    expect(portlessServerPort("55536", "https://hena-v3.localhost")).toBeUndefined()
+    expect(portlessServerPort("4321", undefined)).toBeUndefined()
   })
 
   test("logs bounded request metadata without query values", async () => {

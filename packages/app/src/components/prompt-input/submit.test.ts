@@ -21,6 +21,15 @@ const optimisticSeeded: boolean[] = []
 const storedSessions: Record<string, Array<{ id: string; title?: string }>> = {}
 const promoted: Array<{ directory: string; sessionID: string }> = []
 const sentShell: string[] = []
+const managedSessions: Array<{ projectID?: string; agent?: string; model?: unknown }> = []
+const managedPrompts: Array<{
+  sessionID: string
+  prompt?: {
+    text?: string
+    files?: Array<{ uri: string; name?: string; source?: { text: string; start: number; end: number } }>
+    agents?: unknown[]
+  }
+}> = []
 const syncedDirectories: string[] = []
 const promotedDrafts: Array<{ draftID: string; server: string; sessionId: string }> = []
 
@@ -30,6 +39,7 @@ let selected = "/repo/worktree-a"
 let variant: string | undefined
 let permissionServer = "server-a"
 let createSessionGate: Promise<void> | undefined
+let draftProjectID: string | undefined
 
 const promptValue: Prompt = [{ type: "text", content: "ls", start: 0, end: 2 }]
 const [promptStore, setPromptStore] = createStore<PromptStore>({
@@ -82,6 +92,40 @@ const clientFor = (directory: string) => {
       promptAsync: async () => ({ data: undefined }),
       command: async () => ({ data: undefined }),
       abort: async () => ({ data: undefined }),
+    },
+    v2: {
+      session: {
+        create: async (input: { projectID?: string; agent?: string; model?: unknown }) => {
+          managedSessions.push(input)
+          return {
+            data: {
+              data: {
+                id: "managed-session",
+                projectID: input.projectID,
+                location: { directory },
+                subpath: "",
+                title: "Managed session",
+                cost: 0,
+                tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+                time: { created: 1, updated: 1 },
+              },
+            },
+          }
+        },
+        switchAgent: async () => ({ data: undefined }),
+        switchModel: async () => ({ data: undefined }),
+        prompt: async (input: {
+          sessionID: string
+          prompt?: {
+            text?: string
+            files?: Array<{ uri: string; name?: string; source?: { text: string; start: number; end: number } }>
+            agents?: unknown[]
+          }
+        }) => {
+          managedPrompts.push({ sessionID: input.sessionID, prompt: input.prompt })
+          return { data: undefined }
+        },
+      },
     },
     worktree: {
       create: async () => ({ data: { directory: `${directory}/new` } }),
@@ -147,7 +191,7 @@ beforeAll(async () => {
 
   mock.module("@/context/tabs", () => ({
     useTabs: () => ({
-      draft: () => ({ server: "project-server" }),
+      draft: () => ({ server: "project-server", projectID: draftProjectID }),
       promoteDraft: (draftID: string, session: { server: string; sessionId: string }) => {
         promotedDrafts.push({ draftID, ...session })
       },
@@ -259,11 +303,14 @@ beforeEach(() => {
   params = {}
   search = {}
   sentShell.length = 0
+  managedSessions.length = 0
+  managedPrompts.length = 0
   syncedDirectories.length = 0
   selected = "/repo/worktree-a"
   variant = undefined
   permissionServer = "server-a"
   createSessionGate = undefined
+  draftProjectID = undefined
   for (const key of Object.keys(storedSessions)) delete storedSessions[key]
 })
 
@@ -392,6 +439,51 @@ describe("prompt submit worktree selection", () => {
     await submit.handleSubmit({ preventDefault: () => undefined } as unknown as Event)
 
     expect(promotedDrafts).toEqual([{ draftID: "draft-1", server: "project-server", sessionId: "session-1" }])
+  })
+
+  test("creates and prompts managed chat sessions through V2", async () => {
+    search = { draftId: "draft-1" }
+    draftProjectID = "project-1"
+    promptValue.push({ type: "file", path: "src/app.ts", content: "@src/app.ts", start: 3, end: 14 })
+    const submit = createPromptSubmit({
+      prompt,
+      info: () => undefined,
+      imageAttachments: () => [],
+      commentCount: () => 0,
+      autoAccept: () => false,
+      mode: () => "shell",
+      working: () => false,
+      editor: () => undefined,
+      queueScroll: () => undefined,
+      promptLength: (value) => value.reduce((sum, part) => sum + ("content" in part ? part.content.length : 0), 0),
+      addToHistory: () => undefined,
+      resetHistoryNavigation: () => undefined,
+      setMode: () => undefined,
+      setPopover: () => undefined,
+    })
+
+    await submit.handleSubmit({ preventDefault: () => undefined } as unknown as Event)
+    await Bun.sleep(0)
+    promptValue.pop()
+
+    expect(managedSessions).toEqual([{ projectID: "project-1", agent: "agent", model: expect.anything() }])
+    expect(managedPrompts).toEqual([
+      {
+        sessionID: "managed-session",
+        prompt: {
+          text: "ls@src/app.ts",
+          files: [
+            {
+              uri: "file:///repo/main/src/app.ts",
+              name: "app.ts",
+              source: { text: "@src/app.ts", start: 3, end: 14 },
+            },
+          ],
+          agents: [],
+        },
+      },
+    ])
+    expect(sentShell).toEqual([])
   })
 
   test("includes the selected variant on optimistic prompts", async () => {

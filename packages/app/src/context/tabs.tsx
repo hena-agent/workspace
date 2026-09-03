@@ -24,6 +24,7 @@ export type DraftTab = {
   draftID: string
   server: ServerConnection.Key
   directory: string
+  projectID?: string
   worktree?: string
 }
 

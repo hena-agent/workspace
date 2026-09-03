@@ -41,6 +41,7 @@ import { usePlatform } from "@/context/platform"
 import { DateTime } from "luxon"
 import { useDialog } from "@hena/ui/context/dialog"
 import { Dialog } from "@hena/ui/dialog"
+import { TextField } from "@hena/ui/text-field"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useSettingsCommand } from "@/components/settings-dialog"
 import { DialogSelectServer, useServerManagementController } from "@/components/dialog-select-server"
@@ -115,6 +116,45 @@ type HomeSessionRecord = {
   session: Session
   project: LocalProject
   projectName: string
+}
+
+function CreateChatDialog(props: { create: (name: string) => Promise<boolean> }) {
+  const language = useLanguage()
+  const dialog = useDialog()
+  const [state, setState] = createStore({ name: "", busy: false })
+
+  const submit = (event: SubmitEvent) => {
+    event.preventDefault()
+    const name = state.name.trim()
+    if (!name || state.busy) return
+    setState("busy", true)
+    void props.create(name).then((created) => {
+      if (created) dialog.close()
+      else setState("busy", false)
+    })
+  }
+
+  return (
+    <Dialog title={language.t("home.project.add")} class="w-full max-w-[420px] mx-auto">
+      <form onSubmit={submit} class="flex flex-col gap-4 p-6 pt-0">
+        <TextField
+          autofocus
+          required
+          label={language.t("dialog.project.edit.name")}
+          value={state.name}
+          onChange={(name) => setState("name", name)}
+        />
+        <div class="flex justify-end gap-2">
+          <Button type="button" onClick={() => dialog.close()}>
+            {language.t("common.cancel")}
+          </Button>
+          <Button type="submit" variant="primary" disabled={!state.name.trim() || state.busy}>
+            {language.t("common.save")}
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  )
 }
 
 type HomeSessionGroup = {
@@ -554,7 +594,12 @@ export function NewHome() {
     const ctx = global.ensureServerCtx(conn)
     ctx.projects.open(directory)
     ctx.projects.touch(directory)
-    tabs.newDraft({ server: ServerConnection.key(conn), directory })
+    const project = ctx.projects.list().find((item) => item.worktree === directory)
+    tabs.newDraft({
+      server: ServerConnection.key(conn),
+      directory,
+      projectID: project?.mode === "chat" ? project.id : undefined,
+    })
   }
 
   function editProject(conn: ServerConnection.Any, project: LocalProject) {
@@ -623,34 +668,37 @@ export function NewHome() {
     })
   }
 
-  function createChat(conn: ServerConnection.Any) {
+  function createChat(conn: ServerConnection.Any, name: string) {
     const ctx = global.ensureServerCtx(conn)
-    void ctx.sdk.client.v2.session
-      .create({ mode: "chat" })
+    return ctx.sdk.client.v2.project
+      .create({ name })
       .then((response) => {
-        const session = response.data?.data
-        if (!session) {
+        const project = response.data?.data
+        if (!project) {
           showToast({
             title: language.t("common.requestFailed"),
             description: errorMessage(response.error, language.t("common.requestFailed")),
           })
-          return
+          return false
         }
 
-        ctx.projects.open(session.location.directory)
-        ctx.projects.touch(session.location.directory)
-        setSelection({ server: ServerConnection.key(conn), directory: session.location.directory })
-        startTransition(() => {
-          const tab = tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
-          tabs.select(tab)
+        ctx.projects.open(project.worktree)
+        ctx.projects.touch(project.worktree)
+        setSelection({ server: ServerConnection.key(conn), directory: project.worktree })
+        void tabs.newDraft({
+          server: ServerConnection.key(conn),
+          directory: project.worktree,
+          projectID: project.id,
         })
+        return true
       })
-      .catch((error) =>
+      .catch((error) => {
         showToast({
           title: language.t("common.requestFailed"),
           description: errorMessage(error, language.t("common.requestFailed")),
-        }),
-      )
+        })
+        return false
+      })
   }
 
   function openProjectPicker(conn: ServerConnection.Any) {
@@ -678,8 +726,7 @@ export function NewHome() {
             variant="primary"
             icon="plus-small"
             onClick={() => {
-              dialog.close()
-              createChat(conn)
+              dialog.show(() => <CreateChatDialog create={(name) => createChat(conn, name)} />)
             }}
           >
             {language.t("command.session.new")}

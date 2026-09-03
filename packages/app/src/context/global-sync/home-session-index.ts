@@ -133,7 +133,7 @@ export function createHomeSessionIndexCache(queryClient: QueryClient, server: st
 export function parseHomeSessionIndex(sessions: SessionV2Info[]): Session[] {
   return sessions.flatMap((item) => {
     if (item.parentID || typeof item.time.archived === "number") return []
-    return [toLegacySummary(item)]
+    return [toLegacySessionSummary(item)]
   })
 }
 
@@ -154,7 +154,7 @@ export function applyHomeSessionEvent(sessions: Session[], event: HomeSessionEve
   return sessions.with(index, info)
 }
 
-function toLegacySummary(session: SessionV2Info): Session {
+export function toLegacySessionSummary(session: SessionV2Info): Session {
   return {
     id: session.id,
     slug: session.id,

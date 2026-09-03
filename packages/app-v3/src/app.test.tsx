@@ -168,8 +168,11 @@ function collectionFetcher(options: {
       const txid = `tx-read-${body.idempotencyKey}`
       const changes = body.sessionIDs.flatMap((sessionID) => {
         const existing = database.snapshot("sessions").find((entry) => entry.key === sessionID)
-        const row = existing?.row as { time?: { updated?: number } } | undefined
+        const row = existing?.row as { time?: { updated?: number }; read?: number } | undefined
         if (!row?.time?.updated) return []
+        // Mirrors the server's idempotent guard (time_read IS NULL OR time_read < time_updated):
+        // an already-read session produces no change, matching a real `noop` receipt.
+        if (row.read !== undefined && row.read >= row.time.updated) return []
         return [{
           seq: changeSeq++,
           collection: "sessions",
@@ -535,6 +538,32 @@ describe("app routing against server-v3", () => {
     await user.click(await screen.findByRole("menuitem", { name: "Clear notifications" }))
 
     await waitFor(() => expect(within(sessions).queryAllByLabelText("Unread")).toHaveLength(0))
+  })
+
+  test("a rejected mark-read does not retry in a loop", async () => {
+    const user = userEvent.setup()
+    let calls = 0
+    const base = collectionFetcher()
+    const failingReads: typeof base = async (input, init) => {
+      const path = new URL(input instanceof Request ? input.url : input.toString(), "http://x").pathname
+      if (path === "/api/session/read") {
+        calls++
+        // A non-transient status (unlike 429/500+) rejects on the first attempt with no
+        // `requestQueueable` retry delay, so a rollback -- and any resulting re-trigger -- would
+        // happen within this test's short observation window rather than several seconds later.
+        return Response.json({ error: { code: "validation", message: "forced failure" } }, { status: 400 })
+      }
+      return base(input, init)
+    }
+    renderApp(`/${slug}/global`, failingReads)
+
+    const sessions = (await screen.findAllByRole("navigation", { name: "Sessions" }))[0]
+    await user.click(within(sessions).getByText("Live session"))
+    await act(async () => { await Bun.sleep(20) })
+    const firstWindow = calls
+    expect(firstWindow).toBeGreaterThan(0)
+    await act(async () => { await Bun.sleep(50) })
+    expect(calls).toBe(firstWindow)
   })
 
   test("restores the last session when opening a recent project", async () => {

@@ -31,6 +31,20 @@ describe("session mutations", () => {
     queueAgent.dispose()
   })
 
+  test("does not flash unread for a session it just created", () => {
+    const agent = createConnectionAgent("http://hena.test", () => new Promise<Response>(() => {}))
+    const created = createSessionOptimistically(agent, {
+      projectID: "project-1",
+      location: { directory: "/workspace" },
+      text: "New session",
+      delivery: "steer",
+    })
+
+    const row = agent.store.rows("sessions").find((item) => item.id === created.sessionID)
+    expect(row?.read).toBe(row?.time && (row.time as { updated: number }).updated)
+    agent.dispose()
+  })
+
   test("stages existing-session prompts in the selected delivery surface", () => {
     const agent = createConnectionAgent("http://hena.test", () => new Promise<Response>(() => {}))
     agent.store.applySnapshot("sessions", "", [

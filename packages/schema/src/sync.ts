@@ -183,6 +183,7 @@ export const Cursor = Schema.Struct({
 }).annotate({ identifier: "Sync.Cursor" })
 
 export const MaxSubscribedSessions = 100
+export const MaxMarkReadSessions = 100
 
 export interface Subscription extends Schema.Schema.Type<typeof Subscription> {}
 export const Subscription = Schema.Struct({
@@ -248,7 +249,7 @@ export const ArchiveSession = Schema.Struct({
 export interface MarkSessionsRead extends Schema.Schema.Type<typeof MarkSessionsRead> {}
 export const MarkSessionsRead = Schema.Struct({
   idempotencyKey: IdempotencyKey,
-  sessionIDs: Schema.Array(Session.ID).check(Schema.isMaxLength(MaxSubscribedSessions)),
+  sessionIDs: Schema.Array(Session.ID).check(Schema.isMaxLength(MaxMarkReadSessions)),
 }).annotate({ identifier: "Sync.MarkSessionsRead" })
 
 export interface FileListQuery extends Schema.Schema.Type<typeof FileListQuery> {}

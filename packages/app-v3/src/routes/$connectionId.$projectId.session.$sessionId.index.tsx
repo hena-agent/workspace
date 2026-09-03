@@ -69,13 +69,13 @@ function SessionTranscript({
     if (agent && session) markSessionOpened(agent.url, sessionId)
   }, [agent, session, sessionId])
   useEffect(() => {
-    // Gated on settled (not `working`), not on `unread`: an open session's `time.updated` keeps
-    // advancing while it streams, so marking read on every tick would fire a mutation per token,
-    // and the working spinner already masks the unread dot until then. Deliberately NOT gated on
-    // `unread` itself -- that flag is the mutation's own optimistic side effect, so a failed
-    // mutation rolling it back to `true` would immediately re-trigger this effect and retry
-    // forever. The server no-ops a redundant mark-read, so calling on every settle is harmless.
-    if (agent && session && session.status !== "working")
+    // `unread` gates the call but is deliberately absent from the dependency array: it is this
+    // effect's own mutation's optimistic output, so depending on it would let a failed mutation's
+    // rollback immediately retrigger the same effect instance and retry forever. Depending only
+    // on settled status means a rollback can't retrigger this instance -- the next genuine status
+    // transition re-checks `unread` and retries if it's still true. Reading `session.status` while
+    // streaming would fire a mutation per token; the working spinner masks the dot until then anyway.
+    if (agent && session?.unread && session.status !== "working")
       void markSessionsReadOptimistically(agent, [sessionId]).catch(() => {})
   }, [agent, session?.status, sessionId])
   const replyPermission = (reply: "once" | "always" | "reject") => {

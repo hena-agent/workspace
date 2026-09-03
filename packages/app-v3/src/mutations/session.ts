@@ -77,6 +77,7 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
         tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
         time: { created, updated: created },
         working: true,
+        read: created,
         queueRevision: input.delivery === "queue" ? 1 : 0,
         agent: input.agentID,
         model: input.model,

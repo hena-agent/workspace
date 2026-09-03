@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { encodeServerSlug } from "@/lib/server-url"
 import { listDrafts, loadDraft, removeDraft, saveDraft } from "./drafts"
 import { applyProjectOrder, loadProjectOrder, saveProjectOrder } from "./project-order"
-import { markSessionOpened, recentlySeen } from "./recent"
+import { markSessionOpened, recentlyOpened } from "./recent"
 
 const url = "http://localhost:4106"
 
@@ -56,7 +56,15 @@ describe("local client state", () => {
     markSessionOpened(url, "session")
     markSessionOpened(url, "other")
     markSessionOpened(url, "session")
-    expect(recentlySeen(url)).toEqual(["other", "session"])
+    expect(recentlyOpened(url)).toEqual(["other", "session"])
+  })
+
+  test("repeated opens of the already-most-recent session do not reorder or duplicate it", () => {
+    markSessionOpened(url, "other")
+    markSessionOpened(url, "session")
+    markSessionOpened(url, "session")
+    markSessionOpened(url, "session")
+    expect(recentlyOpened(url)).toEqual(["other", "session"])
   })
 
   test("persists project order and puts newly discovered projects first", () => {

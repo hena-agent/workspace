@@ -4,13 +4,15 @@ const MAX_RECENT_SESSIONS = 500
 
 // Which session a device last had open, purely to restore it on return. Read state itself is
 // server-synced (see `Session.unread` in `@/lib/types`); this only orders session IDs oldest to
-// newest so `recentlySeen(url).findLast(...)` can pick the most recently opened survivor.
-export function recentlySeen(url: string) {
+// newest so `recentlyOpened(url).findLast(...)` can pick the most recently opened survivor.
+export function recentlyOpened(url: string) {
   return read(url)
 }
 
 export function markSessionOpened(url: string, sessionID: string) {
-  const next = [...read(url).filter((id) => id !== sessionID), sessionID].slice(-MAX_RECENT_SESSIONS)
+  const current = read(url)
+  if (current.at(-1) === sessionID) return
+  const next = [...current.filter((id) => id !== sessionID), sessionID].slice(-MAX_RECENT_SESSIONS)
   localStorage.setItem(key(url), JSON.stringify(next))
 }
 

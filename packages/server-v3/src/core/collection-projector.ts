@@ -235,13 +235,18 @@ export function setSessionsRead(database: DatabaseService, sessionIDs: readonly 
     // column with `$onUpdate` into the SET clause, so a query-builder update would also bump
     // `time_updated` and immediately re-mark the session unread. The SET target must also be an
     // unqualified column name, so it is `sql.identifier(...)` rather than the `Column` reference.
-    yield* database.run(sql`
+    const updated = yield* database.all<{ id: string }>(sql`
       UPDATE ${SessionTable}
       SET ${sql.identifier(SessionTable.time_read.name)} = ${SessionTable.time_updated}
       WHERE ${inArray(SessionTable.id, sessionIDs.map((sessionID) => Session.ID.make(sessionID)))}
         AND (${SessionTable.time_read} IS NULL OR ${SessionTable.time_read} < ${SessionTable.time_updated})
+      RETURNING ${SessionTable.id} AS id
     `)
-    yield* Effect.forEach(sessionIDs, (sessionID) => refreshSession(database, sessionID, false, txid), {
+    // Only refresh sessions the UPDATE actually touched: an already-read or nonexistent ID in the
+    // batch would otherwise pay a full refresh -- and, for a nonexistent ID, `refreshSession`'s
+    // `!session` branch unconditionally runs `reconcileLocations`, a two-table scan -- for a row
+    // that provably didn't change.
+    yield* Effect.forEach(updated, (row) => refreshSession(database, row.id, false, txid), {
       discard: true,
     })
   })

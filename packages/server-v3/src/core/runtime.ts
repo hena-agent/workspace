@@ -193,6 +193,11 @@ export function createCoreDomain(
                 delivery: input.delivery,
                 resume: false,
               })
+              // The creator has necessarily seen a session they just created; mark it read in the
+              // same transaction so it never renders with an unread dot before the settle-gated
+              // client effect gets a chance to catch up.
+              const txid = yield* MutationTxid
+              yield* Database.Service.use((database) => setSessionsRead(database.db, [session.id], txid!))
               return { session: yield* service.get(session.id), admitted }
             }),
           ),

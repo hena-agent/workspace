@@ -268,7 +268,7 @@ function ShellLayout() {
         onRenameProject: () => {},
         onClearNotifications: () => {
           if (!agent) return
-          const unreadSessionIds = projectSessions.filter((session) => session.unread).map((session) => session.id)
+          const unreadSessionIds = projectSessions.flatMap((session) => session.unread ? [session.id] : [])
           void markSessionsReadOptimistically(agent, unreadSessionIds).catch(() => {})
         },
         onCloseProject: () => {

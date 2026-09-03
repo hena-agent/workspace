@@ -76,9 +76,9 @@ New managed Project IDs use the `prj_` prefix. Their directories live under:
 
 Hena creates each directory recursively with mode `0700` on platforms that support Unix permissions. Project resolution recognizes a managed ID only when the path is under the managed projects root and the first relative path segment is a valid managed Project ID.
 
-Each newly created chat Session receives its own managed Project and filesystem space. Chat Sessions do not implicitly share a managed Project.
+Each named chat Project receives its own managed filesystem space. It may contain multiple Sessions.
 
-Existing workspace Session creation remains unchanged. Omitting `mode` means `workspace`, and workspace creation resolves its Project from the supplied Location.
+Existing workspace Session creation remains unchanged and resolves its Project from the supplied Location. Chat Session creation names an existing chat Project instead.
 
 ### 3.3 Session identity
 
@@ -107,25 +107,34 @@ The runner derives this decision from the current Project mode on each provider 
 
 ## 4. Public protocol
 
-### 4.1 Create a chat Session
+### 4.1 Create a chat Project and Session
 
-`POST /api/session` accepts:
+`POST /api/project` creates managed storage before any Session exists:
+
+```ts
+{
+  id?: Project.ID
+  name: string
+}
+```
+
+`POST /api/session` creates a Session in that Project:
 
 ```ts
 {
   id?: Session.ID
   agent?: Agent.ID
   model?: Model.Ref
-  mode?: "chat" | "workspace"
+  projectID?: Project.ID
   location?: Location.Ref
 }
 ```
 
 Rules:
 
-- `mode: "chat"` must not include `location`.
-- A chat request provisions the managed Project before the Session creation event is committed.
-- If Session projection fails and no Session was recorded, Hena removes the newly created Project row and managed directory.
+- A request must not include both `projectID` and `location`.
+- A chat Project may exist without a Session and may contain multiple Sessions.
+- Clients may keep a new Session as a local draft until its first prompt.
 - Workspace requests require or derive a normal Location under the existing behavior.
 
 ### 4.2 Attach a Project
@@ -144,7 +153,7 @@ Payload:
 
 Success returns `204 No Content`.
 
-Attach is Project-scoped even though each new chat Session currently has its own managed Project. Every Session found under the Project is moved together so recovery remains correct if Project membership expands through existing compatibility paths.
+Attach is Project-scoped. Every Session found under the Project is moved together.
 
 ### 4.3 Attach validation
 
@@ -350,10 +359,10 @@ Runtime dependencies remain directed from Schema to Core and Protocol, then to S
 
 ### 11.1 Managed chat creation
 
-- Creating a chat Session without a Location creates one `0700` managed Project directory and a `chat` Project row.
-- Providing a Location with `mode: chat` returns `400`.
-- Projection failure removes an otherwise unreferenced managed Project and directory.
-- Separate chat Session creation requests receive separate Project IDs and directories.
+- Creating a named chat Project creates one `0700` managed directory and a `chat` Project row without creating a Session.
+- Creating multiple Sessions with that Project ID preserves one Project ID and directory.
+- Providing both a Project ID and Location returns `400`.
+- A missing Project ID returns `404`.
 - Chat provider turns advertise only the four allowed tools.
 
 ### 11.2 Attach success and validation
@@ -393,5 +402,5 @@ Runtime dependencies remain directed from Schema to Core and Protocol, then to S
 - Concurrent processes recheck migration completion under the database write lock.
 - Foreign-key enforcement is restored after successful and failed migration attempts.
 - Client and legacy SDK generation produce committed outputs.
-- The HttpApi exerciser contains a scenario for `POST /api/project/{projectID}/attach` with no missing route.
+- The HttpApi exerciser contains scenarios for `POST /api/project` and `POST /api/project/{projectID}/attach` with no missing route.
 - Core attach tests cover success, validation, runtime rollback, user-file quarantine, and startup recovery.

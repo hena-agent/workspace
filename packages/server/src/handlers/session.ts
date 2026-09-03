@@ -8,6 +8,7 @@ import {
   InvalidCursorError,
   InvalidRequestError,
   MessageNotFoundError,
+  ProjectNotFoundError,
   ServiceUnavailableError,
   SessionNotFoundError,
   UnknownError,
@@ -68,20 +69,27 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.create",
         Effect.fn(function* (ctx) {
-          if (ctx.payload.mode === "chat" && ctx.payload.location)
-            return yield* new InvalidRequestError({ message: "Chat sessions cannot specify a location" })
+          if (ctx.payload.projectID && ctx.payload.location)
+            return yield* new InvalidRequestError({ message: "Sessions cannot specify both projectID and location" })
           return {
-            data: yield* session.create({
-              id: ctx.payload.id,
-              agent: ctx.payload.agent,
-              model: ctx.payload.model,
-              ...(ctx.payload.mode === "chat"
-                ? { mode: "chat" }
-                : {
-                    mode: "workspace",
-                    location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
-                  }),
-            }),
+            data: yield* session
+              .create({
+                id: ctx.payload.id,
+                agent: ctx.payload.agent,
+                model: ctx.payload.model,
+                ...(ctx.payload.projectID
+                  ? { projectID: ctx.payload.projectID }
+                  : { location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) } }),
+              })
+              .pipe(
+                Effect.mapError(
+                  (error) =>
+                    new ProjectNotFoundError({
+                      projectID: error.projectID,
+                      message: `Project not found: ${error.projectID}`,
+                    }),
+                ),
+              ),
           }
         }),
       )

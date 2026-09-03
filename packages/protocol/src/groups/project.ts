@@ -6,6 +6,22 @@ import { ConflictError, InvalidRequestError, ProjectNotFoundError, UnknownError 
 
 export const ProjectGroup = HttpApiGroup.make("server.project")
   .add(
+    HttpApiEndpoint.post("project.create", "/api/project", {
+      payload: Schema.Struct({
+        id: Project.ID.pipe(Schema.optional),
+        name: Schema.String,
+      }),
+      success: Schema.Struct({ data: Project.Info }),
+      error: UnknownError,
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "v2.project.create",
+        summary: "Create chat project",
+        description: "Create a named chat project in managed storage.",
+      }),
+    ),
+  )
+  .add(
     HttpApiEndpoint.post("project.attach", "/api/project/:projectID/attach", {
       params: { projectID: Project.ID },
       payload: Schema.Struct({ directory: AbsolutePath }),

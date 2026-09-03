@@ -6,6 +6,7 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 import { ApplicationTools } from "@hena/core/tool/application-tools"
 import { SessionV2 } from "@hena/core/session"
 import { SessionMessage } from "@hena/core/session/message"
+import { ChatPolicy } from "@hena/core/session/chat-policy"
 import { ToolOutputStore } from "@hena/core/tool-output-store"
 import { ToolRegistry } from "@hena/core/tool/registry"
 import { executeTool, settleTool, toolDefinitions } from "./lib/tool"
@@ -105,6 +106,28 @@ describe("ToolRegistry", () => {
         type: "error",
         value: "Unknown tool: bash",
       })
+    }),
+  )
+
+  it.effect("enforces the managed chat tool policy", () =>
+    Effect.gen(function* () {
+      const service = yield* ToolRegistry.Service
+      yield* service.register({
+        question: make(),
+        todowrite: make(),
+        webfetch: make(),
+        websearch: make(),
+        bash: make(),
+      })
+      const materialized = yield* service.materialize([], ChatPolicy.tools)
+
+      expect(materialized.definitions.map((tool) => tool.name)).toEqual([
+        "question",
+        "todowrite",
+        "webfetch",
+        "websearch",
+      ])
+      expect((yield* materialized.settle(call("bash"))).result.type).toBe("error")
     }),
   )
 

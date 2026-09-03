@@ -106,6 +106,8 @@ import type {
   QuestionsRejectOutput,
   ReferencesListInput,
   ReferencesListOutput,
+  ProjectsCreateInput,
+  ProjectsCreateOutput,
   ProjectsAttachInput,
   ProjectsAttachOutput,
   ProjectCopiesCreateInput,
@@ -315,11 +317,11 @@ export function make(options: ClientOptions) {
               id: input?.["id"],
               agent: input?.["agent"],
               model: input?.["model"],
-              mode: input?.["mode"],
+              projectID: input?.["projectID"],
               location: input?.["location"],
             },
             successStatus: 200,
-            declaredStatuses: [400, 401],
+            declaredStatuses: [400, 404, 401],
             empty: false,
           },
           requestOptions,
@@ -951,6 +953,18 @@ export function make(options: ClientOptions) {
         ),
     },
     projects: {
+      create: (input: ProjectsCreateInput, requestOptions?: RequestOptions) =>
+        request<{ readonly data: ProjectsCreateOutput }>(
+          {
+            method: "POST",
+            path: `/api/project`,
+            body: { id: input["id"], name: input["name"] },
+            successStatus: 200,
+            declaredStatuses: [500, 401, 400],
+            empty: false,
+          },
+          requestOptions,
+        ).then((value) => value.data),
       attach: (input: ProjectsAttachInput, requestOptions?: RequestOptions) =>
         request<ProjectsAttachOutput>(
           {

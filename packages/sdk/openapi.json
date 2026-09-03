@@ -5309,9 +5309,13 @@
           "401": {
             "description": "UnauthorizedError",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnauthorizedError" } } }
+          },
+          "404": {
+            "description": "ProjectNotFoundError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectNotFoundError" } } }
           }
         },
-        "description": "Create a workspace session at the requested location or a chat session in managed storage.",
+        "description": "Create a session in an existing chat project or at a workspace location.",
         "summary": "Create session",
         "requestBody": {
           "content": {
@@ -5322,7 +5326,7 @@
                   "id": { "type": "string", "pattern": "^ses" },
                   "agent": { "type": "string" },
                   "model": { "$ref": "#/components/schemas/ModelRef" },
-                  "mode": { "$ref": "#/components/schemas/ProjectMode" },
+                  "projectID": { "type": "string" },
                   "location": { "$ref": "#/components/schemas/LocationRef" }
                 },
                 "additionalProperties": false
@@ -8282,6 +8286,62 @@
           {
             "lang": "js",
             "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.reference.list({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/project": {
+      "post": {
+        "tags": ["project"],
+        "operationId": "v2.project.create",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/Project" } },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvalidRequestError" } } }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnauthorizedError" } } }
+          },
+          "500": {
+            "description": "UnknownError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnknownError1" } } }
+          }
+        },
+        "description": "Create a named chat project in managed storage.",
+        "summary": "Create chat project",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.project.create({\n  ...\n})"
           }
         ]
       }

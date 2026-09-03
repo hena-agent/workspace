@@ -107,6 +107,82 @@ describe("core runtime", () => {
     }
   })
 
+  test("marks sessions read without disturbing time_updated", async () => {
+    const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
+    const bootstrap = createCoreDomain(undefined, undefined, undefined, filename)
+    await bootstrap.ready()
+    await bootstrap.dispose()
+    createSyncDatabase(new Database(filename, { create: true })).close()
+    const domain = createCoreDomain(undefined, undefined, undefined, filename)
+    await domain.ready()
+    const sessionID = Session.ID.create()
+    const otherSessionID = Session.ID.create()
+    const location = Schema.decodeUnknownSync(Location.Ref)({ directory: process.cwd() })
+
+    try {
+      await domain.createSession({
+        idempotencyKey: crypto.randomUUID(),
+        sessionID,
+        messageID: SessionMessage.ID.create(),
+        location,
+        prompt: { text: "read me" },
+        delivery: "queue",
+      })
+      await domain.createSession({
+        idempotencyKey: crypto.randomUUID(),
+        sessionID: otherSessionID,
+        messageID: SessionMessage.ID.create(),
+        location,
+        prompt: { text: "leave me unread" },
+        delivery: "queue",
+      })
+      const database = new Database(filename)
+      const rowQuery = () =>
+        database.query<{ time_read: number | null; time_updated: number }, [string]>(
+          "SELECT time_read, time_updated FROM session WHERE id = ?",
+        ).get(sessionID)
+      const projectedQuery = () =>
+        database.query<{ read: number | null; updated: number }, [string]>(
+          `SELECT json_extract(row, '$.read') AS read, json_extract(row, '$.time.updated') AS updated
+           FROM collection_row WHERE collection = 'sessions' AND row_key = ?`,
+        ).get(sessionID)
+      const beforeUpdated = rowQuery()?.time_updated
+
+      const readKey = crypto.randomUUID()
+      const applied = await domain.markSessionsRead({ idempotencyKey: readKey, sessionIDs: [sessionID] })
+      const afterApplied = rowQuery()
+      const projectedApplied = projectedQuery()
+      const otherProjected = database.query<{ read: number | null }, [string]>(
+        "SELECT json_extract(row, '$.read') AS read FROM collection_row WHERE collection = 'sessions' AND row_key = ?",
+      ).get(otherSessionID)
+
+      expect(applied.receipt.outcome).toBe("applied")
+      expect(applied.receipt.affectedScopes).toContainEqual({ collection: "sessions", scopeKey: "" })
+      expect(afterApplied?.time_read).toBe(afterApplied?.time_updated)
+      expect(afterApplied?.time_updated).toBe(beforeUpdated)
+      expect(projectedApplied?.read).toBe(afterApplied?.time_updated)
+      expect(otherProjected?.read).toBeNull()
+
+      const repeated = await domain.markSessionsRead({
+        idempotencyKey: crypto.randomUUID(),
+        sessionIDs: [sessionID],
+      })
+      const afterRepeated = rowQuery()
+
+      expect(repeated.receipt.outcome).toBe("noop")
+      expect(repeated.receipt.affectedScopes).toEqual([])
+      expect(afterRepeated?.time_updated).toBe(beforeUpdated)
+
+      const retried = await domain.markSessionsRead({ idempotencyKey: readKey, sessionIDs: [sessionID] })
+      database.close()
+
+      expect(retried.receipt.outcome).toBe("exact_retry")
+    } finally {
+      await domain.dispose()
+      await Bun.file(filename).delete()
+    }
+  })
+
   test("does not persist attachment URIs in idempotency responses", async () => {
     const filename = `${process.env.TMPDIR ?? "/tmp"}/hena-server-v3-${crypto.randomUUID()}.sqlite`
     const bootstrap = createCoreDomain(undefined, undefined, undefined, filename)

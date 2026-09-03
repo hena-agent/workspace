@@ -27,7 +27,11 @@ type ProjectRow = {
   commands: string | null
 }
 
-type SessionRow = Omit<SessionInfoRow, "model" | "revert"> & { model: string | null; revert: string | null }
+type SessionRow = Omit<SessionInfoRow, "model" | "revert"> & {
+  model: string | null
+  revert: string | null
+  time_read: number | null
+}
 
 type MessageRow = {
   id: string
@@ -101,7 +105,7 @@ export function bootstrapCollections(database: SyncDatabase) {
     "",
     sessions.map((session) => {
       const row = sessionRow(session)
-      const projected = { ...row, working: false }
+      const projected = { ...row, working: false, read: session.time_read ?? undefined }
       return { key: session.id, revision: fingerprint(projected), row: projected }
     }),
   )

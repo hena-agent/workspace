@@ -6,7 +6,7 @@ import { fromRow } from "@hena/core/session/info"
 import { SessionProjector } from "@hena/core/session/projector"
 import { SessionInputTable, SessionMessageTable, SessionTable, TodoTable } from "@hena/core/session/sql"
 import { ProjectTable } from "@hena/core/project/sql"
-import { and, desc, eq, isNull, ne, sql } from "drizzle-orm"
+import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Session } from "@hena/schema/session"
 import { SessionMessage } from "@hena/schema/session-message"
@@ -153,7 +153,11 @@ function refreshSession(database: DatabaseService, sessionID: string, moved: boo
       .where(eq(SessionTable.id, Session.ID.make(sessionID)))
       .get()
     if (session) {
-      const row = { ...encodeSession(fromRow(session)), working: workingSessions.has(sessionID) }
+      const row = {
+        ...encodeSession(fromRow(session)),
+        working: workingSessions.has(sessionID),
+        read: session.time_read ?? undefined,
+      }
       yield* replaceScopeRow(database, "sessions", "", { key: session.id, row, revision: fingerprint(row) }, txid)
     }
     if (!session) yield* removeScopeRow(database, "sessions", "", sessionID, txid)
@@ -221,6 +225,25 @@ export function setSessionArchived(database: DatabaseService, sessionID: string,
       .where(eq(SessionTable.id, Session.ID.make(sessionID)))
       .run()
     yield* refreshSession(database, sessionID, false, txid)
+  })
+}
+
+export function setSessionsRead(database: DatabaseService, sessionIDs: readonly string[], txid: string) {
+  return Effect.gen(function* () {
+    if (sessionIDs.length === 0) return
+    // Raw SQL, not `.update(SessionTable).set(...)`: drizzle's SQLite dialect always folds any
+    // column with `$onUpdate` into the SET clause, so a query-builder update would also bump
+    // `time_updated` and immediately re-mark the session unread. The SET target must also be an
+    // unqualified column name, so it is `sql.identifier(...)` rather than the `Column` reference.
+    yield* database.run(sql`
+      UPDATE ${SessionTable}
+      SET ${sql.identifier(SessionTable.time_read.name)} = ${SessionTable.time_updated}
+      WHERE ${inArray(SessionTable.id, sessionIDs.map((sessionID) => Session.ID.make(sessionID)))}
+        AND (${SessionTable.time_read} IS NULL OR ${SessionTable.time_read} < ${SessionTable.time_updated})
+    `)
+    yield* Effect.forEach(sessionIDs, (sessionID) => refreshSession(database, sessionID, false, txid), {
+      discard: true,
+    })
   })
 }
 

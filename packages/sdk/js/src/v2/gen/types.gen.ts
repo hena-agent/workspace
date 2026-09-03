@@ -10979,7 +10979,7 @@ export type V2SessionCreateData = {
     id?: string
     agent?: string
     model?: ModelRef
-    mode?: ProjectMode
+    projectID?: string
     location?: LocationRef
   }
   path?: never
@@ -10996,6 +10996,10 @@ export type V2SessionCreateErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
 }
 
 export type V2SessionCreateError = V2SessionCreateErrors[keyof V2SessionCreateErrors]
@@ -13086,6 +13090,44 @@ export type V2ReferenceListResponses = {
 }
 
 export type V2ReferenceListResponse = V2ReferenceListResponses[keyof V2ReferenceListResponses]
+
+export type V2ProjectCreateData = {
+  body: {
+    id?: string
+    name: string
+  }
+  path?: never
+  query?: never
+  url: "/api/project"
+}
+
+export type V2ProjectCreateErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
+}
+
+export type V2ProjectCreateError = V2ProjectCreateErrors[keyof V2ProjectCreateErrors]
+
+export type V2ProjectCreateResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: Project
+  }
+}
+
+export type V2ProjectCreateResponse = V2ProjectCreateResponses[keyof V2ProjectCreateResponses]
 
 export type V2ProjectAttachData = {
   body: {

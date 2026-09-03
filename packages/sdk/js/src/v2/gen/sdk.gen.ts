@@ -136,7 +136,6 @@ import type {
   ProjectInitGitResponses,
   ProjectListErrors,
   ProjectListResponses,
-  ProjectMode,
   ProjectUpdateErrors,
   ProjectUpdateResponses,
   PromptInput,
@@ -284,6 +283,8 @@ import type {
   V2ProjectCopyRefreshResponses,
   V2ProjectCopyRemoveErrors,
   V2ProjectCopyRemoveResponses,
+  V2ProjectCreateErrors,
+  V2ProjectCreateResponses,
   V2ProviderGetErrors,
   V2ProviderGetResponses,
   V2ProviderListErrors,
@@ -4995,14 +4996,14 @@ export class Session3 extends HeyApiClient {
   /**
    * Create session
    *
-   * Create a workspace session at the requested location or a chat session in managed storage.
+   * Create a session in an existing chat project or at a workspace location.
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
       id?: string
       agent?: string
       model?: ModelRef
-      mode?: ProjectMode
+      projectID?: string
       location?: LocationRef
     },
     options?: Options<never, ThrowOnError>,
@@ -5015,7 +5016,7 @@ export class Session3 extends HeyApiClient {
             { in: "body", key: "id" },
             { in: "body", key: "agent" },
             { in: "body", key: "model" },
-            { in: "body", key: "mode" },
+            { in: "body", key: "projectID" },
             { in: "body", key: "location" },
           ],
         },
@@ -6400,6 +6401,41 @@ export class Reference extends HeyApiClient {
 }
 
 export class Project2 extends HeyApiClient {
+  /**
+   * Create chat project
+   *
+   * Create a named chat project in managed storage.
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters?: {
+      id?: string
+      name?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "id" },
+            { in: "body", key: "name" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2ProjectCreateResponses, V2ProjectCreateErrors, ThrowOnError>({
+      url: "/api/project",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
   /**
    * Attach chat project
    *

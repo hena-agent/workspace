@@ -42,8 +42,7 @@ import { makeLocationNode } from "../../effect/app-node"
 import { llmClient } from "../../effect/app-node-platform"
 import { ProjectTable } from "../../project/sql"
 import { eq } from "drizzle-orm"
-
-const chatTools = new Set(["question", "todowrite", "webfetch", "websearch"])
+import { ChatPolicy } from "../chat-policy"
 
 /**
  * Runs one durable coding-agent Session until it settles.
@@ -187,6 +186,12 @@ const layer = Layer.effect(
       const session = yield* getSession(sessionID)
       if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
+      const project = yield* db
+        .select({ mode: ProjectTable.mode })
+        .from(ProjectTable)
+        .where(eq(ProjectTable.id, session.projectID))
+        .get()
+        .pipe(Effect.orDie)
       const agent = yield* agents.select(session.agent)
       const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent), session.id)
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()
@@ -209,20 +214,14 @@ const layer = Layer.effect(
       const context = entries.map((entry) => entry.message)
       yield* titles.start(session, context, model)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
-      const project = yield* db
-        .select({ mode: ProjectTable.mode })
-        .from(ProjectTable)
-        .where(eq(ProjectTable.id, session.projectID))
-        .get()
-        .pipe(Effect.orDie)
       const toolMaterialization = isLastStep
         ? undefined
-        : yield* tools.materialize(agent.info?.permissions, project?.mode === "chat" ? chatTools : undefined)
+        : yield* tools.materialize(agent.info?.permissions, project?.mode === "chat" ? ChatPolicy.tools : undefined)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
         model,
         providerOptions: { openai: { promptCacheKey } },
-        system: [agent.info?.system, system.baseline]
+        system: [agent.info?.system, system.baseline, project?.mode === "chat" ? ChatPolicy.system : undefined]
           .filter((part): part is string => part !== undefined && part.length > 0)
           .map(SystemPart.make),
         messages: [...toLLMMessages(context, model), ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : [])],

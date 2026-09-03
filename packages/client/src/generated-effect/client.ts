@@ -62,7 +62,7 @@ type Endpoint3_1Input = {
   readonly id?: Endpoint3_1Request["payload"]["id"]
   readonly agent?: Endpoint3_1Request["payload"]["agent"]
   readonly model?: Endpoint3_1Request["payload"]["model"]
-  readonly mode?: Endpoint3_1Request["payload"]["mode"]
+  readonly projectID?: Endpoint3_1Request["payload"]["projectID"]
   readonly location?: Endpoint3_1Request["payload"]["location"]
 }
 const Endpoint3_1 = (raw: RawClient["server.session"]) => (input?: Endpoint3_1Input) =>
@@ -71,7 +71,7 @@ const Endpoint3_1 = (raw: RawClient["server.session"]) => (input?: Endpoint3_1In
       id: input?.["id"],
       agent: input?.["agent"],
       model: input?.["model"],
-      mode: input?.["mode"],
+      projectID: input?.["projectID"],
       location: input?.["location"],
     },
   }).pipe(
@@ -642,17 +642,28 @@ const Endpoint16_0 = (raw: RawClient["server.reference"]) => (input?: Endpoint16
 
 const adaptGroup16 = (raw: RawClient["server.reference"]) => ({ list: Endpoint16_0(raw) })
 
-type Endpoint17_0Request = Parameters<RawClient["server.project"]["project.attach"]>[0]
+type Endpoint17_0Request = Parameters<RawClient["server.project"]["project.create"]>[0]
 type Endpoint17_0Input = {
-  readonly projectID: Endpoint17_0Request["params"]["projectID"]
-  readonly directory: Endpoint17_0Request["payload"]["directory"]
+  readonly id?: Endpoint17_0Request["payload"]["id"]
+  readonly name: Endpoint17_0Request["payload"]["name"]
 }
 const Endpoint17_0 = (raw: RawClient["server.project"]) => (input: Endpoint17_0Input) =>
+  raw["project.create"]({ payload: { id: input["id"], name: input["name"] } }).pipe(
+    Effect.mapError(mapClientError),
+    Effect.map((value) => value.data),
+  )
+
+type Endpoint17_1Request = Parameters<RawClient["server.project"]["project.attach"]>[0]
+type Endpoint17_1Input = {
+  readonly projectID: Endpoint17_1Request["params"]["projectID"]
+  readonly directory: Endpoint17_1Request["payload"]["directory"]
+}
+const Endpoint17_1 = (raw: RawClient["server.project"]) => (input: Endpoint17_1Input) =>
   raw["project.attach"]({ params: { projectID: input["projectID"] }, payload: { directory: input["directory"] } }).pipe(
     Effect.mapError(mapClientError),
   )
 
-const adaptGroup17 = (raw: RawClient["server.project"]) => ({ attach: Endpoint17_0(raw) })
+const adaptGroup17 = (raw: RawClient["server.project"]) => ({ create: Endpoint17_0(raw), attach: Endpoint17_1(raw) })
 
 type Endpoint18_0Request = Parameters<RawClient["server.projectCopy"]["projectCopy.create"]>[0]
 type Endpoint18_0Input = {

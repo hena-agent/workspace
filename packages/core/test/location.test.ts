@@ -13,6 +13,7 @@ const projectLayer = Layer.succeed(
   Project.Service,
   Project.Service.of({
     create: () => Effect.succeed({ id: Project.ID.make("prj_test"), directory: AbsolutePath.make("/chat") }),
+    createChat: () => Effect.die("unused"),
     directories: () => Effect.succeed([]),
     resolve: () =>
       Effect.succeed({

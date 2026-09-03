@@ -28,6 +28,7 @@ const projects = Layer.succeed(
   ProjectV2.Service,
   ProjectV2.Service.of({
     create: (id) => Effect.succeed({ id: id ?? ProjectV2.ID.make("prj_chat"), directory: AbsolutePath.make("/chat") }),
+    createChat: () => Effect.die("unused"),
     resolve: (directory) => Effect.succeed({ id: ProjectV2.ID.make(`prj_${Hash.fast(directory)}`), directory }),
     directories: () => Effect.succeed([]),
     commit: () => Effect.void,

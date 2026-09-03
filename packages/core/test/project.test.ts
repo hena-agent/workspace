@@ -38,6 +38,22 @@ async function rootCommit(dir: string) {
   return (await $`git rev-list --max-parents=0 HEAD`.cwd(dir).text()).trim()
 }
 
+describe("ProjectV2.createChat", () => {
+  it.live("creates one named managed project", () =>
+    Effect.gen(function* () {
+      const project = yield* ProjectV2.Service
+      const id = ProjectV2.ID.make("prj_chat")
+
+      const created = yield* project.createChat({ id, name: "Research" })
+      const retried = yield* project.createChat({ id, name: "Research" })
+
+      expect(retried).toEqual(created)
+      expect(created).toMatchObject({ id, mode: "chat", name: "Research" })
+      expect((yield* Effect.promise(() => fs.stat(created.worktree))).isDirectory()).toBe(true)
+    }),
+  )
+})
+
 describe("ProjectV2.resolve", () => {
   it.live("returns global for non-git directory", () =>
     Effect.gen(function* () {

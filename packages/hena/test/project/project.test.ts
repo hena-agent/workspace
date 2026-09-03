@@ -78,6 +78,7 @@ function projectV2FailureLayer() {
     ProjectV2.Service,
     ProjectV2.Service.of({
       create: () => Effect.succeed({ id: ProjectV2.ID.make("prj_test"), directory: AbsolutePath.make("/chat") }),
+      createChat: () => Effect.die("unused"),
       directories: () => Effect.succeed([]),
       resolve: (input) =>
         Effect.succeed({

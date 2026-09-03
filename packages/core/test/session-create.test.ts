@@ -32,6 +32,7 @@ const projects = Layer.succeed(
   ProjectV2.Service.of({
     create: (id) =>
       Effect.succeed({ id: id ?? ProjectV2.ID.make("prj_chat"), directory: AbsolutePath.make("/chat") }),
+    createChat: () => Effect.die("unused"),
     resolve: (directory) => Effect.succeed({ id: ProjectV2.ID.global, directory }),
     directories: () => Effect.succeed([]),
     commit: () => Effect.void,
@@ -62,18 +63,21 @@ describe("SessionV2.create", () => {
     }),
   )
 
-  it.effect("creates a chat session in its managed project directory", () =>
+  it.effect("creates multiple sessions in an existing chat project", () =>
     Effect.gen(function* () {
       const session = yield* SessionV2.Service
-      const created = yield* session.create({ id: SessionV2.ID.make("ses_../../outside"), mode: "chat" })
       const { db } = yield* Database.Service
+      const projectID = ProjectV2.ID.make("prj_chat")
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: projectID, worktree: AbsolutePath.make("/chat"), mode: "chat", sandboxes: [] })
+        .run()
+      const first = yield* session.create({ id: SessionV2.ID.make("ses_first"), projectID })
+      const second = yield* session.create({ id: SessionV2.ID.make("ses_second"), projectID })
 
-      expect(created.location.directory).toBe(AbsolutePath.make("/chat"))
-      expect(created.projectID).toMatch(/^prj_[0-9a-f]+$/)
-      expect(yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, created.projectID)).get()).toMatchObject({
-        worktree: "/chat",
-        mode: "chat",
-      })
+      expect(first).toMatchObject({ projectID, location: { directory: "/chat" } })
+      expect(second).toMatchObject({ projectID, location: { directory: "/chat" } })
+      expect(yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).all()).toHaveLength(1)
     }),
   )
 

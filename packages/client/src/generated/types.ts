@@ -25,6 +25,14 @@ export type InvalidCursorError = { readonly _tag: "InvalidCursorError"; readonly
 export const isInvalidCursorError = (value: unknown): value is InvalidCursorError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "InvalidCursorError"
 
+export type ProjectNotFoundError = {
+  readonly _tag: "ProjectNotFoundError"
+  readonly projectID: string
+  readonly message: string
+}
+export const isProjectNotFoundError = (value: unknown): value is ProjectNotFoundError =>
+  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectNotFoundError"
+
 export type SessionNotFoundError = {
   readonly _tag: "SessionNotFoundError"
   readonly sessionID: string
@@ -93,14 +101,6 @@ export type QuestionNotFoundError = {
 }
 export const isQuestionNotFoundError = (value: unknown): value is QuestionNotFoundError =>
   typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "QuestionNotFoundError"
-
-export type ProjectNotFoundError = {
-  readonly _tag: "ProjectNotFoundError"
-  readonly projectID: string
-  readonly message: string
-}
-export const isProjectNotFoundError = (value: unknown): value is ProjectNotFoundError =>
-  typeof value === "object" && value !== null && "_tag" in value && value["_tag"] === "ProjectNotFoundError"
 
 export type ProjectCopyError = {
   readonly name: "ProjectCopyError"
@@ -280,35 +280,35 @@ export type SessionsCreateInput = {
     readonly id?: string | null
     readonly agent?: string | null
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
-    readonly mode?: ("chat" | "workspace") | null
+    readonly projectID?: string | null
     readonly location?: { readonly directory: string; readonly workspaceID?: string } | null
   }["id"]
   readonly agent?: {
     readonly id?: string | null
     readonly agent?: string | null
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
-    readonly mode?: ("chat" | "workspace") | null
+    readonly projectID?: string | null
     readonly location?: { readonly directory: string; readonly workspaceID?: string } | null
   }["agent"]
   readonly model?: {
     readonly id?: string | null
     readonly agent?: string | null
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
-    readonly mode?: ("chat" | "workspace") | null
+    readonly projectID?: string | null
     readonly location?: { readonly directory: string; readonly workspaceID?: string } | null
   }["model"]
-  readonly mode?: {
+  readonly projectID?: {
     readonly id?: string | null
     readonly agent?: string | null
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
-    readonly mode?: ("chat" | "workspace") | null
+    readonly projectID?: string | null
     readonly location?: { readonly directory: string; readonly workspaceID?: string } | null
-  }["mode"]
+  }["projectID"]
   readonly location?: {
     readonly id?: string | null
     readonly agent?: string | null
     readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string } | null
-    readonly mode?: ("chat" | "workspace") | null
+    readonly projectID?: string | null
     readonly location?: { readonly directory: string; readonly workspaceID?: string } | null
   }["location"]
 }
@@ -2880,6 +2880,25 @@ export type ReferencesListOutput = {
         }
   }>
 }
+
+export type ProjectsCreateInput = {
+  readonly id?: { readonly id?: string | undefined; readonly name: string }["id"]
+  readonly name: { readonly id?: string | undefined; readonly name: string }["name"]
+}
+
+export type ProjectsCreateOutput = {
+  readonly data: {
+    readonly id: string
+    readonly worktree: string
+    readonly mode: "chat" | "workspace"
+    readonly vcs?: "git"
+    readonly name?: string
+    readonly icon?: { readonly url?: string; readonly override?: string; readonly color?: string }
+    readonly commands?: { readonly start?: string }
+    readonly time: { readonly created: number; readonly updated: number; readonly initialized?: number }
+    readonly sandboxes: ReadonlyArray<string>
+  }
+}["data"]
 
 export type ProjectsAttachInput = {
   readonly projectID: { readonly projectID: string }["projectID"]

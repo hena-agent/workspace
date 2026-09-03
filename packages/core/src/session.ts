@@ -37,7 +37,6 @@ import { Snapshot } from "./snapshot"
 import { SessionRevert } from "./session/revert"
 import { Revert } from "@hena/schema/revert"
 import { FSUtil } from "./fs-util"
-import { Hash } from "./util/hash"
 import { SessionDurable } from "@hena/schema/durable-event-manifest"
 import { Global } from "./global"
 
@@ -83,7 +82,7 @@ type CreateInput = {
   id?: SessionSchema.ID
   agent?: AgentV2.ID
   model?: ModelV2.Ref
-} & ({ mode: "chat"; location?: never } | { mode?: "workspace"; location: Location.Ref })
+} & ({ projectID: ProjectV2.ID } | { location: Location.Ref })
 
 type CompactInput = {
   sessionID: SessionSchema.ID
@@ -92,6 +91,10 @@ type CompactInput = {
 
 export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Session.NotFoundError", {
   sessionID: SessionSchema.ID,
+}) {}
+
+export class ProjectNotFoundError extends Schema.TaggedErrorClass<ProjectNotFoundError>()("Session.ProjectNotFoundError", {
+  projectID: ProjectV2.ID,
 }) {}
 
 export class OperationUnavailableError extends Schema.TaggedErrorClass<OperationUnavailableError>()(
@@ -125,7 +128,7 @@ export type Error =
 
 export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
-  readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info>
+  readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info, ProjectNotFoundError>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info, NotFoundError>
   readonly messages: (input: {
     sessionID: SessionSchema.ID
@@ -230,37 +233,47 @@ const layer = Layer.effect(
         ),
       )
 
+    const placement = Effect.fnUntraced(function* (input: CreateInput) {
+      if ("projectID" in input) {
+        const project = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, input.projectID)).get().pipe(Effect.orDie)
+        if (!project) return yield* new ProjectNotFoundError({ projectID: input.projectID })
+        return {
+          project: { id: project.id, directory: project.worktree },
+          location: Location.Ref.make({ directory: project.worktree }),
+        }
+      }
+
+      const project = yield* projects.resolve(input.location.directory)
+      yield* db
+        .insert(ProjectTable)
+        .values({
+          id: project.id,
+          worktree: project.directory,
+          mode: "workspace",
+          vcs: project.vcs?.type,
+          sandboxes: [],
+        })
+        .onConflictDoNothing()
+        .run()
+        .pipe(Effect.orDie)
+      return { project, location: input.location }
+    })
+
     const result = Service.of({
       create: Effect.fn("V2Session.create")(function* (input) {
         const sessionID = input.id ?? SessionSchema.ID.create()
         const recorded = yield* store.get(sessionID)
         if (recorded) return recorded
-        const project =
-          input.mode === "chat"
-            ? yield* projects.create(ProjectV2.ID.make(`prj_${Hash.fast(`chat:${sessionID}`)}`))
-            : yield* projects.resolve(input.location.directory)
-        const location = input.mode === "chat" ? Location.Ref.make({ directory: project.directory }) : input.location
-        yield* db
-          .insert(ProjectTable)
-          .values({
-            id: project.id,
-            worktree: project.directory,
-            mode: input.mode ?? "workspace",
-            vcs: project.vcs?.type,
-            sandboxes: [],
-          })
-          .onConflictDoNothing()
-          .run()
-          .pipe(Effect.orDie)
+        const placed = yield* placement(input)
         const now = Date.now()
         const info = SessionV1.SessionInfo.make({
           id: sessionID,
           slug: Slug.create(),
           version: InstallationVersion,
-          projectID: project.id,
-          directory: location.directory,
-          path: path.relative(project.directory, location.directory).replaceAll("\\", "/"),
-          workspaceID: location.workspaceID ? WorkspaceV2.ID.make(location.workspaceID) : undefined,
+          projectID: placed.project.id,
+          directory: placed.location.directory,
+          path: path.relative(placed.project.directory, placed.location.directory).replaceAll("\\", "/"),
+          workspaceID: placed.location.workspaceID ? WorkspaceV2.ID.make(placed.location.workspaceID) : undefined,
           title: SessionSchema.defaultTitle(now),
           agent: input.agent,
           model: input.model
@@ -275,7 +288,7 @@ const layer = Layer.effect(
           time: { created: now, updated: now },
         })
         const projected = yield* events
-          .publish(SessionV1.Event.Created, { sessionID, info }, { location })
+          .publish(SessionV1.Event.Created, { sessionID, info }, { location: placed.location })
           .pipe(
             Effect.as({ type: "created" } as const),
             Effect.catchDefect((defect) => {
@@ -290,21 +303,6 @@ const layer = Layer.effect(
                     session ? Effect.succeed({ type: "existing", session } as const) : Effect.die(defect),
                   ),
                 )
-            }),
-            Effect.onError(() => {
-              if (input.mode !== "chat") return Effect.void
-              return store.get(sessionID).pipe(
-                Effect.flatMap((recorded) => {
-                  if (recorded) return Effect.void
-                  return Effect.all(
-                    [
-                      db.delete(ProjectTable).where(eq(ProjectTable.id, project.id)).run().pipe(Effect.orDie),
-                      fs.remove(project.directory, { recursive: true, force: true }).pipe(Effect.ignore),
-                    ],
-                    { discard: true },
-                  )
-                }),
-              )
             }),
           )
         if (projected.type === "existing") return projected.session

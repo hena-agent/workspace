@@ -30,6 +30,9 @@ import { tmpdir } from "./fixture/tmpdir"
 const projects = Layer.succeed(
   ProjectV2.Service,
   ProjectV2.Service.of({
+    create: (id) =>
+      Effect.succeed({ id: id ?? ProjectV2.ID.make("prj_chat"), directory: AbsolutePath.make("/chat") }),
+    createChat: () => Effect.die("unused"),
     resolve: (directory) => Effect.succeed({ id: ProjectV2.ID.global, directory }),
     directories: () => Effect.succeed([]),
     commit: () => Effect.void,
@@ -57,6 +60,24 @@ describe("SessionV2.create", () => {
 
       expect(second.id).not.toBe(first.id)
       expect(yield* session.list()).toHaveLength(2)
+    }),
+  )
+
+  it.effect("creates multiple sessions in an existing chat project", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionV2.Service
+      const { db } = yield* Database.Service
+      const projectID = ProjectV2.ID.make("prj_chat")
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: projectID, worktree: AbsolutePath.make("/chat"), mode: "chat", sandboxes: [] })
+        .run()
+      const first = yield* session.create({ id: SessionV2.ID.make("ses_first"), projectID })
+      const second = yield* session.create({ id: SessionV2.ID.make("ses_second"), projectID })
+
+      expect(first).toMatchObject({ projectID, location: { directory: "/chat" } })
+      expect(second).toMatchObject({ projectID, location: { directory: "/chat" } })
+      expect(yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).all()).toHaveLength(1)
     }),
   )
 

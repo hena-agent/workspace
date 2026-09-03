@@ -15,6 +15,7 @@ import { resetWorkingSessions } from "./collection-projector"
 type ProjectRow = {
   id: string
   worktree: string
+  mode: "chat" | "workspace"
   vcs: string | null
   name: string | null
   icon_url: string | null
@@ -74,6 +75,7 @@ export function bootstrapCollections(database: SyncDatabase) {
       row: {
         id: project.id,
         worktree: project.worktree,
+        mode: project.mode,
         vcs: project.vcs ?? undefined,
         name: project.name ?? undefined,
         icon:

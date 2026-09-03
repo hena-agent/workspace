@@ -221,6 +221,25 @@ const scenarios: Scenario[] = [
     }))
     .json(200, array, "status"),
   http.protected
+    .post("/api/project", "v2.project.create")
+    .mutating()
+    .at((ctx) => ({ path: "/api/project", headers: ctx.headers(), body: { name: "Managed Chat" } }))
+    .json(200, (body) => {
+      object(body)
+      object(body.data)
+      check(body.data.mode === "chat", "created project should be in chat mode")
+      check(body.data.name === "Managed Chat", "created project should preserve its name")
+    }),
+  http.protected
+    .post("/api/project/{projectID}/attach", "v2.project.attach")
+    .seeded((ctx) => ctx.project())
+    .at((ctx) => ({
+      path: route("/api/project/{projectID}/attach", { projectID: ctx.state.id }),
+      headers: ctx.headers(),
+      body: { directory: `${ctx.directory}-attached` },
+    }))
+    .status(409, undefined, "status"),
+  http.protected
     .post("/experimental/project/{projectID}/copy/generate-name", "experimental.projectCopy.generateName")
     .seeded((ctx) => ctx.project())
     .at((ctx) => ({

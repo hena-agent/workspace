@@ -112,6 +112,7 @@ export default {
         CREATE TABLE \`project\` (
           \`id\` text PRIMARY KEY,
           \`worktree\` text NOT NULL,
+          \`mode\` text DEFAULT 'workspace' NOT NULL,
           \`vcs\` text,
           \`name\` text,
           \`icon_url\` text,
@@ -301,6 +302,9 @@ export default {
       )
       yield* tx.run(
         `CREATE UNIQUE INDEX \`permission_project_action_resource_idx\` ON \`permission\` (\`project_id\`,\`action\`,\`resource\`);`,
+      )
+      yield* tx.run(
+        `CREATE UNIQUE INDEX \`project_directory_attach_directory_idx\` ON \`project_directory\` (\`directory\`) WHERE "project_directory"."strategy" = 'attach';`,
       )
       yield* tx.run(
         `CREATE INDEX \`message_session_time_created_id_idx\` ON \`message\` (\`session_id\`,\`time_created\`,\`id\`);`,

@@ -44,5 +44,7 @@ export const migrations = (
     import("./migration/20260823211539_event-message-id-index"),
     import("./migration/20260824024558_dapper_sasquatch"),
     import("./migration/20260824055522_rollback-queue-order"),
+    import("./migration/20260827073015_project-mode"),
+    import("./migration/20260830125514_attach-directory-unique"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

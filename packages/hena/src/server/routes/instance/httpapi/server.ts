@@ -60,6 +60,7 @@ import { Npm } from "@hena/core/npm"
 import { PermissionSaved } from "@hena/core/permission/saved"
 import { ProjectV2 } from "@hena/core/project"
 import { ProjectCopy } from "@hena/core/project/copy"
+import { ProjectAttach } from "@hena/core/project/attach"
 import { PtyTicket } from "@hena/core/pty/ticket"
 import { Ripgrep } from "@hena/core/ripgrep"
 import { SessionProjector } from "@hena/core/session/projector"
@@ -262,6 +263,8 @@ const app = LayerNode.group([
   httpClient,
   EventV2.node,
   ProjectV2.node,
+  ProjectAttach.node,
+  ProjectAttach.recoveryNode,
   ProjectCopy.node,
   PtyTicket.node,
 ])
@@ -301,7 +304,12 @@ export function createRoutes(
     ),
     Layer.provide(locationServiceMapV2),
 
-    Layer.provide(AppNodeBuilderV1.build(app)),
+    Layer.provide(
+      AppNodeBuilderV1.build(app, [
+        [LocationServiceMap.node, locationServiceMapV2],
+        [SessionExecution.node, SessionExecutionLocal.node],
+      ]),
+    ),
     // Must stay last: layers provided later in this pipe build beneath earlier ones,
     // so Observability must come after every service graph. Otherwise eagerly forked
     // fibers (e.g. the ModelsDev background refresh) capture Effect's default stdout

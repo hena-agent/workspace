@@ -10,6 +10,10 @@ import { makeGlobalNode } from "./effect/app-node"
 import { Hash } from "./util/hash"
 import { ProjectDirectories } from "./project/directories"
 import { ProjectSchema } from "./project/schema"
+import { Global } from "./global"
+import { Database } from "./database/database"
+import { ProjectTable } from "./project/sql"
+import { eq } from "drizzle-orm"
 
 export const ID = ProjectSchema.ID
 export type ID = ProjectSchema.ID
@@ -35,12 +39,14 @@ export interface Resolved {
 }
 
 export interface Interface {
+  readonly create: (id?: ID) => Effect.Effect<Resolved>
+  readonly createChat: (input: { id?: ID; name: string }) => Effect.Effect<ProjectSchema.Info>
   readonly directories: (input: DirectoriesInput) => Effect.Effect<Directories>
   readonly resolve: (input: AbsolutePath) => Effect.Effect<Resolved>
   /**
    * Temporary bridge method for writing the resolved project ID to the repo-local cache.
    *
-    * This exists while the legacy project service and this core project
+   * This exists while the legacy project service and this core project
    * service work together: core resolves the ID, while the old service still owns
    * database migration and persistence. The old service should call this after it
    * finishes migrating from `resolve().previous` to `resolve().id`; once project
@@ -56,7 +62,49 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const git = yield* Git.Service
+    const global = yield* Global.Service
     const projectDirectories = yield* ProjectDirectories.Service
+    const db = (yield* Database.Service).db
+
+    const projects = AbsolutePath.make(path.join(global.data, "projects"))
+
+    const create = Effect.fn("Project.create")(function* (id = ID.create()) {
+      const directory = AbsolutePath.make(path.join(projects, id))
+      yield* fs.makeDirectory(directory, { recursive: true, mode: 0o700 }).pipe(Effect.orDie)
+      if (process.platform !== "win32") yield* fs.chmod(directory, 0o700).pipe(Effect.orDie)
+      return { id, directory }
+    })
+
+    const createChat = Effect.fn("Project.createChat")(function* (input) {
+      const id = input.id ?? ID.create()
+      const existing = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get().pipe(Effect.orDie)
+      if (existing) return projectInfo(existing)
+
+      const project = yield* create(id)
+      const now = Date.now()
+      const info = ProjectSchema.Info.make({
+        id,
+        worktree: project.directory,
+        mode: "chat",
+        name: input.name,
+        time: { created: now, updated: now },
+        sandboxes: [],
+      })
+      yield* db
+        .insert(ProjectTable)
+        .values({
+          id,
+          worktree: project.directory,
+          mode: "chat",
+          name: input.name,
+          time_created: now,
+          time_updated: now,
+          sandboxes: [],
+        })
+        .run()
+        .pipe(Effect.orDie)
+      return info
+    })
 
     const directories = Effect.fn("Project.directories")(function* (input: DirectoriesInput) {
       return yield* projectDirectories.list(input.projectID)
@@ -108,6 +156,19 @@ const layer = Layer.effect(
     })
 
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
+      const managedID = path.relative(projects, input).split(path.sep)[0]
+      if (managedID && ID.isManaged(managedID)) {
+        return { id: ID.make(managedID), directory: AbsolutePath.make(path.join(projects, managedID)) }
+      }
+      const attached = yield* projectDirectories.attached(input)
+      if (attached) {
+        const repo = yield* git.repo.discover(input)
+        return {
+          id: attached.projectID,
+          directory: attached.directory,
+          vcs: repo ? { type: "git" as const, store: repo.commonDirectory } : undefined,
+        }
+      }
       const repo = yield* git.repo.discover(input)
       if (!repo) return { id: ID.global, directory: AbsolutePath.make(path.parse(input).root), vcs: undefined }
 
@@ -125,12 +186,29 @@ const layer = Layer.effect(
       yield* fs.writeFileString(path.join(input.store, "hena"), input.id).pipe(Effect.ignore)
     })
 
-    return Service.of({ directories, resolve, commit })
+    return Service.of({ create, createChat, directories, resolve, commit })
   }),
 )
+
+function projectInfo(row: typeof ProjectTable.$inferSelect) {
+  return ProjectSchema.Info.make({
+    id: row.id,
+    worktree: row.worktree,
+    mode: row.mode,
+    vcs: row.vcs === "git" ? "git" : undefined,
+    name: row.name ?? undefined,
+    icon:
+      row.icon_url || row.icon_url_override || row.icon_color
+        ? { url: row.icon_url ?? undefined, override: row.icon_url_override ?? undefined, color: row.icon_color ?? undefined }
+        : undefined,
+    commands: row.commands ?? undefined,
+    time: { created: row.time_created, updated: row.time_updated, initialized: row.time_initialized ?? undefined },
+    sandboxes: row.sandboxes,
+  })
+}
 
 export const node = makeGlobalNode({
   service: Service,
   layer: layer,
-  deps: [FSUtil.node, Git.node, ProjectDirectories.node],
+  deps: [FSUtil.node, Git.node, Global.node, ProjectDirectories.node, Database.node],
 })

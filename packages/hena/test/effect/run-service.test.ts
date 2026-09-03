@@ -81,6 +81,7 @@ it.live("makeRuntime inherits InstanceRef from the current fiber", () =>
       project: {
         id: ProjectV2.ID.global,
         worktree: testDirectory,
+        mode: "workspace",
         time: { created: 0, updated: 0 },
         sandboxes: [],
       },

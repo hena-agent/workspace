@@ -58,4 +58,16 @@ describe("ProjectDirectories", () => {
       expect(yield* service.list(projectID)).toEqual([{ directory, strategy: "new/strategy" }])
     }),
   )
+
+  it.effect("resolves nested paths from attached workspaces only", () =>
+    Effect.gen(function* () {
+      yield* setup()
+      const service = yield* ProjectDirectories.Service
+      yield* service.create({ projectID, directory })
+
+      expect(yield* service.attached(AbsolutePath.make(`${directory}/src`))).toBeUndefined()
+      yield* service.create({ projectID, directory, strategy: "attach", behavior: "replace" })
+      expect(yield* service.attached(AbsolutePath.make(`${directory}/src`))).toEqual({ projectID, directory })
+    }),
+  )
 })

@@ -22,6 +22,7 @@ import { SessionV1 } from "./v1/session"
 import { InstallationVersion } from "./installation/version"
 import { Slug } from "./util/slug"
 import { ProjectTable } from "./project/sql"
+import { ProjectAttachState } from "./project/attach-state"
 import path from "path"
 import { fromRow } from "./session/info"
 import { SessionRunner } from "./session/runner/index"
@@ -37,6 +38,7 @@ import { SessionRevert } from "./session/revert"
 import { Revert } from "@hena/schema/revert"
 import { FSUtil } from "./fs-util"
 import { SessionDurable } from "@hena/schema/durable-event-manifest"
+import { Global } from "./global"
 
 export const RevertState = Revert.State
 export type RevertState = Revert.State
@@ -80,8 +82,7 @@ type CreateInput = {
   id?: SessionSchema.ID
   agent?: AgentV2.ID
   model?: ModelV2.Ref
-  location: Location.Ref
-}
+} & ({ projectID: ProjectV2.ID } | { location: Location.Ref })
 
 type CompactInput = {
   sessionID: SessionSchema.ID
@@ -90,6 +91,10 @@ type CompactInput = {
 
 export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Session.NotFoundError", {
   sessionID: SessionSchema.ID,
+}) {}
+
+export class ProjectNotFoundError extends Schema.TaggedErrorClass<ProjectNotFoundError>()("Session.ProjectNotFoundError", {
+  projectID: ProjectV2.ID,
 }) {}
 
 export class OperationUnavailableError extends Schema.TaggedErrorClass<OperationUnavailableError>()(
@@ -105,6 +110,10 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
   sessionID: SessionSchema.ID,
   messageID: SessionMessage.ID,
 }) {}
+export class AttachConflictError extends Schema.TaggedErrorClass<AttachConflictError>()("Session.AttachConflictError", {
+  sessionID: SessionSchema.ID,
+  projectID: ProjectV2.ID,
+}) {}
 export const MessageNotFoundError = SessionRevert.MessageNotFoundError
 export type MessageNotFoundError = SessionRevert.MessageNotFoundError
 
@@ -113,12 +122,13 @@ export type Error =
   | MessageDecodeError
   | OperationUnavailableError
   | PromptConflictError
+  | AttachConflictError
   | QueueRevisionConflictError
   | QueueStateConflictError
 
 export interface Interface {
   readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
-  readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info>
+  readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info, ProjectNotFoundError>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info, NotFoundError>
   readonly messages: (input: {
     sessionID: SessionSchema.ID
@@ -156,7 +166,7 @@ export interface Interface {
     prompt: PromptInput.Prompt
     delivery?: SessionInput.Delivery
     resume?: boolean
-  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError>
+  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError | AttachConflictError>
   readonly cancelInput: (input: {
     sessionID: SessionSchema.ID
     messageID: SessionMessage.ID
@@ -208,6 +218,8 @@ const layer = Layer.effect(
     const execution = yield* SessionExecution.Service
     const store = yield* SessionStore.Service
     const locations = yield* LocationServiceMap.Service
+    const fs = yield* FSUtil.Service
+    const global = yield* Global.Service
     const decodeMessage = Schema.decodeUnknownEffect(SessionMessage.Message)
     const isDurableSessionEvent = Schema.is(SessionEvent.Durable)
     const decode = (row: typeof SessionMessageTable.$inferSelect) =>
@@ -221,27 +233,47 @@ const layer = Layer.effect(
         ),
       )
 
+    const placement = Effect.fnUntraced(function* (input: CreateInput) {
+      if ("projectID" in input) {
+        const project = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, input.projectID)).get().pipe(Effect.orDie)
+        if (!project) return yield* new ProjectNotFoundError({ projectID: input.projectID })
+        return {
+          project: { id: project.id, directory: project.worktree },
+          location: Location.Ref.make({ directory: project.worktree }),
+        }
+      }
+
+      const project = yield* projects.resolve(input.location.directory)
+      yield* db
+        .insert(ProjectTable)
+        .values({
+          id: project.id,
+          worktree: project.directory,
+          mode: "workspace",
+          vcs: project.vcs?.type,
+          sandboxes: [],
+        })
+        .onConflictDoNothing()
+        .run()
+        .pipe(Effect.orDie)
+      return { project, location: input.location }
+    })
+
     const result = Service.of({
       create: Effect.fn("V2Session.create")(function* (input) {
         const sessionID = input.id ?? SessionSchema.ID.create()
         const recorded = yield* store.get(sessionID)
         if (recorded) return recorded
-        const project = yield* projects.resolve(input.location.directory)
-        yield* db
-          .insert(ProjectTable)
-          .values({ id: project.id, worktree: project.directory, vcs: project.vcs?.type, sandboxes: [] })
-          .onConflictDoNothing()
-          .run()
-          .pipe(Effect.orDie)
+        const placed = yield* placement(input)
         const now = Date.now()
         const info = SessionV1.SessionInfo.make({
           id: sessionID,
           slug: Slug.create(),
           version: InstallationVersion,
-          projectID: project.id,
-          directory: input.location.directory,
-          path: path.relative(project.directory, input.location.directory).replaceAll("\\", "/"),
-          workspaceID: input.location.workspaceID ? WorkspaceV2.ID.make(input.location.workspaceID) : undefined,
+          projectID: placed.project.id,
+          directory: placed.location.directory,
+          path: path.relative(placed.project.directory, placed.location.directory).replaceAll("\\", "/"),
+          workspaceID: placed.location.workspaceID ? WorkspaceV2.ID.make(placed.location.workspaceID) : undefined,
           title: SessionSchema.defaultTitle(now),
           agent: input.agent,
           model: input.model
@@ -256,7 +288,7 @@ const layer = Layer.effect(
           time: { created: now, updated: now },
         })
         const projected = yield* events
-          .publish(SessionV1.Event.Created, { sessionID, info }, { location: input.location })
+          .publish(SessionV1.Event.Created, { sessionID, info }, { location: placed.location })
           .pipe(
             Effect.as({ type: "created" } as const),
             Effect.catchDefect((defect) => {
@@ -377,7 +409,23 @@ const layer = Layer.effect(
       prompt: Effect.fn("V2Session.prompt")((input) =>
         Effect.uninterruptible(
           Effect.gen(function* () {
-            yield* result.get(input.sessionID)
+            const session = yield* result.get(input.sessionID)
+            const project = yield* db
+              .select({ worktree: ProjectTable.worktree })
+              .from(ProjectTable)
+              .where(eq(ProjectTable.id, session.projectID))
+              .get()
+              .pipe(Effect.orDie)
+            if (!project) return yield* Effect.die(`Project not found: ${session.projectID}`)
+            const manifest = path.join(path.dirname(project.worktree), `.hena-attach-${session.projectID}.json`)
+            const recoveryManifest = path.join(global.data, "projects", `.hena-attach-${session.projectID}.json`)
+            if (ProjectAttachState.isBlocked(session.projectID))
+              return yield* new AttachConflictError({ sessionID: input.sessionID, projectID: session.projectID })
+            const blockedOnDisk =
+              (yield* fs.exists(manifest).pipe(Effect.orDie)) ||
+              (manifest !== recoveryManifest && (yield* fs.exists(recoveryManifest).pipe(Effect.orDie)))
+            if (blockedOnDisk || ProjectAttachState.isBlocked(session.projectID))
+              return yield* new AttachConflictError({ sessionID: input.sessionID, projectID: session.projectID })
             const prompt = resolvePrompt(input.prompt)
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery = input.delivery ?? "steer"
@@ -532,5 +580,7 @@ export const node = makeGlobalNode({
     SessionStore.node,
     LocationServiceMap.node,
     SessionProjector.node,
+    FSUtil.node,
+    Global.node,
   ],
 })

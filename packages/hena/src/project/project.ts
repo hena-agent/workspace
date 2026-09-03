@@ -44,6 +44,7 @@ export function fromRow(row: Row): Info {
   return {
     id: row.id,
     worktree: row.worktree,
+    mode: row.mode,
     vcs: row.vcs ? Schema.decodeUnknownSync(Project.Vcs)(row.vcs) : undefined,
     name: row.name ?? undefined,
     icon,
@@ -225,6 +226,7 @@ const layer = Layer.effect(
         : {
             id: projectID,
             worktree,
+            mode: "workspace" as const,
             vcs: data.vcs?.type ?? fakeVcs,
             sandboxes: [] as string[],
             time: { created: Date.now(), updated: Date.now() },
@@ -259,6 +261,7 @@ const layer = Layer.effect(
         .values({
           id: result.id,
           worktree: AbsolutePath.make(result.worktree),
+          mode: result.mode,
           vcs: result.vcs ?? null,
           name: result.name,
           icon_url: result.icon?.url,
@@ -274,6 +277,7 @@ const layer = Layer.effect(
           target: ProjectTable.id,
           set: {
             worktree: AbsolutePath.make(result.worktree),
+            mode: result.mode,
             vcs: result.vcs ?? null,
             name: result.name,
             icon_url: result.icon?.url,

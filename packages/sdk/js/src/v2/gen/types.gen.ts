@@ -1470,6 +1470,7 @@ export type GlobalEvent = {
         properties: {
           id: string
           worktree: string
+          mode: ProjectMode
           vcs?: ProjectVcs
           name?: string
           icon?: ProjectIcon
@@ -2412,6 +2413,7 @@ export type McpServerNotFoundError = {
 export type Project = {
   id: string
   worktree: string
+  mode: ProjectMode
   vcs?: ProjectVcs
   name?: string
   icon?: ProjectIcon
@@ -3047,6 +3049,8 @@ export type QuestionV2Tool = {
 }
 
 export type QuestionV2Answer = Array<string>
+
+export type ProjectMode = "chat" | "workspace"
 
 export type ProjectVcs = "git"
 
@@ -5842,6 +5846,7 @@ export type ProjectUpdated = {
   data: {
     id: string
     worktree: string
+    mode: ProjectMode
     vcs?: ProjectVcs
     name?: string
     icon?: ProjectIcon
@@ -6902,6 +6907,7 @@ export type EventProjectUpdated = {
   properties: {
     id: string
     worktree: string
+    mode: ProjectMode
     vcs?: ProjectVcs
     name?: string
     icon?: ProjectIcon
@@ -10973,6 +10979,7 @@ export type V2SessionCreateData = {
     id?: string
     agent?: string
     model?: ModelRef
+    projectID?: string
     location?: LocationRef
   }
   path?: never
@@ -10989,6 +10996,10 @@ export type V2SessionCreateErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
 }
 
 export type V2SessionCreateError = V2SessionCreateErrors[keyof V2SessionCreateErrors]
@@ -13079,6 +13090,89 @@ export type V2ReferenceListResponses = {
 }
 
 export type V2ReferenceListResponse = V2ReferenceListResponses[keyof V2ReferenceListResponses]
+
+export type V2ProjectCreateData = {
+  body: {
+    id?: string
+    name: string
+  }
+  path?: never
+  query?: never
+  url: "/api/project"
+}
+
+export type V2ProjectCreateErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
+}
+
+export type V2ProjectCreateError = V2ProjectCreateErrors[keyof V2ProjectCreateErrors]
+
+export type V2ProjectCreateResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: Project
+  }
+}
+
+export type V2ProjectCreateResponse = V2ProjectCreateResponses[keyof V2ProjectCreateResponses]
+
+export type V2ProjectAttachData = {
+  body: {
+    directory: string
+  }
+  path: {
+    projectID: string
+  }
+  query?: never
+  url: "/api/project/{projectID}/attach"
+}
+
+export type V2ProjectAttachErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
+}
+
+export type V2ProjectAttachError = V2ProjectAttachErrors[keyof V2ProjectAttachErrors]
+
+export type V2ProjectAttachResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2ProjectAttachResponse = V2ProjectAttachResponses[keyof V2ProjectAttachResponses]
 
 export type V2ProjectCopyRemoveData = {
   body?: {

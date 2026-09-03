@@ -20,6 +20,7 @@ import { testEffect } from "../lib/effect"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
+import { AbsolutePath } from "@hena/core/schema"
 
 const encoder = new TextEncoder()
 
@@ -76,6 +77,8 @@ function projectV2FailureLayer() {
   return Layer.succeed(
     ProjectV2.Service,
     ProjectV2.Service.of({
+      create: () => Effect.succeed({ id: ProjectV2.ID.make("prj_test"), directory: AbsolutePath.make("/chat") }),
+      createChat: () => Effect.die("unused"),
       directories: () => Effect.succeed([]),
       resolve: (input) =>
         Effect.succeed({
@@ -657,6 +660,7 @@ describe("Project.list and Project.get", () => {
       expect(found).toBeUndefined()
     }),
   )
+
 })
 
 describe("Project.setInitialized", () => {

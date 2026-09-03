@@ -9,6 +9,8 @@ export const ID = ProjectID
 export type ID = typeof ID.Type
 
 export const Vcs = Schema.Literal("git").annotate({ identifier: "Project.Vcs" })
+export const Mode = Schema.Literals(["chat", "workspace"]).annotate({ identifier: "Project.Mode" })
+export type Mode = typeof Mode.Type
 export const Icon = Schema.Struct({
   url: optional(Schema.String),
   override: optional(Schema.String),
@@ -31,6 +33,7 @@ export interface Time extends Schema.Schema.Type<typeof Time> {}
 export const Info = Schema.Struct({
   id: ID,
   worktree: Schema.String,
+  mode: Mode,
   vcs: optional(Vcs),
   name: optional(Schema.String),
   icon: optional(Icon),

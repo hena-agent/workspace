@@ -12,6 +12,7 @@ import {
   InvalidCursorError,
   InvalidRequestError,
   MessageNotFoundError,
+  ProjectNotFoundError,
   ServiceUnavailableError,
   SessionNotFoundError,
   UnknownError,
@@ -131,14 +132,16 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
           id: Session.ID.pipe(Schema.optional),
           agent: Agent.ID.pipe(Schema.optional),
           model: Model.Ref.pipe(Schema.optional),
+          projectID: Project.ID.pipe(Schema.optional),
           location: Location.Ref.pipe(Schema.optional),
         }),
         success: Schema.Struct({ data: Session.Info }),
+        error: [InvalidRequestError, ProjectNotFoundError],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "v2.session.create",
           summary: "Create session",
-          description: "Create a session at the requested location.",
+          description: "Create a session in an existing chat project or at a workspace location.",
         }),
       ),
     )

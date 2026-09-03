@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { createConnectionAgent } from "@/connection/agent"
-import { admitPromptOptimistically, createSessionOptimistically, getMutationStateVersion } from "./session"
+import { admitPromptOptimistically, createSessionOptimistically, getMutationStateVersion, markSessionsReadOptimistically } from "./session"
 
 describe("session mutations", () => {
   test("stages new-session prompts in the selected delivery surface", () => {
@@ -48,6 +48,20 @@ describe("session mutations", () => {
     expect(agent.store.rows("sessionInputs", "queue")).toEqual([expect.objectContaining({ id: queued.messageID, queuePosition: 0 })])
     expect(agent.store.rows("sessions").find((row) => row.id === "queue")?.queueRevision).toBe(3)
     expect(steer.messageID).toBeString()
+    agent.dispose()
+  })
+
+  test("marks sessions read optimistically ahead of the server response", () => {
+    const agent = createConnectionAgent("http://hena.test", () => new Promise<Response>(() => {}))
+    agent.store.applySnapshot("sessions", "", [
+      { key: "session-1", row: { id: "session-1", working: false, time: { updated: 5 } } },
+      { key: "session-2", row: { id: "session-2", working: false, time: { updated: 9 } } },
+    ], 1)
+
+    markSessionsReadOptimistically(agent, ["session-1", "session-2"])
+
+    expect(agent.store.rows("sessions").find((row) => row.id === "session-1")?.read).toBe(5)
+    expect(agent.store.rows("sessions").find((row) => row.id === "session-2")?.read).toBe(9)
     agent.dispose()
   })
 

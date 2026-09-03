@@ -4,7 +4,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import userEvent from "@testing-library/user-event"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ConnectionProvider } from "@/connection/provider"
-import { markSessionSeen } from "@/local-state/seen"
+import { markSessionOpened } from "@/local-state/recent"
 import { encodeServerSlug } from "@/lib/server-url"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { act, fireEvent, render, screen, waitFor, within } from "@/test/test-utils"
@@ -16,7 +16,7 @@ const originalInnerWidth = window.innerWidth
 afterEach(() => {
   localStorage.removeItem("hena.connections.v1")
   localStorage.removeItem("hena.tombstones.v1")
-  localStorage.removeItem(`hena.seen.v1.${slug}`)
+  localStorage.removeItem(`hena.recent.v1.${slug}`)
   Object.defineProperty(window, "innerWidth", { configurable: true, value: originalInnerWidth })
 })
 
@@ -131,6 +131,7 @@ function collectionFetcher(options: {
   const database = collectionDatabase(options.extraRepoSessions)
   let subscribedSessions: string[] = []
   let subscriptionRevision = 0
+  let changeSeq = 900
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = input instanceof Request ? input : new Request(input, init)
     const path = new URL(request.url).pathname
@@ -162,6 +163,33 @@ function collectionFetcher(options: {
     if (path === "/api/fs/read") return Response.json({ text: "# Repo", totalBytes: 6 })
     if (path === "/api/session" && request.method === "POST" && options.onCreateSession)
       return options.onCreateSession(request, (changes) => database.push(changes))
+    if (path === "/api/session/read" && request.method === "POST") {
+      const body = await request.json() as { idempotencyKey: string; sessionIDs: string[] }
+      const txid = `tx-read-${body.idempotencyKey}`
+      const changes = body.sessionIDs.flatMap((sessionID) => {
+        const existing = database.snapshot("sessions").find((entry) => entry.key === sessionID)
+        const row = existing?.row as { time?: { updated?: number } } | undefined
+        if (!row?.time?.updated) return []
+        return [{
+          seq: changeSeq++,
+          collection: "sessions",
+          scopeKey: "",
+          rowKey: sessionID,
+          op: "update" as const,
+          txid,
+          row: { ...row, read: row.time.updated },
+        }]
+      })
+      database.push(changes)
+      return Response.json({
+        receipt: {
+          txid,
+          outcome: changes.length > 0 ? "applied" : "noop",
+          through: { feedId: "feed", seq: changeSeq },
+          affectedScopes: changes.length > 0 ? [{ collection: "sessions", scopeKey: "" }] : [],
+        },
+      })
+    }
     return Response.json({ error: { code: "not_found", message: "Not found" } }, { status: 404 })
   }
 }
@@ -484,9 +512,34 @@ describe("app routing against server-v3", () => {
     expect(screen.getByRole("heading", { name: "Live session" })).toBeInTheDocument()
   })
 
+  test("clears the unread dot after opening a session", async () => {
+    const user = userEvent.setup()
+    renderApp(`/${slug}/global`)
+
+    const sessions = (await screen.findAllByRole("navigation", { name: "Sessions" }))[0]
+    expect(within(sessions).getByLabelText("Unread")).toBeInTheDocument()
+
+    await user.click(within(sessions).getByText("Live session"))
+
+    await waitFor(() => expect(within(sessions).queryByLabelText("Unread")).not.toBeInTheDocument())
+  })
+
+  test("Clear notifications marks every unread session in the project as read", async () => {
+    const user = userEvent.setup()
+    renderApp(`/${slug}/global`, collectionFetcher({ extraRepoSessions: 2 }))
+
+    const sessions = (await screen.findAllByRole("navigation", { name: "Sessions" }))[0]
+    await waitFor(() => expect(within(sessions).getAllByLabelText("Unread")).toHaveLength(3))
+
+    await user.click(screen.getAllByRole("button", { name: "Project actions" })[0])
+    await user.click(await screen.findByRole("menuitem", { name: "Clear notifications" }))
+
+    await waitFor(() => expect(within(sessions).queryAllByLabelText("Unread")).toHaveLength(0))
+  })
+
   test("restores the last session when opening a recent project", async () => {
     const user = userEvent.setup()
-    markSessionSeen(origin, "ses_live", 1)
+    markSessionOpened(origin, "ses_live")
     const router = renderApp(`/${slug}`)
 
     await user.click(await screen.findByRole("button", { name: /\/repo/ }))
@@ -496,7 +549,7 @@ describe("app routing against server-v3", () => {
   })
 
   test("falls back to the project overview when session history is stale", async () => {
-    markSessionSeen(origin, "ses_missing", 1)
+    markSessionOpened(origin, "ses_missing")
     const router = renderApp(`/${slug}/global`)
 
     expect(await screen.findByRole("heading", { name: "Repo" })).toBeInTheDocument()
@@ -504,7 +557,7 @@ describe("app routing against server-v3", () => {
   })
 
   test("keeps the project session list on mobile", async () => {
-    markSessionSeen(origin, "ses_live", 1)
+    markSessionOpened(origin, "ses_live")
     const router = renderApp(`/${slug}/global`, collectionFetcher(), { desktop: false })
 
     expect(await within(await screen.findByRole("main")).findByText("Live session")).toBeInTheDocument()

@@ -5,7 +5,7 @@ import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
 import { useCollectionReady, useProject, useSessions } from "@/data/queries"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import { recentlySeen } from "@/local-state/seen"
+import { recentlySeen } from "@/local-state/recent"
 import { SessionList } from "@/shell/session-list"
 
 const DESKTOP_QUERY = "(min-width: 1280px)"

@@ -33,4 +33,15 @@ describe("SidebarPanel", () => {
     expect(screen.queryByLabelText("Project name")).not.toBeInTheDocument()
     expect(screen.getByRole("button", { name: projects[1].name })).toBeInTheDocument()
   })
+
+  test("invokes onClearNotifications from the project actions menu", async () => {
+    const user = userEvent.setup()
+    let cleared = false
+    render(<SidebarPanel {...props(projects[0])} onClearNotifications={() => { cleared = true }} />)
+
+    await user.click(screen.getByRole("button", { name: "Project actions" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Clear notifications" }))
+
+    expect(cleared).toBe(true)
+  })
 })

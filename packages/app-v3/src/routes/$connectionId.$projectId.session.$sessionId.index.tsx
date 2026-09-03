@@ -6,9 +6,9 @@ import { SessionFilesPanel, useSessionFiles } from "@/features/session/session-f
 import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
 import { loadFileMatches, useCatalog, useCollectionReady, useMessages, usePendingRequest, usePermission, useQuestion, useQueuedInputs, useSession, useSessionLocation, useSettings, useTodos } from "@/data/queries"
-import { admitPromptOptimistically, cancelInputOptimistically, interruptOptimistically, isSessionStopping, reorderInputsOptimistically, replyPermissionOptimistically, replyQuestionOptimistically } from "@/mutations/session"
+import { admitPromptOptimistically, cancelInputOptimistically, interruptOptimistically, isSessionStopping, markSessionsReadOptimistically, reorderInputsOptimistically, replyPermissionOptimistically, replyQuestionOptimistically } from "@/mutations/session"
 import { loadDraft, saveDraft } from "@/local-state/drafts"
-import { markSessionSeen } from "@/local-state/seen"
+import { markSessionOpened } from "@/local-state/recent"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/")({
   component: SessionTranscriptRoute,
@@ -66,8 +66,18 @@ function SessionTranscript({
   const draftKey = `session:${sessionId}`
   const draft = agent ? loadDraft(agent.url, draftKey) : undefined
   useEffect(() => {
-    if (agent && session) markSessionSeen(agent.url, sessionId, session.updatedAt)
+    if (agent && session) markSessionOpened(agent.url, sessionId)
   }, [agent, session, sessionId])
+  useEffect(() => {
+    // Gated on settled (not `working`), not on `unread`: an open session's `time.updated` keeps
+    // advancing while it streams, so marking read on every tick would fire a mutation per token,
+    // and the working spinner already masks the unread dot until then. Deliberately NOT gated on
+    // `unread` itself -- that flag is the mutation's own optimistic side effect, so a failed
+    // mutation rolling it back to `true` would immediately re-trigger this effect and retry
+    // forever. The server no-ops a redundant mark-read, so calling on every settle is harmless.
+    if (agent && session && session.status !== "working")
+      void markSessionsReadOptimistically(agent, [sessionId]).catch(() => {})
+  }, [agent, session?.status, sessionId])
   const replyPermission = (reply: "once" | "always" | "reject") => {
     if (!agent || !location || !permissionWire || typeof permissionWire.id !== "string" || typeof permissionWire.nonce !== "string") return
     setMutationNotice("")

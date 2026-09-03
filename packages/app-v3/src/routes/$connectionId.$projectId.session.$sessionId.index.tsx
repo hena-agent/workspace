@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react"
+import { useEffect, useEffectEvent, useLayoutEffect, useState } from "react"
 import { createFileRoute, useLocation, useRouter } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { SessionTranscriptView } from "@/features/session/session-transcript-view"
@@ -68,15 +68,20 @@ function SessionTranscript({
   useEffect(() => {
     if (agent && session) markSessionOpened(agent.url, sessionId)
   }, [agent, session, sessionId])
-  useEffect(() => {
-    // `unread` gates the call but is deliberately absent from the dependency array: it is this
-    // effect's own mutation's optimistic output, so depending on it would let a failed mutation's
-    // rollback immediately retrigger the same effect instance and retry forever. Depending only
-    // on settled status means a rollback can't retrigger this instance -- the next genuine status
-    // transition re-checks `unread` and retries if it's still true. Reading `session.status` while
-    // streaming would fire a mutation per token; the working spinner masks the dot until then anyway.
+  // `useEffectEvent`, not a plain closure: this reads `session.unread`, which is this same
+  // mutation's own optimistic output. A plain effect depending on it would let a failed
+  // mutation's rollback immediately retrigger itself and retry forever -- `useEffectEvent`
+  // always sees the latest `session` without making it (or `unread`) a reactive dependency, so
+  // only a genuine `agent`/status/session change below can trigger another call.
+  const markReadIfUnread = useEffectEvent(() => {
     if (agent && session?.unread && session.status !== "working")
       void markSessionsReadOptimistically(agent, [sessionId]).catch(() => {})
+  })
+  useEffect(() => {
+    // Settled (not `working`) only: an open session's `time.updated` keeps advancing while it
+    // streams, so checking on every tick would fire a mutation per token, and the working
+    // spinner already masks the unread dot until then anyway.
+    markReadIfUnread()
   }, [agent, session?.status, sessionId])
   const replyPermission = (reply: "once" | "always" | "reject") => {
     if (!agent || !location || !permissionWire || typeof permissionWire.id !== "string" || typeof permissionWire.nonce !== "string") return

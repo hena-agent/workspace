@@ -72,7 +72,7 @@ describe("session mutations", () => {
       { key: "session-2", row: { id: "session-2", working: false, time: { updated: 9 } } },
     ], 1)
 
-    markSessionsReadOptimistically(agent, ["session-1", "session-2"])
+    void markSessionsReadOptimistically(agent, ["session-1", "session-2"])
 
     expect(agent.store.rows("sessions").find((row) => row.id === "session-1")?.read).toBe(5)
     expect(agent.store.rows("sessions").find((row) => row.id === "session-2")?.read).toBe(9)

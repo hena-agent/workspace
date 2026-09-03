@@ -245,6 +245,12 @@ export const ArchiveSession = Schema.Struct({
   idempotencyKey: IdempotencyKey,
 }).annotate({ identifier: "Sync.ArchiveSession" })
 
+export interface MarkSessionsRead extends Schema.Schema.Type<typeof MarkSessionsRead> {}
+export const MarkSessionsRead = Schema.Struct({
+  idempotencyKey: IdempotencyKey,
+  sessionIDs: Schema.Array(Session.ID).check(Schema.isMaxLength(MaxSubscribedSessions)),
+}).annotate({ identifier: "Sync.MarkSessionsRead" })
+
 export interface FileListQuery extends Schema.Schema.Type<typeof FileListQuery> {}
 export const FileListQuery = Schema.Struct({
   directory: AbsolutePath.check(Schema.isPattern(/^(?:\/|[A-Za-z]:[\\/]|\\\\)/)),

@@ -40,6 +40,7 @@ import { Icon } from "@hena/ui/icon"
 import { usePlatform } from "@/context/platform"
 import { DateTime } from "luxon"
 import { useDialog } from "@hena/ui/context/dialog"
+import { Dialog } from "@hena/ui/dialog"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useSettingsCommand } from "@/components/settings-dialog"
 import { DialogSelectServer, useServerManagementController } from "@/components/dialog-select-server"
@@ -622,7 +623,37 @@ export function NewHome() {
     })
   }
 
-  function chooseProject(conn: ServerConnection.Any) {
+  function createChat(conn: ServerConnection.Any) {
+    const ctx = global.ensureServerCtx(conn)
+    void ctx.sdk.client.v2.session
+      .create({ mode: "chat" })
+      .then((response) => {
+        const session = response.data?.data
+        if (!session) {
+          showToast({
+            title: language.t("common.requestFailed"),
+            description: errorMessage(response.error, language.t("common.requestFailed")),
+          })
+          return
+        }
+
+        ctx.projects.open(session.location.directory)
+        ctx.projects.touch(session.location.directory)
+        setSelection({ server: ServerConnection.key(conn), directory: session.location.directory })
+        startTransition(() => {
+          const tab = tabs.addSessionTab({ server: ServerConnection.key(conn), sessionId: session.id })
+          tabs.select(tab)
+        })
+      })
+      .catch((error) =>
+        showToast({
+          title: language.t("common.requestFailed"),
+          description: errorMessage(error, language.t("common.requestFailed")),
+        }),
+      )
+  }
+
+  function openProjectPicker(conn: ServerConnection.Any) {
     if (global.servers.health[ServerConnection.key(conn)]?.healthy === false) return
 
     function resolve(result: string | string[] | null) {
@@ -634,6 +665,72 @@ export function NewHome() {
       title: language.t("command.project.open"),
       multiple: true,
       onSelect: resolve,
+    })
+  }
+
+  function chooseProject(conn: ServerConnection.Any) {
+    if (global.servers.health[ServerConnection.key(conn)]?.healthy === false) return
+    dialog.show(() => (
+      <Dialog title={language.t("home.project.add")} fit>
+        <div class="flex flex-col gap-2 px-4 pb-4">
+          <Button
+            size="large"
+            variant="primary"
+            icon="plus-small"
+            onClick={() => {
+              dialog.close()
+              createChat(conn)
+            }}
+          >
+            {language.t("command.session.new")}
+          </Button>
+          <Button
+            size="large"
+            icon="folder-add-left"
+            onClick={() => {
+              dialog.close()
+              openProjectPicker(conn)
+            }}
+          >
+            {language.t("command.project.open")}
+          </Button>
+        </div>
+      </Dialog>
+    ))
+  }
+
+  function attachProject(conn: ServerConnection.Any, project: LocalProject) {
+    const projectID = project.id
+    if (!projectID) return
+    pickDirectory({
+      server: conn,
+      title: language.t("dialog.directory.action.selectFolder"),
+      onSelect: (result) => {
+        const directory = homeProjectDirectories(result)[0]
+        if (!directory) return
+        const ctx = global.ensureServerCtx(conn)
+        void ctx.sdk.client.v2.project
+          .attach({ projectID, directory })
+          .then((response) => {
+            if (response.error) {
+              showToast({
+                title: language.t("common.requestFailed"),
+                description: errorMessage(response.error, language.t("common.requestFailed")),
+              })
+              return
+            }
+            ctx.projects.remove(project.worktree)
+            ctx.projects.open(directory)
+            ctx.projects.touch(directory)
+            setSelection({ server: ServerConnection.key(conn), directory })
+          })
+          .catch((error) =>
+            showToast({
+              title: language.t("common.requestFailed"),
+              description: errorMessage(error, language.t("common.requestFailed")),
+            }),
+          )
+      },
     })
   }
 
@@ -665,6 +762,7 @@ export function NewHome() {
             openNewSession={openProjectNewSession}
             openRecentProject={(conn, directory) => addProjects(conn, [directory])}
             chooseProject={(conn) => void chooseProject(conn)}
+            attachProject={attachProject}
             editProject={editProject}
             closeProject={(conn, directory) => {
               const next = closeHomeProject(
@@ -804,6 +902,7 @@ function HomeProjectColumn(props: {
   openNewSession: (server: ServerConnection.Any, directory: string) => void
   openRecentProject: (server: ServerConnection.Any, directory: string) => void
   chooseProject: (server: ServerConnection.Any) => void
+  attachProject: (server: ServerConnection.Any, project: LocalProject) => void
   editProject: (server: ServerConnection.Any, project: LocalProject) => void
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
@@ -1048,6 +1147,7 @@ type HomeProjectListProps = {
   selected: HomeProjectSelection
   selectProject: (server: ServerConnection.Any, directory: string) => void
   openNewSession: (server: ServerConnection.Any, directory: string) => void
+  attachProject: (server: ServerConnection.Any, project: LocalProject) => void
   editProject: (server: ServerConnection.Any, project: LocalProject) => void
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
@@ -1122,6 +1222,7 @@ function HomeProjectSlot(
           unseenCount={props.unseenCount(props.server, item())}
           selectProject={props.selectProject}
           openNewSession={props.openNewSession}
+          attachProject={props.attachProject}
           editProject={props.editProject}
           closeProject={props.closeProject}
           clearNotifications={props.clearNotifications}
@@ -1214,6 +1315,7 @@ function HomeProjectRow(props: {
   unseenCount: number
   selectProject: (server: ServerConnection.Any, directory: string) => void
   openNewSession: (server: ServerConnection.Any, directory: string) => void
+  attachProject: (server: ServerConnection.Any, project: LocalProject) => void
   editProject: (server: ServerConnection.Any, project: LocalProject) => void
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
@@ -1319,6 +1421,11 @@ function HomeProjectRow(props: {
               <MenuV2.Item onSelect={() => props.openNewSession(props.server, props.project.worktree)}>
                 {props.language.t("command.session.new")}
               </MenuV2.Item>
+              <Show when={props.project.mode === "chat" && props.project.id}>
+                <MenuV2.Item onSelect={() => props.attachProject(props.server, props.project)}>
+                  {props.language.t("dialog.directory.action.selectFolder")}
+                </MenuV2.Item>
+              </Show>
               <MenuV2.Item onSelect={() => props.editProject(props.server, props.project)}>
                 {props.language.t("dialog.project.edit.title")}
               </MenuV2.Item>

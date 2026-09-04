@@ -77,6 +77,7 @@ export function createSessionOptimistically(agent: ConnectionAgent, input: {
         tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
         time: { created, updated: created },
         working: true,
+        read: created,
         queueRevision: input.delivery === "queue" ? 1 : 0,
         agent: input.agentID,
         model: input.model,
@@ -159,6 +160,27 @@ export function archiveSessionOptimistically(agent: ConnectionAgent, sessionID: 
   transaction.mutate(() => {
     agent.store.collection("sessions", "").update(sessionID, (draft) => {
       draft.row = { ...draft.row, time: { ...object(draft.row.time), archived: Date.now() } }
+    })
+  })
+  return transaction.isPersisted.promise
+}
+
+export function markSessionsReadOptimistically(agent: ConnectionAgent, sessionIDs: string[]) {
+  if (sessionIDs.length === 0) return Promise.resolve()
+  const idempotencyKey = crypto.randomUUID()
+  const transaction = createTransaction({
+    mutationFn: async () => {
+      const result = await requestQueueable(() => agent.client.api.session.read.$post({
+        json: { idempotencyKey, sessionIDs },
+      }))
+      await awaitReceipt(agent, result)
+    },
+  })
+  transaction.mutate(() => {
+    sessionIDs.forEach((sessionID) => {
+      agent.store.collection("sessions", "").update(sessionID, (draft) => {
+        draft.row = { ...draft.row, read: number(object(draft.row.time).updated) }
+      })
     })
   })
   return transaction.isPersisted.promise

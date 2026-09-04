@@ -3,7 +3,33 @@ import { act, render, screen, waitFor } from "@testing-library/react"
 import { flushSync } from "react-dom"
 import { createConnectionAgent } from "@/connection/agent"
 import { MessageList } from "@/features/session/message-list"
-import { useMessages } from "./queries"
+import { useMessages, useSessions } from "./queries"
+
+test("a session is unread until its read watermark catches up to its update time", async () => {
+  const agent = createConnectionAgent("http://hena.test")
+  agent.store.applySnapshot("sessions", "", [{
+    key: "session-1",
+    row: { id: "session-1", projectID: "project-1", title: "Unread session", time: { created: 1, updated: 10 } },
+  }], 1)
+
+  function View() {
+    const session = useSessions(agent).find((item) => item.id === "session-1")
+    return <div>{session?.unread ? "unread" : "read"}</div>
+  }
+
+  render(<View />)
+  expect(await screen.findByText("unread")).toBeVisible()
+
+  await act(async () => {
+    agent.store.applySnapshot("sessions", "", [{
+      key: "session-1",
+      row: { id: "session-1", projectID: "project-1", title: "Unread session", time: { created: 1, updated: 10 }, read: 10 },
+    }], 2)
+    await Bun.sleep(0)
+  })
+  expect(await screen.findByText("read")).toBeVisible()
+  act(() => agent.dispose())
+})
 
 test("message views use their collection scope as the session id", async () => {
   const agent = createConnectionAgent("http://hena.test")

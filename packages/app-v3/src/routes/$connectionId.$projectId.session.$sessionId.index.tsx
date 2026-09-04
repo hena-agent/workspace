@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react"
+import { useEffect, useEffectEvent, useLayoutEffect, useState } from "react"
 import { createFileRoute, useLocation, useRouter } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { SessionTranscriptView } from "@/features/session/session-transcript-view"
@@ -6,9 +6,9 @@ import { SessionFilesPanel, useSessionFiles } from "@/features/session/session-f
 import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
 import { loadFileMatches, useCatalog, useCollectionReady, useMessages, usePendingRequest, usePermission, useQuestion, useQueuedInputs, useSession, useSessionLocation, useSettings, useTodos } from "@/data/queries"
-import { admitPromptOptimistically, cancelInputOptimistically, interruptOptimistically, isSessionStopping, reorderInputsOptimistically, replyPermissionOptimistically, replyQuestionOptimistically } from "@/mutations/session"
+import { admitPromptOptimistically, cancelInputOptimistically, interruptOptimistically, isSessionStopping, markSessionsReadOptimistically, reorderInputsOptimistically, replyPermissionOptimistically, replyQuestionOptimistically } from "@/mutations/session"
 import { loadDraft, saveDraft } from "@/local-state/drafts"
-import { markSessionSeen } from "@/local-state/seen"
+import { markSessionOpened } from "@/local-state/recent"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/")({
   component: SessionTranscriptRoute,
@@ -66,8 +66,23 @@ function SessionTranscript({
   const draftKey = `session:${sessionId}`
   const draft = agent ? loadDraft(agent.url, draftKey) : undefined
   useEffect(() => {
-    if (agent && session) markSessionSeen(agent.url, sessionId, session.updatedAt)
+    if (agent && session) markSessionOpened(agent.url, sessionId)
   }, [agent, session, sessionId])
+  // `useEffectEvent`, not a plain closure: this reads `session.unread`, which is this same
+  // mutation's own optimistic output. A plain effect depending on it would let a failed
+  // mutation's rollback immediately retrigger itself and retry forever -- `useEffectEvent`
+  // always sees the latest `session` without making it (or `unread`) a reactive dependency, so
+  // only a genuine `agent`/status/session change below can trigger another call.
+  const markReadIfUnread = useEffectEvent(() => {
+    if (agent && session?.unread && session.status !== "working")
+      void markSessionsReadOptimistically(agent, [sessionId]).catch(() => {})
+  })
+  useEffect(() => {
+    // Settled (not `working`) only: an open session's `time.updated` keeps advancing while it
+    // streams, so checking on every tick would fire a mutation per token, and the working
+    // spinner already masks the unread dot until then anyway.
+    markReadIfUnread()
+  }, [agent, session?.status, sessionId])
   const replyPermission = (reply: "once" | "always" | "reject") => {
     if (!agent || !location || !permissionWire || typeof permissionWire.id !== "string" || typeof permissionWire.nonce !== "string") return
     setMutationNotice("")

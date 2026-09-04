@@ -441,7 +441,7 @@ describe("prompt submit worktree selection", () => {
     expect(promotedDrafts).toEqual([{ draftID: "draft-1", server: "project-server", sessionId: "session-1" }])
   })
 
-  test("creates and prompts managed chat sessions through V2", async () => {
+  test("keeps managed project drafts sessionless until the first prompt", async () => {
     search = { draftId: "draft-1" }
     draftProjectID = "project-1"
     promptValue.push({ type: "file", path: "src/app.ts", content: "@src/app.ts", start: 3, end: 14 })
@@ -461,6 +461,8 @@ describe("prompt submit worktree selection", () => {
       setMode: () => undefined,
       setPopover: () => undefined,
     })
+
+    expect(managedSessions).toEqual([])
 
     await submit.handleSubmit({ preventDefault: () => undefined } as unknown as Event)
     await Bun.sleep(0)

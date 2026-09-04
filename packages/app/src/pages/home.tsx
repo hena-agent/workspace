@@ -118,10 +118,10 @@ type HomeSessionRecord = {
   projectName: string
 }
 
-function CreateChatDialog(props: { create: (name: string) => Promise<boolean> }) {
+function AddProjectDialog(props: { create: (name: string) => Promise<boolean>; openFolder: () => void }) {
   const language = useLanguage()
   const dialog = useDialog()
-  const [state, setState] = createStore({ name: "", busy: false })
+  const [state, setState] = createStore({ step: "choose" as "choose" | "create", name: "", busy: false })
 
   const submit = (event: SubmitEvent) => {
     event.preventDefault()
@@ -135,24 +135,62 @@ function CreateChatDialog(props: { create: (name: string) => Promise<boolean> })
   }
 
   return (
-    <Dialog title={language.t("home.project.add")} class="w-full max-w-[420px] mx-auto">
-      <form onSubmit={submit} class="flex flex-col gap-4 p-6 pt-0">
-        <TextField
-          autofocus
-          required
-          label={language.t("dialog.project.edit.name")}
-          value={state.name}
-          onChange={(name) => setState("name", name)}
-        />
-        <div class="flex justify-end gap-2">
-          <Button type="button" onClick={() => dialog.close()}>
-            {language.t("common.cancel")}
-          </Button>
-          <Button type="submit" variant="primary" disabled={!state.name.trim() || state.busy}>
-            {language.t("common.save")}
-          </Button>
-        </div>
-      </form>
+    <Dialog
+      title={language.t(state.step === "choose" ? "home.project.add" : "home.project.new")}
+      class="mx-auto w-full max-w-[440px]"
+    >
+      <Show
+        when={state.step === "create"}
+        fallback={
+          <div class="flex flex-col gap-2 px-4 pb-4">
+            <button
+              type="button"
+              class="flex min-h-14 w-full cursor-default items-center gap-3 rounded-md border border-v2-border-border-muted bg-v2-background-bg-base px-3 py-2 text-left hover:bg-v2-background-bg-layer-01 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-v2-border-border-focus"
+              onClick={() => setState("step", "create")}
+            >
+              <Icon name="plus-small" />
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-sm font-medium text-v2-text-text-base">{language.t("home.project.new")}</span>
+                <span class="text-xs text-v2-text-text-muted">{language.t("home.project.new.description")}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              class="flex min-h-14 w-full cursor-default items-center gap-3 rounded-md border border-v2-border-border-muted bg-v2-background-bg-base px-3 py-2 text-left hover:bg-v2-background-bg-layer-01 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-v2-border-border-focus"
+              onClick={() => {
+                dialog.close()
+                props.openFolder()
+              }}
+            >
+              <Icon name="folder-add-left" />
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-sm font-medium text-v2-text-text-base">{language.t("home.project.openFolder")}</span>
+                <span class="text-xs text-v2-text-text-muted">{language.t("home.project.openFolder.description")}</span>
+              </span>
+            </button>
+          </div>
+        }
+      >
+        <form onSubmit={submit} class="flex flex-col gap-4 p-6 pt-0">
+          <TextField
+            autofocus
+            required
+            label={language.t("home.project.name")}
+            value={state.name}
+            onChange={(name) => setState("name", name)}
+          />
+          <div class="flex justify-end gap-2">
+            <Button type="button" disabled={state.busy} onClick={() => setState("step", "choose")}>
+              {language.t("common.back")}
+            </Button>
+            <Button type="submit" variant="primary" disabled={!state.name.trim() || state.busy}>
+              <Show when={!state.busy} fallback={<Spinner />}>
+                {language.t("home.project.create")}
+              </Show>
+            </Button>
+          </div>
+        </form>
+      </Show>
     </Dialog>
   )
 }
@@ -718,31 +756,8 @@ export function NewHome() {
 
   function chooseProject(conn: ServerConnection.Any) {
     if (global.servers.health[ServerConnection.key(conn)]?.healthy === false) return
-    dialog.show(() => (
-      <Dialog title={language.t("home.project.add")} fit>
-        <div class="flex flex-col gap-2 px-4 pb-4">
-          <Button
-            size="large"
-            variant="primary"
-            icon="plus-small"
-            onClick={() => {
-              dialog.show(() => <CreateChatDialog create={(name) => createChat(conn, name)} />)
-            }}
-          >
-            {language.t("command.session.new")}
-          </Button>
-          <Button
-            size="large"
-            icon="folder-add-left"
-            onClick={() => {
-              dialog.close()
-              openProjectPicker(conn)
-            }}
-          >
-            {language.t("command.project.open")}
-          </Button>
-        </div>
-      </Dialog>
+    void dialog.show(() => (
+      <AddProjectDialog create={(name) => createChat(conn, name)} openFolder={() => openProjectPicker(conn)} />
     ))
   }
 
@@ -808,7 +823,7 @@ export function NewHome() {
             selectProject={selectProject}
             openNewSession={openProjectNewSession}
             openRecentProject={(conn, directory) => addProjects(conn, [directory])}
-            chooseProject={(conn) => void chooseProject(conn)}
+            chooseProject={(conn) => chooseProject(conn)}
             attachProject={attachProject}
             editProject={editProject}
             closeProject={(conn, directory) => {

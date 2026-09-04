@@ -23,14 +23,12 @@ export const ModelSelectorTrigger = (props: ModelSelectorTriggerProps) => <Dialo
 
 export type ModelSelectorContentProps = ComponentProps<typeof DialogContent> & {
   title?: ReactNode
-  command?: Omit<ComponentProps<typeof Command>, "children">
 }
 
 export const ModelSelectorContent = ({
   className,
   children,
   title = "Model Selector",
-  command,
   ...props
 }: ModelSelectorContentProps) => (
   <DialogContent
@@ -39,9 +37,7 @@ export const ModelSelectorContent = ({
     {...props}
   >
     <DialogTitle className="sr-only">{title}</DialogTitle>
-    <Command {...command} className={cn("**:data-[slot=command-input-wrapper]:h-auto", command?.className)}>
-      {children}
-    </Command>
+    <Command className="**:data-[slot=command-input-wrapper]:h-auto">{children}</Command>
   </DialogContent>
 )
 

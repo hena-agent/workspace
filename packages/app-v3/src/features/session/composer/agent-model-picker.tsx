@@ -1,17 +1,6 @@
 import { useState } from "react"
 import { ChevronsUpDown } from "lucide-react"
 import {
-  ModelSelector,
-  ModelSelectorContent,
-  ModelSelectorEmpty,
-  ModelSelectorGroup,
-  ModelSelectorInput,
-  ModelSelectorItem,
-  ModelSelectorList,
-  ModelSelectorName,
-  ModelSelectorTrigger,
-} from "@/components/ai-elements/model-selector"
-import {
   PromptInputButton,
   PromptInputSelect,
   PromptInputSelectContent,
@@ -19,6 +8,8 @@ import {
   PromptInputSelectTrigger,
   PromptInputSelectValue,
 } from "@/components/ai-elements/prompt-input"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { SelectGroup } from "@/components/ui/select"
 import type { Agent, Model, ModelRef, Provider } from "@/lib/types"
 
@@ -61,8 +52,8 @@ export function AgentModelPicker({
           </SelectGroup>
         </PromptInputSelectContent>
       </PromptInputSelect>
-      <ModelSelector open={modelOpen} onOpenChange={setModelOpen}>
-        <ModelSelectorTrigger asChild>
+      <Dialog open={modelOpen} onOpenChange={setModelOpen}>
+        <DialogTrigger asChild>
           <PromptInputButton
             aria-label="Model"
             aria-haspopup="dialog"
@@ -73,35 +64,39 @@ export function AgentModelPicker({
             <span className="truncate">{selectedModel?.name ?? "Model"}</span>
             <ChevronsUpDown className="shrink-0 opacity-50" />
           </PromptInputButton>
-        </ModelSelectorTrigger>
-        <ModelSelectorContent
-          title="Select model"
-          command={{ filter: scoreModel, defaultValue: model ? itemValue(model) : undefined }}
-        >
-          <ModelSelectorInput placeholder="Search models…" autoFocus />
-          <ModelSelectorList>
-            <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-            {groups.map((group) => (
-              <ModelSelectorGroup key={group.providerId} heading={group.heading}>
-                {group.items.map((item) => (
-                  <ModelSelectorItem
-                    key={itemValue(item)}
-                    value={itemValue(item)}
-                    keywords={[item.name, item.id, item.providerId, group.heading]}
-                    data-checked={item.id === model?.id && item.providerId === model?.providerId}
-                    onSelect={() => {
-                      onChangeModel({ id: item.id, providerId: item.providerId })
-                      setModelOpen(false)
-                    }}
-                  >
-                    <ModelSelectorName>{item.name}</ModelSelectorName>
-                  </ModelSelectorItem>
-                ))}
-              </ModelSelectorGroup>
-            ))}
-          </ModelSelectorList>
-        </ModelSelectorContent>
-      </ModelSelector>
+        </DialogTrigger>
+        <DialogContent aria-describedby={undefined} className="outline! border-none! p-0 outline-border! outline-solid!">
+          <DialogTitle className="sr-only">Select model</DialogTitle>
+          <Command
+            className="**:data-[slot=command-input-wrapper]:h-auto"
+            filter={scoreModel}
+            defaultValue={model ? itemValue(model) : undefined}
+          >
+            <CommandInput className="h-auto py-3.5" placeholder="Search models…" autoFocus />
+            <CommandList>
+              <CommandEmpty>No models found.</CommandEmpty>
+              {groups.map((group) => (
+                <CommandGroup key={group.providerId} heading={group.heading}>
+                  {group.items.map((item) => (
+                    <CommandItem
+                      key={itemValue(item)}
+                      value={itemValue(item)}
+                      keywords={[item.name, item.id, item.providerId, group.heading]}
+                      data-checked={item.id === model?.id && item.providerId === model?.providerId}
+                      onSelect={() => {
+                        onChangeModel({ id: item.id, providerId: item.providerId })
+                        setModelOpen(false)
+                      }}
+                    >
+                      <span className="flex-1 truncate text-left">{item.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              ))}
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

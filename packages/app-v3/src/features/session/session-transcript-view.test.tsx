@@ -22,7 +22,7 @@ function renderView(sessionId: string, props?: Partial<ComponentProps<typeof Ses
       agents={agents}
       models={models}
       agentId={agents[0].id}
-      modelId={models[0].id}
+      model={models[0]}
       onChangeAgent={noop}
       onChangeModel={noop}
       onSend={noop}
@@ -80,7 +80,7 @@ describe("SessionTranscriptView", () => {
         agents={agents}
         models={models}
         agentId={agents[0].id}
-        modelId={models[0].id}
+        model={models[0]}
         onChangeAgent={noop}
         onChangeModel={noop}
         onSend={(text) => sent.push(text)}

@@ -24,7 +24,7 @@ import {
 import { DropdownMenuGroup } from "@/components/ui/dropdown-menu"
 import { InputGroupTextarea } from "@/components/ui/input-group"
 import { useMediaQuery } from "@/hooks/use-media-query"
-import type { Agent, Model } from "@/lib/types"
+import type { Agent, Model, ModelRef, Provider } from "@/lib/types"
 import { AgentModelPicker } from "./agent-model-picker"
 import { getComposerEnterAction } from "./should-send-on-enter"
 
@@ -37,10 +37,11 @@ const ATTACHMENT_ERROR = "Each attachment must be 5 MiB or smaller and attachmen
 type ComposerProps = {
   agents: Agent[]
   models: Model[]
+  providers?: Provider[]
   agentId: string
-  modelId: string
+  model: ModelRef | undefined
   onChangeAgent: (id: string) => void
-  onChangeModel: (id: string) => void
+  onChangeModel: (model: ModelRef) => void
   onSend: (text: string, files?: { uri: string; name?: string }[]) => unknown
   onQueue: (text: string, files?: { uri: string; name?: string }[]) => unknown
   disabled?: boolean
@@ -67,8 +68,9 @@ export function Composer(props: ComposerProps) {
 function ComposerForm({
   agents,
   models,
+  providers,
   agentId,
-  modelId,
+  model,
   onChangeAgent,
   onChangeModel,
   onSend,
@@ -304,8 +306,9 @@ function ComposerForm({
           <AgentModelPicker
             agents={agents}
             models={models}
+            providers={providers}
             agentId={agentId}
-            modelId={modelId}
+            model={model}
             onChangeAgent={onChangeAgent}
             onChangeModel={onChangeModel}
             disabled={disabled || submitting}

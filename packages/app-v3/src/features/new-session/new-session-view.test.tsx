@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { render, screen } from "@/test/test-utils"
 import { NewSessionView } from "./new-session-view"
 import { agents, models, projects } from "@/test/fixtures"
+import type { ModelRef } from "@/lib/types"
 
 describe("NewSessionView", () => {
   test("renders the target project", () => {
@@ -12,7 +13,7 @@ describe("NewSessionView", () => {
 
   test("sending the composer calls onStart with the text, agent, and model", async () => {
     const user = userEvent.setup()
-    let started: { text: string; agentId: string; modelId: string; delivery: "send" | "queue" } | undefined
+    let started: { text: string; agentId: string; model: ModelRef | undefined; delivery: "send" | "queue" } | undefined
 
     render(
       <NewSessionView project={projects[0]} agents={agents} models={models} onStart={(params) => (started = params)} />,
@@ -24,7 +25,7 @@ describe("NewSessionView", () => {
     expect(started).toEqual({
       text: "Set up the new feature flag",
       agentId: agents[0].id,
-      modelId: models[0].id,
+      model: models[0],
       delivery: "send",
     })
   })

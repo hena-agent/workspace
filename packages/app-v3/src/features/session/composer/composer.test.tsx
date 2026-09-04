@@ -17,7 +17,7 @@ function setup(sent: string[], hasFinePointer = true, queued: string[] = []) {
       agents={agents}
       models={models}
       agentId={agents[0].id}
-      modelId={models[0].id}
+      model={models[0]}
       onChangeAgent={() => {}}
       onChangeModel={() => {}}
       onSend={(text) => sent.push(text)}
@@ -207,7 +207,7 @@ describe("Composer", () => {
         agents={agents}
         models={models}
         agentId={agents[0].id}
-        modelId={models[0].id}
+        model={models[0]}
         onChangeAgent={() => {}}
         onChangeModel={() => {}}
         onSend={() => Promise.reject(new Error("Offline"))}
@@ -233,7 +233,7 @@ describe("Composer", () => {
         agents={agents}
         models={models}
         agentId={agents[0].id}
-        modelId={models[0].id}
+        model={models[0]}
         onChangeAgent={() => {}}
         onChangeModel={() => {}}
         onSend={(text, files) => sent.push({ text, files })}
@@ -259,7 +259,7 @@ describe("Composer", () => {
         agents={agents}
         models={models}
         agentId={agents[0].id}
-        modelId={models[0].id}
+        model={models[0]}
         onChangeAgent={() => {}}
         onChangeModel={() => {}}
         onSend={() => {}}
@@ -282,7 +282,7 @@ describe("Composer", () => {
         agents={agents}
         models={models}
         agentId={agents[0].id}
-        modelId={models[0].id}
+        model={models[0]}
         onChangeAgent={() => {}}
         onChangeModel={() => {}}
         onSend={() => {}}
@@ -325,7 +325,7 @@ describe("Composer", () => {
         agents={agents}
         models={models}
         agentId={agents[0].id}
-        modelId={models[0].id}
+        model={models[0]}
         onChangeAgent={() => {}}
         onChangeModel={() => {}}
         onSend={() => delivery.promise}

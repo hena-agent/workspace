@@ -1,4 +1,4 @@
-import type { Agent, Model, PermissionRequest, QuestionRequest, Session, SessionMessage, Todo } from "@/lib/types"
+import type { Agent, Model, ModelRef, PermissionRequest, Provider, QuestionRequest, Session, SessionMessage, Todo } from "@/lib/types"
 import { ArrowDown, ArrowUp, X } from "lucide-react"
 import {
   Queue,
@@ -29,8 +29,9 @@ export function SessionTranscriptView({
   questionRequest,
   agents,
   models,
+  providers,
   agentId,
-  modelId,
+  model,
   onChangeAgent,
   onChangeModel,
   onSend,
@@ -60,10 +61,11 @@ export function SessionTranscriptView({
   questionRequest?: QuestionRequest
   agents: Agent[]
   models: Model[]
+  providers?: Provider[]
   agentId: string
-  modelId: string
+  model: ModelRef | undefined
   onChangeAgent: (id: string) => void
-  onChangeModel: (id: string) => void
+  onChangeModel: (model: ModelRef) => void
   onSend: (text: string, files?: { uri: string; name?: string }[]) => unknown
   onQueue: (text: string, files?: { uri: string; name?: string }[]) => unknown
   onShare?: () => void
@@ -132,8 +134,9 @@ export function SessionTranscriptView({
         <Composer
           agents={agents}
           models={models}
+          providers={providers}
           agentId={agentId}
-          modelId={modelId}
+          model={model}
           onChangeAgent={onChangeAgent}
           onChangeModel={onChangeModel}
           onSend={onSend}
@@ -148,7 +151,7 @@ export function SessionTranscriptView({
           onDraftChange={(value) => onDraftChange?.({
             ...value,
             agentID: agentId || undefined,
-            modelID: modelId || undefined,
+            model,
             delivery: "steer",
           })}
           stopping={stopping}

@@ -162,6 +162,7 @@ export function SessionHeader() {
   const hotkey = createMemo(() => command.keybind("file.open"))
   const os = createMemo(() => detectOS(platform))
   const isV2 = settings.general.newLayoutDesigns
+  const managedChat = createMemo(() => sync().project?.mode === "chat")
   const search = settings.visibility.search
   const status = settings.visibility.status
   const isDesktop = createMediaQuery("(min-width: 768px)")
@@ -239,7 +240,7 @@ export function SessionHeader() {
     statusLabel: language.t("status.popover.trigger"),
     reviewLabel: language.t("command.review.toggle"),
     reviewKeybind: reviewTooltipKeybind(command),
-    reviewVisible: isDesktop(),
+    reviewVisible: !managedChat() && isDesktop(),
     reviewOpened: view().reviewPanel.opened(),
     onReviewToggle: () => view().reviewPanel.toggle(),
   }))
@@ -289,7 +290,7 @@ export function SessionHeader() {
 
   return (
     <>
-      <Show when={search() && centerMount()}>
+      <Show when={!managedChat() && search() && centerMount()}>
         {(mount) => (
           <Portal mount={mount()}>
             <Button
@@ -326,7 +327,7 @@ export function SessionHeader() {
               when={isV2}
               fallback={
                 <div class="flex items-center gap-2">
-                  <Show when={projectDirectory()}>
+                  <Show when={!managedChat() && projectDirectory()}>
                     <div class="hidden xl:flex items-center">
                       <Show
                         when={canOpen()}
@@ -452,6 +453,7 @@ export function SessionHeader() {
                       <Button
                         variant="ghost"
                         class="group/terminal-toggle titlebar-icon w-8 h-6 p-0 box-border shrink-0"
+                        classList={{ hidden: managedChat() }}
                         onClick={toggleTerminal}
                         aria-label={language.t("command.terminal.toggle")}
                         aria-expanded={view().terminal.opened()}
@@ -461,7 +463,7 @@ export function SessionHeader() {
                       </Button>
                     </TooltipKeybind>
 
-                    <div class="hidden md:flex items-center gap-1 shrink-0">
+                    <div class="hidden md:flex items-center gap-1 shrink-0" classList={{ "md:!hidden": managedChat() }}>
                       <TooltipKeybind
                         title={language.t("command.review.toggle")}
                         keybind={command.keybind("review.toggle")}

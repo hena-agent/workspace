@@ -374,6 +374,7 @@ export default function Page() {
   const reviewFile = () => view().review.file()
   const sessionOwnership = createSessionOwnership(sessionKey)
   const newSessionDesign = createMemo(() => settings.general.newLayoutDesigns())
+  const managedChat = createMemo(() => sync().project?.mode === "chat")
 
   createEffect(() => {
     if (!prompt.ready()) return
@@ -446,9 +447,9 @@ export default function Page() {
 
   const isDesktop = createMediaQuery("(min-width: 768px)")
   const size = createSizing()
-  const desktopReviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened())
+  const desktopReviewOpen = createMemo(() => !managedChat() && isDesktop() && view().reviewPanel.opened())
   const desktopV2ReviewOpen = createMemo(() => newSessionDesign() && desktopReviewOpen() && !!params.id)
-  const terminalOpen = createMemo(() => view().terminal.opened())
+  const terminalOpen = createMemo(() => !managedChat() && view().terminal.opened())
   const desktopTerminalOpen = createMemo(() => isDesktop() && terminalOpen())
   const desktopInlineTerminalOnlyOpen = createMemo(
     () => newSessionDesign() && desktopTerminalOpen() && !desktopV2ReviewOpen(),
@@ -456,6 +457,7 @@ export default function Page() {
   const desktopFileTreeOpen = createMemo(
     () =>
       isDesktop() &&
+      !managedChat() &&
       shouldShowFileTree({
         visible: settings.visibility.fileTree(),
         opened: layout.fileTree.opened(),
@@ -1505,6 +1507,7 @@ export default function Page() {
   let treeDir: string | undefined
   createEffect(() => {
     const dir = sdk().directory
+    if (managedChat()) return
     if (!isDesktop()) return
     if (!layout.fileTree.opened()) return
     if (sync().status === "loading") return
@@ -2418,7 +2421,7 @@ export default function Page() {
         </Show>
       </div>
 
-      <Show when={!newSessionDesign()}>
+      <Show when={!managedChat() && !newSessionDesign()}>
         <TerminalPanel />
       </Show>
     </SessionRouteFrame>

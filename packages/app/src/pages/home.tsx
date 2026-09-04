@@ -40,6 +40,8 @@ import { Icon } from "@hena/ui/icon"
 import { usePlatform } from "@/context/platform"
 import { DateTime } from "luxon"
 import { useDialog } from "@hena/ui/context/dialog"
+import { Dialog } from "@hena/ui/dialog"
+import { TextField } from "@hena/ui/text-field"
 import { useDirectoryPicker } from "@/components/directory-picker"
 import { useSettingsCommand } from "@/components/settings-dialog"
 import { DialogSelectServer, useServerManagementController } from "@/components/dialog-select-server"
@@ -114,6 +116,83 @@ type HomeSessionRecord = {
   session: Session
   project: LocalProject
   projectName: string
+}
+
+function AddProjectDialog(props: { create: (name: string) => Promise<boolean>; openFolder: () => void }) {
+  const language = useLanguage()
+  const dialog = useDialog()
+  const [state, setState] = createStore({ step: "choose" as "choose" | "create", name: "", busy: false })
+
+  const submit = (event: SubmitEvent) => {
+    event.preventDefault()
+    const name = state.name.trim()
+    if (!name || state.busy) return
+    setState("busy", true)
+    void props.create(name).then((created) => {
+      if (created) dialog.close()
+      else setState("busy", false)
+    })
+  }
+
+  return (
+    <Dialog
+      title={language.t(state.step === "choose" ? "home.project.add" : "home.project.new")}
+      class="mx-auto w-full max-w-[440px]"
+    >
+      <Show
+        when={state.step === "create"}
+        fallback={
+          <div class="flex flex-col gap-2 px-4 pb-4">
+            <button
+              type="button"
+              class="flex min-h-14 w-full cursor-default items-center gap-3 rounded-md border border-v2-border-border-muted bg-v2-background-bg-base px-3 py-2 text-left hover:bg-v2-background-bg-layer-01 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-v2-border-border-focus"
+              onClick={() => setState("step", "create")}
+            >
+              <Icon name="plus-small" />
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-sm font-medium text-v2-text-text-base">{language.t("home.project.new")}</span>
+                <span class="text-xs text-v2-text-text-muted">{language.t("home.project.new.description")}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              class="flex min-h-14 w-full cursor-default items-center gap-3 rounded-md border border-v2-border-border-muted bg-v2-background-bg-base px-3 py-2 text-left hover:bg-v2-background-bg-layer-01 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-v2-border-border-focus"
+              onClick={() => {
+                dialog.close()
+                props.openFolder()
+              }}
+            >
+              <Icon name="folder-add-left" />
+              <span class="flex min-w-0 flex-col gap-0.5">
+                <span class="text-sm font-medium text-v2-text-text-base">{language.t("home.project.openFolder")}</span>
+                <span class="text-xs text-v2-text-text-muted">{language.t("home.project.openFolder.description")}</span>
+              </span>
+            </button>
+          </div>
+        }
+      >
+        <form onSubmit={submit} class="flex flex-col gap-4 p-6 pt-0">
+          <TextField
+            autofocus
+            required
+            label={language.t("home.project.name")}
+            value={state.name}
+            onChange={(name) => setState("name", name)}
+          />
+          <div class="flex justify-end gap-2">
+            <Button type="button" disabled={state.busy} onClick={() => setState("step", "choose")}>
+              {language.t("common.back")}
+            </Button>
+            <Button type="submit" variant="primary" disabled={!state.name.trim() || state.busy}>
+              <Show when={!state.busy} fallback={<Spinner />}>
+                {language.t("home.project.create")}
+              </Show>
+            </Button>
+          </div>
+        </form>
+      </Show>
+    </Dialog>
+  )
 }
 
 type HomeSessionGroup = {
@@ -553,7 +632,12 @@ export function NewHome() {
     const ctx = global.ensureServerCtx(conn)
     ctx.projects.open(directory)
     ctx.projects.touch(directory)
-    tabs.newDraft({ server: ServerConnection.key(conn), directory })
+    const project = ctx.projects.list().find((item) => item.worktree === directory)
+    tabs.newDraft({
+      server: ServerConnection.key(conn),
+      directory,
+      projectID: project?.mode === "chat" ? project.id : undefined,
+    })
   }
 
   function editProject(conn: ServerConnection.Any, project: LocalProject) {
@@ -622,7 +706,40 @@ export function NewHome() {
     })
   }
 
-  function chooseProject(conn: ServerConnection.Any) {
+  function createChat(conn: ServerConnection.Any, name: string) {
+    const ctx = global.ensureServerCtx(conn)
+    return ctx.sdk.client.v2.project
+      .create({ name })
+      .then((response) => {
+        const project = response.data?.data
+        if (!project) {
+          showToast({
+            title: language.t("common.requestFailed"),
+            description: errorMessage(response.error, language.t("common.requestFailed")),
+          })
+          return false
+        }
+
+        ctx.projects.open(project.worktree)
+        ctx.projects.touch(project.worktree)
+        setSelection({ server: ServerConnection.key(conn), directory: project.worktree })
+        void tabs.newDraft({
+          server: ServerConnection.key(conn),
+          directory: project.worktree,
+          projectID: project.id,
+        })
+        return true
+      })
+      .catch((error) => {
+        showToast({
+          title: language.t("common.requestFailed"),
+          description: errorMessage(error, language.t("common.requestFailed")),
+        })
+        return false
+      })
+  }
+
+  function openProjectPicker(conn: ServerConnection.Any) {
     if (global.servers.health[ServerConnection.key(conn)]?.healthy === false) return
 
     function resolve(result: string | string[] | null) {
@@ -634,6 +751,48 @@ export function NewHome() {
       title: language.t("command.project.open"),
       multiple: true,
       onSelect: resolve,
+    })
+  }
+
+  function chooseProject(conn: ServerConnection.Any) {
+    if (global.servers.health[ServerConnection.key(conn)]?.healthy === false) return
+    void dialog.show(() => (
+      <AddProjectDialog create={(name) => createChat(conn, name)} openFolder={() => openProjectPicker(conn)} />
+    ))
+  }
+
+  function attachProject(conn: ServerConnection.Any, project: LocalProject) {
+    const projectID = project.id
+    if (!projectID) return
+    pickDirectory({
+      server: conn,
+      title: language.t("dialog.directory.action.selectFolder"),
+      onSelect: (result) => {
+        const directory = homeProjectDirectories(result)[0]
+        if (!directory) return
+        const ctx = global.ensureServerCtx(conn)
+        void ctx.sdk.client.v2.project
+          .attach({ projectID, directory })
+          .then((response) => {
+            if (response.error) {
+              showToast({
+                title: language.t("common.requestFailed"),
+                description: errorMessage(response.error, language.t("common.requestFailed")),
+              })
+              return
+            }
+            ctx.projects.remove(project.worktree)
+            ctx.projects.open(directory)
+            ctx.projects.touch(directory)
+            setSelection({ server: ServerConnection.key(conn), directory })
+          })
+          .catch((error) =>
+            showToast({
+              title: language.t("common.requestFailed"),
+              description: errorMessage(error, language.t("common.requestFailed")),
+            }),
+          )
+      },
     })
   }
 
@@ -664,7 +823,8 @@ export function NewHome() {
             selectProject={selectProject}
             openNewSession={openProjectNewSession}
             openRecentProject={(conn, directory) => addProjects(conn, [directory])}
-            chooseProject={(conn) => void chooseProject(conn)}
+            chooseProject={(conn) => chooseProject(conn)}
+            attachProject={attachProject}
             editProject={editProject}
             closeProject={(conn, directory) => {
               const next = closeHomeProject(
@@ -804,6 +964,7 @@ function HomeProjectColumn(props: {
   openNewSession: (server: ServerConnection.Any, directory: string) => void
   openRecentProject: (server: ServerConnection.Any, directory: string) => void
   chooseProject: (server: ServerConnection.Any) => void
+  attachProject: (server: ServerConnection.Any, project: LocalProject) => void
   editProject: (server: ServerConnection.Any, project: LocalProject) => void
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
@@ -1048,6 +1209,7 @@ type HomeProjectListProps = {
   selected: HomeProjectSelection
   selectProject: (server: ServerConnection.Any, directory: string) => void
   openNewSession: (server: ServerConnection.Any, directory: string) => void
+  attachProject: (server: ServerConnection.Any, project: LocalProject) => void
   editProject: (server: ServerConnection.Any, project: LocalProject) => void
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
@@ -1122,6 +1284,7 @@ function HomeProjectSlot(
           unseenCount={props.unseenCount(props.server, item())}
           selectProject={props.selectProject}
           openNewSession={props.openNewSession}
+          attachProject={props.attachProject}
           editProject={props.editProject}
           closeProject={props.closeProject}
           clearNotifications={props.clearNotifications}
@@ -1214,6 +1377,7 @@ function HomeProjectRow(props: {
   unseenCount: number
   selectProject: (server: ServerConnection.Any, directory: string) => void
   openNewSession: (server: ServerConnection.Any, directory: string) => void
+  attachProject: (server: ServerConnection.Any, project: LocalProject) => void
   editProject: (server: ServerConnection.Any, project: LocalProject) => void
   closeProject: (server: ServerConnection.Any, directory: string) => void
   clearNotifications: (server: ServerConnection.Any, project: LocalProject) => void
@@ -1319,6 +1483,11 @@ function HomeProjectRow(props: {
               <MenuV2.Item onSelect={() => props.openNewSession(props.server, props.project.worktree)}>
                 {props.language.t("command.session.new")}
               </MenuV2.Item>
+              <Show when={props.project.mode === "chat" && props.project.id}>
+                <MenuV2.Item onSelect={() => props.attachProject(props.server, props.project)}>
+                  {props.language.t("dialog.directory.action.selectFolder")}
+                </MenuV2.Item>
+              </Show>
               <MenuV2.Item onSelect={() => props.editProject(props.server, props.project)}>
                 {props.language.t("dialog.project.edit.title")}
               </MenuV2.Item>

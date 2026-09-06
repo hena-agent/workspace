@@ -46,6 +46,7 @@ import { useDirectoryPicker } from "@/components/directory-picker"
 import { useSettingsCommand } from "@/components/settings-dialog"
 import { DialogSelectServer, useServerManagementController } from "@/components/dialog-select-server"
 import { DialogServerV2 } from "@/components/settings-v2/dialog-server-v2"
+import { ProjectModeIcon } from "@/components/project-mode-icon"
 import { ServerConnection, serverName, useServer } from "@/context/server"
 import { sessionHasOpenTab, useTabs } from "@/context/tabs"
 import { useServerSync } from "@/context/server-sync"
@@ -1363,6 +1364,7 @@ function HomeRecentlyClosedRow(props: {
       >
         <HomeProjectAvatar project={props.project} outline />
         <span class={HOME_PROJECT_NAV_LABEL}>{displayName(props.project)}</span>
+        <ProjectModeIcon mode={props.project.mode} class="text-v2-icon-icon-muted" />
       </button>
     </TooltipV2>
   )
@@ -1458,6 +1460,7 @@ function HomeProjectRow(props: {
       >
         <HomeProjectAvatar project={props.project} />
         <span class={HOME_PROJECT_NAV_LABEL}>{displayName(props.project)}</span>
+        <ProjectModeIcon mode={props.project.mode} class="text-v2-icon-icon-muted" />
       </button>
       <div
         class="hover-reveal absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1 group-hover/project:opacity-100 focus-within:opacity-100 data-[menu=true]:opacity-100"
@@ -1810,6 +1813,7 @@ function HomeSessionSearchResultRow(props: {
           {title()}
         </span>
         <Show when={showProjectName()}>
+          <ProjectModeIcon mode={props.record.project.mode} class="text-v2-icon-icon-muted" />
           <span class={HOME_SEARCH_RESULT_META}>{props.record.projectName}</span>
         </Show>
       </div>
@@ -1877,6 +1881,7 @@ function HomeSessionRow(props: {
           {title()}
         </span>
         <Show when={showProjectName()}>
+          <ProjectModeIcon mode={props.record.project.mode} class="text-v2-icon-icon-muted" />
           <span class="min-w-0 flex-[1_1_auto] overflow-hidden text-ellipsis whitespace-nowrap text-v2-text-text-muted [font-weight:440]">
             {props.record.projectName}
           </span>

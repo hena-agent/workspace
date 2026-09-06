@@ -951,6 +951,8 @@ export const dict = {
   "home.project.openFolder.description": "기존 폴더에서 작업하세요.",
   "home.project.name": "프로젝트 이름",
   "home.project.create": "프로젝트 만들기",
+  "project.mode.chat": "채팅 프로젝트",
+  "project.mode.code": "코드 프로젝트",
   "home.recentlyClosed": "최근에 닫은 항목",
   "home.server.collapse": "서버 프로젝트 접기",
   "home.server.expand": "서버 프로젝트 펼치기",

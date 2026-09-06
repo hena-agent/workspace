@@ -1044,6 +1044,8 @@ export const dict = {
   "home.project.openFolder.description": "Arbeid i en eksisterende mappe.",
   "home.project.name": "Prosjektnavn",
   "home.project.create": "Opprett prosjekt",
+  "project.mode.chat": "Chat-prosjekt",
+  "project.mode.code": "Kodeprosjekt",
   "home.recentlyClosed": "Nylig lukket",
   "home.server.collapse": "Fold sammen serverprosjekter",
   "home.server.expand": "Utvid serverprosjekter",

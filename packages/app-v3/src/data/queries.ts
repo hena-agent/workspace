@@ -19,7 +19,6 @@ import type {
 import { createConnectionStore, type DeltaIdentity } from "@/connection/store"
 import { transcriptRowCollection, TranscriptStatusKey } from "@/connection/transcript"
 import { getMutationStateVersion, isMessagePending, subscribeMutationState } from "@/mutations/session"
-import { useSeenWatermarks, wasSeenAfter } from "@/local-state/seen"
 
 const emptyStore = createConnectionStore()
 type VisibleDelta = DeltaIdentity & { partKind: "text" | "reasoning" }
@@ -79,7 +78,6 @@ export function useProject(agent: ReturnTypeOfAgent | undefined, id: string | un
 }
 
 export function useSessions(agent: ReturnTypeOfAgent | undefined, projectId?: string) {
-  useSeenWatermarks(agent?.url)
   const permissions = useRows(agent, "permissions", "")
   const questions = useRows(agent, "questions", "")
   const sessions = useRows(agent, "sessions", "").map((row) => sessionView(row, permissions, questions, agent?.url ?? ""))
@@ -268,7 +266,7 @@ function sessionView(row: Record<string, unknown>, permissions: Record<string, u
       : questions.some((item) => string(item.sessionID) === id)
         ? "question"
         : row.working === true ? "working" : "idle",
-    unread: connectionId ? !wasSeenAfter(connectionId, id, number(time.updated)) : false,
+    unread: number(time.updated) > number(row.read),
     createdAt: number(time.created),
     updatedAt: number(time.updated),
     archived: typeof time.archived === "number",

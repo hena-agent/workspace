@@ -160,6 +160,7 @@ function fileDomain(): CoreDomain & { finds: unknown[]; lists: unknown[]; reads:
     createSession: unavailable,
     admitPrompt: unavailable,
     archiveSession: unavailable,
+    markSessionsRead: unavailable,
     interrupt: unavailable,
     cancelInput: unavailable,
     reorderInputs: unavailable,

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { receipt, requestQueueable } from "./lifecycle"
+import { createConnectionAgent } from "@/connection/agent"
+import { awaitReceipt, receipt, requestQueueable } from "./lifecycle"
 
 describe("mutation lifecycle", () => {
   test("retries transient responses and preserves the caller's request identity", async () => {
@@ -39,6 +40,18 @@ describe("mutation lifecycle", () => {
         affectedScopes: [{ collection: "sessions", scopeKey: "" }],
       },
     })).toMatchObject({ txid: "tx-1", outcome: "exact_retry" })
+  })
+
+  test("does not wait for a txid when a noop receipt affected no scopes", async () => {
+    const agent = createConnectionAgent("http://hena.test", () => new Promise<Response>(() => {}))
+    const outcome = await Promise.race([
+      awaitReceipt(agent, {
+        receipt: { txid: "tx-noop", outcome: "noop", through: { feedId: "feed", seq: 1 }, affectedScopes: [] },
+      }).then(() => "resolved"),
+      Bun.sleep(50).then(() => "timed out"),
+    ])
+    expect(outcome).toBe("resolved")
+    agent.dispose()
   })
 })
 

@@ -74,6 +74,20 @@ describe("session mutations", () => {
     expect(domain.calls).toEqual([`archive:${sessionID}`])
   })
 
+  test("marks sessions read", async () => {
+    database = createTestDatabase().database
+    const domain = recordingDomain()
+    const sessionIDs = [Session.ID.create(), Session.ID.create()]
+    const response = await createApp({ database, domain }).request("/api/session/read", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), sessionIDs }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(domain.calls).toEqual([`read:${sessionIDs.join(",")}`])
+  })
+
   test("accepts prompt bodies above the control-plane limit", async () => {
     database = createTestDatabase().database
     const domain = recordingDomain()
@@ -336,6 +350,10 @@ function recordingDomain(): CoreDomain & { calls: string[] } {
     archiveSession: async (sessionID) => {
       calls.push(`archive:${sessionID}`)
       return { receipt: receipt(1) }
+    },
+    markSessionsRead: async (input) => {
+      calls.push(`read:${input.sessionIDs.join(",")}`)
+      return { receipt: receipt(input.sessionIDs.length) }
     },
     interrupt: async (sessionID) => { calls.push(`interrupt:${sessionID}`) },
     cancelInput: async (sessionID, messageID, input) => {

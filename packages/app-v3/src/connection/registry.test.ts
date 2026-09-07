@@ -36,4 +36,17 @@ describe("connection registry", () => {
 
     expect(localStorage.getItem(`hena.project-order.v1.${encodeServerSlug(url)}`)).toBeNull()
   })
+
+  test("clears the legacy seen-watermark key alongside the current recent-session key", () => {
+    const url = "https://example.com/hena"
+    const registry = createConnectionRegistry()
+    registry.add(url)
+    localStorage.setItem(`hena.recent.v1.${encodeServerSlug(url)}`, "stored")
+    localStorage.setItem(`hena.seen.v1.${encodeServerSlug(url)}`, "stale from an older build")
+
+    registry.remove(url)
+
+    expect(localStorage.getItem(`hena.recent.v1.${encodeServerSlug(url)}`)).toBeNull()
+    expect(localStorage.getItem(`hena.seen.v1.${encodeServerSlug(url)}`)).toBeNull()
+  })
 })

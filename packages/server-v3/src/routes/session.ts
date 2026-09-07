@@ -64,6 +64,11 @@ export function createSessionRoutes(domain: CoreDomain) {
       async (c) => c.json(await domain.archiveSession(c.req.valid("param").sessionId, c.req.valid("json"))),
     )
     .post(
+      "/session/read",
+      sValidator("json", Schema.toStandardSchemaV1(Sync.MarkSessionsRead), validationHook),
+      async (c) => c.json(await domain.markSessionsRead(c.req.valid("json"))),
+    )
+    .post(
       "/session/:sessionId/interrupt",
       sValidator("param", Schema.toStandardSchemaV1(SessionParams), validationHook),
       async (c) => {

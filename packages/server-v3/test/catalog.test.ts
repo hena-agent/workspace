@@ -53,6 +53,7 @@ function catalogDomain(): CoreDomain & { catalogs: unknown[] } {
     createSession: unavailable,
     admitPrompt: unavailable,
     archiveSession: unavailable,
+    markSessionsRead: unavailable,
     interrupt: unavailable,
     cancelInput: unavailable,
     reorderInputs: unavailable,

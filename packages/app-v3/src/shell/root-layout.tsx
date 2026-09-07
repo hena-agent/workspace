@@ -12,7 +12,7 @@ import { ServerSelectionModal } from "@/features/server/server-selection-modal"
 import { decodeServerSlug } from "@/lib/server-url"
 import type { Project } from "@/lib/types"
 import { projectNotification, useProject, useProjects, useSessions } from "@/data/queries"
-import { archiveSessionOptimistically } from "@/mutations/session"
+import { archiveSessionOptimistically, markSessionsReadOptimistically } from "@/mutations/session"
 import { applyProjectOrder, loadProjectOrder, saveProjectOrder } from "@/local-state/project-order"
 import { AppShell } from "./app-shell"
 
@@ -266,7 +266,11 @@ function ShellLayout() {
           })
         },
         onRenameProject: () => {},
-        onClearNotifications: () => {},
+        onClearNotifications: () => {
+          if (!agent) return
+          const unreadSessionIds = projectSessions.flatMap((session) => session.unread ? [session.id] : [])
+          void markSessionsReadOptimistically(agent, unreadSessionIds).catch(() => {})
+        },
         onCloseProject: () => {
           if (!params.connectionId) return
           void navigate({ to: "/$connectionId", params: { connectionId: params.connectionId } })

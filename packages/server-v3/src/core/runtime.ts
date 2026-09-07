@@ -17,7 +17,7 @@ import { Catalog } from "@hena/core/catalog"
 import type { DeltaHub } from "../stream/delta"
 import { publishDelta } from "./delta-events"
 import { CollectionProjector } from "./collection-projector"
-import { MutationTxid, setSessionArchived, setSessionWorking } from "./collection-projector"
+import { MutationTxid, setSessionArchived, setSessionsRead, setSessionWorking } from "./collection-projector"
 import type { CoreDomain } from "./domain"
 import { OnlineRequestConflict, type OnlineRequestStore } from "./online-requests"
 import { Database } from "@hena/core/database/database"
@@ -193,6 +193,11 @@ export function createCoreDomain(
                 delivery: input.delivery,
                 resume: false,
               })
+              // The creator has necessarily seen a session they just created; mark it read in the
+              // same transaction so it never renders with an unread dot before the settle-gated
+              // client effect gets a chance to catch up.
+              const txid = yield* MutationTxid
+              yield* Database.Service.use((database) => setSessionsRead(database.db, [session.id], txid!))
               return { session: yield* service.get(session.id), admitted }
             }),
           ),
@@ -242,6 +247,21 @@ export function createCoreDomain(
             Effect.gen(function* () {
               const txid = yield* MutationTxid
               yield* setSessionArchived(database.db, sessionID, Date.now(), txid!)
+            }),
+          ),
+          response: (_, receipt) => ({ receipt }),
+        }),
+      ),
+    markSessionsRead: (input) =>
+      runtime.runPromise(
+        mutation({
+          operation: "session.read",
+          key: input.idempotencyKey,
+          payload: input,
+          execute: Database.Service.use((database) =>
+            Effect.gen(function* () {
+              const txid = yield* MutationTxid
+              yield* setSessionsRead(database.db, input.sessionIDs, txid!)
             }),
           ),
           response: (_, receipt) => ({ receipt }),

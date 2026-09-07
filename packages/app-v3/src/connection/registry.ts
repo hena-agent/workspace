@@ -103,7 +103,8 @@ function clearConnectionStorage(storage: Storage, url: string) {
   const slug = encodeServerSlug(url)
   const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index)).filter((key): key is string => Boolean(key))
   const keysToRemove = keys.filter((key) =>
-    key === `hena.seen.v1.${slug}` ||
+    key === `hena.recent.v1.${slug}` ||
+    key === `hena.seen.v1.${slug}` || // legacy key, replaced by hena.recent.v1
     key === `hena.drafts.v1.${slug}` ||
     key === `hena.project-order.v1.${slug}` ||
     key.startsWith(`hena.draft.v1.${slug}.`),

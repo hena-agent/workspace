@@ -16,6 +16,7 @@ export interface CoreDomain {
   createSession(input: Sync.CreateSession): Promise<{ session: SessionRecord; admitted: InputRecord; receipt: Receipt }>
   admitPrompt(sessionID: string, input: Sync.AdmitPrompt): Promise<{ admitted: InputRecord; receipt: Receipt }>
   archiveSession(sessionID: string, input: Sync.ArchiveSession): Promise<{ receipt: Receipt }>
+  markSessionsRead(input: Sync.MarkSessionsRead): Promise<{ receipt: Receipt }>
   interrupt(sessionID: string): Promise<void>
   cancelInput(sessionID: string, messageID: string, input: Sync.CancelInput): Promise<{ revision: number; receipt: Receipt }>
   reorderInputs(sessionID: string, input: Sync.ReorderInputs): Promise<{ revision: number; receipt: Receipt }>
@@ -42,6 +43,7 @@ export function unavailableCoreDomain(): CoreDomain {
     createSession: unavailable,
     admitPrompt: unavailable,
     archiveSession: unavailable,
+    markSessionsRead: unavailable,
     interrupt: unavailable,
     cancelInput: unavailable,
     reorderInputs: unavailable,

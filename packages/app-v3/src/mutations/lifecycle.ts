@@ -72,6 +72,10 @@ export function receipt(value: unknown) {
 
 export async function awaitReceipt(agent: ConnectionAgent, value: unknown) {
   const acknowledged = receipt(value)
+  // A receipt with no affected scopes (a `noop`, or an `exact_retry` of one) has no txid coming
+  // down the SSE feed to wait for -- nothing changed. Waiting anyway would time out after 10s and
+  // force a full reconnect (`awaitTxid`'s `onTxidTimeout` -> `agent.ts`'s `refresh` -> `requestRestart`).
+  if (acknowledged.affectedScopes.length === 0) return
   await agent.store.awaitTxid(acknowledged.txid, 10_000, acknowledged.affectedScopes)
 }
 

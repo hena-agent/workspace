@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { fireEvent, render, screen, waitFor } from "@/test/test-utils"
 import { mockMatchMedia } from "@/test/mock-match-media"
 import { Composer } from "./composer"
-import { agents, models } from "@/test/fixtures"
+import { agents, models, providers } from "@/test/fixtures"
 
 const originalMatchMedia = window.matchMedia
 afterEach(() => {
@@ -14,6 +14,7 @@ function setup(sent: string[], hasFinePointer = true, queued: string[] = []) {
   mockMatchMedia(hasFinePointer)
   render(
     <Composer
+      providers={providers}
       agents={agents}
       models={models}
       agentId={agents[0].id}
@@ -204,6 +205,7 @@ describe("Composer", () => {
     mockMatchMedia(true)
     render(
       <Composer
+        providers={providers}
         agents={agents}
         models={models}
         agentId={agents[0].id}
@@ -230,6 +232,7 @@ describe("Composer", () => {
     const sent: { text: string; files?: { uri: string; name?: string }[] }[] = []
     render(
       <Composer
+        providers={providers}
         agents={agents}
         models={models}
         agentId={agents[0].id}
@@ -256,6 +259,7 @@ describe("Composer", () => {
     let stopped = 0
     render(
       <Composer
+        providers={providers}
         agents={agents}
         models={models}
         agentId={agents[0].id}
@@ -279,6 +283,7 @@ describe("Composer", () => {
     const drafts: { droppedAttachments: number }[] = []
     render(
       <Composer
+        providers={providers}
         agents={agents}
         models={models}
         agentId={agents[0].id}
@@ -322,6 +327,7 @@ describe("Composer", () => {
     mockMatchMedia(true)
     render(
       <Composer
+        providers={providers}
         agents={agents}
         models={models}
         agentId={agents[0].id}

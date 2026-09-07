@@ -6,7 +6,7 @@ import { RouteLoadingState } from "@/connection/route-state"
 import { loadFileMatches, useCatalog, useCollectionReady, useProject, useSettings } from "@/data/queries"
 import { createSessionOptimistically } from "@/mutations/session"
 import { loadDraft, saveDraft } from "@/local-state/drafts"
-import type { ModelRef } from "@/lib/types"
+import { modelFromWire, modelWire } from "@/lib/model"
 
 export const Route = createFileRoute("/$connectionId/$projectId/new/$draftId")({
   component: NewSessionRoute,
@@ -36,7 +36,7 @@ function NewSessionRoute() {
       models={catalog.models}
       providers={catalog.providers}
       defaultAgentId={typeof settings.defaultAgent === "string" ? settings.defaultAgent : undefined}
-      defaultModel={settingModel(settings.defaultModel)}
+      defaultModel={modelFromWire(settings.defaultModel)}
       defaultDelivery={settings.queueDelivery === "queue" ? "queue" : "steer"}
       draft={draft}
       onDraftChange={(value) => {
@@ -84,19 +84,4 @@ function NewSessionRoute() {
       }}
     />
   )
-}
-
-function settingModel(value: unknown): ModelRef | undefined {
-  const record = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
-  return typeof record.id === "string" && typeof record.providerID === "string"
-    ? { id: record.id, providerId: record.providerID }
-    : undefined
-}
-
-// Confirms the picked model is still in the catalog before sending it over the wire, so a
-// stale selection (e.g. a provider disconnected after the pick) falls back to no model.
-function modelWire(models: ModelRef[], model: ModelRef | undefined) {
-  if (!model) return undefined
-  const known = models.some((item) => item.id === model.id && item.providerId === model.providerId)
-  return known ? { id: model.id, providerID: model.providerId } : undefined
 }

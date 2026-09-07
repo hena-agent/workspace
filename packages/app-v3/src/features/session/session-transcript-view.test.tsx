@@ -3,7 +3,7 @@ import type { ComponentProps } from "react"
 import userEvent from "@testing-library/user-event"
 import { render, screen, within } from "@/test/test-utils"
 import { SessionTranscriptView } from "./session-transcript-view"
-import { agents, models, sessions } from "@/test/fixtures"
+import { agents, models, providers, sessions } from "@/test/fixtures"
 import { getPermissionRequest, getQuestionRequest, listMessages, listTodos } from "@/test/queries"
 
 function noop() {}
@@ -13,6 +13,7 @@ function renderView(sessionId: string, props?: Partial<ComponentProps<typeof Ses
   const sessionOwner = { sessionId, connectionId: session.connectionId, projectId: session.projectId }
   return render(
     <SessionTranscriptView
+      providers={providers}
       session={session}
       messages={listMessages(sessionOwner)}
       messagesReady
@@ -65,6 +66,7 @@ describe("SessionTranscriptView", () => {
 
     render(
       <SessionTranscriptView
+        providers={providers}
         session={session}
         messages={listMessages({
           sessionId: session.id,

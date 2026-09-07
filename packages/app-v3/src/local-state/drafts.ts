@@ -1,3 +1,6 @@
+import { encodeServerSlug } from "@/lib/server-url"
+import type { ModelRef } from "@/lib/types"
+
 export type DraftSelection = { start: number; end: number }
 export type DraftDelivery = "steer" | "queue"
 export type DraftBody = {
@@ -5,6 +8,8 @@ export type DraftBody = {
   selection: DraftSelection
   agentID?: string
   model?: ModelRef
+  // Retained from v1/v2 drafts until the catalog can resolve a unique provider.
+  modelID?: string
   delivery: DraftDelivery
   droppedAttachments: number
   error?: string
@@ -109,7 +114,7 @@ function normalizeBody(value: Partial<DraftBody> | Record<string, unknown>): Dra
     ...(typeof value.agentID === "string" ? { agentID: value.agentID } : {}),
     ...(typeof model.id === "string" && typeof model.providerId === "string"
       ? { model: { id: model.id, providerId: model.providerId } }
-      : {}),
+      : typeof value.modelID === "string" ? { modelID: value.modelID } : {}),
     delivery: value.delivery === "queue" ? "queue" : "steer",
     droppedAttachments: boundedInteger(value.droppedAttachments, 1_000),
     ...(typeof value.error === "string" ? { error: value.error.slice(0, 1_000) } : {}),
@@ -136,5 +141,3 @@ function array(value: unknown): unknown[] {
 function boundedInteger(value: unknown, maximum: number) {
   return typeof value === "number" && Number.isInteger(value) ? Math.max(0, Math.min(value, maximum)) : 0
 }
-import { encodeServerSlug } from "@/lib/server-url"
-import type { ModelRef } from "@/lib/types"

@@ -53,6 +53,7 @@ describe("AgentModelPicker", () => {
       <AgentModelPicker
         agents={[]}
         models={[]}
+        providers={[]}
         agentId=""
         model={undefined}
         onChangeAgent={() => {}}
@@ -207,5 +208,42 @@ describe("AgentModelPicker", () => {
 
     await user.click(items[0]!)
     expect(changed).toEqual([{ id: "shared-model", providerId: "openai" }])
+  })
+
+  test("selects the first available option when the saved model is missing", async () => {
+    const user = userEvent.setup()
+    const changed: ModelRef[] = []
+    render(<AgentModelPicker agents={agents} models={models} providers={providers} agentId={agents[0].id}
+      model={{ id: models[0].id, providerId: "unavailable" }} onChangeAgent={() => {}} onChangeModel={(model) => changed.push(model)} />)
+    await user.click(screen.getByLabelText("Model"))
+    expect(screen.getByRole("option", { selected: true })).toHaveTextContent(models[0].name)
+    await user.keyboard("{Enter}")
+    expect(changed).toEqual([{ id: models[0].id, providerId: models[0].providerId }])
+  })
+
+  test("resets search and highlights the current model on reopen", async () => {
+    const user = userEvent.setup()
+    render(<AgentModelPicker agents={agents} models={models} providers={providers} agentId={agents[0].id}
+      model={models[2]} onChangeAgent={() => {}} onChangeModel={() => {}} />)
+    const trigger = screen.getByLabelText("Model")
+    await user.click(trigger)
+    expect(screen.getByRole("option", { selected: true })).toHaveTextContent(models[2].name)
+    await user.type(screen.getByRole("combobox", { name: "Search models" }), "claude")
+    await user.keyboard("{Escape}")
+    expect(trigger).toHaveFocus()
+    await user.click(trigger)
+    expect(screen.getByRole("combobox", { name: "Search models" })).toHaveValue("")
+    expect(screen.getByRole("option", { selected: true })).toHaveTextContent(models[2].name)
+    expect(screen.getAllByRole("option")).toHaveLength(models.length)
+  })
+
+  test("ranks prefix matches before substrings and compact matches", async () => {
+    const user = userEvent.setup()
+    const catalog = ["GPT-5.2", "Cloud GPT52", "GPT52 Preview"].map((name, index) => ({ ...models[2], id: `model-${index}`, name }))
+    render(<AgentModelPicker agents={agents} models={catalog} providers={providers} agentId={agents[0].id}
+      model={undefined} onChangeAgent={() => {}} onChangeModel={() => {}} />)
+    await user.click(screen.getByLabelText("Model"))
+    await user.type(screen.getByRole("combobox", { name: "Search models" }), "gpt52")
+    expect(screen.getAllByRole("option").map((item) => item.textContent)).toEqual(["GPT52 Preview", "Cloud GPT52", "GPT-5.2"])
   })
 })

@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Composer } from "@/features/session/composer/composer"
 import type { Agent, Model, ModelRef, Provider } from "@/lib/types"
 import type { DraftBody } from "@/local-state/drafts"
+import { resolveModel } from "@/lib/model"
 
 export function NewSessionView({
   project,
@@ -19,7 +20,7 @@ export function NewSessionView({
   project: { name: string; path: string }
   agents: Agent[]
   models: Model[]
-  providers?: Provider[]
+  providers: Provider[]
   onStart: (params: { text: string; files?: { uri: string; name?: string }[]; agentId: string; model: ModelRef | undefined; delivery: "send" | "queue" }) => unknown
   defaultAgentId?: string
   defaultModel?: ModelRef
@@ -35,8 +36,16 @@ export function NewSessionView({
   // react-doctor-disable-next-line react-doctor/no-derived-useState -- see comment above
   const [model, setModel] = useState(draft?.model)
   const selectedAgentId = agentId || defaultAgentId || agents[0]?.id || ""
-  const selectedModel = model ?? defaultModel ?? models[0]
+  const selection = model ?? draft?.model ?? draft?.modelID ?? defaultModel ?? models[0]
+  const selectedModel = resolveModel(models, selection)
   const selectedDelivery = draft?.delivery ?? defaultDelivery ?? "steer"
+
+  function start(text: string, files: { uri: string; name?: string }[] | undefined, delivery: "send" | "queue") {
+    if (selection && !selectedModel) {
+      return Promise.reject(new Error("Select a model before sending. The saved model is unavailable or matches multiple providers."))
+    }
+    return onStart({ text, ...(files?.length ? { files } : {}), agentId: selectedAgentId, model: selectedModel, delivery })
+  }
 
   return (
     <div className="mx-auto flex h-full w-full max-w-2xl flex-col items-center justify-center gap-6 p-4">
@@ -55,8 +64,8 @@ export function NewSessionView({
           model={selectedModel}
           onChangeAgent={setAgentId}
           onChangeModel={setModel}
-          onSend={(text, files) => onStart({ text, ...(files?.length ? { files } : {}), agentId: selectedAgentId, model: selectedModel, delivery: selectedDelivery === "queue" ? "queue" : "send" })}
-          onQueue={(text, files) => onStart({ text, ...(files?.length ? { files } : {}), agentId: selectedAgentId, model: selectedModel, delivery: "queue" })}
+          onSend={(text, files) => start(text, files, selectedDelivery === "queue" ? "queue" : "send")}
+          onQueue={(text, files) => start(text, files, "queue")}
           initialText={draft?.text}
           initialSelection={draft?.selection}
           initialError={draft?.error}
@@ -65,7 +74,8 @@ export function NewSessionView({
           onDraftChange={(value) => onDraftChange?.({
             ...value,
             agentID: selectedAgentId || undefined,
-            model: selectedModel,
+            model: model ?? draft?.model ?? selectedModel,
+            modelID: draft?.modelID,
             delivery: selectedDelivery,
           })}
           placeholder="What are we doing today?"

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { modelFromWire } from "@/lib/model"
 import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { useTheme } from "@/components/theme-provider"
 import type { FontSizePreference } from "@/features/settings/appearance-section"
@@ -117,7 +118,6 @@ function SettingsRoute() {
 }
 
 function modelSetting(value: unknown) {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return
-  const model = value as Record<string, unknown>
-  return typeof model.providerID === "string" && typeof model.id === "string" ? `${model.providerID}:${model.id}` : undefined
+  const model = modelFromWire(value)
+  return model ? `${model.providerId}:${model.id}` : undefined
 }

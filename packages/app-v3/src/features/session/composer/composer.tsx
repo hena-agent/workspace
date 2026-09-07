@@ -37,7 +37,7 @@ const ATTACHMENT_ERROR = "Each attachment must be 5 MiB or smaller and attachmen
 type ComposerProps = {
   agents: Agent[]
   models: Model[]
-  providers?: Provider[]
+  providers: Provider[]
   agentId: string
   model: ModelRef | undefined
   onChangeAgent: (id: string) => void

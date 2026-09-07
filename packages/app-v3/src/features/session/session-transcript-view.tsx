@@ -61,7 +61,7 @@ export function SessionTranscriptView({
   questionRequest?: QuestionRequest
   agents: Agent[]
   models: Model[]
-  providers?: Provider[]
+  providers: Provider[]
   agentId: string
   model: ModelRef | undefined
   onChangeAgent: (id: string) => void

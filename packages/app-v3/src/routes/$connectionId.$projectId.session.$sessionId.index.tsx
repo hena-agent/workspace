@@ -10,6 +10,7 @@ import { admitPromptOptimistically, cancelInputOptimistically, interruptOptimist
 import { loadDraft, saveDraft } from "@/local-state/drafts"
 import { markSessionOpened } from "@/local-state/recent"
 import type { ModelRef } from "@/lib/types"
+import { modelFromWire, modelWire } from "@/lib/model"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/")({
   component: SessionTranscriptRoute,
@@ -63,7 +64,7 @@ function SessionTranscript({
   const [model, setModel] = useState<ModelRef | undefined>(undefined)
   const [mutationNotice, setMutationNotice] = useState("")
   const selectedAgentId = agentId || (typeof settings.defaultAgent === "string" ? settings.defaultAgent : session?.agentId) || catalog.agents[0]?.id || ""
-  const selectedModel = model ?? settingModel(settings.defaultModel) ?? session?.model ?? catalog.models[0]
+  const selectedModel = model ?? modelFromWire(settings.defaultModel) ?? session?.model ?? catalog.models[0]
   const draftKey = `session:${sessionId}`
   const draft = agent ? loadDraft(agent.url, draftKey) : undefined
   useEffect(() => {
@@ -205,19 +206,4 @@ function SessionTranscript({
     </div>
   )
 
-}
-
-function settingModel(value: unknown): ModelRef | undefined {
-  const record = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
-  return typeof record.id === "string" && typeof record.providerID === "string"
-    ? { id: record.id, providerId: record.providerID }
-    : undefined
-}
-
-// Confirms the picked model is still in the catalog before sending it over the wire, so a
-// stale selection (e.g. a provider disconnected after the pick) falls back to the session default.
-function modelWire(models: ModelRef[], model: ModelRef | undefined) {
-  if (!model) return undefined
-  const known = models.some((item) => item.id === model.id && item.providerId === model.providerId)
-  return known ? { id: model.id, providerID: model.providerId } : undefined
 }

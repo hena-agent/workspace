@@ -12,11 +12,12 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { SelectGroup } from "@/components/ui/select"
 import type { Agent, Model, ModelRef, Provider } from "@/lib/types"
+import { resolveModel } from "@/lib/model"
 
 export function AgentModelPicker({
   agents,
   models,
-  providers = [],
+  providers,
   agentId,
   model,
   onChangeAgent,
@@ -25,7 +26,7 @@ export function AgentModelPicker({
 }: {
   agents: Agent[]
   models: Model[]
-  providers?: Provider[]
+  providers: Provider[]
   agentId: string
   model: ModelRef | undefined
   onChangeAgent: (id: string) => void
@@ -33,8 +34,8 @@ export function AgentModelPicker({
   disabled?: boolean
 }) {
   const [modelOpen, setModelOpen] = useState(false)
-  const selectedModel = models.find((item) => item.id === model?.id && item.providerId === model?.providerId)
-  const groups = groupByProvider(models, providers)
+  const selectedModel = resolveModel(models, model)
+  const groups = modelOpen ? groupByProvider(models, providers) : []
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -69,8 +70,9 @@ export function AgentModelPicker({
           <DialogTitle className="sr-only">Select model</DialogTitle>
           <Command
             className="**:data-[slot=command-input-wrapper]:h-auto"
+            label="Search models"
             filter={scoreModel}
-            defaultValue={model ? itemValue(model) : undefined}
+            defaultValue={selectedModel ? itemValue(selectedModel) : undefined}
           >
             <CommandInput className="h-auto py-3.5" placeholder="Search models…" autoFocus />
             <CommandList>
@@ -82,7 +84,7 @@ export function AgentModelPicker({
                       key={itemValue(item)}
                       value={itemValue(item)}
                       keywords={[item.name, item.id, item.providerId, group.heading]}
-                      data-checked={item.id === model?.id && item.providerId === model?.providerId}
+                      data-checked={item === selectedModel}
                       onSelect={() => {
                         onChangeModel({ id: item.id, providerId: item.providerId })
                         setModelOpen(false)

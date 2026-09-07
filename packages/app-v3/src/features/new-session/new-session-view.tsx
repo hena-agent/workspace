@@ -29,7 +29,11 @@ export function NewSessionView({
   onFindFiles?: (query: string, signal: AbortSignal) => Promise<string[]>
 }) {
   const [agentId, setAgentId] = useState(draft?.agentID ?? "")
-  const [model, setModel] = useState<ModelRef | undefined>(draft?.model)
+  // Uncontrolled: both routes that render this view set remountDeps to the route params, so a
+  // new draftId always remounts this component and re-reads `draft` once; there is no in-place
+  // prop change to miss.
+  // react-doctor-disable-next-line react-doctor/no-derived-useState -- see comment above
+  const [model, setModel] = useState(draft?.model)
   const selectedAgentId = agentId || defaultAgentId || agents[0]?.id || ""
   const selectedModel = model ?? defaultModel ?? models[0]
   const selectedDelivery = draft?.delivery ?? defaultDelivery ?? "steer"

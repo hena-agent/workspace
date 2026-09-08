@@ -42,6 +42,43 @@ const model = (api: Api, variants: ModelV2.Info["variants"] = []) =>
   })
 
 describe("SessionRunnerModel", () => {
+  it.effect("sends the current session ID to OpenCode without changing shared catalog headers", () =>
+    Effect.gen(function* () {
+      const catalog = ModelV2.Info.make({
+        ...model({ type: "aisdk", package: "@ai-sdk/openai", url: "https://opencode.ai/zen/v1" }),
+        id: ModelV2.ID.make("muse-spark-1.3-contributor-free"),
+        providerID: ProviderV2.ID.make("opencode"),
+        api: {
+          id: ModelV2.ID.make("muse-spark-1.3-contributor-free"),
+          type: "aisdk",
+          package: "@ai-sdk/openai",
+          url: "https://opencode.ai/zen/v1",
+        },
+      })
+      const session = SessionV2.Info.make({
+        id: SessionV2.ID.make("ses_opencode_headers"),
+        projectID: ProjectV2.ID.global,
+        title: "test",
+        cost: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+        time: { created: DateTime.makeUnsafe(0), updated: DateTime.makeUnsafe(0) },
+        location: { directory: AbsolutePath.make("/project") },
+      })
+      const resolved = yield* SessionRunnerModel.resolve(session, catalog)
+      expect(resolved.route.defaults.headers).toMatchObject({ "x-opencode-session": session.id, "x-test": "header" })
+      expect(catalog.request.headers).toEqual({ "x-test": "header" })
+
+      const other = yield* SessionRunnerModel.resolve({ ...session, id: SessionV2.ID.make("ses_other") }, catalog)
+      expect(other.route.defaults.headers).toHaveProperty("x-opencode-session", "ses_other")
+
+      const unrelated = yield* SessionRunnerModel.resolve(
+        session,
+        ModelV2.Info.make({ ...catalog, providerID: ProviderV2.ID.make("test-provider") }),
+      )
+      expect(unrelated.route.defaults.headers).not.toHaveProperty("x-opencode-session")
+    }),
+  )
+
   it.effect("maps catalog OpenAI AI SDK models into native Responses routes", () =>
     Effect.gen(function* () {
       const resolved = yield* SessionRunnerModel.fromCatalogModel(

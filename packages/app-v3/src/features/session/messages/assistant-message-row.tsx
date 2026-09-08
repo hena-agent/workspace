@@ -1,6 +1,7 @@
 import { Bot } from "lucide-react"
 import type { AssistantMessage } from "@/lib/types"
 import { Message, MessageContent } from "@/components/ai-elements/message"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ReasoningPartView } from "./reasoning-part-view"
 import { TextPartView } from "./text-part-view"
 import { ToolPartView } from "./tool-part-view"
@@ -27,6 +28,12 @@ export function AssistantMessageRow({ message, working }: { message: AssistantMe
             ) : null}
           </div>
         ))}
+        {message.error ? (
+          <Alert variant="destructive">
+            <AlertTitle>Response failed</AlertTitle>
+            <AlertDescription className="break-words whitespace-pre-wrap">{message.error}</AlertDescription>
+          </Alert>
+        ) : null}
       </MessageContent>
     </Message>
   )

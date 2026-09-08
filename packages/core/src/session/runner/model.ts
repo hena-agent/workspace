@@ -176,7 +176,19 @@ export const fromCatalogModel = (
 }
 
 export const resolve = (session: SessionSchema.Info, model: ModelV2.Info, credential?: Credential.Value) =>
-  withVariant(model, session.model?.variant).pipe(Effect.flatMap((model) => fromCatalogModel(model, credential)))
+  withVariant(model, session.model?.variant).pipe(
+    Effect.flatMap((model) =>
+      fromCatalogModel(
+        model.providerID === "opencode"
+          ? produce(model, (draft) => {
+              // Zen's free models require this on every request, including titles and compaction.
+              draft.request.headers["x-opencode-session"] = session.id
+            })
+          : model,
+        credential,
+      ),
+    ),
+  )
 
 export const supported = (model: ModelV2.Info) =>
   model.api.type === "aisdk" &&
@@ -192,7 +204,6 @@ export const locationLayer = Layer.effect(
     const integrations = yield* Integration.Service
     return Service.of({
       resolve: Effect.fn("SessionRunnerModel.resolve")(function* (session) {
-        // Location plugins populate and filter the catalog asynchronously during layer startup.
         const defaultModel = session.model ? undefined : yield* catalog.model.default()
         const selected = session.model
           ? (yield* catalog.model.available()).find(

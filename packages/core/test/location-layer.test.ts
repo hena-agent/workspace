@@ -37,6 +37,34 @@ const it = testEffect(
 )
 
 describe("LocationServiceMap", () => {
+  it.live("finishes catalog initialization before exposing a cold location", () =>
+    Effect.acquireRelease(
+      Effect.promise(() => tmpdir()),
+      (dir) => Effect.promise(() => dir[Symbol.asyncDispose]()),
+    ).pipe(
+      Effect.flatMap((dir) =>
+        Effect.gen(function* () {
+          yield* Effect.promise(() =>
+            Bun.write(path.join(dir.path, "hena.json"), JSON.stringify({
+              providers: {
+                local: {
+                  api: { type: "aisdk", package: "@ai-sdk/openai-compatible", url: "http://localhost:1234/v1" },
+                  models: { chat: {} },
+                },
+              },
+            })),
+          )
+          const models = yield* Catalog.Service.use((catalog) => catalog.model.available()).pipe(
+            Effect.provide(
+              LocationServiceMap.Service.get(Location.Ref.make({ directory: AbsolutePath.make(dir.path) })),
+            ),
+          )
+          expect(models.some((model) => model.providerID === "local" && model.id === "chat")).toBe(true)
+        }),
+      ),
+    ),
+  )
+
   it.live("reuses cached services for constructed and decoded location refs", () =>
     Effect.acquireRelease(
       Effect.promise(() => tmpdir()),

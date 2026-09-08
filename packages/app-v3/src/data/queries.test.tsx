@@ -78,6 +78,32 @@ test("transcript rows wait for both message and part snapshots", async () => {
   act(() => agent.dispose())
 })
 
+test("assistant failures remain visible even when the provider returned no parts", async () => {
+  const agent = createConnectionAgent("http://hena.test")
+
+  function View() {
+    const transcript = useMessages(agent, "session-1")
+    return <MessageList messages={transcript.messages} ready={transcript.ready} />
+  }
+
+  render(<View />)
+  await act(async () => {
+    agent.store.applySnapshot("messages", "session-1", [{
+      key: "message-1",
+      row: {
+        id: "message-1",
+        type: "assistant",
+        time: { created: 1, completed: 2 },
+        error: { type: "unknown", message: "MissingSessionID: OpenCode's free tier can only be used in OpenCode" },
+      },
+    }], 1)
+    agent.store.applySnapshot("parts", "session-1", [], 1)
+    await Bun.sleep(0)
+  })
+  expect(await screen.findByRole("alert")).toHaveTextContent("MissingSessionID: OpenCode's free tier can only be used in OpenCode")
+  act(() => agent.dispose())
+})
+
 test("empty transcripts return to a busy state while resynchronizing", async () => {
   const agent = createConnectionAgent("http://hena.test")
   agent.store.applySnapshot("messages", "session-1", [], 1)

@@ -173,7 +173,7 @@ export function useCatalog(agent: ReturnTypeOfAgent | undefined, location: { dir
   const models = useRows(agent, "models", scope).map(modelView)
   const providers = useRows(agent, "providers", scope).map(providerView)
   return {
-    agents: agents.filter((item) => item.id),
+    agents: agents.filter((item) => item.id && item.mode !== "subagent" && !item.hidden),
     models: models.filter((item) => item.id),
     providers: providers.filter((item) => item.id),
   }
@@ -200,7 +200,7 @@ export function useLocationCatalog(
       const models = data.models.map(modelView)
       const providers = data.providers.map(providerView)
       return {
-        agents: agents.filter((item) => item.id),
+        agents: agents.filter((item) => item.id && item.mode !== "subagent" && !item.hidden),
         models: models.filter((item) => item.id),
         providers: providers.filter((item) => item.id),
       }
@@ -377,7 +377,7 @@ function questionView(row: Record<string, unknown>): QuestionRequest {
 }
 
 function agentView(row: Record<string, unknown>): Agent {
-  return { id: string(row.id), name: string(row.id), description: string(row.description) }
+  return { id: string(row.id), name: string(row.id), description: string(row.description), mode: string(row.mode), hidden: row.hidden === true }
 }
 
 function modelView(row: Record<string, unknown>): Model {

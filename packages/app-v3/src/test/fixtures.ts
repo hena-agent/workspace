@@ -634,9 +634,9 @@ export const fileTree: FileNode[] = [
 ]
 
 export const agents: Agent[] = [
-  { id: "build", name: "Build", description: "Writes and edits code directly." },
-  { id: "plan", name: "Plan", description: "Read-only planning and review." },
-  { id: "explore", name: "Explore", description: "Fast codebase search and Q&A." },
+  { id: "build", name: "Build", description: "Writes and edits code directly.", mode: "primary", hidden: false },
+  { id: "plan", name: "Plan", description: "Read-only planning and review.", mode: "primary", hidden: false },
+  { id: "explore", name: "Explore", description: "Fast codebase search and Q&A.", mode: "subagent", hidden: false },
 ]
 
 export const models: Model[] = [

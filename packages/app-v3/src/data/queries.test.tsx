@@ -1,9 +1,46 @@
 import { expect, test } from "bun:test"
-import { act, render, screen, waitFor } from "@testing-library/react"
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { flushSync } from "react-dom"
 import { createConnectionAgent } from "@/connection/agent"
 import { MessageList } from "@/features/session/message-list"
-import { useMessages, useSessions } from "./queries"
+import { useCatalog, useLocationCatalog, useMessages, useSessions } from "./queries"
+
+test("both catalog paths exclude hidden agents and subagents but retain visible custom agents", async () => {
+  const location = { directory: "/project" }
+  const agents = [
+    { id: "build", mode: "primary", hidden: false },
+    { id: "plan", mode: "primary", hidden: false },
+    { id: "general", mode: "subagent", hidden: false },
+    { id: "explore", mode: "subagent", hidden: false },
+    { id: "compaction", mode: "primary", hidden: true },
+    { id: "title", mode: "primary", hidden: true },
+    { id: "summary", mode: "primary", hidden: true },
+    { id: "review", mode: "all", hidden: false },
+    { id: "custom", mode: "primary", hidden: false },
+    { id: "hidden-custom", mode: "all", hidden: true },
+    { id: "", mode: "primary", hidden: false },
+  ]
+  const agent = createConnectionAgent("http://hena.test", async () => Response.json({ agents, models: [], providers: [] }))
+  agent.store.applySnapshot("agents", JSON.stringify(location), agents.map((row) => ({ key: row.id, row })), 1)
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const view = renderHook(() => ({
+    synced: useCatalog(agent, location),
+    fetched: useLocationCatalog(agent, location),
+  }), {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  })
+
+  await waitFor(() => expect(view.result.current.fetched.isSuccess).toBe(true))
+  const expected = ["build", "custom", "plan", "review"]
+  expect(view.result.current.synced.agents.map((item) => item.id).sort()).toEqual(expected)
+  expect(view.result.current.fetched.data?.agents.map((item) => item.id).sort()).toEqual(expected)
+  expect(view.result.current.synced.agents[0]).toEqual({ id: "build", name: "build", description: "", mode: "primary", hidden: false })
+  expect(view.result.current.fetched.data?.agents).toEqual(expect.arrayContaining(view.result.current.synced.agents))
+  view.unmount()
+  client.clear()
+  act(() => agent.dispose())
+})
 
 test("a session is unread until its read watermark catches up to its update time", async () => {
   const agent = createConnectionAgent("http://hena.test")

@@ -1,8 +1,8 @@
 import { describe, expect } from "bun:test"
 import { LLM } from "@hena/llm"
-import { LLMClient } from "@hena/llm/route"
-import { DateTime, Effect } from "effect"
-import { Headers } from "effect/unstable/http"
+import { LLMClient, RequestExecutor } from "@hena/llm/route"
+import { DateTime, Effect, Layer, Stream } from "effect"
+import { FetchHttpClient, Headers } from "effect/unstable/http"
 import { Credential } from "@hena/core/credential"
 import { Integration } from "@hena/core/integration"
 import { ModelV2 } from "@hena/core/model"
@@ -42,17 +42,35 @@ const model = (api: Api, variants: ModelV2.Info["variants"] = []) =>
   })
 
 describe("SessionRunnerModel", () => {
-  it.effect("sends the current session ID to OpenCode without changing shared catalog headers", () =>
+  it.live("sends the current session ID to OpenCode without changing shared catalog headers", () =>
     Effect.gen(function* () {
+      const received: Array<{ session: string | null; custom: string | null; path: string }> = []
+      const server = yield* Effect.acquireRelease(
+        Effect.sync(() => Bun.serve({
+          hostname: "127.0.0.1",
+          port: 0,
+          fetch: (request) => {
+            received.push({
+              session: request.headers.get("x-opencode-session"),
+              custom: request.headers.get("x-test"),
+              path: new URL(request.url).pathname,
+            })
+            return new Response('data: {"type":"response.completed","response":{"id":"resp_test"}}\n\n', {
+              headers: { "content-type": "text/event-stream" },
+            })
+          },
+        })),
+        (server) => Effect.promise(() => server.stop(true)),
+      )
       const catalog = ModelV2.Info.make({
-        ...model({ type: "aisdk", package: "@ai-sdk/openai", url: "https://opencode.ai/zen/v1" }),
+        ...model({ type: "aisdk", package: "@ai-sdk/openai" }),
         id: ModelV2.ID.make("muse-spark-1.3-contributor-free"),
         providerID: ProviderV2.ID.make("opencode"),
         api: {
           id: ModelV2.ID.make("muse-spark-1.3-contributor-free"),
           type: "aisdk",
           package: "@ai-sdk/openai",
-          url: "https://opencode.ai/zen/v1",
+          url: `${server.url.href}v1`,
         },
       })
       const session = SessionV2.Info.make({
@@ -76,6 +94,17 @@ describe("SessionRunnerModel", () => {
         ModelV2.Info.make({ ...catalog, providerID: ProviderV2.ID.make("test-provider") }),
       )
       expect(unrelated.route.defaults.headers).not.toHaveProperty("x-opencode-session")
+
+      yield* Effect.forEach([resolved, other, unrelated], (model) =>
+        LLMClient.stream(LLM.request({ model, prompt: "Hello" })).pipe(Stream.runDrain),
+      ).pipe(Effect.provide(
+        LLMClient.layer.pipe(Layer.provide(RequestExecutor.layer.pipe(Layer.provide(FetchHttpClient.layer)))),
+      ))
+      expect(received).toEqual([
+        { session: session.id, custom: "header", path: "/v1/responses" },
+        { session: "ses_other", custom: "header", path: "/v1/responses" },
+        { session: null, custom: "header", path: "/v1/responses" },
+      ])
     }),
   )
 

@@ -1,5 +1,6 @@
 import { describe, expect, beforeAll, beforeEach, afterAll } from "bun:test"
-import { Effect, Layer, Ref } from "effect"
+import { Context, Deferred, Effect, Fiber, Layer, Ref } from "effect"
+import { adjust } from "effect/testing/TestClock"
 import { HttpClient, HttpClientResponse } from "effect/unstable/http"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNodePlatform } from "@hena/core/effect/app-node-platform"
@@ -7,7 +8,13 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 import { Flag } from "@hena/core/flag/flag"
 import { Global } from "@hena/core/global"
 import { ModelsDev } from "@hena/core/models-dev"
+import { Catalog } from "@hena/core/catalog"
+import { FileSystem } from "@hena/core/filesystem"
+import { Location } from "@hena/core/location"
+import { LocationServiceMap } from "@hena/core/location-services"
+import { AbsolutePath, RelativePath } from "@hena/core/schema"
 import { it } from "./lib/effect"
+import { tmpdir } from "./fixture/tmpdir"
 import { readFile, rm, writeFile, utimes, mkdir } from "fs/promises"
 import path from "path"
 
@@ -190,6 +197,78 @@ describe("ModelsDev Service", () => {
         }),
       )
       for (const result of results) expect(result).toEqual(fixture)
+    }),
+  )
+
+  it.live("a cold location keeps configured models and filesystem access when the remote catalog fails", () =>
+    Effect.gen(function* () {
+      const dir = yield* Effect.acquireRelease(
+        Effect.promise(() => tmpdir()),
+        (dir) => Effect.promise(() => dir[Symbol.asyncDispose]()),
+      )
+      yield* Effect.promise(() => Bun.write(path.join(dir.path, "hena.json"), JSON.stringify({
+        providers: {
+          local: {
+            api: { type: "aisdk", package: "@ai-sdk/openai-compatible", url: "http://localhost:1234/v1" },
+            models: { chat: {} },
+          },
+        },
+      })))
+      const state = yield* Ref.make({ ...initialState, status: 503, body: "unavailable" })
+      // Build with background refresh disabled, then exercise the actual cold-start fetch.
+      const context = yield* Layer.build(buildLayer(state))
+      const modelsDev = Context.get(context, ModelsDev.Service)
+      yield* Effect.acquireUseRelease(
+        Effect.sync(() => { Flag.HENA_DISABLE_MODELS_FETCH = false }),
+        () => Effect.gen(function* () {
+          const result = yield* Effect.gen(function* () {
+            const catalog = yield* Catalog.Service
+            const filesystem = yield* FileSystem.Service
+            return {
+              models: yield* catalog.model.available(),
+              file: yield* filesystem.read({ path: RelativePath.make("hena.json") }),
+            }
+          }).pipe(
+            Effect.provide(LocationServiceMap.Service.get(Location.Ref.make({ directory: AbsolutePath.make(dir.path) }))),
+            Effect.provide(AppNodeBuilder.build(LocationServiceMap.node, [
+              [ModelsDev.node, Layer.succeed(ModelsDev.Service, modelsDev)],
+            ])),
+          )
+          expect(result.models.some((model) => model.providerID === "local" && model.id === "chat")).toBe(true)
+          expect(new TextDecoder().decode(result.file.content)).toContain("localhost:1234")
+          expect((yield* Ref.get(state)).calls.length).toBeGreaterThan(0)
+          expect(yield* Effect.promise(() => Bun.file(cacheFile).exists())).toBe(false)
+
+          yield* Ref.set(state, { ...initialState, body: JSON.stringify(fixture2) })
+          yield* modelsDev.refresh(true)
+          expect(yield* modelsDev.get()).toEqual(fixture2)
+        }),
+        () => Effect.sync(() => { Flag.HENA_DISABLE_MODELS_FETCH = true }),
+      )
+    }),
+  )
+
+  it.effect("get() falls back when a cold remote catalog request times out", () =>
+    Effect.gen(function* () {
+      const started = yield* Deferred.make<void>()
+      const context = yield* Layer.build(Layer.fresh(AppNodeBuilder.build(ModelsDev.node, [
+        [LayerNodePlatform.httpClient, Layer.succeed(HttpClient.HttpClient, HttpClient.make(() =>
+          Deferred.succeed(started, undefined).pipe(Effect.andThen(Effect.never)),
+        ))],
+      ])))
+      yield* Effect.acquireUseRelease(
+        Effect.sync(() => { Flag.HENA_DISABLE_MODELS_FETCH = false }),
+        () => Effect.gen(function* () {
+          const fiber = yield* ModelsDev.Service.use((service) => service.get()).pipe(
+            Effect.provide(context),
+            Effect.forkScoped,
+          )
+          yield* Deferred.await(started)
+          yield* adjust("10 seconds")
+          expect(yield* Fiber.join(fiber)).toEqual({})
+        }),
+        () => Effect.sync(() => { Flag.HENA_DISABLE_MODELS_FETCH = true }),
+      )
     }),
   )
 

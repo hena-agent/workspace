@@ -20,6 +20,55 @@ import { Session } from "@hena/schema/session"
 import { SessionEvent } from "@hena/schema/session-event"
 
 describe("collection projector", () => {
+  test.each(["MissingSessionID", "Provider turn interrupted"])("projects a zero-part assistant failure: %s", async (message) => {
+    const layer = AppNodeBuilder.build(
+      LayerNode.group([Database.node, EventV2.node, SessionProjector.node, CollectionProjector]),
+      [[Database.node, Database.layerFromPath(":memory:")]],
+    )
+    await Effect.runPromise(
+      Effect.gen(function* () {
+        const database = (yield* Database.Service).db
+        const events = yield* EventV2.Service
+        yield* database.run(sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`)
+        yield* database.run(sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_failed', 'global', 'session', '/project', 'Session', '1', 1, 1)`)
+        yield* database.run(sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`)
+        const sessionID = Session.ID.make("ses_failed")
+        const assistantMessageID = SessionMessage.ID.make("msg_failed")
+        yield* refreshDurableEvent(database, {
+          type: SessionEvent.PromptAdmitted.type,
+          data: { sessionID, delivery: "steer" },
+        })
+        expect(yield* sessionWorking(database, sessionID)).toBe(true)
+        yield* events.publish(SessionEvent.Step.Started, {
+          sessionID,
+          assistantMessageID,
+          timestamp: DateTime.makeUnsafe(2),
+          agent: "build",
+          model: Schema.decodeUnknownSync(SessionMessage.Assistant.fields.model)({
+            id: "muse-spark-1.3-contributor-free",
+            providerID: "opencode",
+          }),
+        })
+        yield* events.publish(SessionEvent.Step.Failed, {
+          sessionID,
+          assistantMessageID,
+          timestamp: DateTime.makeUnsafe(3),
+          error: { type: "unknown", message },
+        })
+        const projected = yield* database.get<{ row: string }>(sql`
+          SELECT row FROM collection_row WHERE collection = 'messages' AND scope_key = ${sessionID} AND row_key = ${assistantMessageID}
+        `)
+        expect(projected && JSON.parse(projected.row)).toMatchObject({
+          type: "assistant",
+          error: { type: "unknown", message },
+          time: { completed: 3 },
+        })
+        expect(yield* database.all(sql`SELECT row FROM collection_row WHERE collection = 'parts' AND scope_key = ${sessionID}`)).toEqual([])
+        expect(yield* sessionWorking(database, sessionID)).toBe(false)
+      }).pipe(Effect.provide(layer), Effect.scoped),
+    )
+  })
+
   test("publishes durable title updates to the sessions collection", async () => {
     const layer = AppNodeBuilder.build(
       LayerNode.group([Database.node, EventV2.node, SessionProjector.node, CollectionProjector]),

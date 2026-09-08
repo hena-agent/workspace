@@ -78,7 +78,10 @@ test("transcript rows wait for both message and part snapshots", async () => {
   act(() => agent.dispose())
 })
 
-test("assistant failures remain visible even when the provider returned no parts", async () => {
+test.each([
+  { error: { type: "unknown", message: "MissingSessionID: OpenCode's free tier can only be used in OpenCode" }, text: "MissingSessionID" },
+  { error: { type: "unknown" }, text: "Unknown provider error" },
+])("assistant failures remain visible even when the provider returned no parts: $text", async ({ error, text }) => {
   const agent = createConnectionAgent("http://hena.test")
 
   function View() {
@@ -94,13 +97,42 @@ test("assistant failures remain visible even when the provider returned no parts
         id: "message-1",
         type: "assistant",
         time: { created: 1, completed: 2 },
-        error: { type: "unknown", message: "MissingSessionID: OpenCode's free tier can only be used in OpenCode" },
+        error,
       },
     }], 1)
     agent.store.applySnapshot("parts", "session-1", [], 1)
     await Bun.sleep(0)
   })
-  expect(await screen.findByRole("alert")).toHaveTextContent("MissingSessionID: OpenCode's free tier can only be used in OpenCode")
+  expect(await screen.findByRole("alert")).toHaveTextContent(text)
+  act(() => agent.dispose())
+})
+
+test("persisted interruptions render as stopped responses without an error or thinking indicator", async () => {
+  const agent = createConnectionAgent("http://hena.test")
+
+  function View() {
+    const transcript = useMessages(agent, "session-1")
+    // The session's working flag can lag behind the terminal message update.
+    return <MessageList messages={transcript.messages} ready={transcript.ready} working />
+  }
+
+  render(<View />)
+  await act(async () => {
+    agent.store.applySnapshot("messages", "session-1", [{
+      key: "message-1",
+      row: {
+        id: "message-1",
+        type: "assistant",
+        time: { created: 1, completed: 2 },
+        error: { type: "unknown", message: "Provider turn interrupted" },
+      },
+    }], 1)
+    agent.store.applySnapshot("parts", "session-1", [], 1)
+    await Bun.sleep(0)
+  })
+  expect(await screen.findByRole("status")).toHaveTextContent("Response stopped")
+  expect(screen.queryByRole("alert")).toBeNull()
+  expect(screen.queryByText("Thinking...")).toBeNull()
   act(() => agent.dispose())
 })
 

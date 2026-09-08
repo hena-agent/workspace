@@ -123,7 +123,7 @@ export type UserMessage = MessageBase & {
 export type AssistantMessage = MessageBase & {
   role: "assistant"
   parts: AssistantPart[]
-  error?: string
+  error?: { type: string; message: string }
   agent?: string
   model?: string
 }

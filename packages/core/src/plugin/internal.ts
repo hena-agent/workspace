@@ -105,6 +105,8 @@ const layer = Layer.effectDiscard(
       return plugin.add(PluginV2.ID.make(loaded.id), loaded.effect)
     }
 
+    // Finish built-in catalog/config transforms before exposing a cold Location.
+    // External plugins keep their own asynchronous loading lifecycle.
     yield* State.batch(
       Effect.gen(function* () {
         yield* add(ConfigReferencePlugin.Plugin)

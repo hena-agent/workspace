@@ -179,9 +179,9 @@ export const resolve = (session: SessionSchema.Info, model: ModelV2.Info, creden
   withVariant(model, session.model?.variant).pipe(
     Effect.flatMap((model) =>
       fromCatalogModel(
-        model.providerID === "opencode"
+        model.providerID === ProviderV2.ID.make("opencode")
           ? produce(model, (draft) => {
-              // Zen's free models require this on every request, including titles and compaction.
+              // Attach session identity to Zen requests; its free models require it.
               draft.request.headers["x-opencode-session"] = session.id
             })
           : model,

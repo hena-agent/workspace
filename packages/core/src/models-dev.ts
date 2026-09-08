@@ -222,7 +222,17 @@ const layer = Layer.effect(
         }),
       )
       return JSON.parse(text) as Record<string, Provider>
-    }).pipe(Effect.withSpan("ModelsDev.populate"), Effect.orDie)
+    }).pipe(
+      Effect.withSpan("ModelsDev.populate"),
+      Effect.catch((error) =>
+        error._tag === "HttpClientError" || error._tag === "TimeoutError"
+          ? Effect.logWarning("Remote model catalog unavailable; using configured providers only", error).pipe(
+              Effect.as({}),
+            )
+          : Effect.fail(error),
+      ),
+      Effect.orDie,
+    )
 
     const [cachedGet, invalidate] = yield* Effect.cachedInvalidateWithTTL(populate, Duration.infinity)
 

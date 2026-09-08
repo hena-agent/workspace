@@ -37,7 +37,7 @@ const it = testEffect(
 )
 
 describe("LocationServiceMap", () => {
-  it.live("finishes catalog initialization before exposing a cold location", () =>
+  it.live("finishes built-in catalog initialization before exposing a cold location", () =>
     Effect.acquireRelease(
       Effect.promise(() => tmpdir()),
       (dir) => Effect.promise(() => dir[Symbol.asyncDispose]()),

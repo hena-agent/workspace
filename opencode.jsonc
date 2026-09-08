@@ -1,6 +1,18 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "permission": "allow",
+  "permission": {
+    "*": "allow",
+    // User-invoked skills (e.g. mattpocock's grill-me/grill-with-docs/to-spec/implement/wait-what)
+    // are meant to be run explicitly by a human, not auto-selected by the model.
+    "skill": {
+      "*": "allow",
+      "grill-me": "deny",
+      "grill-with-docs": "deny",
+      "to-spec": "deny",
+      "implement": "deny",
+      "wait-what": "deny",
+    },
+  },
   "plugin": [
     "@ex-machina/opencode-anthropic-auth@1.8.1",
   ],

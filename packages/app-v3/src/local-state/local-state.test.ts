@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { encodeServerSlug } from "@/lib/server-url"
-import { listDrafts, loadDraft, removeDraft, saveDraft } from "./drafts"
+import { listDrafts, loadDraft, removeDraft, saveDraft, type DraftBody } from "./drafts"
 import { applyProjectOrder, loadProjectOrder, saveProjectOrder } from "./project-order"
 import { markSessionOpened, recentlyOpened } from "./recent"
 
@@ -50,6 +50,24 @@ describe("local client state", () => {
 
     expect(loadDraft(url, "draft")).toBeUndefined()
     expect(listDrafts(url)).toHaveLength(0)
+  })
+
+  test.each([1, 2])("preserves legacy model IDs in v%s drafts when other drafts are saved or removed", (version) => {
+    const key = `hena.drafts.v1.${encodeServerSlug(url)}`
+    const old = { text: "keep me", modelID: "gpt-5.2", selection: { start: 2, end: 2 }, delivery: "queue", droppedAttachments: 1 } satisfies DraftBody
+    localStorage.setItem(key, JSON.stringify(version === 1
+      ? { version, drafts: { old: { ...old, route: "/old", updatedAt: 1 } } }
+      : { version, index: [{ key: "old", route: "/old", updatedAt: 1 }], bodies: { old } }))
+
+    expect(loadDraft(url, "old")).toEqual(old)
+    saveDraft(url, "other", "/other", { text: "new", selection: { start: 0, end: 0 }, delivery: "steer", droppedAttachments: 0 })
+    removeDraft(url, "other")
+    expect(loadDraft(url, "old")).toEqual(old)
+    expect(JSON.parse(localStorage.getItem(key)!).bodies.old.modelID).toBe("gpt-5.2")
+
+    saveDraft(url, "old", "/old", { ...loadDraft(url, "old"), model: { id: "gpt-5.2", providerId: "azure" } })
+    expect(loadDraft(url, "old")).toEqual({ ...old, modelID: undefined, model: { id: "gpt-5.2", providerId: "azure" } })
+    expect(JSON.parse(localStorage.getItem(key)!).bodies.old).not.toHaveProperty("modelID")
   })
 
   test("tracks recently opened sessions per server, most recent last", () => {

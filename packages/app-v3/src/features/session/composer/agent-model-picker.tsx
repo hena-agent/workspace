@@ -1,16 +1,5 @@
-import { useDeferredValue, useState } from "react"
+import { useState } from "react"
 import { ChevronsUpDown } from "lucide-react"
-import {
-  ModelSelector,
-  ModelSelectorContent,
-  ModelSelectorEmpty,
-  ModelSelectorGroup,
-  ModelSelectorInput,
-  ModelSelectorItem,
-  ModelSelectorList,
-  ModelSelectorName,
-  ModelSelectorTrigger,
-} from "@/components/ai-elements/model-selector"
 import {
   PromptInputButton,
   PromptInputSelect,
@@ -19,33 +8,34 @@ import {
   PromptInputSelectTrigger,
   PromptInputSelectValue,
 } from "@/components/ai-elements/prompt-input"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { SelectGroup } from "@/components/ui/select"
-import type { Agent, Model } from "@/lib/types"
+import type { Agent, Model, ModelRef, Provider } from "@/lib/types"
+import { resolveModel } from "@/lib/model"
 
 export function AgentModelPicker({
   agents,
   models,
+  providers,
   agentId,
-  modelId,
+  model,
   onChangeAgent,
   onChangeModel,
   disabled,
 }: {
   agents: Agent[]
   models: Model[]
+  providers: Provider[]
   agentId: string
-  modelId: string
+  model: ModelRef | undefined
   onChangeAgent: (id: string) => void
-  onChangeModel: (id: string) => void
+  onChangeModel: (model: ModelRef) => void
   disabled?: boolean
 }) {
   const [modelOpen, setModelOpen] = useState(false)
-  const [search, setSearch] = useState("")
-  const deferredSearch = useDeferredValue(search)
-  const selectedModel = models.find((model) => model.id === modelId)
-  const filteredModels = modelOpen
-    ? models.filter((model) => matchesModelSearch(deferredSearch, [model.name, model.id, model.providerId]))
-    : []
+  const selectedModel = resolveModel(models, model)
+  const groups = modelOpen ? groupByProvider(models, providers) : []
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -63,14 +53,8 @@ export function AgentModelPicker({
           </SelectGroup>
         </PromptInputSelectContent>
       </PromptInputSelect>
-      <ModelSelector
-        open={modelOpen}
-        onOpenChange={(open) => {
-          setModelOpen(open)
-          if (!open) setSearch("")
-        }}
-      >
-        <ModelSelectorTrigger asChild>
+      <Dialog open={modelOpen} onOpenChange={setModelOpen}>
+        <DialogTrigger asChild>
           <PromptInputButton
             aria-label="Model"
             aria-haspopup="dialog"
@@ -81,50 +65,85 @@ export function AgentModelPicker({
             <span className="truncate">{selectedModel?.name ?? "Model"}</span>
             <ChevronsUpDown className="shrink-0 opacity-50" />
           </PromptInputButton>
-        </ModelSelectorTrigger>
-        <ModelSelectorContent title="Select model">
-          <ModelSelectorInput value={search} onValueChange={setSearch} placeholder="Search models…" autoFocus />
-          <ModelSelectorList>
-            <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-            <ModelSelectorGroup>
-              {filteredModels.map((model) => (
-                <ModelSelectorItem
-                  key={`${model.providerId}/${model.id}`}
-                  value={`${model.name} ${model.id} ${model.providerId}`}
-                  forceMount
-                  data-checked={model.id === modelId}
-                  onSelect={() => {
-                    onChangeModel(model.id)
-                    setModelOpen(false)
-                    setSearch("")
-                  }}
-                >
-                  <ModelSelectorName>{model.name}</ModelSelectorName>
-                  <span className="text-xs text-muted-foreground">{model.providerId}</span>
-                </ModelSelectorItem>
+        </DialogTrigger>
+        <DialogContent aria-describedby={undefined} className="outline! border-none! p-0 outline-border! outline-solid!">
+          <DialogTitle className="sr-only">Select model</DialogTitle>
+          <Command
+            className="**:data-[slot=command-input-wrapper]:h-auto"
+            label="Search models"
+            filter={scoreModel}
+            defaultValue={selectedModel ? itemValue(selectedModel) : undefined}
+          >
+            <CommandInput className="h-auto py-3.5" placeholder="Search models…" autoFocus />
+            <CommandList>
+              <CommandEmpty>No models found.</CommandEmpty>
+              {groups.map((group) => (
+                <CommandGroup key={group.providerId} heading={group.heading}>
+                  {group.items.map((item) => (
+                    <CommandItem
+                      key={itemValue(item)}
+                      value={itemValue(item)}
+                      keywords={[item.name, item.id, item.providerId, group.heading]}
+                      data-checked={item === selectedModel}
+                      onSelect={() => {
+                        onChangeModel({ id: item.id, providerId: item.providerId })
+                        setModelOpen(false)
+                      }}
+                    >
+                      <span className="flex-1 truncate text-left">{item.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
               ))}
-            </ModelSelectorGroup>
-          </ModelSelectorList>
-        </ModelSelectorContent>
-      </ModelSelector>
+            </CommandList>
+          </Command>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-function matchesModelSearch(query: string, values: string[]) {
-  const search = normalizeModelSearch(query)
-  if (!search) return true
-  const compactSearch = search.replaceAll(" ", "")
-  return values.some((value) => {
-    const normalized = normalizeModelSearch(value)
-    return normalized.includes(search) || normalized.replaceAll(" ", "").includes(compactSearch)
-  })
+function itemValue(model: ModelRef) {
+  return `${model.providerId}/${model.id}`
 }
 
-function normalizeModelSearch(value: string) {
+function groupByProvider(models: Model[], providers: Provider[]) {
+  const byProvider = new Map<string, Model[]>()
+  for (const model of models) {
+    const items = byProvider.get(model.providerId)
+    if (items) items.push(model)
+    else byProvider.set(model.providerId, [model])
+  }
+  return [...byProvider].map(([providerId, items]) => ({
+    providerId,
+    heading: providers.find((provider) => provider.id === providerId)?.name ?? providerId,
+    items,
+  }))
+}
+
+// cmdk's default fuzzy scorer matches loose subsequences, so a query like "open ai" also
+// scores an unrelated model like "anthropic/claude-sonnet-5". Rank normalized substrings
+// instead: prefix match, then substring, then a compact (whitespace-stripped) substring so
+// "gpt52" still finds "GPT-5.2".
+function scoreModel(value: string, search: string, keywords: string[] = []) {
+  const query = normalize(search)
+  if (!query) return 1
+  const compactQuery = query.replaceAll(" ", "")
+  return Math.max(
+    0,
+    ...[value, ...keywords].map((candidate) => {
+      const normalized = normalize(candidate)
+      if (!normalized) return 0
+      if (normalized.startsWith(query)) return 1
+      if (normalized.includes(query)) return 0.8
+      return normalized.replaceAll(" ", "").includes(compactQuery) ? 0.6 : 0
+    }),
+  )
+}
+
+function normalize(value: string) {
   return value
     .toLowerCase()
     .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
     .trim()
-    .replace(/\s+/g, " ")
 }

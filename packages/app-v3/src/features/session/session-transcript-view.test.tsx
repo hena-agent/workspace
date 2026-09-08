@@ -3,7 +3,7 @@ import type { ComponentProps } from "react"
 import userEvent from "@testing-library/user-event"
 import { render, screen, within } from "@/test/test-utils"
 import { SessionTranscriptView } from "./session-transcript-view"
-import { agents, models, sessions } from "@/test/fixtures"
+import { agents, models, providers, sessions } from "@/test/fixtures"
 import { getPermissionRequest, getQuestionRequest, listMessages, listTodos } from "@/test/queries"
 
 function noop() {}
@@ -13,6 +13,7 @@ function renderView(sessionId: string, props?: Partial<ComponentProps<typeof Ses
   const sessionOwner = { sessionId, connectionId: session.connectionId, projectId: session.projectId }
   return render(
     <SessionTranscriptView
+      providers={providers}
       session={session}
       messages={listMessages(sessionOwner)}
       messagesReady
@@ -22,7 +23,7 @@ function renderView(sessionId: string, props?: Partial<ComponentProps<typeof Ses
       agents={agents}
       models={models}
       agentId={agents[0].id}
-      modelId={models[0].id}
+      model={models[0]}
       onChangeAgent={noop}
       onChangeModel={noop}
       onSend={noop}
@@ -65,6 +66,7 @@ describe("SessionTranscriptView", () => {
 
     render(
       <SessionTranscriptView
+        providers={providers}
         session={session}
         messages={listMessages({
           sessionId: session.id,
@@ -80,7 +82,7 @@ describe("SessionTranscriptView", () => {
         agents={agents}
         models={models}
         agentId={agents[0].id}
-        modelId={models[0].id}
+        model={models[0]}
         onChangeAgent={noop}
         onChangeModel={noop}
         onSend={(text) => sent.push(text)}

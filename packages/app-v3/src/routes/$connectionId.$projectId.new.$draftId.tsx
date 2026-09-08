@@ -6,6 +6,7 @@ import { RouteLoadingState } from "@/connection/route-state"
 import { loadFileMatches, useCatalog, useCollectionReady, useProject, useSettings } from "@/data/queries"
 import { createSessionOptimistically } from "@/mutations/session"
 import { loadDraft, saveDraft } from "@/local-state/drafts"
+import { modelFromWire, modelWire } from "@/lib/model"
 
 export const Route = createFileRoute("/$connectionId/$projectId/new/$draftId")({
   component: NewSessionRoute,
@@ -33,8 +34,9 @@ function NewSessionRoute() {
       project={project}
       agents={catalog.agents}
       models={catalog.models}
+      providers={catalog.providers}
       defaultAgentId={typeof settings.defaultAgent === "string" ? settings.defaultAgent : undefined}
-      defaultModelId={modelID(settings.defaultModel)}
+      defaultModel={modelFromWire(settings.defaultModel)}
       defaultDelivery={settings.queueDelivery === "queue" ? "queue" : "steer"}
       draft={draft}
       onDraftChange={(value) => {
@@ -47,13 +49,13 @@ function NewSessionRoute() {
           queryFn: () => loadFileMatches(agent, location, query, signal),
         })
       }}
-      onStart={({ text, files, agentId, modelId, delivery }) => {
+      onStart={({ text, files, agentId, model, delivery }) => {
         if (!agent) return
         saveDraft(agent.url, draftId, `/${connectionId}/${projectId}/new/${draftId}`, {
           text,
           selection: { start: text.length, end: text.length },
           agentID: agentId || undefined,
-          modelID: modelId || undefined,
+          model,
           delivery: delivery === "queue" ? "queue" : "steer",
           droppedAttachments: files?.length ?? 0,
         })
@@ -63,7 +65,7 @@ function NewSessionRoute() {
           text,
           files,
           agentID: agentId,
-          model: selectedModel(catalog.models, modelId),
+          model: modelWire(catalog.models, model),
           delivery: delivery === "queue" ? "queue" : "steer",
         })
         void navigate({
@@ -82,14 +84,4 @@ function NewSessionRoute() {
       }}
     />
   )
-}
-
-function modelID(value: unknown) {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return
-  return typeof (value as Record<string, unknown>).id === "string" ? (value as Record<string, string>).id : undefined
-}
-
-function selectedModel(models: { id: string; providerId: string }[], id: string) {
-  const model = models.find((item) => item.id === id)
-  return model ? { id: model.id, providerID: model.providerId } : undefined
 }

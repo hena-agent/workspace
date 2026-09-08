@@ -2,6 +2,7 @@ import { useLiveQuery } from "@tanstack/react-db"
 import { useQuery } from "@tanstack/react-query"
 import { useSyncExternalStore } from "react"
 import type { ReturnTypeOfAgent } from "./types"
+import { modelFromWire } from "@/lib/model"
 import type {
   Agent,
   AssistantPart,
@@ -273,9 +274,7 @@ function sessionView(row: Record<string, unknown>, permissions: Record<string, u
     shared: false,
     parentId: optionalString(row.parentID),
     agentId: optionalString(row.agent),
-    model: typeof record(row.model).id === "string" && typeof record(row.model).providerID === "string"
-      ? { id: string(record(row.model).id), providerId: string(record(row.model).providerID) }
-      : undefined,
+    model: modelFromWire(row.model),
   }
 }
 

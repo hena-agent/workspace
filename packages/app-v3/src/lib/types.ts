@@ -50,7 +50,7 @@ export type Session = {
   shared: boolean
   parentId?: string
   agentId?: string
-  model?: { id: string; providerId: string }
+  model?: ModelRef
 }
 
 export type ToolStatus = "pending" | "running" | "completed" | "error"
@@ -236,9 +236,12 @@ export type Agent = {
   description: string
 }
 
-export type Model = {
+export type ModelRef = {
   id: string
   providerId: string
+}
+
+export type Model = ModelRef & {
   name: string
   contextWindow: number
 }

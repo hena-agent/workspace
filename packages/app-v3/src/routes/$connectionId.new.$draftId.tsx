@@ -5,6 +5,7 @@ import { RouteLoadingState } from "@/connection/route-state"
 import { useLocationCatalog, useSettings } from "@/data/queries"
 import { createSessionOptimistically } from "@/mutations/session"
 import { loadDraft, saveDraft } from "@/local-state/drafts"
+import { modelFromWire, modelWire } from "@/lib/model"
 
 const MAX_DIRECTORY_LENGTH = 4096
 
@@ -52,17 +53,18 @@ function NewProjectSessionRoute() {
       project={{ name: directory.split(/[\\/]/).filter(Boolean).at(-1) || directory, path: directory }}
       agents={catalog.agents}
       models={catalog.models}
+      providers={catalog.providers}
       defaultAgentId={typeof settings.defaultAgent === "string" ? settings.defaultAgent : undefined}
-      defaultModelId={modelID(settings.defaultModel)}
+      defaultModel={modelFromWire(settings.defaultModel)}
       defaultDelivery={settings.queueDelivery === "queue" ? "queue" : "steer"}
       draft={draft}
       onDraftChange={(value) => saveDraft(agent.url, draftId, `/${connectionId}/new/${draftId}`, value)}
-      onStart={({ text, files, agentId, modelId, delivery }) => {
+      onStart={({ text, files, agentId, model, delivery }) => {
         saveDraft(agent.url, draftId, `/${connectionId}/new/${draftId}`, {
           text,
           selection: { start: text.length, end: text.length },
           agentID: agentId || undefined,
-          modelID: modelId || undefined,
+          model,
           delivery: delivery === "queue" ? "queue" : "steer",
           droppedAttachments: files?.length ?? 0,
         })
@@ -72,7 +74,7 @@ function NewProjectSessionRoute() {
           text,
           files,
           agentID: agentId,
-          model: selectedModel(catalog.models, modelId),
+          model: modelWire(catalog.models, model),
           delivery: delivery === "queue" ? "queue" : "steer",
         })
         void created.projectID.then((projectID) => {
@@ -98,14 +100,4 @@ function NewProjectSessionRoute() {
       }}
     />
   )
-}
-
-function modelID(value: unknown) {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return
-  return typeof (value as Record<string, unknown>).id === "string" ? (value as Record<string, string>).id : undefined
-}
-
-function selectedModel(models: { id: string; providerId: string }[], id: string) {
-  const model = models.find((item) => item.id === id)
-  return model ? { id: model.id, providerID: model.providerId } : undefined
 }

@@ -9,6 +9,8 @@ import { loadFileMatches, useCatalog, useCollectionReady, useMessages, usePendin
 import { admitPromptOptimistically, cancelInputOptimistically, interruptOptimistically, isSessionStopping, markSessionsReadOptimistically, reorderInputsOptimistically, replyPermissionOptimistically, replyQuestionOptimistically } from "@/mutations/session"
 import { loadDraft, saveDraft } from "@/local-state/drafts"
 import { markSessionOpened } from "@/local-state/recent"
+import type { ModelRef } from "@/lib/types"
+import { modelFromWire, modelWire } from "@/lib/model"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/")({
   component: SessionTranscriptRoute,
@@ -59,10 +61,10 @@ function SessionTranscript({
   const sessionsReady = useCollectionReady(agent, "sessions")
   const sessionFiles = useSessionFiles()
   const [agentId, setAgentId] = useState("")
-  const [modelId, setModelId] = useState("")
+  const [model, setModel] = useState<ModelRef | undefined>(undefined)
   const [mutationNotice, setMutationNotice] = useState("")
   const selectedAgentId = agentId || (typeof settings.defaultAgent === "string" ? settings.defaultAgent : session?.agentId) || catalog.agents[0]?.id || ""
-  const selectedModelId = modelId || settingModelID(settings.defaultModel) || session?.model?.id || catalog.models[0]?.id || ""
+  const selectedModel = model ?? modelFromWire(settings.defaultModel) ?? session?.model ?? catalog.models[0]
   const draftKey = `session:${sessionId}`
   const draft = agent ? loadDraft(agent.url, draftKey) : undefined
   useEffect(() => {
@@ -111,10 +113,11 @@ function SessionTranscript({
           questionRequest={question}
           agents={catalog.agents}
           models={catalog.models}
+          providers={catalog.providers}
           agentId={selectedAgentId}
-          modelId={selectedModelId}
+          model={selectedModel}
           onChangeAgent={setAgentId}
-          onChangeModel={setModelId}
+          onChangeModel={setModel}
           draft={draft}
           onDraftChange={(value) => {
             if (agent) saveDraft(agent.url, draftKey, `/${connectionId}/${projectId}/session/${sessionId}`, value)
@@ -136,7 +139,7 @@ function SessionTranscript({
           files,
           delivery: settings.queueDelivery === "queue" ? "queue" : "steer",
           agentID: selectedAgentId || undefined,
-          model: selectedModel(catalog.models, selectedModelId),
+          model: modelWire(catalog.models, selectedModel),
         }).transaction.isPersisted.promise
         return result
           }}
@@ -148,7 +151,7 @@ function SessionTranscript({
           files,
           delivery: "queue",
           agentID: selectedAgentId || undefined,
-          model: selectedModel(catalog.models, selectedModelId),
+          model: modelWire(catalog.models, selectedModel),
         }).transaction.isPersisted.promise
         return result
           }}
@@ -203,15 +206,4 @@ function SessionTranscript({
     </div>
   )
 
-}
-
-function settingModelID(value: unknown) {
-  return typeof value === "object" && value !== null && !Array.isArray(value) && typeof (value as Record<string, unknown>).id === "string"
-    ? String((value as Record<string, unknown>).id)
-    : undefined
-}
-
-function selectedModel(models: { id: string; providerId: string }[], id: string) {
-  const model = models.find((item) => item.id === id)
-  return model ? { id: model.id, providerID: model.providerId } : undefined
 }

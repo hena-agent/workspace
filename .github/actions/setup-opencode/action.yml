@@ -192,11 +192,7 @@ runs:
         if [ "${MODEL%%/*}" = "anthropic" ]; then
           PLUGINS=$(jq -c '. + ["@ex-machina/opencode-anthropic-auth@1.8.1"]' <<< "$PLUGINS")
         fi
-        if [ -f ".opencode/plugin/codex-web-search.ts" ]; then
-          PLUGINS=$(jq -c --arg path "file://$(pwd)/.opencode/plugin/codex-web-search.ts" '. + [$path]' <<< "$PLUGINS")
-        else
-          echo "::notice::The trusted workflow commit has no bundled codex_web_search plugin; web search will be unavailable this run."
-        fi
+        PLUGINS=$(jq -c '. + ["opencode-codex-websearch@0.1.1"]' <<< "$PLUGINS")
         INSTRUCTIONS=$(git ls-files -z -- \
           ':(glob)**/AGENTS.md' \
           ':(glob)**/CLAUDE.md' \

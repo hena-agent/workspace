@@ -3,7 +3,11 @@
   "permission": {
     "*": "allow",
     // User-invoked skills (e.g. mattpocock's grill-me/grill-with-docs/to-spec/implement/wait-what)
-    // are meant to be run explicitly by a human, not auto-selected by the model.
+    // are meant to be run explicitly by a human, not auto-selected by the model. Their SKILL.md
+    // frontmatter sets disable-model-invocation: true, but OpenCode doesn't read that field, so
+    // this deny list is the only thing that actually enforces it. Hena reads .hena/hena.jsonc
+    // instead of this file, so it needs (and has) the same deny list kept in sync separately;
+    // packages/script/test/skill-permissions.test.ts asserts both stay in sync with the frontmatter.
     "skill": {
       "*": "allow",
       "grill-me": "deny",
@@ -15,6 +19,9 @@
   },
   "plugin": [
     "@henadev/opencode-anthropic-auth@0.1.0",
+    // Known gap in 0.1.1: discards text-only Codex answers (payload.output) and only formats
+    // structured `results`, misreporting them as "No web search results found". See the matching
+    // pin in .github/actions/setup-opencode/action.yml, which is intentionally not read from here.
     "opencode-codex-websearch@0.1.1",
   ],
 }

@@ -1,11 +1,14 @@
 import { Bot } from "lucide-react"
 import type { AssistantMessage } from "@/lib/types"
 import { Message, MessageContent } from "@/components/ai-elements/message"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ReasoningPartView } from "./reasoning-part-view"
 import { TextPartView } from "./text-part-view"
 import { ToolPartView } from "./tool-part-view"
 
 export function AssistantMessageRow({ message, working }: { message: AssistantMessage; working?: boolean }) {
+  // Persisted V2 interruptions currently use the unknown-error envelope and this exact message.
+  const interrupted = message.error?.type === "unknown" && message.error.message === "Provider turn interrupted"
   return (
     <Message from="assistant" data-role="assistant" className="max-w-none px-4 py-3 md:px-5">
       <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -16,8 +19,8 @@ export function AssistantMessageRow({ message, working }: { message: AssistantMe
       <MessageContent className="w-full gap-2">
         {message.parts.map((part, index) => (
           <div key={part.id}>
-            {part.kind === "text" ? <TextPartView part={part} isStreaming={working && index === message.parts.length - 1} /> : null}
-            {part.kind === "reasoning" ? <ReasoningPartView part={part} isStreaming={working && index === message.parts.length - 1} /> : null}
+            {part.kind === "text" ? <TextPartView part={part} isStreaming={working && !message.error && index === message.parts.length - 1} /> : null}
+            {part.kind === "reasoning" ? <ReasoningPartView part={part} isStreaming={working && !message.error && index === message.parts.length - 1} /> : null}
             {part.kind === "tool" ? <ToolPartView part={part} /> : null}
             {part.kind === "unknown" ? (
               <div className="max-h-32 overflow-auto rounded-md border border-dashed p-2 text-xs break-words whitespace-pre-wrap text-muted-foreground">
@@ -27,6 +30,12 @@ export function AssistantMessageRow({ message, working }: { message: AssistantMe
             ) : null}
           </div>
         ))}
+        {message.error ? (
+          <Alert variant={interrupted ? "default" : "destructive"} role={interrupted ? "status" : "alert"}>
+            <AlertTitle>{interrupted ? "Response stopped" : "Response failed"}</AlertTitle>
+            <AlertDescription className="break-words whitespace-pre-wrap">{message.error.message}</AlertDescription>
+          </Alert>
+        ) : null}
       </MessageContent>
     </Message>
   )

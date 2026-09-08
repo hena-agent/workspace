@@ -70,5 +70,5 @@ export function MessageList({
 function showsThinking(messages: SessionMessage[], working?: boolean) {
   if (!working) return false
   const latest = messages.at(-1)
-  return latest?.role !== "assistant" || latest.parts.length === 0
+  return latest?.role !== "assistant" || (latest.parts.length === 0 && !latest.error)
 }

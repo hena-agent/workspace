@@ -299,6 +299,10 @@ function messageView(agent: ReturnTypeOfAgent | undefined, sessionId: string, ro
       parts: [...persisted, ...deltas.flatMap((delta) => delta.messageId === base.id && !known.has(`${delta.partKind}\u0000${delta.partId}`) ? [deltaPartView(agent!, delta)] : [])],
       agent: optionalString(row.agent),
       model: optionalString(record(row.model).id),
+      error: row.error == null ? undefined : {
+        type: string(record(row.error).type) || "unknown",
+        message: string(record(row.error).message) || "Unknown provider error",
+      },
     }
   }
   if (type === "compaction") return { ...base, role: "compaction", summary: string(row.summary), final: Boolean(record(row.time).completed) }

@@ -12,4 +12,6 @@ Run typechecking regularly, single test files regularly, and the full test suite
 
 Once done, use /code-review to review the work.
 
-Commit your work to the current branch.
+Commit your work to the current branch, unless the repo's own instructions
+(e.g. AGENTS.md) say to only commit when explicitly asked — in that case,
+stop here and hand off for review instead.

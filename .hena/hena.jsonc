@@ -1,6 +1,21 @@
 {
   "provider": {},
-  "permission": {},
+  // Hena reads this file, not opencode.jsonc, so its skill.deny list must be
+  // kept in sync with opencode.jsonc's independently: these are the same
+  // user-invoked skills from mattpocock/skills (disable-model-invocation:
+  // true in their frontmatter, which only OpenCode-compatible tools read).
+  // Hena's own permission default is "ask" rather than "deny" for unlisted
+  // skills, so without this block Hena would surface them to the model like
+  // any other skill.
+  "permission": {
+    "skill": {
+      "grill-me": "deny",
+      "grill-with-docs": "deny",
+      "to-spec": "deny",
+      "implement": "deny",
+      "wait-what": "deny",
+    },
+  },
   "references": {
     "effect": {
       "repository": "github.com/Effect-TS/effect-smol",

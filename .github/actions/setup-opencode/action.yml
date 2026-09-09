@@ -188,15 +188,19 @@ runs:
         install -m 600 ".opencode/command/$COMMAND.md" "$HOME/.config/opencode/command/$COMMAND.md"
 
         # Project config is disabled for trusted commands; reconstruct only approved plugins and tracked instructions.
+        # This list is intentionally independent of opencode.jsonc's own "plugin" array: a PR can edit that file, but
+        # this trusted workflow file cannot be changed by an untrusted PR, so its plugin pins are what actually get
+        # reviewed. Bump these deliberately; do not "sync" them to opencode.jsonc automatically.
         PLUGINS='[]'
         if [ "${MODEL%%/*}" = "anthropic" ]; then
           PLUGINS=$(jq -c '. + ["@ex-machina/opencode-anthropic-auth@1.8.1"]' <<< "$PLUGINS")
         fi
-        if [ -f ".opencode/plugin/codex-web-search.ts" ]; then
-          PLUGINS=$(jq -c --arg path "file://$(pwd)/.opencode/plugin/codex-web-search.ts" '. + [$path]' <<< "$PLUGINS")
-        else
-          echo "::notice::The trusted workflow commit has no bundled codex_web_search plugin; web search will be unavailable this run."
-        fi
+        # opencode-codex-websearch is the henadev-maintained npm publication of what used to be this repo's own
+        # script/opencode/codex-web-search.ts (same maintainer as opencode-anthropic-auth above; confirmed via
+        # `npm view opencode-codex-websearch`). Known gap in 0.1.1: it discards the provider's raw text answer
+        # (payload.output) and only ever formats structured `results`, so a text-only response is misreported as
+        # "No web search results found" instead of showing the answer. Revisit this pin if that's fixed upstream.
+        PLUGINS=$(jq -c '. + ["opencode-codex-websearch@0.1.1"]' <<< "$PLUGINS")
         INSTRUCTIONS=$(git ls-files -z -- \
           ':(glob)**/AGENTS.md' \
           ':(glob)**/CLAUDE.md' \

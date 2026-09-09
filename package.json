@@ -16,8 +16,6 @@
     "dev:v3:local": "bun run --parallel --no-orphans --filter @hena/app-v3 --filter @hena/server-v3 dev",
     "dev:v3:tailscale": "portless run --name hena-v3 --tailscale bun run dev:v3:local",
     "dev:storybook": "bun --cwd packages/storybook storybook",
-    "build:opencode-plugin": "bun run script/opencode/build-codex-web-search.ts",
-    "check:opencode-plugin": "bun run script/opencode/build-codex-web-search.ts --check",
     "knip": "knip-bun",
     "lint": "oxlint",
     "typecheck": "bun turbo typecheck",

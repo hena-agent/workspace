@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "path"
 
@@ -36,18 +36,75 @@ describe("run-opencode review action", () => {
     expect(setup).not.toContain("thermo-nuclear")
   })
 
-  test("allowlists a trusted skill into the command sandbox", async () => {
+  test("scopes the sandboxed skill permission to code-review", async () => {
     const action = await Bun.file(path.join(actionDirectory, "action.yml")).text()
+    const parsed = Bun.YAML.parse(action) as { runs: { steps: Array<{ name: string; run?: string }> } }
+    const step = parsed.runs.steps.find((candidate) => candidate.name === "Run OpenCode command")
+    const filter = step?.run?.match(/jq -cn --arg pr "\$COMMAND_ARGUMENTS" '([\s\S]*?)'\)/)?.[1]
+    expect(filter).toBeDefined()
+
+    const result = jq(["-cn", "--arg", "pr", "42", filter!], "")
+    expect(result.exitCode).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      edit: "deny",
+      external_directory: "deny",
+      bash: { "*": "deny", "gh pr view 42": "allow", "gh pr diff 42": "allow" },
+      question: "deny",
+      todowrite: "deny",
+      skill: { "*": "deny", "code-review": "allow" },
+    })
+  })
+
+  test("installs the code-review skill and raises subagent_depth only for the pr-review command", async () => {
     const setup = await Bun.file(path.join(setupDirectory, "action.yml")).text()
-    expect(action).toContain("skill: ${{ inputs.skill }}")
-    expect(action).toContain("SKILL: ${{ inputs.skill }}")
-    expect(action).toContain('"$SKILL" != "code-review"')
-    expect(action).toContain('{"*": "deny", ($skill): "allow"}')
-    expect(setup).toContain('install -d -m 700 "$HOME/.config/opencode/skill"')
-    expect(setup).toContain('cp -R ".agents/skills/$SKILL" "$HOME/.config/opencode/skill/$SKILL"')
-    expect(setup).toContain('validate_trusted command "$COMMAND" ".opencode/command/$COMMAND.md"')
-    expect(setup).toContain('validate_trusted skill "$SKILL" ".agents/skills/$SKILL/SKILL.md"')
-    expect(setup).toContain("trusted $1 '$2' is unavailable.")
+    const parsed = Bun.YAML.parse(setup) as { runs: { steps: Array<{ name: string; run?: string }> } }
+    const configure = parsed.runs.steps.find((candidate) => candidate.name === "Configure trusted command")?.run
+    expect(configure).toBeDefined()
+
+    const runConfigure = async (command: string) => {
+      const home = await mkdtemp(path.join(tmpdir(), "opencode-home-"))
+      const githubEnv = path.join(home, "github-env")
+      await writeFile(githubEnv, "")
+      const result = Bun.spawnSync(["bash", "-c", configure!], {
+        cwd: root,
+        env: { ...process.env, HOME: home, COMMAND: command, MODEL: "anthropic/claude-sonnet-5", GITHUB_ENV: githubEnv },
+      })
+      const emitted = (await readFile(githubEnv, "utf8")).match(/OPENCODE_CONFIG_CONTENT=(.*)/)?.[1]
+      return { result, home, config: JSON.parse(emitted ?? "{}") }
+    }
+
+    const review = await runConfigure("pr-review")
+    expect(review.result.exitCode).toBe(0)
+    const skillFile = path.join(review.home, ".config/opencode/skill/code-review/SKILL.md")
+    const agentFile = path.join(review.home, ".config/opencode/skill/code-review/agents/openai.yaml")
+    expect(await Bun.file(skillFile).exists()).toBe(true)
+    expect(await Bun.file(agentFile).exists()).toBe(true)
+    expect((await stat(skillFile)).mode & 0o777).toBe(0o600)
+    expect((await stat(path.dirname(skillFile))).mode & 0o777).toBe(0o700)
+    expect(review.config.subagent_depth).toBe(2)
+
+    const scan = await runConfigure("agent-scan")
+    expect(scan.result.exitCode).toBe(0)
+    expect(await Bun.file(path.join(scan.home, ".config/opencode/skill")).exists()).toBe(false)
+    expect(scan.config.subagent_depth).toBeUndefined()
+  })
+
+  test("rejects an unavailable trusted skill", async () => {
+    const setup = await Bun.file(path.join(setupDirectory, "action.yml")).text()
+    const parsed = Bun.YAML.parse(setup) as { runs: { steps: Array<{ name: string; run?: string }> } }
+    const configure = parsed.runs.steps.find((candidate) => candidate.name === "Configure trusted command")?.run
+    // Simulate the trusted skill going missing by running from a directory that has the
+    // pr-review command but no .agents/skills tree at all.
+    const directory = await mkdtemp(path.join(tmpdir(), "opencode-no-skill-"))
+    await mkdir(path.join(directory, ".opencode/command"), { recursive: true })
+    await writeFile(path.join(directory, ".opencode/command/pr-review.md"), "test")
+    const home = await mkdtemp(path.join(tmpdir(), "opencode-home-"))
+    const result = Bun.spawnSync(["bash", "-c", configure!], {
+      cwd: directory,
+      env: { ...process.env, HOME: home, COMMAND: "pr-review", MODEL: "anthropic/claude-sonnet-5" },
+    })
+    expect(result.exitCode).not.toBe(0)
+    expect(result.stdout.toString()).toContain("trusted skill 'code-review' is unavailable.")
   })
 
   test("shares one pinned OpenCode setup", async () => {
@@ -80,8 +137,8 @@ describe("run-opencode review action", () => {
       "codex-web-search-auth-json: ${{ inputs.command != '' && secrets.codex-web-search-auth-json || '' }}",
     )
     expect(workflow).toContain("command: pr-review")
-    expect(workflow).toContain("skill: code-review")
-    expect(reusable).toContain("skill: ${{ inputs.skill }}")
+    expect(workflow).not.toContain("skill:")
+    expect(reusable).not.toContain("inputs.skill")
   })
 
   test("runs maintenance commands without exposing GitHub tokens", async () => {
@@ -144,6 +201,7 @@ describe("run-opencode review action", () => {
       ".github/workflows/ci.yml",
       ".github/actions/example/action.yml",
       ".opencode/command/agent.md",
+      ".agents/skills/code-review/SKILL.md",
       "opencode.jsonc",
       "script/translate-app.ts",
       "AGENTS.md",

@@ -12,10 +12,6 @@ inputs:
     description: Optional trusted command to install and configure
     required: false
     default: ""
-  skill:
-    description: Optional trusted skill to allowlist into the command's sandbox
-    required: false
-    default: ""
   opencode-auth-json:
     description: Single-provider CI credential
     required: true
@@ -181,7 +177,6 @@ runs:
       shell: bash
       env:
         COMMAND: ${{ inputs.command }}
-        SKILL: ${{ inputs.skill }}
         MODEL: ${{ inputs.model }}
       run: |
         set -euo pipefail
@@ -198,17 +193,20 @@ runs:
         install -d -m 700 "$HOME/.config/opencode/command"
         install -m 600 ".opencode/command/$COMMAND.md" "$HOME/.config/opencode/command/$COMMAND.md"
 
-        # The trusted skill (if any) is installed into global config the same way: that
-        # directory is scanned regardless of the sandbox's disabled project config and
-        # disabled external skills, so this is what makes exactly one reviewed skill visible
-        # without exposing whatever .agents/skills/** the untrusted pull request checkout
-        # might otherwise contain.
-        if [ -n "$SKILL" ]; then
+        # pr-review is the only command that reaches a skill. Installing the trusted skill
+        # (never the untrusted pull request checkout) into global config the same way makes
+        # exactly code-review visible despite the sandbox's disabled project config and
+        # disabled external skills. code-review also spawns two of its own parallel
+        # sub-agents from inside this already-delegated command, so subagent_depth needs to
+        # cover one more level than the default that stops a subagent from launching subagents.
+        EXTRA_CONFIG='{}'
+        if [ "$COMMAND" = "pr-review" ]; then
+          SKILL=code-review
           validate_trusted skill "$SKILL" ".agents/skills/$SKILL/SKILL.md"
           install -d -m 700 "$HOME/.config/opencode/skill"
           cp -R ".agents/skills/$SKILL" "$HOME/.config/opencode/skill/$SKILL"
-          find "$HOME/.config/opencode/skill/$SKILL" -type d -exec chmod 700 {} +
-          find "$HOME/.config/opencode/skill/$SKILL" -type f -exec chmod 600 {} +
+          chmod -R u=rwX,go= "$HOME/.config/opencode/skill/$SKILL"
+          EXTRA_CONFIG='{"subagent_depth": 2}'
         fi
 
         # Project config is disabled for trusted commands; reconstruct only approved plugins and tracked instructions.
@@ -233,5 +231,6 @@ runs:
         OPENCODE_CONFIG_CONTENT=$(jq -cn \
           --argjson plugins "$PLUGINS" \
           --argjson instructions "$INSTRUCTIONS" \
-          '{plugin: $plugins, instructions: $instructions}')
+          --argjson extra "$EXTRA_CONFIG" \
+          '{plugin: $plugins, instructions: $instructions} + $extra')
         echo "OPENCODE_CONFIG_CONTENT=$OPENCODE_CONFIG_CONTENT" >> "$GITHUB_ENV"

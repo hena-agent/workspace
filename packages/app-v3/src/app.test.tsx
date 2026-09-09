@@ -51,7 +51,7 @@ type PushedChange = {
 // remembered so a *reconnect* (which happens whenever the client re-subscribes, e.g. after
 // `agent.claim` fires again) still sees them in its fresh snapshot, exactly like server-v3's
 // SQLite-backed `collection_row` table would.
-function collectionDatabase(extraRepoSessions = 0) {
+function collectionDatabase(extraRepoSessions = 0, agent = "build") {
   const repoProject = { id: "global", worktree: "/repo", name: "Repo", time: { created: 1, updated: 1 } }
   const docsProject = { id: "docs", worktree: "/docs", name: "Docs", time: { created: 2, updated: 2 } }
   const repoLocationKey = JSON.stringify({ directory: "/repo" })
@@ -62,6 +62,7 @@ function collectionDatabase(extraRepoSessions = 0) {
     title: "Live session",
     location: { directory: "/repo" },
     working: false,
+    agent,
     time: { created: 1, updated: 1 },
   }
   const docsSession = {
@@ -102,6 +103,11 @@ function collectionDatabase(extraRepoSessions = 0) {
     ]),
     permissions: new Map(),
     questions: new Map(),
+    agents: new Map([
+      { id: "build", mode: "primary", hidden: false },
+      { id: "explore", mode: "subagent", hidden: false },
+      { id: "compaction", mode: "primary", hidden: true },
+    ].map((row) => [row.id, { key: row.id, revision: "1", row }])),
   }
   const controllers = new Set<(changes: readonly PushedChange[]) => void>()
   return {
@@ -126,9 +132,10 @@ function collectionFetcher(options: {
   onCreateSession?: (request: Request, push: ReturnType<typeof collectionDatabase>["push"]) => Promise<Response>
   beforeSessionSnapshot?: () => Promise<void>
   extraRepoSessions?: number
+  sessionAgent?: string
   onSessionSubscription?: (sessions: readonly string[]) => void
 } = {}) {
-  const database = collectionDatabase(options.extraRepoSessions)
+  const database = collectionDatabase(options.extraRepoSessions, options.sessionAgent)
   let subscribedSessions: string[] = []
   let subscriptionRevision = 0
   let changeSeq = 900
@@ -206,6 +213,7 @@ function eventResponse(
 ) {
   const scopes = ["projects", "locations", "sessions", "permissions", "questions"]
     .map((collection) => ({ collection, scopeKey: "" }))
+    .concat(database.snapshot("locations").map((location) => ({ collection: "agents", scopeKey: location.key })))
   const common = { protocolVersion: 1, feedId: "feed", runtimeId: "runtime", streamId: "stream", generation: 1, subscriptionRevision }
   const frames = scopes.flatMap((scope, index) => {
     const rows = database.snapshot(scope.collection)
@@ -338,6 +346,30 @@ describe("adding a project through the rail", () => {
 })
 
 describe("app routing against server-v3", () => {
+  test.each(["explore", "compaction"])("a session saved with %s displays and submits a selectable fallback", async (sessionAgent) => {
+    const user = userEvent.setup()
+    const prompts: unknown[] = []
+    const fetcher = collectionFetcher({ sessionAgent })
+    renderApp(`/${slug}/global/session/ses_live`, async (input, init) => {
+      const request = input instanceof Request ? input : new Request(input, init)
+      if (new URL(request.url).pathname === "/api/session/ses_live/prompt") {
+        prompts.push(await request.json())
+        return Response.json({ receipt: { txid: crypto.randomUUID(), outcome: "noop", through: { feedId: "feed", seq: 0 }, affectedScopes: [] } })
+      }
+      return fetcher(input, init)
+    })
+    await waitFor(() => expect(screen.getByLabelText("Agent")).toHaveTextContent("build"))
+    await user.type(screen.getByLabelText("Message"), "continue")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await waitFor(() => expect(prompts).toHaveLength(1))
+    await user.type(screen.getByLabelText("Message"), "next{Control>}{Shift>}{Enter}{/Shift}{/Control}")
+    await waitFor(() => expect(prompts).toHaveLength(2))
+    expect(prompts).toMatchObject([
+      { agent: "build", delivery: "steer" },
+      { agent: "build", delivery: "queue" },
+    ])
+  })
+
   test("redirects the root to the registered server", async () => {
     const router = renderApp("/")
 

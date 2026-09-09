@@ -35,8 +35,9 @@ test("both catalog paths exclude hidden agents and subagents but retain visible 
   const expected = ["build", "custom", "plan", "review"]
   expect(view.result.current.synced.agents.map((item) => item.id).sort()).toEqual(expected)
   expect(view.result.current.fetched.data?.agents.map((item) => item.id).sort()).toEqual(expected)
-  expect(view.result.current.synced.agents[0]).toEqual({ id: "build", name: "build", description: "", mode: "primary", hidden: false })
-  expect(view.result.current.fetched.data?.agents).toEqual(expect.arrayContaining(view.result.current.synced.agents))
+  expect(view.result.current.synced.agents.find((item) => item.id === "build")).toEqual({ id: "build", name: "build", description: "" })
+  expect(view.result.current.fetched.data?.agents.toSorted((a, b) => a.id.localeCompare(b.id)))
+    .toEqual(view.result.current.synced.agents.toSorted((a, b) => a.id.localeCompare(b.id)))
   view.unmount()
   client.clear()
   act(() => agent.dispose())

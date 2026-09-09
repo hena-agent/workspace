@@ -22,6 +22,7 @@ export function DefaultsSection({
   const [states, setStates] = useState<Record<string, "clean" | "dirty" | "saving" | "saved" | "conflicted">>({})
   const [attempts, setAttempts] = useState<Record<string, string>>({})
   const [error, setError] = useState<string>()
+  const selectedAgent = attempts.defaultAgent ?? defaultAgent
 
   function change(key: "defaultAgent" | "defaultModel" | "queueDelivery", value: string) {
     if (!onChange) return
@@ -40,8 +41,8 @@ export function DefaultsSection({
   return (
     <div className="divide-y">
       <SettingsRow label="Default agent" description="Used when a session has not selected an agent.">
-        <Select value={attempts.defaultAgent ?? defaultAgent} onValueChange={(value) => change("defaultAgent", value)} disabled={!onChange || states.defaultAgent === "saving"}>
-          <SelectTrigger size="sm" aria-label="Default agent" className="w-44"><SelectValue placeholder="Select agent" /></SelectTrigger>
+        <Select value={selectedAgent ?? ""} onValueChange={(value) => change("defaultAgent", value)} disabled={!onChange || states.defaultAgent === "saving"}>
+          <SelectTrigger size="sm" aria-label="Default agent" className="w-44"><SelectValue placeholder="Select agent">{agents.find((agent) => agent.id === selectedAgent)?.name ?? (selectedAgent ? `Unavailable (${selectedAgent})` : undefined)}</SelectValue></SelectTrigger>
           <SelectContent>{agents.map((agent) => <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>)}</SelectContent>
         </Select>
         <FieldState state={states.defaultAgent} authoritative={defaultAgent} />

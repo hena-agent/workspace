@@ -235,8 +235,6 @@ export type Agent = {
   id: string
   name: string
   description: string
-  mode: string
-  hidden: boolean
 }
 
 export type ModelRef = {

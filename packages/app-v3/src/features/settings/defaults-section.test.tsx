@@ -6,6 +6,20 @@ import { agents, models } from "@/test/fixtures"
 import { DefaultsSection } from "./defaults-section"
 
 describe("DefaultsSection", () => {
+  test("an excluded default is visibly unavailable and can be replaced", async () => {
+    const user = userEvent.setup()
+    const changes: string[] = []
+    render(<DefaultsSection
+      agents={agents.slice(0, 2)} models={models} defaultAgent="compaction"
+      onChange={async (key, value) => { changes.push(`${key}:${value}`) }}
+    />)
+    expect(screen.getByRole("combobox", { name: "Default agent" })).toHaveTextContent("Unavailable (compaction)")
+    await user.click(screen.getByRole("combobox", { name: "Default agent" }))
+    expect(screen.queryByRole("option", { name: "compaction" })).toBeNull()
+    await user.click(screen.getByRole("option", { name: "Build" }))
+    expect(changes).toEqual(["defaultAgent:build"])
+  })
+
   test("shows the saved state after an authoritative setting update", async () => {
     const user = userEvent.setup()
     render(<DefaultsSection agents={agents} models={models} queueDelivery="steer" onChange={() => Promise.resolve()} />)

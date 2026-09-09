@@ -12,6 +12,10 @@ inputs:
     description: Optional trusted command to install and configure
     required: false
     default: ""
+  skill:
+    description: Optional trusted skill to allowlist into the command's sandbox
+    required: false
+    default: ""
   opencode-auth-json:
     description: Single-provider CI credential
     required: true
@@ -177,15 +181,35 @@ runs:
       shell: bash
       env:
         COMMAND: ${{ inputs.command }}
+        SKILL: ${{ inputs.skill }}
         MODEL: ${{ inputs.model }}
       run: |
         set -euo pipefail
-        if ! [[ "$COMMAND" =~ ^[a-z0-9-]+$ ]] || [ ! -f ".opencode/command/$COMMAND.md" ]; then
-          echo "::error::trusted command '$COMMAND' is unavailable."
-          exit 1
-        fi
+        # $1 is the kind of trusted identifier in the error message (command/skill), $2 is the
+        # identifier itself, $3 is the trusted-checkout path it must resolve to.
+        validate_trusted() {
+          if ! [[ "$2" =~ ^[a-z0-9-]+$ ]] || [ ! -f "$3" ]; then
+            echo "::error::trusted $1 '$2' is unavailable."
+            exit 1
+          fi
+        }
+
+        validate_trusted command "$COMMAND" ".opencode/command/$COMMAND.md"
         install -d -m 700 "$HOME/.config/opencode/command"
         install -m 600 ".opencode/command/$COMMAND.md" "$HOME/.config/opencode/command/$COMMAND.md"
+
+        # The trusted skill (if any) is installed into global config the same way: that
+        # directory is scanned regardless of the sandbox's disabled project config and
+        # disabled external skills, so this is what makes exactly one reviewed skill visible
+        # without exposing whatever .agents/skills/** the untrusted pull request checkout
+        # might otherwise contain.
+        if [ -n "$SKILL" ]; then
+          validate_trusted skill "$SKILL" ".agents/skills/$SKILL/SKILL.md"
+          install -d -m 700 "$HOME/.config/opencode/skill"
+          cp -R ".agents/skills/$SKILL" "$HOME/.config/opencode/skill/$SKILL"
+          find "$HOME/.config/opencode/skill/$SKILL" -type d -exec chmod 700 {} +
+          find "$HOME/.config/opencode/skill/$SKILL" -type f -exec chmod 600 {} +
+        fi
 
         # Project config is disabled for trusted commands; reconstruct only approved plugins and tracked instructions.
         # This list is intentionally independent of opencode.jsonc's own "plugin" array: a PR can edit that file, but

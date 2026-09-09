@@ -33,7 +33,11 @@ inputs:
     required: false
     default: ""
   command:
-    description: Thermo-nuclear review command passed to opencode run --command.
+    description: Repository-owned review command passed to opencode run --command.
+    required: false
+    default: ""
+  skill:
+    description: Repository-owned skill to allowlist into the trusted command's sandbox.
     required: false
     default: ""
   command-arguments:
@@ -53,6 +57,7 @@ runs:
       env:
         PROMPT: ${{ inputs.prompt }}
         COMMAND: ${{ inputs.command }}
+        SKILL: ${{ inputs.skill }}
         REVIEW_DIRECTORY: ${{ inputs.review-directory }}
       run: |
         set -euo pipefail
@@ -64,8 +69,16 @@ runs:
           echo "::error::either prompt or command is required."
           exit 1
         fi
-        if [ -n "$COMMAND" ] && [ "$COMMAND" != "thermo-nuclear-code-quality-review" ]; then
+        if [ -n "$COMMAND" ] && [ "$COMMAND" != "pr-review" ]; then
           echo "::error::unsupported slash command '$COMMAND'."
+          exit 1
+        fi
+        if [ -n "$SKILL" ] && [ -z "$COMMAND" ]; then
+          echo "::error::skill requires command."
+          exit 1
+        fi
+        if [ -n "$SKILL" ] && [ "$SKILL" != "code-review" ]; then
+          echo "::error::unsupported skill '$SKILL'."
           exit 1
         fi
         if [ -n "$COMMAND" ] && [ "$GITHUB_EVENT_NAME" != "pull_request_target" ]; then
@@ -103,6 +116,7 @@ runs:
         model: ${{ inputs.model }}
         variant: ${{ inputs.variant }}
         command: ${{ inputs.command }}
+        skill: ${{ inputs.skill }}
         opencode-auth-json: ${{ inputs.opencode-auth-json }}
         codex-web-search-auth-json: ${{ inputs.codex-web-search-auth-json }}
         timeout-minutes: ${{ inputs.timeout-minutes }}
@@ -115,6 +129,7 @@ runs:
         MODEL: ${{ inputs.model }}
         VARIANT: ${{ inputs.variant }}
         COMMAND: ${{ inputs.command }}
+        SKILL: ${{ inputs.skill }}
         COMMAND_ARGUMENTS: ${{ inputs.command-arguments }}
         REVIEW_DIRECTORY: ${{ inputs.review-directory }}
         GH_TOKEN: ${{ inputs.review-token }}
@@ -169,7 +184,15 @@ runs:
           > "$REVIEW_CONTEXT/bin/gh"
         chmod 700 "$REVIEW_CONTEXT/bin/gh"
 
-        OPENCODE_PERMISSION=$(jq -cn --arg pr "$COMMAND_ARGUMENTS" '
+        # Scope the skill permission to exactly the allowlisted skill (if any), the same way
+        # bash is scoped to exact commands, rather than leaving it on the implicit allow-all
+        # default every other unlisted permission type gets.
+        SKILL_PERMISSION='"deny"'
+        if [ -n "$SKILL" ]; then
+          SKILL_PERMISSION=$(jq -cn --arg skill "$SKILL" '{"*": "deny", ($skill): "allow"}')
+        fi
+
+        OPENCODE_PERMISSION=$(jq -cn --arg pr "$COMMAND_ARGUMENTS" --argjson skill_permission "$SKILL_PERMISSION" '
           {
             edit: "deny",
             external_directory: "deny",
@@ -179,7 +202,8 @@ runs:
               ("gh pr diff " + $pr): "allow"
             },
             question: "deny",
-            todowrite: "deny"
+            todowrite: "deny",
+            skill: $skill_permission
           }
         ')
         export OPENCODE_PERMISSION

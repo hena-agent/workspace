@@ -28,6 +28,11 @@ on:
         required: false
         default: ""
         type: string
+      skill:
+        description: Repository-owned skill to allowlist into the trusted command's sandbox
+        required: false
+        default: ""
+        type: string
       command-arguments:
         description: Arguments passed to the slash command
         required: false
@@ -120,6 +125,7 @@ jobs:
           review-token: ${{ steps.review-token.outputs.token }}
           prompt: ${{ inputs.prompt }}
           command: ${{ inputs.command }}
+          skill: ${{ inputs.skill }}
           command-arguments: ${{ inputs.command-arguments }}
           review-directory: ${{ inputs.command != '' && '.opencode-review-target' || '' }}
           timeout-minutes: ${{ inputs.timeout-minutes }}

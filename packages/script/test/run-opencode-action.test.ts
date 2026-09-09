@@ -15,7 +15,7 @@ const checkRollup = path.join(runAgentDirectory, "check-rollup.jq")
 const scanIssue = path.join(runAgentDirectory, "scan-issue.jq")
 const payloadFilter = path.join(actionDirectory, "review-payload.jq")
 const sanitizeCheckout = path.join(actionDirectory, "sanitize-review-checkout.sh")
-const reviewCommand = "thermo-nuclear-code-quality-review"
+const reviewCommand = "pr-review"
 
 describe("run-opencode review action", () => {
   test("uses the committed review assets", async () => {
@@ -31,6 +31,23 @@ describe("run-opencode review action", () => {
     expect(action).toContain('OPENCODE_DISABLE_CLAUDE_CODE: "1"')
     expect(action).toContain('OPENCODE_DISABLE_EXTERNAL_SKILLS: "1"')
     expect(action).not.toContain("EXPECTED_COMMAND_SHA256")
+    expect(action).toContain('"$COMMAND" != "pr-review"')
+    expect(action).not.toContain("thermo-nuclear")
+    expect(setup).not.toContain("thermo-nuclear")
+  })
+
+  test("allowlists a trusted skill into the command sandbox", async () => {
+    const action = await Bun.file(path.join(actionDirectory, "action.yml")).text()
+    const setup = await Bun.file(path.join(setupDirectory, "action.yml")).text()
+    expect(action).toContain("skill: ${{ inputs.skill }}")
+    expect(action).toContain("SKILL: ${{ inputs.skill }}")
+    expect(action).toContain('"$SKILL" != "code-review"')
+    expect(action).toContain('{"*": "deny", ($skill): "allow"}')
+    expect(setup).toContain('install -d -m 700 "$HOME/.config/opencode/skill"')
+    expect(setup).toContain('cp -R ".agents/skills/$SKILL" "$HOME/.config/opencode/skill/$SKILL"')
+    expect(setup).toContain('validate_trusted command "$COMMAND" ".opencode/command/$COMMAND.md"')
+    expect(setup).toContain('validate_trusted skill "$SKILL" ".agents/skills/$SKILL/SKILL.md"')
+    expect(setup).toContain("trusted $1 '$2' is unavailable.")
   })
 
   test("shares one pinned OpenCode setup", async () => {
@@ -62,6 +79,9 @@ describe("run-opencode review action", () => {
     expect(reusable).toContain(
       "codex-web-search-auth-json: ${{ inputs.command != '' && secrets.codex-web-search-auth-json || '' }}",
     )
+    expect(workflow).toContain("command: pr-review")
+    expect(workflow).toContain("skill: code-review")
+    expect(reusable).toContain("skill: ${{ inputs.skill }}")
   })
 
   test("runs maintenance commands without exposing GitHub tokens", async () => {

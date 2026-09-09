@@ -11,6 +11,7 @@ import { loadDraft, saveDraft } from "@/local-state/drafts"
 import { markSessionOpened } from "@/local-state/recent"
 import type { ModelRef } from "@/lib/types"
 import { modelFromWire, modelWire } from "@/lib/model"
+import { resolveAgent } from "@/lib/agent"
 
 export const Route = createFileRoute("/$connectionId/$projectId/session/$sessionId/")({
   component: SessionTranscriptRoute,
@@ -63,7 +64,7 @@ function SessionTranscript({
   const [agentId, setAgentId] = useState("")
   const [model, setModel] = useState<ModelRef | undefined>(undefined)
   const [mutationNotice, setMutationNotice] = useState("")
-  const selectedAgentId = agentId || (typeof settings.defaultAgent === "string" ? settings.defaultAgent : session?.agentId) || catalog.agents[0]?.id || ""
+  const selectedAgentId = resolveAgent(catalog.agents, agentId, typeof settings.defaultAgent === "string" ? settings.defaultAgent : undefined, session?.agentId)?.id ?? ""
   const selectedModel = model ?? modelFromWire(settings.defaultModel) ?? session?.model ?? catalog.models[0]
   const draftKey = `session:${sessionId}`
   const draft = agent ? loadDraft(agent.url, draftKey) : undefined
@@ -133,6 +134,7 @@ function SessionTranscript({
           mutationNotice={mutationNotice}
           onSend={(text, files) => {
         if (!agent) return Promise.reject(new Error("Server is unavailable"))
+        if (!selectedAgentId) return Promise.reject(new Error("Select an agent before sending."))
         const result = admitPromptOptimistically(agent, {
           sessionID: sessionId,
           text,
@@ -145,6 +147,7 @@ function SessionTranscript({
           }}
           onQueue={(text, files) => {
         if (!agent) return Promise.reject(new Error("Server is unavailable"))
+        if (!selectedAgentId) return Promise.reject(new Error("Select an agent before sending."))
         const result = admitPromptOptimistically(agent, {
           sessionID: sessionId,
           text,

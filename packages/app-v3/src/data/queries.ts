@@ -169,14 +169,10 @@ export function useQueuedInputs(agent: ReturnTypeOfAgent | undefined, sessionId:
 
 export function useCatalog(agent: ReturnTypeOfAgent | undefined, location: { directory: string; workspaceID?: string } | undefined) {
   const scope = location ? JSON.stringify(location) : "missing"
-  const agents = useRows(agent, "agents", scope).map(agentView)
-  const models = useRows(agent, "models", scope).map(modelView)
-  const providers = useRows(agent, "providers", scope).map(providerView)
-  return {
-    agents: agents.filter((item) => item.id),
-    models: models.filter((item) => item.id),
-    providers: providers.filter((item) => item.id),
-  }
+  const agents = useRows(agent, "agents", scope)
+  const models = useRows(agent, "models", scope)
+  const providers = useRows(agent, "providers", scope)
+  return catalogView({ agents, models, providers })
 }
 
 // The `agents`/`models`/`providers` collection scopes `useCatalog` reads only exist once a
@@ -195,15 +191,7 @@ export function useLocationCatalog(
         query: { directory: location!.directory, workspaceID: location!.workspaceID },
       })
       if (!response.ok) throw new Error("Could not load the catalog")
-      const data = await response.json()
-      const agents = data.agents.map(agentView)
-      const models = data.models.map(modelView)
-      const providers = data.providers.map(providerView)
-      return {
-        agents: agents.filter((item) => item.id),
-        models: models.filter((item) => item.id),
-        providers: providers.filter((item) => item.id),
-      }
+      return catalogView(await response.json())
     },
   })
 }
@@ -373,6 +361,14 @@ function questionView(row: Record<string, unknown>): QuestionRequest {
     prompt: string(prompt.question || prompt.prompt || row.prompt) || "Choose an answer",
     choices: array(prompt.options || row.options).map((option, index) => ({ id: String(index), label: string(record(option).label || option) })),
     createdAt: number(record(row.time).created),
+  }
+}
+
+function catalogView(data: { agents: Record<string, unknown>[]; models: Record<string, unknown>[]; providers: Record<string, unknown>[] }) {
+  return {
+    agents: data.agents.flatMap((row) => string(row.id) && row.mode !== "subagent" && !row.hidden ? [agentView(row)] : []),
+    models: data.models.flatMap((row) => string(row.id) ? [modelView(row)] : []),
+    providers: data.providers.flatMap((row) => string(row.id) ? [providerView(row)] : []),
   }
 }
 

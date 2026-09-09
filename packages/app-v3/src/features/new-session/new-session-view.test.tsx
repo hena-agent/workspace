@@ -51,6 +51,54 @@ describe("NewSessionView", () => {
     expect(delivery).toBe("queue")
   })
 
+  test.each([
+    { agentID: "explore", defaultAgentId: "plan", expected: "plan", label: "Plan" },
+    { agentID: "compaction", defaultAgentId: "explore", expected: "build", label: "Build" },
+    { agentID: "plan", defaultAgentId: "compaction", expected: "plan", label: "Plan" },
+  ])("restored $agentID with default $defaultAgentId displays and submits $expected", async ({ agentID, defaultAgentId, expected, label }) => {
+    const user = userEvent.setup()
+    const started: string[] = []
+    const drafts: DraftBody[] = []
+    render(<NewSessionView
+      project={projects[0]} agents={agents.slice(0, 2)} models={models} providers={providers}
+      defaultAgentId={defaultAgentId}
+      draft={{ text: "continue", agentID, selection: { start: 8, end: 8 }, delivery: "steer", droppedAttachments: 0 }}
+      onDraftChange={(draft) => drafts.push(draft)}
+      onStart={(input) => started.push(input.agentId)}
+    />)
+    expect(screen.getByLabelText("Agent")).toHaveTextContent(label)
+    await user.type(screen.getByLabelText("Message"), "!")
+    expect(drafts.at(-1)?.agentID).toBe(expected)
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await user.type(screen.getByLabelText("Message"), "next{Control>}{Shift>}{Enter}{/Shift}{/Control}")
+    expect(started).toEqual([expected, expected])
+  })
+
+  test("waits for a selectable agent before sending or queueing a restored draft", async () => {
+    const user = userEvent.setup()
+    const started: string[] = []
+    const drafts: DraftBody[] = []
+    const props = {
+      project: projects[0], models, providers,
+      draft: { text: "continue", agentID: "compaction", selection: { start: 8, end: 8 }, delivery: "steer", droppedAttachments: 0 } satisfies DraftBody,
+      onStart: (input: { agentId: string }) => started.push(input.agentId),
+      onDraftChange: (draft: DraftBody) => drafts.push(draft),
+    }
+    const view = render(<NewSessionView {...props} agents={[]} />)
+    await user.type(screen.getByLabelText("Message"), "!")
+    expect(drafts.at(-1)?.agentID).toBe("compaction")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    expect(await screen.findByRole("alert")).toHaveTextContent("Select an agent before sending")
+    await user.click(screen.getByLabelText("Message"))
+    await user.keyboard("{Control>}{Shift>}{Enter}{/Shift}{/Control}")
+    expect(started).toEqual([])
+
+    view.rerender(<NewSessionView {...props} agents={agents.slice(0, 2)} />)
+    expect(screen.getByLabelText("Agent")).toHaveTextContent("Build")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    expect(started).toEqual(["build"])
+  })
+
   test("uses the synchronized queue delivery default for a normal send", async () => {
     const user = userEvent.setup()
     let delivery: "send" | "queue" | undefined

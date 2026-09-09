@@ -33,7 +33,7 @@ inputs:
     required: false
     default: ""
   command:
-    description: Thermo-nuclear review command passed to opencode run --command.
+    description: Repository-owned review command passed to opencode run --command.
     required: false
     default: ""
   command-arguments:
@@ -64,7 +64,7 @@ runs:
           echo "::error::either prompt or command is required."
           exit 1
         fi
-        if [ -n "$COMMAND" ] && [ "$COMMAND" != "thermo-nuclear-code-quality-review" ]; then
+        if [ -n "$COMMAND" ] && [ "$COMMAND" != "pr-review" ]; then
           echo "::error::unsupported slash command '$COMMAND'."
           exit 1
         fi
@@ -169,6 +169,11 @@ runs:
           > "$REVIEW_CONTEXT/bin/gh"
         chmod 700 "$REVIEW_CONTEXT/bin/gh"
 
+        # This step only ever runs for the pr-review command (validated above), which
+        # setup-opencode's trusted-command step installs alongside exactly the code-review
+        # skill, so the skill permission is scoped to that one allowlisted skill directly
+        # rather than left on the implicit allow-all default every other unlisted permission
+        # type gets, the same way bash is scoped to exact commands below.
         OPENCODE_PERMISSION=$(jq -cn --arg pr "$COMMAND_ARGUMENTS" '
           {
             edit: "deny",
@@ -179,7 +184,8 @@ runs:
               ("gh pr diff " + $pr): "allow"
             },
             question: "deny",
-            todowrite: "deny"
+            todowrite: "deny",
+            skill: {"*": "deny", "code-review": "allow"}
           }
         ')
         export OPENCODE_PERMISSION

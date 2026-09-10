@@ -75,7 +75,7 @@ it.live("chunkTimeout raises a response stream error when SSE body stalls", () =
             }
             return errors.at(-1)
           })
-          if (!APICallError.isInstance(error)) throw error
+          if (!APICallError.isInstance(error)) throw new Error("Expected an SDK API call error", { cause: error })
           expect(error.cause).toBeInstanceOf(ProviderError.ResponseStreamError)
           expect(ProviderError.parseAPICallError({ providerID: ProviderV2.ID.make("test"), error })).toMatchObject({
             type: "api_error",

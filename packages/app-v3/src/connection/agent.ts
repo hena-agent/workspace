@@ -11,8 +11,7 @@ import {
   transcriptScopes,
 } from "./transcript"
 
-export type ConnectionStatus =
-  "idle" | "connecting" | "live" | "reconnecting" | "upgrade-required" | "unauthorized" | "error"
+export type ConnectionStatus = "idle" | "connecting" | "live" | "reconnecting" | "upgrade-required" | "unauthorized" | "error"
 export type RpcClient = ReturnType<typeof hc<AppType>>
 export type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
 export interface ConnectionAgent {
@@ -54,14 +53,10 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   const store = createConnectionStore({ onTxidTimeout: (scopes) => refresh(scopes) })
   const localMessages = createLocalMessages(store)
   const client = hc<AppType>(url, {
-    fetch: (input: RequestInfo | URL, init?: RequestInit) =>
-      fetcher(input, {
-        ...init,
-        headers: {
-          ...Object.fromEntries(new Headers(init?.headers).entries()),
-          "x-correlation-id": crypto.randomUUID(),
-        },
-      }),
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => fetcher(input, {
+      ...init,
+      headers: { ...Object.fromEntries(new Headers(init?.headers).entries()), "x-correlation-id": crypto.randomUUID() },
+    }),
   })
   const listeners = new Set<() => void>()
   const linger = new Array<string>()
@@ -93,10 +88,9 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   // The server rejects more than `SubscribedSessions` entries, so the focused
   // session and the linger cache keep their slots and the active project fills
   // whatever remains, newest first.
-  const claimedSessions = () =>
-    Array.from(
-      new Set([focusedSession, ...linger, ...prefetchedSessions].filter((session): session is string => !!session)),
-    ).slice(0, SubscribedSessions)
+  const claimedSessions = () => Array.from(new Set(
+    [focusedSession, ...linger, ...prefetchedSessions].filter((session): session is string => !!session),
+  )).slice(0, SubscribedSessions)
   const requestRestart = () => {
     restartRevision++
     abort?.abort()
@@ -110,9 +104,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   async function start() {
     if (startPromise) return startPromise
     disposed = false
-    startPromise = run().finally(() => {
-      startPromise = undefined
-    })
+    startPromise = run().finally(() => { startPromise = undefined })
     return startPromise
   }
 
@@ -140,11 +132,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
           setStatus(cause.status)
           return
         }
-        if (
-          currentRestartRevision !== restartRevision ||
-          (cause instanceof DOMException && cause.name === "AbortError")
-        )
-          continue
+        if (currentRestartRevision !== restartRevision || (cause instanceof DOMException && cause.name === "AbortError")) continue
         setStatus("reconnecting")
         await reconnectDelay(attempt++)
       }
@@ -171,35 +159,22 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
   async function putSubscription() {
     if (!resource) return
     const scopeKeys = new Set(store.scopeRefs().map(scopeIdentity))
-    new Set(
-      store
-        .scopeRefs()
-        .flatMap((scope) => (isTranscriptReconciliationCollection(scope.collection) ? [scope.scopeKey] : [])),
-    ).forEach((sessionId) => {
+    new Set(store.scopeRefs().flatMap((scope) =>
+      isTranscriptReconciliationCollection(scope.collection) ? [scope.scopeKey] : [],
+    )).forEach((sessionId) => {
       const scopes = transcriptReconciliationScopes(sessionId)
-      if (
-        scopes.some(
-          (scope) => scopeKeys.has(scopeIdentity(scope)) && store.cursor(scope.collection, scope.scopeKey) === 0,
-        )
-      )
-        resetCursors(scopes)
+      if (scopes.some((scope) => scopeKeys.has(scopeIdentity(scope)) && store.cursor(scope.collection, scope.scopeKey) === 0)) resetCursors(scopes)
     })
     subscriptionRevision = Math.max(subscriptionRevision, resource.subscriptionRevision) + 1
-    const cursorKeys = new Set(
-      store.scopeRefs().flatMap((scope) => {
-        if (VolatileCollections.has(scope.collection) || store.cursor(scope.collection, scope.scopeKey) === 0) return []
-        return [scopeIdentity(scope)]
-      }),
-    )
-    const cursors = Object.fromEntries(
-      store.scopeRefs().flatMap((scope) => {
-        if (VolatileCollections.has(scope.collection)) return []
-        const seq = store.cursor(scope.collection, scope.scopeKey)
-        return seq > 0
-          ? [[`${scope.collection}:${scope.scopeKey}`, { feedId: resource!.feed.feedId, seq }] as const]
-          : []
-      }),
-    )
+    const cursorKeys = new Set(store.scopeRefs().flatMap((scope) => {
+      if (VolatileCollections.has(scope.collection) || store.cursor(scope.collection, scope.scopeKey) === 0) return []
+      return [scopeIdentity(scope)]
+    }))
+    const cursors = Object.fromEntries(store.scopeRefs().flatMap((scope) => {
+      if (VolatileCollections.has(scope.collection)) return []
+      const seq = store.cursor(scope.collection, scope.scopeKey)
+      return seq > 0 ? [[`${scope.collection}:${scope.scopeKey}`, { feedId: resource!.feed.feedId, seq }] as const] : []
+    }))
     const response = await client.api.collection.streams[":streamId"].subscription.$put({
       param: { streamId: resource.streamId },
       json: { revision: subscriptionRevision, lists: true, sessions: claimedSessions(), cursors },
@@ -289,25 +264,17 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     const bufferedDeltas = new Map<string, Sync.DeltaFrame[]>()
 
     function applyRows(frame: Sync.RowsFrame) {
-      const resetSessions = new Set(
-        frame.changes.flatMap((change) =>
-          change.op === "reset" && isTranscriptCollection(change.collection) ? [change.scopeKey] : [],
-        ),
-      )
+      const resetSessions = new Set(frame.changes.flatMap((change) =>
+        change.op === "reset" && isTranscriptCollection(change.collection) ? [change.scopeKey] : [],
+      ))
       if (resetSessions.size > 0) {
         resetCursors(Array.from(resetSessions).flatMap(transcriptScopes))
         requestRestart()
       }
-      const changes = frame.changes.filter(
-        (change) => !resetSessions.has(change.scopeKey) || !isTranscriptCollection(change.collection),
-      )
+      const changes = frame.changes.filter((change) => !resetSessions.has(change.scopeKey) || !isTranscriptCollection(change.collection))
       store.applyRows({ throughSeq: frame.throughSeq, changes: changes as readonly Change[] })
       // Recovery resets are intentionally not applied, but their mutation receipts are still durable.
-      store.settleReceipts(
-        frame.changes.filter(
-          (change) => resetSessions.has(change.scopeKey) && isTranscriptCollection(change.collection),
-        ) as readonly Change[],
-      )
+      store.settleReceipts(frame.changes.filter((change) => resetSessions.has(change.scopeKey) && isTranscriptCollection(change.collection)) as readonly Change[])
     }
 
     function applyFrame(frame: StreamFrame) {
@@ -354,15 +321,10 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
         const snapshot = snapshots.get(frame.snapshotId)
         if (!snapshot || scopeIdentity(snapshot.scope) !== scopeIdentity(frame.scope)) throw new TerminalError("error")
         const keys = new Set(snapshot.rows.map((row) => wireKey(row.key)))
-        if (
-          keys.size !== frame.keyCount ||
-          snapshot.rows.length !== frame.keyCount ||
-          snapshot.baseSeq !== frame.throughSeq
-        )
+        if (keys.size !== frame.keyCount || snapshot.rows.length !== frame.keyCount || snapshot.baseSeq !== frame.throughSeq)
           throw new TerminalError("error")
         if (snapshot.replace && isTranscriptCollection(snapshot.scope.collection)) {
-          const completed =
-            completedTranscripts.get(snapshot.scope.scopeKey) ?? new Map<string, Snapshot & { throughSeq: number }>()
+          const completed = completedTranscripts.get(snapshot.scope.scopeKey) ?? new Map<string, Snapshot & { throughSeq: number }>()
           completed.set(snapshot.scope.collection, { ...snapshot, throughSeq: frame.throughSeq })
           completedTranscripts.set(snapshot.scope.scopeKey, completed)
           if (!completed.has("messages") || !completed.has("parts")) return
@@ -372,49 +334,30 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
             snapshots.delete(activeSnapshots.get(scopeIdentity(item.scope))!)
             activeSnapshots.delete(scopeIdentity(item.scope))
           })
-          store.batch(() =>
-            pair.forEach((item) =>
-              store.applySnapshot(item.scope.collection, item.scope.scopeKey, item.rows, item.throughSeq, item.replace),
-            ),
-          )
+          store.batch(() => pair.forEach((item) =>
+            store.applySnapshot(item.scope.collection, item.scope.scopeKey, item.rows, item.throughSeq, item.replace),
+          ))
           flushTranscriptRows(snapshot.scope.scopeKey)
           flushDeltas(snapshot.scope.scopeKey)
           return
         }
         snapshots.delete(frame.snapshotId)
         activeSnapshots.delete(scopeIdentity(snapshot.scope))
-        store.applySnapshot(
-          snapshot.scope.collection,
-          snapshot.scope.scopeKey,
-          snapshot.rows,
-          frame.throughSeq,
-          snapshot.replace,
-        )
-        snapshot.bufferedRows.forEach((rows) =>
-          applyRows({
-            ...rows,
-            changes: rows.changes.filter((change) => change.seq > frame.throughSeq),
-          }),
-        )
+        store.applySnapshot(snapshot.scope.collection, snapshot.scope.scopeKey, snapshot.rows, frame.throughSeq, snapshot.replace)
+        snapshot.bufferedRows.forEach((rows) => applyRows({
+          ...rows,
+          changes: rows.changes.filter((change) => change.seq > frame.throughSeq),
+        }))
         if (isTranscriptCollection(snapshot.scope.collection)) flushTranscriptRows(snapshot.scope.scopeKey)
         flushDeltas(snapshot.scope.scopeKey)
         return
       }
       if (frame.type === "rows") {
-        new Set(
-          frame.changes.flatMap((change) =>
-            isTranscriptCollection(change.collection) && sessionHasTranscriptSnapshot(change.scopeKey)
-              ? [change.scopeKey]
-              : [],
-          ),
-        ).forEach((sessionId) => {
+        new Set(frame.changes.flatMap((change) =>
+          isTranscriptCollection(change.collection) && sessionHasTranscriptSnapshot(change.scopeKey) ? [change.scopeKey] : [],
+        )).forEach((sessionId) => {
           const pending = bufferedTranscriptRows.get(sessionId) ?? []
-          pending.push({
-            ...frame,
-            changes: frame.changes.filter(
-              (change) => isTranscriptCollection(change.collection) && change.scopeKey === sessionId,
-            ),
-          })
+          pending.push({ ...frame, changes: frame.changes.filter((change) => isTranscriptCollection(change.collection) && change.scopeKey === sessionId) })
           bufferedTranscriptRows.set(sessionId, pending)
         })
         const buffered = new Map<string, Sync.RowsFrame["changes"][number][]>()
@@ -427,10 +370,9 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
           buffered.set(snapshotId, changes)
         })
         buffered.forEach((changes, snapshotId) => snapshots.get(snapshotId)?.bufferedRows.push({ ...frame, changes }))
-        const changes = frame.changes.filter(
-          (change) =>
-            !(isTranscriptCollection(change.collection) && sessionHasTranscriptSnapshot(change.scopeKey)) &&
-            !activeSnapshots.has(scopeIdentity(change)),
+        const changes = frame.changes.filter((change) =>
+          !(isTranscriptCollection(change.collection) && sessionHasTranscriptSnapshot(change.scopeKey)) &&
+          !activeSnapshots.has(scopeIdentity(change)),
         )
         if (changes.length > 0) applyRows({ ...frame, changes })
         return
@@ -446,9 +388,7 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     }
 
     function sessionHasSnapshot(sessionId: string) {
-      return SessionCollections.some((collection) =>
-        activeSnapshots.has(scopeIdentity({ collection, scopeKey: sessionId })),
-      )
+      return SessionCollections.some((collection) => activeSnapshots.has(scopeIdentity({ collection, scopeKey: sessionId })))
     }
 
     function sessionHasTranscriptSnapshot(sessionId: string) {
@@ -457,12 +397,10 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
 
     function flushTranscriptRows(sessionId: string) {
       if (sessionHasTranscriptSnapshot(sessionId)) return
-      bufferedTranscriptRows.get(sessionId)?.forEach((rows) =>
-        applyRows({
-          ...rows,
-          changes: rows.changes.filter((change) => change.seq > store.cursor(change.collection, change.scopeKey)),
-        }),
-      )
+      bufferedTranscriptRows.get(sessionId)?.forEach((rows) => applyRows({
+        ...rows,
+        changes: rows.changes.filter((change) => change.seq > store.cursor(change.collection, change.scopeKey)),
+      }))
       bufferedTranscriptRows.delete(sessionId)
     }
 
@@ -480,15 +418,9 @@ export function createConnectionAgent(url: string, fetcher: Fetcher = fetch): Co
     client,
     store,
     localMessages,
-    get status() {
-      return status
-    },
-    get lastSyncAt() {
-      return lastSyncAt
-    },
-    get errorMessage() {
-      return errorMessage
-    },
+    get status() { return status },
+    get lastSyncAt() { return lastSyncAt },
+    get errorMessage() { return errorMessage },
     subscribe(listener: () => void) {
       listeners.add(listener)
       return () => listeners.delete(listener)
@@ -579,12 +511,10 @@ export async function* parseEventStream(stream: ReadableStream<Uint8Array>) {
 
 async function loadDecoders() {
   const [{ Sync }, { Schema }] = await Promise.all([import("@hena/schema/sync"), import("effect")])
-  const option =
-    <Value>(decode: (value: unknown) => { _tag: string; value?: Value }) =>
-    (value: unknown) => {
-      const result = decode(value)
-      return result._tag === "Some" ? result.value : undefined
-    }
+  const option = <Value>(decode: (value: unknown) => { _tag: string; value?: Value }) => (value: unknown) => {
+    const result = decode(value)
+    return result._tag === "Some" ? result.value : undefined
+  }
   const json = Schema.decodeUnknownOption(Schema.UnknownFromJsonString)
   const frame = Schema.decodeUnknownOption(Sync.StreamFrame)
   return {
@@ -602,7 +532,7 @@ async function loadDecoders() {
 
 async function getJson(response: Pick<Response, "ok" | "status" | "json">) {
   if (!response.ok) throw new Error(`Request failed with ${response.status}`)
-  return (await response.json()) as unknown
+  return await response.json() as unknown
 }
 
 function scopeIdentity(scope: ScopeRef) {
@@ -634,10 +564,7 @@ function delay(ms: number) {
 }
 
 class TerminalError extends Error {
-  constructor(
-    readonly status: Extract<ConnectionStatus, "upgrade-required" | "unauthorized" | "error">,
-    message: string = status,
-  ) {
+  constructor(readonly status: Extract<ConnectionStatus, "upgrade-required" | "unauthorized" | "error">, message: string = status) {
     super(message)
   }
 }

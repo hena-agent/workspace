@@ -31,7 +31,7 @@ export const createClient = (config: Config = {}): Client => {
 
   const interceptors = createInterceptors<Request, Response, unknown, ResolvedRequestOptions>()
 
-  const beforeRequest = async <
+  const resolveOptions = <
     TData = unknown,
     TResponseStyle extends "data" | "fields" = "fields",
     ThrowOnError extends boolean = boolean,
@@ -42,11 +42,17 @@ export const createClient = (config: Config = {}): Client => {
     const opts = {
       ..._config,
       ...options,
+      throwOnError: options.throwOnError ?? _config.throwOnError,
+      responseStyle: options.responseStyle ?? _config.responseStyle,
       fetch: options.fetch ?? _config.fetch ?? globalThis.fetch,
       headers: mergeHeaders(_config.headers, options.headers),
       serializedBody: undefined as string | undefined,
     }
 
+    return opts as typeof opts & ResolvedRequestOptions<TResponseStyle, ThrowOnError, Url>
+  }
+
+  const beforeRequest = async (opts: ResolvedRequestOptions) => {
     if (opts.security) {
       await setAuthParams(opts)
     }
@@ -64,10 +70,9 @@ export const createClient = (config: Config = {}): Client => {
       opts.headers.delete("Content-Type")
     }
 
-    const resolvedOpts = opts as typeof opts & ResolvedRequestOptions<TResponseStyle, ThrowOnError, Url>
-    const url = buildUrl(resolvedOpts)
+    const url = buildUrl(opts)
 
-    return { opts: resolvedOpts, url }
+    return { opts, url }
   }
 
   const request: Client["request"] = async (options) => {
@@ -76,9 +81,11 @@ export const createClient = (config: Config = {}): Client => {
 
     let request: Request | undefined
     let response: Response | undefined
+    let opts: ResolvedRequestOptions | undefined
 
     try {
-      const { opts, url } = await beforeRequest(options)
+      opts = resolveOptions(options)
+      const { url } = await beforeRequest(opts)
       const requestInit: ReqInit = {
         redirect: "follow",
         ...opts,
@@ -197,8 +204,9 @@ export const createClient = (config: Config = {}): Client => {
       let finalError = error
 
       for (const fn of interceptors.error.fns) {
-        if (fn) {
-          finalError = await fn(finalError, response, request, options as ResolvedRequestOptions)
+        // Invalid headers can fail resolution itself. Do not pass raw options as resolved options.
+        if (fn && opts) {
+          finalError = await fn(finalError, response, request, opts)
         }
       }
 
@@ -222,7 +230,7 @@ export const createClient = (config: Config = {}): Client => {
   const makeMethodFn = (method: Uppercase<HttpMethod>) => (options: RequestOptions) => request({ ...options, method })
 
   const makeSseFn = (method: Uppercase<HttpMethod>) => async (options: RequestOptions) => {
-    const { opts, url } = await beforeRequest(options)
+    const { opts, url } = await beforeRequest(resolveOptions(options))
     return createSseClient({
       ...opts,
       body: opts.body as BodyInit | null | undefined,

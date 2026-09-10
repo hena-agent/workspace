@@ -107,7 +107,7 @@ export const ripgrepLayer = Layer.effect(
               : input.type === "directory"
                 ? state.directories
                 : [...state.files, ...state.directories]
-          return fuzzysort.go(input.query, items, { limit: input.limit ?? 50 }).map((item) => {
+          return fuzzysort.go(input.query, items, { limit: input.limit ?? 50, threshold: 0 }).map((item) => {
             const relative = item.target
             const type = relative.endsWith(path.sep) ? ("directory" as const) : ("file" as const)
             return FileSystem.Entry.make({

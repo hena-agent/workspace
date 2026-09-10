@@ -3,7 +3,11 @@ import { useFilteredList } from "@hena/ui/hooks"
 import { createEffect, createRoot } from "solid-js"
 
 test.each(["strings", "objects"])("filtered %s lists retain every match beyond the first ten", async (mode) => {
-  const names = [...Array.from({ length: 12 }, (_, index) => `Model ${index}`), "Unrelated tool"]
+  const names = [
+    ...Array.from({ length: 12 }, (_, index) => `Model ${index}`),
+    "m_____o_____d_____e_____l",
+    "Unrelated tool",
+  ]
   const ready = Promise.withResolvers<void>()
   const root = createRoot((dispose) => {
     const list = useFilteredList<string | { name: string }>({
@@ -19,8 +23,11 @@ test.each(["strings", "objects"])("filtered %s lists retain every match beyond t
   try {
     root.list.onInput("model")
     await ready.promise
-    expect(root.list.flat()).toHaveLength(12)
+    expect(root.list.flat()).toHaveLength(13)
     expect(root.list.flat().map((item) => (typeof item === "string" ? item : item.name))).toContain("Model 11")
+    expect(root.list.flat().map((item) => (typeof item === "string" ? item : item.name))).toContain(
+      "m_____o_____d_____e_____l",
+    )
   } finally {
     root.dispose()
   }

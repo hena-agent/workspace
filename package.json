@@ -46,7 +46,7 @@
       "@kobalte/core": "0.13.13",
       "@corvu/drawer": "0.2.4",
       "@types/luxon": "3.7.5",
-      "@types/node": "26.4.1",
+      "@types/node": "24.13.3",
       "@types/semver": "7.8.0",
       "@tsconfig/node22": "22.0.6",
       "@tsconfig/bun": "1.0.11",
@@ -117,7 +117,6 @@
     "bun-types",
     "esbuild",
     "node-pty",
-    "protobufjs",
     "tree-sitter",
     "tree-sitter-bash",
     "tree-sitter-powershell",
@@ -140,6 +139,7 @@
     "@pierre/trees@1.0.0-beta.6": "patches/@pierre%2Ftrees@1.0.0-beta.6.patch",
     "@modelcontextprotocol/sdk@1.30.0": "patches/@modelcontextprotocol%2Fsdk@1.30.0.patch",
     "@tanstack/virtual-core@3.17.8": "patches/@tanstack%2Fvirtual-core@3.17.8.patch",
-    "@npmcli/agent@5.0.2": "patches/@npmcli%2Fagent@5.0.2.patch"
+    "@npmcli/agent@5.0.2": "patches/@npmcli%2Fagent@5.0.2.patch",
+    "@hey-api/openapi-ts@0.99.0": "patches/@hey-api%2Fopenapi-ts@0.99.0.patch"
   }
 }

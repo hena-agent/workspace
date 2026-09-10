@@ -67,7 +67,6 @@
     "@solidjs/meta": "catalog:",
     "@tsconfig/node22": "catalog:",
     "@types/bun": "catalog:",
-    "@types/katex": "0.16.8",
     "@typescript/native": "catalog:",
     "solid-js": "catalog:",
     "storybook": "^10.6.0",

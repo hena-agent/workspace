@@ -257,7 +257,9 @@ function addServerInstallableDistros(installedDistros: WslInstalledDistro[], onl
 function addServerFilteredInstallableDistros(installableDistros: WslOnlineDistro[], search: string) {
   const query = search.trim()
   if (!query) return installableDistros
-  return fuzzysort.go(query, installableDistros, { keys: ["label", "name"], limit: 0 }).map((item) => item.obj)
+  return fuzzysort
+    .go(query, installableDistros, { keys: ["label", "name"], limit: 0, threshold: 0 })
+    .map((item) => item.obj)
 }
 
 function addServerCatalogTarget(target: string | null, distros: WslOnlineDistro[]) {

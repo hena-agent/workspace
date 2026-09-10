@@ -188,7 +188,7 @@ function filteredFor(
   const results = fuzzysort.go(value, items, {
     keys: ["title", "keybind"],
     limit: 0,
-    threshold: -10000,
+    threshold: 0,
   })
 
   for (const result of results) {

@@ -358,7 +358,7 @@ export function createDirectorySearch(args: { sdk: ServerSDK; base: () => string
   const match = async (directory: string, query: string, limit: number) => {
     const items = await directories(directory)
     if (!query) return items.slice(0, limit).map((item) => item.absolute)
-    return fuzzysort.go(query, items, { key: "name", limit }).map((item) => item.obj.absolute)
+    return fuzzysort.go(query, items, { key: "name", limit, threshold: 0 }).map((item) => item.obj.absolute)
   }
 
   return async (filter: string) => {

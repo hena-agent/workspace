@@ -61,7 +61,7 @@ export function useFilteredWslServers(filter: Accessor<string>) {
     const query = filter().trim()
     if (!query) return servers
     return fuzzysort
-      .go(query, servers, { keys: [(item) => item.config.distro, (item) => item.config.id], limit: 0 })
+      .go(query, servers, { keys: [(item) => item.config.distro, (item) => item.config.id], limit: 0, threshold: 0 })
       .map((x) => x.obj)
   })
 }

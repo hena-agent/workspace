@@ -17,13 +17,14 @@ import { SessionMessage } from "@hena/core/session/message"
 import { Prompt } from "@hena/core/session/prompt"
 import { SessionMessageUpdater } from "@hena/core/session/message-updater"
 import { SessionProjector } from "@hena/core/session/projector"
+import { SessionStore } from "@hena/core/session/store"
 import { SessionExecution } from "@hena/core/session/execution"
 import { SessionInput } from "@hena/core/session/input"
 import { SessionInputTable, SessionMessageTable, SessionTable } from "@hena/core/session/sql"
 import { testEffect } from "./lib/effect"
 import { Snapshot } from "@hena/core/snapshot"
 
-const it = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, EventV2.node, SessionProjector.node])))
+const it = testEffect(AppNodeBuilder.build(LayerNode.group([Database.node, EventV2.node, SessionProjector.node, SessionStore.node])))
 const sessionsLayer = AppNodeBuilder.build(SessionV2.node, [[SessionExecution.node, SessionExecution.noopLayer]])
 const sessionID = SessionV2.ID.make("ses_projector_test")
 const created = DateTime.makeUnsafe(0)
@@ -44,6 +45,40 @@ const assistantRow = (
 }
 
 describe("SessionProjector", () => {
+  it.effect("advances session recency on completed and failed responses, not streamed text", () =>
+    Effect.gen(function* () {
+      const database = yield* Database.Service
+      const events = yield* EventV2.Service
+      const sessions = yield* SessionStore.Service
+      yield* database.db.insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] }).run()
+      yield* database.db.insert(SessionTable).values({
+        id: sessionID, project_id: Project.ID.global, slug: "test", directory: "/project",
+        title: "Already titled", version: "test", time_updated: 7, time_read: 7,
+      }).run()
+      const assistantMessageID = SessionMessage.ID.make("msg_response")
+      yield* events.publish(SessionEvent.Step.Started, { sessionID, assistantMessageID, agent: "build", model, timestamp: DateTime.makeUnsafe(7) })
+      yield* events.publish(SessionEvent.Text.Started, { sessionID, assistantMessageID, textID: "text-0", timestamp: DateTime.makeUnsafe(7) })
+      yield* events.publish(SessionEvent.Text.Ended, { sessionID, assistantMessageID, textID: "text-0", text: "Response", timestamp: DateTime.makeUnsafe(8) })
+      expect((yield* sessions.get(sessionID))?.time.updated).toEqual(DateTime.makeUnsafe(7))
+
+      yield* events.publish(SessionEvent.Step.Ended, {
+        sessionID, assistantMessageID, timestamp: DateTime.makeUnsafe(9), finish: "stop", cost: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      })
+      expect((yield* sessions.get(sessionID))?.time.updated).toEqual(DateTime.makeUnsafe(9))
+
+      // A later response can fail within the same millisecond as the last read watermark.
+      const failedMessageID = SessionMessage.ID.make("msg_failed_response")
+      yield* events.publish(SessionEvent.Step.Started, { sessionID, assistantMessageID: failedMessageID, agent: "build", model, timestamp: DateTime.makeUnsafe(9) })
+      yield* events.publish(SessionEvent.Step.Failed, {
+        sessionID, assistantMessageID: failedMessageID, timestamp: DateTime.makeUnsafe(9),
+        error: { type: "unknown", message: "Provider failed" },
+      })
+      expect((yield* sessions.get(sessionID))?.time.updated).toEqual(DateTime.makeUnsafe(10))
+    }),
+  )
+
   it.effect("projects title updates with durable recency and no message history", () =>
     Effect.gen(function* () {
       const { db } = yield* Database.Service

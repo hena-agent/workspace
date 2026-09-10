@@ -123,6 +123,8 @@ export function admitPromptOptimistically(agent: ConnectionAgent, input: {
         ...(input.delivery === "queue" ? { queueRevision: number(draft.row.queueRevision) + 1 } : {}),
         ...(input.delivery === "steer" ? { working: true } : {}),
         time: { ...object(draft.row.time), updated: created },
+        // The sender has already seen this prompt; persist its read receipt after admission.
+        read: created,
       }
     })
     if (input.delivery === "queue") {

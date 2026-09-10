@@ -129,13 +129,14 @@ function collectionDatabase(extraRepoSessions = 0, agent = "build") {
 }
 
 function collectionFetcher(options: {
+  database?: ReturnType<typeof collectionDatabase>
   onCreateSession?: (request: Request, push: ReturnType<typeof collectionDatabase>["push"]) => Promise<Response>
   beforeSessionSnapshot?: () => Promise<void>
   extraRepoSessions?: number
   sessionAgent?: string
   onSessionSubscription?: (sessions: readonly string[]) => void
 } = {}) {
-  const database = collectionDatabase(options.extraRepoSessions, options.sessionAgent)
+  const database = options.database ?? collectionDatabase(options.extraRepoSessions, options.sessionAgent)
   let subscribedSessions: string[] = []
   let subscriptionRevision = 0
   let changeSeq = 900
@@ -572,6 +573,34 @@ describe("app routing against server-v3", () => {
     await waitFor(() => expect(within(sessions).queryAllByLabelText("Unread")).toHaveLength(0))
   })
 
+  test.each([false, true])("keeps a focused session read when its timestamp advances (working: %s)", async (working) => {
+    const database = collectionDatabase()
+    renderApp(`/${slug}/global/session/ses_live`, collectionFetcher({ database }))
+    const rail = (await screen.findAllByRole("navigation", { name: "Projects" }))[0]
+    await waitFor(() => expect(within(rail).getByRole("button", { name: "Repo" })).toBeInTheDocument())
+
+    // Two updates with the same status exercise updates during a turn and after it settles.
+    for (const updated of [10, 20]) {
+      act(() => database.push([{
+        seq: 1000 + updated,
+        collection: "sessions",
+        scopeKey: "",
+        rowKey: "ses_live",
+        op: "update",
+        rowRevision: String(updated),
+        row: {
+          id: "ses_live", projectID: "global", title: `Updated session ${updated}`,
+          location: { directory: "/repo" }, agent: "build", working,
+          time: { created: 1, updated }, read: updated === 10 ? 1 : 10,
+        },
+      }]))
+      await screen.findByRole("heading", { name: `Updated session ${updated}` })
+      await waitFor(() => expect(within(rail).getByRole("button", { name: working ? "Repo, working" : "Repo" })).toBeInTheDocument())
+    }
+    // Other sessions still retain their unread notification.
+    expect(within(rail).getByRole("button", { name: "Docs, unread" })).toBeInTheDocument()
+  })
+
   test("a rejected mark-read does not retry in a loop", async () => {
     const user = userEvent.setup()
     let calls = 0
@@ -596,6 +625,96 @@ describe("app routing against server-v3", () => {
     expect(firstWindow).toBeGreaterThan(0)
     await act(async () => { await Bun.sleep(50) })
     expect(calls).toBe(firstWindow)
+  })
+
+  test.each([false, true])("sending to a focused session stays read while prompt admission is pending (working: %s)", async (working) => {
+    const user = userEvent.setup()
+    const database = collectionDatabase()
+    database.push([{
+      seq: 1, collection: "sessions", scopeKey: "", rowKey: "ses_live", op: "update",
+      row: {
+        id: "ses_live", projectID: "global", title: "Live session", location: { directory: "/repo" },
+        agent: "build", model: { id: "gpt", providerID: "openai" }, working, time: { created: 1, updated: 1 }, read: 1,
+      },
+    }])
+    const base = collectionFetcher({ database })
+    const admission = Promise.withResolvers<Response>()
+    const started = Promise.withResolvers<void>()
+    const fetcher: typeof base = async (input, init) => {
+      const request = input instanceof Request ? input : new Request(input, init)
+      if (new URL(request.url).pathname === "/api/session/ses_live/prompt") {
+        started.resolve()
+        return admission.promise
+      }
+      return base(input, init)
+    }
+    renderApp(`/${slug}/global/session/ses_live`, fetcher)
+    const rail = (await screen.findAllByRole("navigation", { name: "Projects" }))[0]
+    await waitFor(() => expect(within(rail).getByRole("button", { name: working ? "Repo, working" : "Repo" })).toBeInTheDocument())
+    await user.type(await screen.findByRole("textbox", { name: "Message" }), "continue")
+    await user.type(screen.getByRole("textbox", { name: "Message" }), "{Enter}")
+    await started.promise
+    expect(within(rail).getByRole("button", { name: "Repo, working" })).toBeInTheDocument()
+
+    await act(async () => {
+      database.push([{
+        seq: 1100, collection: "sessions", scopeKey: "", rowKey: "ses_live", op: "update", txid: "tx-prompt",
+        row: {
+          id: "ses_live", projectID: "global", title: "Live session", location: { directory: "/repo" },
+          agent: "build", working: true, time: { created: 1, updated: 50 }, read: 1,
+        },
+      }])
+      admission.resolve(Response.json({ receipt: {
+        txid: "tx-prompt", outcome: "applied", through: { feedId: "feed", seq: 1100 },
+        affectedScopes: [{ collection: "sessions", scopeKey: "" }],
+      } }))
+    })
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Message" })).toHaveValue(""))
+    await waitFor(() => expect(within(rail).getByRole("button", { name: "Repo, working" })).toBeInTheDocument())
+  })
+
+  test("a delayed admission does not clear notifications after navigating away", async () => {
+    const user = userEvent.setup()
+    const database = collectionDatabase()
+    const base = collectionFetcher({ database })
+    const admission = Promise.withResolvers<Response>()
+    const started = Promise.withResolvers<void>()
+    const reads: string[] = []
+    const fetcher: typeof base = async (input, init) => {
+      const request = input instanceof Request ? input : new Request(input, init)
+      const path = new URL(request.url).pathname
+      if (path === "/api/session/ses_live/prompt") {
+        started.resolve()
+        return admission.promise
+      }
+      if (path === "/api/session/read") reads.push(...(await request.clone().json()).sessionIDs)
+      return base(request)
+    }
+    renderApp(`/${slug}/global/session/ses_live`, fetcher)
+    const rail = (await screen.findAllByRole("navigation", { name: "Projects" }))[0]
+    await waitFor(() => expect(within(rail).getByRole("button", { name: "Repo" })).toBeInTheDocument())
+    await user.type(await screen.findByRole("textbox", { name: "Message" }), "continue{Enter}")
+    await started.promise
+    await user.click(within(rail).getByRole("button", { name: /Docs/ }))
+    await user.click((await screen.findAllByText("Docs session"))[0])
+    await screen.findByRole("heading", { name: "Docs session" })
+    reads.length = 0
+
+    await act(async () => {
+      database.push([{
+        seq: 1100, collection: "sessions", scopeKey: "", rowKey: "ses_live", op: "update", txid: "tx-prompt",
+        row: {
+          id: "ses_live", projectID: "global", title: "Live session", location: { directory: "/repo" },
+          agent: "build", working: false, time: { created: 1, updated: 50 }, read: 1,
+        },
+      }])
+      admission.resolve(Response.json({ receipt: {
+        txid: "tx-prompt", outcome: "applied", through: { feedId: "feed", seq: 1100 },
+        affectedScopes: [{ collection: "sessions", scopeKey: "" }],
+      } }))
+    })
+    await waitFor(() => expect(within(rail).getByRole("button", { name: "Repo, unread" })).toBeInTheDocument())
+    expect(reads).not.toContain("ses_live")
   })
 
   test("restores the last session when opening a recent project", async () => {

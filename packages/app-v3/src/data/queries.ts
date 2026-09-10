@@ -320,15 +320,30 @@ function partView(agent: ReturnTypeOfAgent | undefined, sessionId: string, messa
   if (type !== "tool") return { id: string(row.id), kind: "unknown" as const, type, summary: "Unsupported assistant part" }
   const state = record(row.state)
   const status = toolStatus(state.status)
+  const time = record(row.time)
+  const content = array(state.content).flatMap((value, ordinal) => {
+    const item = record(value)
+    if (item.type !== "text") return []
+    return [{
+      // Match the server's ordered content-slot identity across preview/full-content updates.
+      id: `${messageId}_${string(row.id)}_tool_${ordinal}`,
+      text: string(item.text),
+      content: contentReference(agent, sessionId, item.content),
+    }]
+  })
+  const text = content.map((item) => item.text).join("\n")
   return {
     id: string(row.id),
     kind: "tool" as const,
-    tool: string(row.tool),
+    tool: string(row.name),
     status,
     input: typeof state.input === "string" ? state.input : JSON.stringify(state.input ?? {}),
-    output: state.result === undefined ? undefined : typeof state.result === "string" ? state.result : JSON.stringify(state.result),
+    output: text || (typeof state.result === "string" ? state.result : JSON.stringify(state.result)),
+    error: status === "error" ? optionalString(record(state.error).message) : undefined,
+    durationMs: typeof time.completed === "number" ? Math.max(0, time.completed - number(time.ran ?? time.created)) : undefined,
     liveInput: liveText(agent, { sessionId, messageId, partId: string(row.id), partKind: "tool-input" }),
-    outputContent: contentReference(agent, sessionId, record(state.result).content),
+    outputContent: text ? undefined : contentReference(agent, sessionId, record(state.result).content),
+    outputParts: content.some((item) => item.content) ? content : undefined,
   }
 }
 

@@ -17,6 +17,8 @@ export function ToolPartView({ part }: { part: ToolPart }) {
   const parsedInput = Schema.decodeUnknownOption(Schema.UnknownFromJsonString)(input)
   const summary = input.length > 120 ? `${input.slice(0, 117)}...` : input
   const duration = part.durationMs === undefined ? "" : ` · ${part.durationMs}ms`
+  const paged = part.outputParts ?? (part.outputContent ? [{ id: part.outputContent.id, text: part.output ?? "", content: part.outputContent }] : undefined)
+  const error = part.status === "error" ? part.error ?? (paged ? "Tool failed" : part.output) : undefined
 
   return (
     <Tool className="mb-0" data-tool-state={TOOL_STATE[part.status]}>
@@ -28,10 +30,14 @@ export function ToolPartView({ part }: { part: ToolPart }) {
             <pre className="overflow-x-auto rounded-md bg-muted/50 p-3 text-xs whitespace-pre-wrap">{input}</pre>
           </div>
         )}
-        {part.outputContent ? (
-          <ToolOutput output={<FullContent content={part.outputContent} preview={part.output ?? ""} />} errorText={part.status === "error" ? "Tool failed" : undefined} />
+        {paged ? (
+          <ToolOutput output={<>{paged.map((item) => item.content ? (
+            <FullContent key={item.id} content={item.content} preview={item.text} />
+          ) : (
+            <pre key={item.id} className="overflow-x-auto whitespace-pre-wrap">{item.text}</pre>
+          ))}</>} errorText={error} />
         ) : (
-          <ToolOutput output={part.status === "error" ? undefined : part.output} errorText={part.status === "error" ? part.output : undefined} />
+          <ToolOutput output={part.status === "error" && !part.error ? undefined : part.output} errorText={error} />
         )}
         {part.liveInput?.incomplete() ? <span className="text-amber-600">Tool input stream incomplete</span> : null}
       </ToolContent>

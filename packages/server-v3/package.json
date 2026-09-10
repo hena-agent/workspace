@@ -20,8 +20,8 @@
     "@hena/core": "workspace:*",
     "@hena/schema": "workspace:*",
     "@hono/standard-validator": "catalog:",
-    "effect": "catalog:",
     "drizzle-orm": "catalog:",
+    "effect": "catalog:",
     "hono": "catalog:"
   },
   "devDependencies": {

@@ -82,11 +82,10 @@ describe("hena run (non-interactive subprocess)", () => {
     30_000,
   )
 
-  // The test provider's SSE error item is interpreted by the SDK as an unknown
-  // finish, not a fatal provider/session error. Lock that distinction in so it
-  // is not accidentally used as the failure compatibility oracle.
+  // The SDK rejects streams without a finish reason. Partial output must survive,
+  // while the exit status and error event still report the incomplete turn.
   cliIt.concurrent(
-    "unknown stream finish preserves partial output and exits 0",
+    "incomplete stream preserves partial output and exits nonzero",
     ({ llm, hena }) =>
       Effect.gen(function* () {
         yield* llm.push(
@@ -97,9 +96,9 @@ describe("hena run (non-interactive subprocess)", () => {
         )
         yield* llm.fail("upstream provider exploded mid-stream")
         const result = yield* hena.run("trigger midstream error", { timeoutMs: 45_000 })
-        expect(result.exitCode).toBe(0)
+        expect(result.exitCode).toBe(1)
         expect(result.stdout).toBe("partial response\n")
-        expect(result.stderr).not.toContain("upstream provider exploded mid-stream")
+        expect(result.stderr).toContain("Response stream ended without a finish reason")
       }),
     60_000,
   )
@@ -214,7 +213,7 @@ describe("hena run (non-interactive subprocess)", () => {
   )
 
   cliIt.concurrent(
-    "--format json records partial output for an unknown stream finish",
+    "--format json records partial output and an error for an incomplete stream",
     ({ llm, hena }) =>
       Effect.gen(function* () {
         yield* llm.push(
@@ -227,17 +226,20 @@ describe("hena run (non-interactive subprocess)", () => {
         const result = yield* hena.run("fail after output", { format: "json" })
 
         const events = hena.parseJsonEvents(result.stdout)
-        expect(result.exitCode).toBe(0)
+        expect(result.exitCode).toBe(1)
         expect(events.map((event) => event.type)).toEqual([
           "step_start",
           "text",
           "tool_use",
           "step_finish",
           "step_start",
-          "step_finish",
+          "error",
         ])
         expect(events[1]?.part).toEqual(expect.objectContaining({ type: "text", text: "partial json" }))
-        expect(events.at(-1)?.part).toEqual(expect.objectContaining({ type: "step-finish", reason: "unknown" }))
+        expect(events.at(-1)).toMatchObject({
+          type: "error",
+          error: { data: { message: expect.stringContaining("Response stream ended without a finish reason") } },
+        })
       }),
     60_000,
   )

@@ -1,12 +1,7 @@
 import type { HenaEventEncoded } from "@hena/protocol/groups/event"
 
 export type JsonValue =
-  | null
-  | boolean
-  | number
-  | string
-  | ReadonlyArray<JsonValue>
-  | { readonly [key: string]: JsonValue }
+  null | boolean | number | string | ReadonlyArray<JsonValue> | { readonly [key: string]: JsonValue }
 
 export type UnauthorizedError = { readonly _tag: "UnauthorizedError"; readonly message: string }
 export const isUnauthorizedError = (value: unknown): value is UnauthorizedError =>

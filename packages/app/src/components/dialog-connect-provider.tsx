@@ -440,11 +440,7 @@ function ProviderConnection(props: {
     authorization: undefined as undefined | ProviderAuthAuthorization,
     promptInputs: undefined as undefined | Record<string, string>,
     state: (directMethod === undefined ? "pending" : undefined) as
-      | undefined
-      | "pending"
-      | "complete"
-      | "error"
-      | "prompt",
+      undefined | "pending" | "complete" | "error" | "prompt",
     error: undefined as string | undefined,
   })
 
@@ -983,10 +979,12 @@ function ProviderConnection(props: {
       }
 
       setFormStore("error", undefined)
+      const method = store.methodIndex
+      if (method === undefined) return
       const result = await serverSDK()
         .client.provider.oauth.callback({
           providerID: props.provider,
-          method: store.methodIndex,
+          method,
           code,
         })
         .then((value) => (value.error ? { ok: false as const, error: value.error } : { ok: true as const }))
@@ -1077,10 +1075,12 @@ function ProviderConnection(props: {
 
     onMount(() => {
       void (async () => {
+        const method = store.methodIndex
+        if (method === undefined) return
         const result = await serverSDK()
           .client.provider.oauth.callback({
             providerID: props.provider,
-            method: store.methodIndex,
+            method,
           })
           .then((value) => (value.error ? { ok: false as const, error: value.error } : { ok: true as const }))
           .catch((error) => ({ ok: false as const, error }))

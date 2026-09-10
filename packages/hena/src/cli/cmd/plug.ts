@@ -45,7 +45,13 @@ export type PlugCtx = {
 }
 
 const defaultPlugDeps: PlugDeps = {
-  spinner: () => spinner(),
+  spinner: () => {
+    const s = spinner()
+    return {
+      start: (msg: string) => s.start(msg),
+      stop: (msg: string, code?: number) => (code ? s.error(msg) : s.stop(msg)),
+    }
+  },
   log: {
     error: (msg) => log.error(msg),
     info: (msg) => log.info(msg),

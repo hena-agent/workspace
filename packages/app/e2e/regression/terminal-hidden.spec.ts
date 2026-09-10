@@ -7,7 +7,7 @@ const projectID = "proj_hidden_terminal_regression"
 const sessionID = "ses_hidden_terminal_regression"
 const title = "Hidden terminal regression"
 
-test("unmounts the terminal panel while it is hidden", async ({ page }) => {
+test("connects to a legacy server and unmounts the terminal panel while it is hidden", async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 })
   await mockHenaServer(page, {
     directory,
@@ -53,7 +53,13 @@ test("unmounts the terminal panel while it is hidden", async ({ page }) => {
   await page.route("**/pty/pty_hidden_terminal", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: "{}" }),
   )
-  await page.routeWebSocket("**/pty/pty_hidden_terminal/connect", () => undefined)
+  await page.route("**/pty/pty_hidden_terminal/connect-token**", (route) =>
+    route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>Hena</title>" }),
+  )
+  const connections: string[] = []
+  await page.routeWebSocket(/\/pty\/pty_hidden_terminal\/connect\?/, (socket) => {
+    connections.push(socket.url())
+  })
 
   await page.goto(`/${base64Encode(directory)}/session/${sessionID}`)
   await expectSessionTitle(page, title)
@@ -62,6 +68,8 @@ test("unmounts the terminal panel while it is hidden", async ({ page }) => {
   const panel = page.locator("#terminal-panel")
   await expect(panel).toHaveAttribute("aria-hidden", "false")
   await expect(page.locator('[data-component="terminal"]')).toBeVisible()
+  await expect.poll(() => connections.length).toBe(1)
+  expect(new URL(connections[0]).searchParams.has("ticket")).toBe(false)
 
   await page.keyboard.press("Control+Backquote")
   await expect(panel).toHaveCount(0)

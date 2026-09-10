@@ -472,7 +472,7 @@ export function createServerSession(client: HenaClient, options?: { retry?: type
   const fetchMessages = async (sessionID: string, limit: number, before?: string, onAttempt?: () => void) => {
     const response = await (options?.retry ?? retry)(() => {
       onAttempt?.()
-      return client.session.messages({ sessionID, limit, before })
+      return client.session.messages({ sessionID, limit, before }, { throwOnError: true })
     })
     const items = (response.data ?? []).filter((item) => !!item?.info?.id)
     return {
@@ -489,7 +489,7 @@ export function createServerSession(client: HenaClient, options?: { retry?: type
   const fetchMessage = async (sessionID: string, messageID: string, onAttempt?: () => void) => {
     const response = await (options?.retry ?? retry)(() => {
       onAttempt?.()
-      return client.session.message({ sessionID, messageID })
+      return client.session.message({ sessionID, messageID }, { throwOnError: true })
     })
     if (!response.data?.info?.id) throw new Error(`Message not found: ${messageID}`)
     return {

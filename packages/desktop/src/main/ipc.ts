@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process"
 import { stat } from "node:fs/promises"
 import { basename } from "node:path"
-import { app, BrowserWindow, Notification, clipboard, dialog, ipcMain, shell } from "electron"
+import { app, BrowserWindow, Notification, clipboard, dialog, ipcMain, nativeImage, shell } from "electron"
 import type { IpcMainEvent, IpcMainInvokeEvent } from "electron"
 import type { DesktopMenuAction } from "@hena/app/desktop-menu"
 
@@ -200,12 +200,24 @@ export function registerIpcHandlers(deps: Deps) {
     return true
   })
 
-  ipcMain.handle("read-clipboard-image", () => {
-    const image = clipboard.readImage()
-    if (image.isEmpty()) return null
-    const buffer = image.toPNG().buffer
-    const size = image.getSize()
-    return { buffer, width: size.width, height: size.height }
+  ipcMain.handle("read-clipboard-image", async () => {
+    for (const item of await clipboard.read()) {
+      const type =
+        item.types.find((type) => type === "image/png") ?? item.types.find((type) => type.startsWith("image/"))
+      if (!type) continue
+      const blob = await item.getType(type)
+      if (!(blob instanceof Blob)) continue
+      const image = nativeImage.createFromBuffer(Buffer.from(await blob.arrayBuffer()))
+      if (image.isEmpty()) continue
+      const png = image.toPNG()
+      const size = image.getSize()
+      return {
+        buffer: png.buffer.slice(png.byteOffset, png.byteOffset + png.byteLength),
+        width: size.width,
+        height: size.height,
+      }
+    }
+    return null
   })
 
   ipcMain.on("show-notification", (_event: IpcMainEvent, title: string, body?: string) => {

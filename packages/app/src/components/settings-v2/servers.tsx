@@ -34,6 +34,8 @@ export const SettingsServersV2: Component = () => {
     return fuzzysort
       .go(query, items, {
         keys: [(item) => serverName(item), (item) => item.http.url],
+        limit: 0,
+        threshold: 0,
       })
       .map((result) => result.obj)
   })

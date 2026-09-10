@@ -530,7 +530,7 @@ async function loadDecoders() {
   }
 }
 
-async function getJson(response: Response) {
+async function getJson(response: Pick<Response, "ok" | "status" | "json">) {
   if (!response.ok) throw new Error(`Request failed with ${response.status}`)
   return await response.json() as unknown
 }

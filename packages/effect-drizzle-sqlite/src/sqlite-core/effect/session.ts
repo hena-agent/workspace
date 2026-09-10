@@ -21,7 +21,7 @@ import type {
 import { makeJitRqbMapper } from "drizzle-orm/relations"
 import type { PreparedQuery } from "drizzle-orm/session"
 import { fillPlaceholders, type Query, type SQL, sql } from "drizzle-orm/sql/sql"
-import type { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core/dialect"
+import type { SQLiteDialect } from "drizzle-orm/sqlite-core/dialect"
 import type { SelectedFieldsOrdered } from "drizzle-orm/sqlite-core/query-builders/select.types"
 import type { PreparedQueryConfig, SQLiteExecuteMethod, SQLiteTransactionConfig } from "drizzle-orm/sqlite-core/session"
 import { upgradeIfNeeded } from "../../up-migrations/effect-sqlite"
@@ -37,8 +37,7 @@ export class SQLiteEffectPreparedQuery<
   T extends PreparedQueryConfig,
   TEffectHKT extends QueryEffectHKTBase = QueryEffectHKTBase,
   TIsRqbV2 extends boolean = false,
-> implements PreparedQuery
-{
+> implements PreparedQuery {
   static readonly [entityKind]: string = "SQLiteEffectPreparedQuery"
 
   /** @internal */
@@ -310,7 +309,7 @@ export abstract class SQLiteEffectSession<
 > {
   static readonly [entityKind]: string = "SQLiteEffectSession"
 
-  constructor(readonly dialect: SQLiteAsyncDialect) {}
+  constructor(readonly dialect: SQLiteDialect) {}
 
   abstract prepareQuery<T extends PreparedQueryConfig = PreparedQueryConfig>(
     query: Query,
@@ -411,7 +410,7 @@ export abstract class SQLiteEffectTransaction<
   static override readonly [entityKind]: string = "SQLiteEffectTransaction"
 
   constructor(
-    dialect: SQLiteAsyncDialect,
+    dialect: SQLiteDialect,
     session: SQLiteEffectSession<TEffectHKT, TRunResult, TRelations>,
     protected relations: TRelations,
   ) {

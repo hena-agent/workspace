@@ -46,7 +46,8 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
         const id = setTimeout(() => {
           const err = new ProviderError.ResponseStreamError("SSE read timed out")
           ctl.abort(err)
-          void reader.cancel(err)
+          // The pull rejects with the timeout; cancellation may reject with the same error.
+          void reader.cancel(err).catch(() => {})
           reject(err)
         }, ms)
 
@@ -1282,7 +1283,7 @@ function modelSuggestions(provider: Info | undefined, modelID: ModelV2.ID, enabl
         return true
       })
     : []
-  const fuzzy = fuzzysort.go(modelID, available, { limit: 3, threshold: -10000 }).map((m) => m.target)
+  const fuzzy = fuzzysort.go(modelID, available, { limit: 3, threshold: 0 }).map((m) => m.target)
   if (fuzzy.length) return fuzzy
   const query = modelID
     .toLowerCase()
@@ -1789,7 +1790,7 @@ const layer = Layer.effect(
         const suggestions = catalogProvider
           ? modelSuggestions(catalogProvider, modelID, runtimeFlags.enableExperimentalModels)
           : fuzzysort
-              .go(providerID, Object.keys({ ...s.catalog, ...s.providers }), { limit: 3, threshold: -10000 })
+              .go(providerID, Object.keys({ ...s.catalog, ...s.providers }), { limit: 3, threshold: 0 })
               .map((m) => m.target)
         return yield* new ModelNotFoundError({ providerID, modelID, suggestions })
       }

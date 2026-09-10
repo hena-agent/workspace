@@ -11,6 +11,8 @@ const app = path.resolve(here, "../../app/src")
 const mocks = path.resolve(here, "./mocks")
 
 export default defineMain({
+  // The framework's Solid-version probe cannot resolve Bun catalog ranges.
+  // Keep package.json's explicit solid-js version aligned with the root catalog.
   framework: {
     name: "storybook-solidjs-vite",
     options: {},

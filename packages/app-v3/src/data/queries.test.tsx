@@ -126,6 +126,7 @@ test("server tool rows display their name, execution duration, and text output",
 test.each([
   { status: "completed", result: { passed: 3 }, error: undefined, time: { created: 0, completed: 42 }, output: '"passed":3', duration: "42ms" },
   { status: "error", result: undefined, error: { type: "unknown", message: "Command could not start" }, time: { created: 1, completed: 1 }, output: "Command could not start", duration: "0ms" },
+  { status: "error", result: undefined, error: { type: "unknown", message: "Command failed after output" }, content: [{ type: "text", text: "partial stdout" }], time: { created: 1, ran: 10, completed: 9 }, output: "partial stdout", duration: "0ms" },
   { status: "running", result: undefined, error: undefined, time: { created: 1, ran: 2 }, output: undefined, duration: undefined },
 ])("tool output falls back to result or error and duration requires completion: $status", async (item) => {
   const user = userEvent.setup()
@@ -135,7 +136,7 @@ test.each([
     key: ["message-1", "tool", "tool-1"],
     row: {
       id: "tool-1", messageID: "message-1", ordinal: 0, type: "tool", name: "bash",
-      state: { status: item.status, input: { command: "bun test" }, structured: {}, content: [], result: item.result, error: item.error }, time: item.time,
+      state: { status: item.status, input: { command: "bun test" }, structured: {}, content: item.content ?? [], result: item.result, error: item.error }, time: item.time,
     },
   }], 1)
   function View() {
@@ -148,6 +149,7 @@ test.each([
   if (!item.duration) expect(header).not.toHaveTextContent("ms")
   await user.click(header)
   if (item.output) expect(screen.getByRole("heading", { name: item.status === "error" ? "Error" : "Result" }).parentElement).toHaveTextContent(item.output)
+  if (item.error) expect(screen.getByRole("heading", { name: "Error" }).parentElement).toHaveTextContent(item.error.message)
   if (!item.output) expect(screen.queryByRole("heading", { name: "Result" })).not.toBeInTheDocument()
   act(() => agent.dispose())
 })

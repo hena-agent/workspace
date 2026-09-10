@@ -77,10 +77,11 @@ export type ToolPart = {
   status: ToolStatus
   input: string
   output?: string
+  error?: string
   durationMs?: number
   liveInput?: LiveText
   outputContent?: ContentReference
-  outputParts?: { text: string; content?: ContentReference }[]
+  outputParts?: { id: string; text: string; content?: ContentReference }[]
 }
 
 export type UnknownPart = {

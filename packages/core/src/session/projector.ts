@@ -190,6 +190,15 @@ function run(db: DatabaseService, event: SessionEvent.Event) {
       appendMessage,
     }
     yield* SessionMessageUpdater.update(adapter, event)
+    if (event.type === SessionEvent.Step.Ended.type || event.type === SessionEvent.Step.Failed.type) {
+      // Reading a running session must not also acknowledge its future response. Advance at
+      // provider-turn completion, even within the same millisecond, but never per streamed token.
+      yield* db.update(SessionTable)
+        .set({ time_updated: sql`max(${SessionTable.time_updated} + 1, ${DateTime.toEpochMillis(event.data.timestamp)})` })
+        .where(eq(SessionTable.id, event.data.sessionID))
+        .run()
+        .pipe(Effect.orDie)
+    }
   })
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useLayoutEffect, useState } from "react"
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from "react"
 import { createFileRoute, useLocation, useRouter } from "@tanstack/react-router"
 import { useQueryClient } from "@tanstack/react-query"
 import { SessionTranscriptView } from "@/features/session/session-transcript-view"
@@ -48,7 +48,15 @@ function SessionTranscript({
 }) {
   const queryClient = useQueryClient()
   const agent = useConnectionAgent(connectionId)
-  useLayoutEffect(() => agent?.claim(sessionId), [agent, sessionId])
+  const focused = useRef<typeof agent>(undefined)
+  useLayoutEffect(() => {
+    focused.current = agent
+    const release = agent?.claim(sessionId)
+    return () => {
+      focused.current = undefined
+      release?.()
+    }
+  }, [agent, sessionId])
   const session = useSession(agent, sessionId)
   const location = useSessionLocation(agent, sessionId)
   const catalog = useCatalog(agent, location)
@@ -97,8 +105,12 @@ function SessionTranscript({
       agentID: selectedAgentId,
       model: modelWire(catalog.models, selectedModel),
     }).transaction.isPersisted.promise
-    // A read before admission can be a noop; acknowledge the server's watermark after syncing.
-    void markSessionsReadOptimistically(agent, [sessionId]).catch(() => {})
+    // The route may have closed while admission was pending. Read failures, including a
+    // removed row throwing synchronously, must not turn an admitted prompt into a send failure.
+    void Promise.resolve().then(async () => {
+      if (focused.current !== agent || !agent.store.collection("sessions", "").has(sessionId)) return
+      await markSessionsReadOptimistically(agent, [sessionId])
+    }).catch(() => {})
   }
   const replyPermission = (reply: "once" | "always" | "reject") => {
     if (!agent || !location || !permissionWire || typeof permissionWire.id !== "string" || typeof permissionWire.nonce !== "string") return

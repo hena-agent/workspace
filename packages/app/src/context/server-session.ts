@@ -472,7 +472,7 @@ export function createServerSession(client: HenaClient, options?: { retry?: type
   const fetchMessages = async (sessionID: string, limit: number, before?: string, onAttempt?: () => void) => {
     const response = await (options?.retry ?? retry)(() => {
       onAttempt?.()
-      return client.session.messages({ sessionID, limit, before })
+      return client.session.messages({ sessionID, limit, before }, { throwOnError: true })
     })
     const items = (response.data ?? []).filter((item) => !!item?.info?.id)
     return {

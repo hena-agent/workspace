@@ -79,8 +79,8 @@ export namespace RipgrepBinary {
           )
           const expected = `ripgrep-${VERSION}-${config.platform}/rg.exe`
           const entry = (yield* Effect.promise(() => reader.getEntries())).find((entry) => entry.filename === expected)
-          if (!entry?.getData) throw new Error(`ripgrep archive did not contain executable: ${expected}`)
-          const data = yield* Effect.promise(() => entry.getData!(new Uint8ArrayWriter()))
+          if (!entry || entry.directory) throw new Error(`ripgrep archive did not contain executable: ${expected}`)
+          const data = yield* Effect.promise(() => entry.getData(new Uint8ArrayWriter()))
           yield* fs.writeWithDirs(extracted, data)
         }
 

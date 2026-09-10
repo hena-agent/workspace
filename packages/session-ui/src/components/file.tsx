@@ -75,17 +75,17 @@ export type FileSearchControl = {
   register: (handle: FileSearchHandle | null) => void
 }
 
-export type TextFileProps<T = {}> = FileOptions<T> &
+export type TextFileProps<T = {}> = FileOptions<T, undefined> &
   SharedProps<T> & {
     mode: "text"
     file: FileContents
     annotations?: LineAnnotation<T>[]
-    preloadedDiff?: PreloadMultiFileDiffResult<T>
+    preloadedDiff?: PreloadMultiFileDiffResult<T, undefined>
   }
 
-type DiffPreload<T> = PreloadMultiFileDiffResult<T> | PreloadFileDiffResult<T>
+type DiffPreload<T> = PreloadMultiFileDiffResult<T, undefined> | PreloadFileDiffResult<T, undefined>
 
-type DiffBaseProps<T> = FileDiffOptions<T> &
+type DiffBaseProps<T> = FileDiffOptions<T, undefined> &
   SharedProps<T> & {
     mode: "diff"
     annotations?: DiffLineAnnotation<T>[]
@@ -929,7 +929,7 @@ function DiffViewer<T>(props: DiffFileProps<T>) {
   let instance: FileDiff<T> | undefined
   let instanceVirtualizer: Virtualizer | undefined
   let instanceWorkerPool: ReturnType<typeof getWorkerPool>
-  let instanceVirtualHunkSeparators: FileDiffOptions<T>["hunkSeparators"] | undefined
+  let instanceVirtualHunkSeparators: FileDiffOptions<T, undefined>["hunkSeparators"] | undefined
   let instanceFileDiff: FileDiffMetadata | undefined
   let instanceBefore: FileContents | undefined
   let instanceAfter: FileContents | undefined
@@ -1038,7 +1038,7 @@ function DiffViewer<T>(props: DiffFileProps<T>) {
     lineDiffType: "none",
     maxLineDiffLength: 0,
     tokenizeMaxLineLength: 1,
-  } satisfies Pick<FileDiffOptions<T>, "lineDiffType" | "maxLineDiffLength" | "tokenizeMaxLineLength">
+  } satisfies Pick<FileDiffOptions<T, undefined>, "lineDiffType" | "maxLineDiffLength" | "tokenizeMaxLineLength">
 
   const lineCallbacks = createLineCallbacks({
     viewer,
@@ -1048,7 +1048,7 @@ function DiffViewer<T>(props: DiffFileProps<T>) {
     onLineNumberSelectionEnd: (range) => local.onLineNumberSelectionEnd?.(range),
   })
 
-  const options = createMemo<FileDiffOptions<T>>(() => {
+  const options = createMemo<FileDiffOptions<T, undefined>>(() => {
     const base = {
       ...createDefaultOptions(props.diffStyle),
       ...others,

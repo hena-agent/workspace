@@ -15,8 +15,8 @@
     "typecheck": "bunx --package @typescript/native tsc --noEmit"
   },
   "dependencies": {
-    "@hena/schema": "workspace:*",
-    "@hena/protocol": "workspace:*"
+    "@hena/protocol": "workspace:*",
+    "@hena/schema": "workspace:*"
   },
   "peerDependencies": {
     "effect": "4.0.0-beta.83"

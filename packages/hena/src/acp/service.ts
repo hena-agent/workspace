@@ -24,8 +24,6 @@ import {
   type SessionInfo,
   type SetSessionConfigOptionRequest,
   type SetSessionConfigOptionResponse,
-  type SetSessionModelRequest,
-  type SetSessionModelResponse,
   type SetSessionModeRequest,
   type SetSessionModeResponse,
 } from "@agentclientprotocol/sdk"
@@ -65,7 +63,6 @@ export type Interface = {
     input: SetSessionConfigOptionRequest,
   ) => Effect.Effect<SetSessionConfigOptionResponse, Error>
   readonly setSessionMode: (input: SetSessionModeRequest) => Effect.Effect<SetSessionModeResponse, Error>
-  readonly setSessionModel: (input: SetSessionModelRequest) => Effect.Effect<SetSessionModelResponse, Error>
   readonly prompt: (input: PromptRequest) => Effect.Effect<PromptResponse, Error>
   readonly cancel: (input: CancelNotification) => Effect.Effect<void, Error>
 }
@@ -255,23 +252,19 @@ export function make(input: {
         ),
       "session",
     )
-    const serverEntries = sessions.map(
-      (item): SessionInfo => ({
-        sessionId: item.id,
-        cwd: item.directory,
-        title: item.title,
-        updatedAt: new Date(item.time.updated).toISOString(),
-      }),
-    )
+    const serverEntries = sessions.map((item): SessionInfo => ({
+      sessionId: item.id,
+      cwd: item.directory,
+      title: item.title,
+      updatedAt: new Date(item.time.updated).toISOString(),
+    }))
     const liveEntries = (yield* session.list(params.cwd ?? undefined))
       .filter((item) => !serverEntries.some((entry) => entry.sessionId === item.id))
-      .map(
-        (item): SessionInfo => ({
-          sessionId: item.id,
-          cwd: item.cwd,
-          updatedAt: item.createdAt.toISOString(),
-        }),
-      )
+      .map((item): SessionInfo => ({
+        sessionId: item.id,
+        cwd: item.cwd,
+        updatedAt: item.createdAt.toISOString(),
+      }))
     const sorted = [...liveEntries, ...serverEntries].toSorted(
       (a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime(),
     )
@@ -462,21 +455,6 @@ export function make(input: {
     return {}
   })
 
-  const setSessionModel = Effect.fn("ACP.setSessionModel")(function* (params: SetSessionModelRequest) {
-    const current = yield* session.get(params.sessionId)
-    const snapshot = yield* configSnapshot(current)
-    const selected = yield* parseSelectedModel(snapshot, params.modelId)
-    yield* session
-      .setVariant(
-        params.sessionId,
-        Directory.variants(snapshot, selected.model)
-          ? (selected.variant ?? selectVariant(snapshot, selected.model))
-          : undefined,
-      )
-      .pipe(Effect.andThen(session.setModel(params.sessionId, selected.model)))
-    return {}
-  })
-
   return {
     initialize,
     authenticate,
@@ -488,7 +466,6 @@ export function make(input: {
     forkSession,
     setSessionConfigOption,
     setSessionMode,
-    setSessionModel,
     prompt: Effect.fn("ACP.prompt")(function* (params: PromptRequest) {
       const current = yield* session.get(params.sessionId)
       const snapshot = yield* directorySnapshot(current.cwd)
@@ -521,7 +498,7 @@ export function make(input: {
           "session",
         )
         yield* sendUsageUpdate(input.usage, input.sdk, input.connection, current.id, current.cwd)
-        return yield* promptResponse(response.info, params.messageId)
+        return yield* promptResponse(response.info)
       }
 
       const known = snapshot.availableCommands.find((item) => item.name === command.name)
@@ -543,7 +520,7 @@ export function make(input: {
           "session",
         )
         yield* sendUsageUpdate(input.usage, input.sdk, input.connection, current.id, current.cwd)
-        return yield* promptResponse(response.info, params.messageId)
+        return yield* promptResponse(response.info)
       }
 
       if (command.name === "compact") {
@@ -563,7 +540,7 @@ export function make(input: {
       }
 
       yield* sendUsageUpdate(input.usage, input.sdk, input.connection, current.id, current.cwd)
-      return yield* promptResponse(undefined, params.messageId)
+      return yield* promptResponse(undefined)
     }),
     cancel,
   }
@@ -784,8 +761,7 @@ function defaultModelFromConfig(
   // First-session ACP startup must not scan historical sessions just to infer
   // a default. Configured model, Hena provider, then sorted best model keep
   // the protocol response deterministic without extra session/message reads.
-  const henaProvider =
-    providers[ProviderV2.ID.make("hena")]
+  const henaProvider = providers[ProviderV2.ID.make("hena")]
   const henaModel = henaProvider ? Provider.sort(Object.values(henaProvider.models))[0] : undefined
   if (henaProvider && henaModel) return { providerID: henaProvider.id, modelID: henaModel.id }
 
@@ -814,22 +790,17 @@ function detectSlashCommand(parts: ReturnType<typeof promptContentToParts>) {
   return { name, args: rest.join(" ").trim() }
 }
 
-const promptResponse = Effect.fn("ACP.promptResponse")(function* (
-  info: AssistantInfo,
-  messageId: string | null | undefined,
-) {
+const promptResponse = Effect.fn("ACP.promptResponse")(function* (info: AssistantInfo) {
   if (!info?.error) {
     return {
       stopReason: "end_turn" as const,
       ...(info ? { usage: UsageService.buildUsage(info) } : {}),
-      ...(messageId ? { userMessageId: messageId } : {}),
       _meta: {},
     }
   }
 
   const base = {
     usage: UsageService.buildUsage(info),
-    ...(messageId ? { userMessageId: messageId } : {}),
     _meta: {},
   }
 
@@ -955,13 +926,21 @@ function registerMcpServers(
   sessionId: string,
   servers: readonly McpServer[],
 ) {
+  const supported = servers.filter(
+    (server): server is Exclude<McpServer, { type: "acp" }> => !("type" in server) || server.type !== "acp",
+  )
+  if (supported.length !== servers.length) {
+    return Effect.fail(
+      new ACPError.ServiceFailureError({ service: "mcp", safeMessage: "MCP over ACP is not supported" }),
+    )
+  }
   const started = performance.now()
   const current = registered.get(sessionId) ?? new Set<string>()
   registered.set(sessionId, current)
   const pending = new Set<string>()
 
   return Effect.all(
-    servers
+    supported
       .map((server) => ({ server, config: mcpConfig(server) }))
       .filter((entry) => {
         const key = mcpRegistrationKey(entry.server.name, entry.config)
@@ -1003,7 +982,7 @@ function mcpRegistrationKey(name: string, config: ReturnType<typeof mcpConfig>) 
   return `${name}:${stableStringify(config)}`
 }
 
-function mcpConfig(server: McpServer) {
+function mcpConfig(server: Exclude<McpServer, { type: "acp" }>) {
   if ("type" in server) {
     return {
       type: "remote" as const,

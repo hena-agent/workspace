@@ -6,7 +6,7 @@ import { EffectCache } from "drizzle-orm/cache/core/cache-effect"
 import { EffectLogger } from "drizzle-orm/effect-core"
 import { entityKind } from "drizzle-orm/entity"
 import type { AnyRelations, EmptyRelations } from "drizzle-orm/relations"
-import { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core/dialect"
+import { SQLiteDialect } from "drizzle-orm/sqlite-core/dialect"
 import { SQLiteEffectDatabase } from "../sqlite-core/effect/db"
 import type { DrizzleConfig } from "drizzle-orm/utils"
 import { jitCompatCheck } from "../internal/drizzle-utils"
@@ -53,7 +53,7 @@ export const make = Effect.fn("SQLiteDrizzle.make")(function* <TRelations extend
   const cache = yield* EffectCache
   const logger = yield* EffectLogger
 
-  const dialect = new SQLiteAsyncDialect()
+  const dialect = new SQLiteDialect()
   const relations = config.relations ?? ({} as TRelations)
   const session = new EffectSQLiteSession(client, dialect, relations, {
     logger,

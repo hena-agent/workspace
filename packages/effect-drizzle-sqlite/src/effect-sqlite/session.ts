@@ -14,7 +14,7 @@ import { entityKind } from "drizzle-orm/entity"
 import type { AnyRelations } from "drizzle-orm/relations"
 import type { RelationalQueryMapperConfig } from "drizzle-orm/relations"
 import type { Query } from "drizzle-orm/sql/sql"
-import type { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core/dialect"
+import type { SQLiteDialect } from "drizzle-orm/sqlite-core/dialect"
 import { SQLiteEffectPreparedQuery, SQLiteEffectSession, SQLiteEffectTransaction } from "../sqlite-core/effect/session"
 import type { SelectedFieldsOrdered } from "drizzle-orm/sqlite-core/query-builders/select.types"
 import type { PreparedQueryConfig, SQLiteExecuteMethod, SQLiteTransactionConfig } from "drizzle-orm/sqlite-core/session"
@@ -41,7 +41,7 @@ export class EffectSQLiteSession<TRelations extends AnyRelations> extends SQLite
 
   constructor(
     private client: SqlClient,
-    dialect: SQLiteAsyncDialect,
+    dialect: SQLiteDialect,
     protected relations: TRelations,
     private options: EffectSQLiteSessionOptions,
   ) {

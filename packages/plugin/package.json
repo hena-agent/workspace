@@ -21,7 +21,7 @@
     "dist"
   ],
   "dependencies": {
-    "@ai-sdk/provider": "3.0.8",
+    "@ai-sdk/provider": "3.0.15",
     "@hena/sdk": "workspace:*",
     "effect": "catalog:",
     "zod": "catalog:"
@@ -29,7 +29,7 @@
   "devDependencies": {
     "@tsconfig/node22": "catalog:",
     "@types/node": "catalog:",
-    "typescript": "catalog:",
-    "@typescript/native": "catalog:"
+    "@typescript/native": "catalog:",
+    "typescript": "catalog:"
   }
 }

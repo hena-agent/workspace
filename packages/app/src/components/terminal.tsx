@@ -525,26 +525,22 @@ export const Terminal = (props: TerminalProps) => {
       const gone = () =>
         client.pty
           .get({ ptyID: id }, { throwOnError: false })
-          .then((result) => result.response.status === 404)
+          .then((result) => result.response?.status === 404)
           .catch((err) => {
             debugTerminal("failed to inspect terminal session", err)
             return false
           })
 
       const connectToken = async () => {
-        const result = await client.pty
-          .connectToken(
-            { ptyID: id, directory },
-            {
-              throwOnError: false,
-              headers: { "x-hena-ticket": "1" },
-            },
-          )
-          .catch((err: unknown) => {
-            if (err instanceof Error && err.message.includes("Request is not supported")) return
-            throw err
-          })
-        if (!result) return
+        const result = await client.pty.connectToken(
+          { ptyID: id, directory },
+          {
+            throwOnError: false,
+            headers: { "x-hena-ticket": "1" },
+          },
+        )
+        if (result.error instanceof Error && result.error.message.includes("Request is not supported")) return
+        if (!result.response) throw result.error ?? new Error("PTY connect ticket failed without a response")
         if (result.response.status === 200 && result.data?.ticket) return result.data.ticket
         if (result.response.status === 404 || result.response.status === 405) return
         if (result.response.status === 403)

@@ -88,6 +88,10 @@ export function createHenaClient(config?: Config & { directory?: string; experim
 
     return response
   })
-  client.interceptors.error.use(wrapClientError)
+  client.interceptors.error.use((error, response, request, options) =>
+    wrapClientError(error, response, request, {
+      throwOnError: options.throwOnError ?? client.getConfig().throwOnError,
+    }),
+  )
   return new HenaClient({ client })
 }

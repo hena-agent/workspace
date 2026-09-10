@@ -1,6 +1,6 @@
 import { afterEach, expect } from "bun:test"
 import { createServer, type Server } from "node:http"
-import { streamText } from "ai"
+import { APICallError, streamText } from "ai"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { CrossSpawnSpawner } from "@hena/core/cross-spawn-spawner"
 import { Effect } from "effect"
@@ -65,15 +65,24 @@ it.live("chunkTimeout raises a response stream error when SSE body stalls", () =
           })
 
           const error = yield* Effect.promise(async () => {
+            const errors: unknown[] = []
             try {
               for await (const part of result.fullStream) {
-                if (part.type === "error") return part.error
+                if (part.type === "error") errors.push(part.error)
               }
             } catch (error) {
               return error
             }
+            return errors.at(-1)
           })
-          expect(error).toBeInstanceOf(ProviderError.ResponseStreamError)
+          if (!APICallError.isInstance(error)) throw error
+          expect(error.cause).toBeInstanceOf(ProviderError.ResponseStreamError)
+          expect(ProviderError.parseAPICallError({ providerID: ProviderV2.ID.make("test"), error })).toMatchObject({
+            type: "api_error",
+            message: "SSE read timed out",
+            isRetryable: true,
+            metadata: { code: "ProviderResponseStreamError" },
+          })
         }),
       { config: providerConfig(server.url, { chunkTimeout: 50 }) },
     )

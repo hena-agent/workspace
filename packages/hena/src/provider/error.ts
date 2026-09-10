@@ -163,6 +163,15 @@ export type ParsedAPICallError =
     }
 
 export function parseAPICallError(input: { providerID: ProviderV2.ID; error: APICallError }): ParsedAPICallError {
+  // The SDK now wraps response-body failures; preserve the transport error's retry policy.
+  if (input.error.cause instanceof ResponseStreamError) {
+    return {
+      type: "api_error",
+      message: input.error.cause.message,
+      isRetryable: true,
+      metadata: { code: input.error.cause.name },
+    }
+  }
   const m = message(input.providerID, input.error)
   const body = json(input.error.responseBody)
   if (isContextOverflow(m) || input.error.statusCode === 413 || body?.error?.code === "context_length_exceeded") {

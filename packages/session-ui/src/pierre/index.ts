@@ -2,7 +2,7 @@ import { DiffLineAnnotation, FileContents, FileDiffOptions, type SelectedLineRan
 import { ComponentProps } from "solid-js"
 import { lineCommentStyles } from "../components/line-comment-styles"
 
-export type DiffProps<T = {}> = FileDiffOptions<T> & {
+export type DiffProps<T = {}> = FileDiffOptions<T, undefined> & {
   before: FileContents
   after: FileContents
   annotations?: DiffLineAnnotation<T>[]
@@ -154,7 +154,7 @@ ${lineCommentStyles}
 
 `
 
-export function createDefaultOptions<T>(style: FileDiffOptions<T>["diffStyle"]) {
+export function createDefaultOptions<T>(style: FileDiffOptions<T, undefined>["diffStyle"]) {
   return {
     theme: "Hena",
     themeType: "system",

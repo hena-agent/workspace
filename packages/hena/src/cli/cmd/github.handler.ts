@@ -3,7 +3,6 @@ import { Octokit } from "@octokit/rest"
 import { graphql } from "@octokit/graphql"
 import * as core from "@actions/core"
 import * as github from "@actions/github"
-import type { Context } from "@actions/github/lib/context"
 import type {
   IssueCommentEvent,
   IssuesEvent,
@@ -28,6 +27,8 @@ import { setTimeout as sleep } from "node:timers/promises"
 import { Process } from "@/util/process"
 import { Effect } from "effect"
 import { extractResponseText, formatPromptTooLargeError } from "./github.shared"
+
+type Context = typeof github.context
 
 type GitHubAuthor = {
   login: string

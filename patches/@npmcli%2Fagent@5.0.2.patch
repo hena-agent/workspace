@@ -1,5 +1,5 @@
 diff --git a/lib/agents.js b/lib/agents.js
-index 45ec59c4c13757379095131c4f0a5ea6f7284f45..0763b031e355a755ec6a26f98461aa3f63b8339b 100644
+index 8514f9892bb0c04b73689e6ff87447b90e5597eb..a8c2009b9533913a5d95dbe31da8114d4203c2a9 100644
 --- a/lib/agents.js
 +++ b/lib/agents.js
 @@ -32,7 +32,7 @@ module.exports = class Agent extends AgentBase {

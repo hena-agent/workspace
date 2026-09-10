@@ -80,6 +80,7 @@ export type ToolPart = {
   durationMs?: number
   liveInput?: LiveText
   outputContent?: ContentReference
+  outputParts?: { text: string; content?: ContentReference }[]
 }
 
 export type UnknownPart = {

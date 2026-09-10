@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { flushSync } from "react-dom"
+import userEvent from "@testing-library/user-event"
 import { createConnectionAgent } from "@/connection/agent"
 import { MessageList } from "@/features/session/message-list"
 import { useCatalog, useLocationCatalog, useMessages, useSessions } from "./queries"
@@ -86,6 +87,114 @@ test("message views use their collection scope as the session id", async () => {
     await Bun.sleep(0)
   })
   expect(await screen.findByText("session-1")).toBeVisible()
+  act(() => agent.dispose())
+})
+
+test("server tool rows display their name, execution duration, and text output", async () => {
+  const user = userEvent.setup()
+  const agent = createConnectionAgent("http://hena.test")
+  agent.store.applySnapshot("messages", "session-1", [{
+    key: "message-1",
+    row: { id: "message-1", type: "assistant", time: { created: 1 } },
+  }], 1)
+  agent.store.applySnapshot("parts", "session-1", [{
+    key: ["message-1", "tool", "tool-1"],
+    row: {
+      id: "tool-1", messageID: "message-1", ordinal: 0, type: "tool", name: "bash",
+      state: {
+        status: "completed", input: { command: "bun test" }, structured: {},
+        content: [{ type: "text", text: "3 pass" }, { type: "text", text: "0 fail" }],
+        result: "Result fallback should not replace text content",
+      },
+      time: { created: 1, ran: 2, completed: 44 },
+    },
+  }], 1)
+
+  function View() {
+    const transcript = useMessages(agent, "session-1")
+    return <MessageList messages={transcript.messages} ready={transcript.ready} />
+  }
+
+  render(<View />)
+  await user.click(await screen.findByRole("button", { name: /bash.*bun test.*42ms/ }))
+  expect(screen.getByText("Result").parentElement).toHaveTextContent("3 pass")
+  expect(screen.getByText("Result").parentElement).toHaveTextContent("0 fail")
+  expect(screen.queryByText("Result fallback should not replace text content")).not.toBeInTheDocument()
+  act(() => agent.dispose())
+})
+
+test.each([
+  { status: "completed", result: { passed: 3 }, error: undefined, time: { created: 0, completed: 42 }, output: '"passed":3', duration: "42ms" },
+  { status: "error", result: undefined, error: { type: "unknown", message: "Command could not start" }, time: { created: 1, completed: 1 }, output: "Command could not start", duration: "0ms" },
+  { status: "running", result: undefined, error: undefined, time: { created: 1, ran: 2 }, output: undefined, duration: undefined },
+])("tool output falls back to result or error and duration requires completion: $status", async (item) => {
+  const user = userEvent.setup()
+  const agent = createConnectionAgent("http://hena.test")
+  agent.store.applySnapshot("messages", "session-1", [{ key: "message-1", row: { id: "message-1", type: "assistant", time: { created: 1 } } }], 1)
+  agent.store.applySnapshot("parts", "session-1", [{
+    key: ["message-1", "tool", "tool-1"],
+    row: {
+      id: "tool-1", messageID: "message-1", ordinal: 0, type: "tool", name: "bash",
+      state: { status: item.status, input: { command: "bun test" }, structured: {}, content: [], result: item.result, error: item.error }, time: item.time,
+    },
+  }], 1)
+  function View() {
+    const transcript = useMessages(agent, "session-1")
+    return <MessageList messages={transcript.messages} ready={transcript.ready} />
+  }
+  render(<View />)
+  const header = await screen.findByRole("button", { name: /bash/ })
+  if (item.duration) expect(header).toHaveTextContent(item.duration)
+  if (!item.duration) expect(header).not.toHaveTextContent("ms")
+  await user.click(header)
+  if (item.output) expect(screen.getByRole("heading", { name: item.status === "error" ? "Error" : "Result" }).parentElement).toHaveTextContent(item.output)
+  if (!item.output) expect(screen.queryByRole("heading", { name: "Result" })).not.toBeInTheDocument()
+  act(() => agent.dispose())
+})
+
+test("tool text pages load on demand without replacing sibling output", async () => {
+  const user = userEvent.setup()
+  const requests: string[] = []
+  const agent = createConnectionAgent("http://hena.test", async (input) => {
+    const url = new URL(input instanceof Request ? input.url : input.toString())
+    requests.push(url.pathname)
+    expect(url.searchParams.get("sessionID")).toBe("session-1")
+    expect(url.searchParams.get("revision")).toBe("r1")
+    return Response.json({ text: "full output", offset: 0, nextOffset: 11, totalBytes: 11, revision: "r1" })
+  })
+  agent.store.applySnapshot("messages", "session-1", [{ key: "message-1", row: { id: "message-1", type: "assistant", time: { created: 1 } } }], 1)
+  agent.store.applySnapshot("parts", "session-1", [{
+    key: ["message-1", "tool", "tool-1"],
+    row: {
+      id: "tool-1", messageID: "message-1", ordinal: 0, type: "tool", name: "bash",
+      state: {
+        status: "completed", input: {}, structured: {},
+        content: [
+          { type: "text", text: "before output" },
+          { type: "text", text: "preview", truncated: true, content: { id: "c1", revision: "r1", bytes: 11 } },
+          { type: "text", text: "after output" },
+        ],
+        result: { truncated: true, content: { id: "unused-result", revision: "r1", bytes: 100 } },
+      },
+      time: { created: 1, ran: 2, completed: 44 },
+    },
+  }], 1)
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  function View() {
+    const transcript = useMessages(agent, "session-1")
+    return <MessageList messages={transcript.messages} ready={transcript.ready} />
+  }
+  const view = render(<QueryClientProvider client={client}><View /></QueryClientProvider>)
+  await user.click(await screen.findByRole("button", { name: /bash/ }))
+  expect(requests).toEqual([])
+  expect(screen.getByText("Result").parentElement).toHaveTextContent("preview")
+  await user.click(screen.getByRole("button", { name: "Show full output (11 bytes)" }))
+  expect(await screen.findByText("full output")).toBeVisible()
+  expect(screen.getByText("Result").parentElement).toHaveTextContent("before output")
+  expect(screen.getByText("Result").parentElement).toHaveTextContent("after output")
+  expect(requests).toEqual(["/api/content/c1"])
+  view.unmount()
+  client.clear()
   act(() => agent.dispose())
 })
 

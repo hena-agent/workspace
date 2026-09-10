@@ -320,15 +320,22 @@ function partView(agent: ReturnTypeOfAgent | undefined, sessionId: string, messa
   if (type !== "tool") return { id: string(row.id), kind: "unknown" as const, type, summary: "Unsupported assistant part" }
   const state = record(row.state)
   const status = toolStatus(state.status)
+  const time = record(row.time)
+  const content = array(state.content).map(record).filter((item) => item.type === "text").map((item) => ({
+    text: string(item.text),
+    content: contentReference(agent, sessionId, item.content),
+  }))
   return {
     id: string(row.id),
     kind: "tool" as const,
-    tool: string(row.tool),
+    tool: string(row.name),
     status,
     input: typeof state.input === "string" ? state.input : JSON.stringify(state.input ?? {}),
-    output: state.result === undefined ? undefined : typeof state.result === "string" ? state.result : JSON.stringify(state.result),
+    output: content.map((item) => item.text).join("\n") || (state.result === undefined ? optionalString(record(state.error).message) : typeof state.result === "string" ? state.result : JSON.stringify(state.result)),
+    durationMs: typeof time.completed === "number" ? time.completed - number(time.ran ?? time.created) : undefined,
     liveInput: liveText(agent, { sessionId, messageId, partId: string(row.id), partKind: "tool-input" }),
-    outputContent: contentReference(agent, sessionId, record(state.result).content),
+    outputContent: content.length ? undefined : contentReference(agent, sessionId, record(state.result).content),
+    outputParts: content.some((item) => item.content) ? content : undefined,
   }
 }
 

@@ -7,6 +7,7 @@ import { useConnectionAgent } from "@/connection/provider"
 import { RouteLoadingState } from "@/connection/route-state"
 import { loadFileMatches, useCatalog, useCollectionReady, useMessages, usePendingRequest, usePermission, useQuestion, useQueuedInputs, useSession, useSessionLocation, useSettings, useTodos } from "@/data/queries"
 import { admitPromptOptimistically, cancelInputOptimistically, interruptOptimistically, isSessionStopping, markSessionsReadOptimistically, reorderInputsOptimistically, replyPermissionOptimistically, replyQuestionOptimistically } from "@/mutations/session"
+import type { PromptFile } from "@/mutations/session"
 import { loadDraft, saveDraft } from "@/local-state/drafts"
 import { markSessionOpened } from "@/local-state/recent"
 import type { ModelRef } from "@/lib/types"
@@ -75,17 +76,30 @@ function SessionTranscript({
   // mutation's own optimistic output. A plain effect depending on it would let a failed
   // mutation's rollback immediately retrigger itself and retry forever -- `useEffectEvent`
   // always sees the latest `session` without making it (or `unread`) a reactive dependency, so
-  // only a genuine `agent`/status/session change below can trigger another call.
+  // only an agent/session/update-time change below can trigger another call.
   const markReadIfUnread = useEffectEvent(() => {
-    if (agent && session?.unread && session.status !== "working")
+    if (agent && session?.unread)
       void markSessionsReadOptimistically(agent, [sessionId]).catch(() => {})
   })
   useEffect(() => {
-    // Settled (not `working`) only: an open session's `time.updated` keeps advancing while it
-    // streams, so checking on every tick would fire a mutation per token, and the working
-    // spinner already masks the unread dot until then anyway.
+    // Follow the unread watermark's source, including updates without a status transition.
+    // Core preserves time_updated when applying usage, so streaming tokens do not trigger receipts.
     markReadIfUnread()
-  }, [agent, session?.status, sessionId])
+  }, [agent, session?.updatedAt, sessionId])
+  const send = async (text: string, files: PromptFile[] | undefined, delivery: "steer" | "queue") => {
+    if (!agent) throw new Error("Server is unavailable")
+    if (!selectedAgentId) throw new Error("Select an agent before sending.")
+    await admitPromptOptimistically(agent, {
+      sessionID: sessionId,
+      text,
+      files,
+      delivery,
+      agentID: selectedAgentId,
+      model: modelWire(catalog.models, selectedModel),
+    }).transaction.isPersisted.promise
+    // A read before admission can be a noop; acknowledge the server's watermark after syncing.
+    void markSessionsReadOptimistically(agent, [sessionId]).catch(() => {})
+  }
   const replyPermission = (reply: "once" | "always" | "reject") => {
     if (!agent || !location || !permissionWire || typeof permissionWire.id !== "string" || typeof permissionWire.nonce !== "string") return
     setMutationNotice("")
@@ -132,32 +146,8 @@ function SessionTranscript({
           }}
           stopping={isSessionStopping(agent, sessionId)}
           mutationNotice={mutationNotice}
-          onSend={(text, files) => {
-        if (!agent) return Promise.reject(new Error("Server is unavailable"))
-        if (!selectedAgentId) return Promise.reject(new Error("Select an agent before sending."))
-        const result = admitPromptOptimistically(agent, {
-          sessionID: sessionId,
-          text,
-          files,
-          delivery: settings.queueDelivery === "queue" ? "queue" : "steer",
-          agentID: selectedAgentId || undefined,
-          model: modelWire(catalog.models, selectedModel),
-        }).transaction.isPersisted.promise
-        return result
-          }}
-          onQueue={(text, files) => {
-        if (!agent) return Promise.reject(new Error("Server is unavailable"))
-        if (!selectedAgentId) return Promise.reject(new Error("Select an agent before sending."))
-        const result = admitPromptOptimistically(agent, {
-          sessionID: sessionId,
-          text,
-          files,
-          delivery: "queue",
-          agentID: selectedAgentId || undefined,
-          model: modelWire(catalog.models, selectedModel),
-        }).transaction.isPersisted.promise
-        return result
-          }}
+          onSend={(text, files) => send(text, files, settings.queueDelivery === "queue" ? "queue" : "steer")}
+          onQueue={(text, files) => send(text, files, "queue")}
           queuedInputs={queue.items}
           onCancelInput={(messageID) => {
         if (!agent) return

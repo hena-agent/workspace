@@ -18,7 +18,7 @@ export function AssistantMessageRow({ message, working }: { message: AssistantMe
       </div>
       <MessageContent className="w-full gap-2">
         {message.parts.map((part, index) => (
-          <div key={part.id}>
+          <div key={part.id} className="empty:hidden">
             {part.kind === "text" ? <TextPartView part={part} isStreaming={working && !message.error && index === message.parts.length - 1} /> : null}
             {part.kind === "reasoning" ? <ReasoningPartView part={part} isStreaming={working && !message.error && index === message.parts.length - 1} /> : null}
             {part.kind === "tool" ? <ToolPartView part={part} /> : null}

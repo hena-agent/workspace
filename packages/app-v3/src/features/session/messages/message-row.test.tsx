@@ -42,6 +42,21 @@ describe("MessageRow", () => {
     expect(screen.getByText(/Still visible/)).toBeInTheDocument()
   })
 
+  test("assistant: hides empty reasoning alongside an answer", () => {
+    render(<MessageRow message={{
+      id: "m-empty-reasoning",
+      sessionId: "s1",
+      createdAt: 0,
+      role: "assistant",
+      parts: [
+        { id: "p-reasoning", kind: "reasoning", text: "" },
+        { id: "p-answer", kind: "text", text: "Here is the answer." },
+      ],
+    }} />)
+    expect(screen.getByText("Here is the answer.")).toBeVisible()
+    expect(screen.queryByRole("button", { name: /Thought for/ })).not.toBeInTheDocument()
+  })
+
   test("assistant: opens the latest reasoning part while working", () => {
     const message: SessionMessage = {
       id: "m-reasoning",

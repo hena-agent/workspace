@@ -10,12 +10,16 @@ export function ReasoningPartView({ part, isStreaming }: { part: ReasoningPart; 
   const incomplete = part.live?.incomplete() ?? false
   const streaming = Boolean(isStreaming)
   const [open, setOpen] = useState(streaming)
+  const text = live || part.text
+
+  // Providers may finish reasoning without ever sending visible summary text.
+  if (!text.trim() && !streaming) return incomplete ? <span className="text-xs text-amber-600">Stream incomplete</span> : null
 
   return (
     <Reasoning defaultOpen={false} isStreaming={streaming} open={open} onOpenChange={setOpen} className="mb-0 rounded-md border border-dashed px-2 py-1.5">
       <ReasoningTrigger className="text-xs" />
       <CollapsibleContent className="mt-1.5 text-xs italic text-muted-foreground outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:animate-in data-[state=open]:slide-in-from-top-2">
-        <MessageResponse animated={streaming} components={markdownComponents} isAnimating={streaming} mode={streaming ? "streaming" : "static"}>{`${live || part.text}${incomplete ? " (stream incomplete)" : ""}`}</MessageResponse>
+        <MessageResponse animated={streaming} components={markdownComponents} isAnimating={streaming} mode={streaming ? "streaming" : "static"}>{`${text}${incomplete ? " (stream incomplete)" : ""}`}</MessageResponse>
       </CollapsibleContent>
     </Reasoning>
   )

@@ -13,7 +13,7 @@ export function ReasoningPartView({ part, isStreaming }: { part: ReasoningPart; 
   const text = live || part.text
 
   // Providers may finish reasoning without ever sending visible summary text.
-  if (!text.trim() && !streaming) return null
+  if (!text.trim() && !streaming) return incomplete ? <span className="text-xs text-amber-600">Stream incomplete</span> : null
 
   return (
     <Reasoning defaultOpen={false} isStreaming={streaming} open={open} onOpenChange={setOpen} className="mb-0 rounded-md border border-dashed px-2 py-1.5">

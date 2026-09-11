@@ -18,6 +18,7 @@ import { useSessionLayout } from "@/pages/session/session-layout"
 import { getSessionContext } from "./session-context-metrics"
 import { estimateSessionContextBreakdown, type SessionContextBreakdownKey } from "./session-context-breakdown"
 import { createSessionContextFormatter } from "./session-context-format"
+import { splitAtMessage } from "@/pages/session/message-order"
 
 const BREAKDOWN_COLOR: Record<SessionContextBreakdownKey, string> = {
   system: "var(--syntax-info)",
@@ -104,7 +105,7 @@ export function SessionContextTab() {
     () => {
       const id = params.id
       if (!id) return emptyMessages
-      return (sync().data.message[id] ?? []) as Message[]
+      return sync().session.timeline(id) as Message[]
     },
     emptyMessages,
     { equals: same },
@@ -120,7 +121,7 @@ export function SessionContextTab() {
     () => {
       const revert = info()?.revert?.messageID
       if (!revert) return userMessages()
-      return userMessages().filter((m) => m.id < revert)
+      return splitAtMessage(userMessages(), revert).before
     },
     emptyUserMessages,
     { equals: same },

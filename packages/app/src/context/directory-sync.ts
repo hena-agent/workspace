@@ -73,6 +73,7 @@ export const createDirSyncContext = (
       if (match.found) return serverSync.data.project[match.index]
     },
     session: {
+      parts: serverSync.session.parts,
       remember(session: Session) {
         serverSync.session.remember(session)
         index(session.id)
@@ -114,6 +115,7 @@ export const createDirSyncContext = (
         await serverSync.session.sync(sessionID, options)
         index(sessionID)
       },
+      timeline: serverSync.session.timeline,
       diff: serverSync.session.diff,
       todo: serverSync.session.todo,
       history: serverSync.session.history,

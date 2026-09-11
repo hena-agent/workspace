@@ -49,6 +49,9 @@ export type State = {
   session_status: {
     [sessionID: string]: SessionStatus
   }
+  execution_error: {
+    [sessionID: string]: string | undefined
+  }
   session_working(id: string): boolean
   session_diff: {
     [sessionID: string]: SnapshotFileDiff[]

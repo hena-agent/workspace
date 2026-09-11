@@ -249,6 +249,9 @@ const layer = Layer.effect(
     )
 
     const all: Interface["all"] = Effect.fn("ToolRegistry.all")(function* () {
+      // Select actual built-ins, not plugin tools with matching names.
+      if ((yield* InstanceState.context).project.mode === "chat")
+        return yield* Effect.all([Tool.init(question), Tool.init(todo), Tool.init(webfetch), Tool.init(websearch)])
       const s = yield* InstanceState.get(state)
       return [...s.builtin, ...s.custom] as Tool.Def[]
     })
@@ -284,6 +287,7 @@ const layer = Layer.effect(
     })
 
     const tools: Interface["tools"] = Effect.fn("ToolRegistry.tools")(function* (input) {
+      if ((yield* InstanceState.context).project.mode === "chat") return yield* all()
       const filtered = (yield* all()).filter((tool) => {
         if (tool.id === WebSearchTool.id) {
           return webSearchEnabled(input.providerID, { exa: flags.enableExa, parallel: flags.enableParallel })

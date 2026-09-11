@@ -16,6 +16,7 @@ import { batch } from "solid-js"
 import { produce, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State, VcsCache } from "./types"
 import type { ServerSession } from "../server-session"
+import { pendingQuestions } from "../session-runtime"
 import { cmp, normalizeAgentList, normalizeProviderList } from "./utils"
 import { formatServerError } from "@/utils/server-errors"
 import { QueryClient, queryOptions } from "@tanstack/solid-query"
@@ -323,7 +324,7 @@ export async function bootstrapDirectory(input: {
         ),
       () =>
         retry(() =>
-          input.sdk.question.list().then((x) => {
+          pendingQuestions(input.sdk, input.directory).then((x) => {
             const ids = (x.data ?? []).map((question) => question?.sessionID).filter((id): id is string => !!id)
             const grouped = groupBySession((x.data ?? []).filter((q): q is QuestionRequest => !!q?.id && !!q.sessionID))
             const warm = input.session

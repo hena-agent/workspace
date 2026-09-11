@@ -20,7 +20,7 @@ import { setCursorPosition } from "./editor-dom"
 import { formatServerError } from "@/utils/server-errors"
 import { ScopedKey } from "@/utils/server-scope"
 import { createPromptSubmissionState } from "./submission-state"
-import { toLegacySessionSummary } from "@/context/global-sync/home-session-index"
+import { interruptSession, usesCanonicalSession } from "@/context/session-runtime"
 
 type PendingPrompt = {
   abort: AbortController
@@ -108,8 +108,8 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
 
   const messageID = input.messageID ?? Identifier.ascending("message")
   const { requestParts, optimisticParts } = buildRequestParts({
-    prompt: input.draft.prompt,
-    context: input.draft.context,
+    prompt: managedChat ? input.draft.prompt.filter((part) => part.type === "text" || part.type === "image") : input.draft.prompt,
+    context: managedChat ? [] : input.draft.context,
     images,
     text,
     sessionID: input.draft.sessionID,
@@ -155,7 +155,56 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
       return false
     }
 
-    if (managedChat) {
+    if (usesCanonicalSession(input.sync.session.get(input.draft.sessionID), !!managedChat)) {
+      const available = await input.client.v2.model.list({
+        location: { directory: input.draft.sessionDirectory },
+      })
+      if (!available.data?.data?.some((model) => model.providerID === input.draft.model.providerID && model.id === input.draft.model.modelID))
+        throw new Error(`Selected model is unavailable: ${input.draft.model.providerID}/${input.draft.model.modelID}`)
+      const prompt = {
+        text: requestParts
+          .filter((part) => part.type === "text")
+          .map((part) => part.text)
+          .join("\n"),
+        files: requestParts
+          .filter((part) => part.type === "file")
+          .map((part) => ({
+            uri: part.url,
+            name: part.filename,
+            source: part.source?.text
+              ? {
+                  text: part.source.text.value,
+                  start: part.source.text.start,
+                  end: part.source.text.end,
+                }
+              : undefined,
+          })),
+        agents: requestParts
+          .filter((part) => part.type === "agent")
+          .map((part) => ({
+            name: part.name,
+            source: part.source
+              ? { text: part.source.value, start: part.source.start, end: part.source.end }
+              : undefined,
+          })),
+      }
+      const revert = input.sync.session.get(input.draft.sessionID)?.revert
+      if (revert) {
+        await input.client.v2.session.revert.replace({
+          sessionID: input.draft.sessionID,
+          messageID: revert.messageID,
+          id: messageID,
+          prompt,
+          agent: input.draft.agent,
+          model: {
+            id: input.draft.model.modelID,
+            providerID: input.draft.model.providerID,
+            variant: input.draft.variant,
+          },
+        })
+        await input.sync.session.sync(input.draft.sessionID, { force: true })
+        return true
+      }
       await Promise.all([
         input.client.v2.session.switchAgent({ sessionID: input.draft.sessionID, agent: input.draft.agent }),
         input.client.v2.session.switchModel({
@@ -170,33 +219,7 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
       await input.client.v2.session.prompt({
         sessionID: input.draft.sessionID,
         id: messageID,
-        prompt: {
-          text: requestParts
-            .filter((part) => part.type === "text")
-            .map((part) => part.text)
-            .join("\n"),
-          files: requestParts
-            .filter((part) => part.type === "file")
-            .map((part) => ({
-              uri: part.url,
-              name: part.filename,
-              source: part.source?.text
-                ? {
-                    text: part.source.text.value,
-                    start: part.source.text.start,
-                    end: part.source.text.end,
-                  }
-                : undefined,
-            })),
-          agents: requestParts
-            .filter((part) => part.type === "agent")
-            .map((part) => ({
-              name: part.name,
-              source: part.source
-                ? { text: part.source.value, start: part.source.start, end: part.source.end }
-                : undefined,
-            })),
-        },
+        prompt,
       })
     } else {
       await input.client.session.promptAsync({
@@ -282,11 +305,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       pending.delete(key)
       return Promise.resolve()
     }
-    return sdk()
-      .client.session.abort({
-        sessionID,
-      })
-      .catch(() => {})
+    return interruptSession(sdk().client, sessionID, sync().session.get(sessionID)).catch(() => {})
   }
 
   const restoreCommentItems = (
@@ -371,7 +390,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     const permissionState = permission.currentServerState()
     const isNewSession = !params.id
     const shouldAutoAccept = isNewSession && input.autoAccept()
-    const worktreeSelection = input.newSessionWorktree?.() || "main"
+    const worktreeSelection = managedChat ? "main" : input.newSessionWorktree?.() || "main"
 
     let sessionDirectory = projectDirectory
     let client = sdk().client
@@ -417,17 +436,10 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     let session = input.info()
     if (!session && isNewSession) {
-      const created = await (
-        managedChat
-          ? client.v2.session
-              .create({
-                projectID,
-                agent: currentAgent.name,
-                model: { id: currentModel.id, providerID: currentModel.provider.id, variant },
-              })
-              .then((x) => (x.data?.data ? toLegacySessionSummary(x.data.data) : undefined))
-          : client.session.create().then((x) => x.data ?? undefined)
-      ).catch((err) => {
+      const created = await client.session.create().then((x) => {
+        if (managedChat && x.data?.projectID !== projectID) throw new Error("Session was created in a different project")
+        return x.data ?? undefined
+      }).catch((err) => {
         showToast({
           title: language.t("prompt.toast.sessionCreateFailed.title"),
           description: errorMessage(err),
@@ -528,7 +540,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       return
     }
 
-    if (text.startsWith("/")) {
+    if (!managedChat && text.startsWith("/")) {
       const [cmdName, ...args] = text.split(" ")
       const commandName = cmdName.slice(1)
       const customCommand = sync().data.command.find((c) => c.name === commandName)

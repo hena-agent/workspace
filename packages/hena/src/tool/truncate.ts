@@ -8,6 +8,7 @@ import { evaluate } from "@/permission/evaluate"
 import { Config } from "@/config/config"
 import { ToolID } from "./schema"
 import { TRUNCATION_DIR } from "./truncation-dir"
+import { InstanceState } from "@/effect/instance-state"
 
 const RETENTION = Duration.days(7)
 
@@ -16,7 +17,7 @@ export const MAX_BYTES = 50 * 1024
 export const DIR = TRUNCATION_DIR
 export const GLOB = path.join(TRUNCATION_DIR, "*")
 
-export type Result = { content: string; truncated: false } | { content: string; truncated: true; outputPath: string }
+export type Result = { content: string; truncated: false } | { content: string; truncated: true; outputPath?: string }
 
 export interface Options {
   maxLines?: number
@@ -134,6 +135,8 @@ const layer = Layer.effect(
       const removed = hitBytes ? totalBytes - bytes : lines.length - out.length
       const unit = hitBytes ? "bytes" : "lines"
       const preview = out.join("\n")
+      if ((yield* InstanceState.context).project.mode === "chat")
+        return { content: `${preview}\n\n...${removed} ${unit} truncated...`, truncated: true } as const
       const file = yield* write(text)
 
       const hint = hasTaskTool(agent)

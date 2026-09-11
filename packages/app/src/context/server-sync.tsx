@@ -1,11 +1,4 @@
-import type {
-  Config,
-  McpResource,
-  HenaClient,
-  Path,
-  Project,
-  ProviderAuthResponse,
-} from "@hena/sdk/v2/client"
+import type { Config, McpResource, HenaClient, Path, Project, ProviderAuthResponse } from "@hena/sdk/v2/client"
 import { showToast } from "@/utils/toast"
 import { getFilename } from "@hena/core/util/path"
 import { type Accessor, batch, createMemo, getOwner, onCleanup, onMount, untrack } from "solid-js"
@@ -47,6 +40,7 @@ import { createHomeSessionIndexCache } from "./global-sync/home-session-index"
 import { persisted } from "@/utils/persist"
 import { toggleMcp } from "./global-sync/mcp"
 import { createServerSession } from "./server-session"
+import { usesCanonicalSession } from "./session-runtime"
 
 type GlobalStore = {
   ready: boolean
@@ -78,11 +72,7 @@ export const loadLspQuery = (scope: ServerScope, directory: string, sdk: HenaCli
     queryFn: () => sdk.lsp.status().then((r) => r.data ?? []),
   })
 
-function makeQueryOptionsApi(
-  scope: ServerScope,
-  serverSDK: () => HenaClient,
-  sdkFor: (dir: PathKey) => HenaClient,
-) {
+function makeQueryOptionsApi(scope: ServerScope, serverSDK: () => HenaClient, sdkFor: (dir: PathKey) => HenaClient) {
   return {
     globalConfig: () => loadGlobalConfigQuery(scope, serverSDK()),
     projects: () => loadProjectsQuery(scope, serverSDK()),
@@ -212,7 +202,12 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     bootstrapInstance,
   })
 
-  const session = createServerSession(serverSDK.client)
+  const session = createServerSession(serverSDK.client, {
+    managedSession: async (item) => {
+      if (bootstrap.isPending) await queryClient.fetchQuery({ queryKey: [serverSDK.scope, "bootstrap"] })
+      return usesCanonicalSession(item, globalStore.project.some((project) => project.id === item.projectID && project.mode === "chat"))
+    },
+  })
 
   const children = createChildStoreManager({
     owner,
@@ -378,6 +373,41 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
     const recent = bootingRoot || Date.now() - bootedAt < 1500
 
     session.apply(event)
+    if (event.type === "server.connected") {
+      const token = session.executionSnapshotToken()
+      void serverSDK.client.v2.session
+        .active()
+        .then((result) => {
+          const failed = session.reconcileExecutionSnapshot(
+            (result.data?.data ?? {}) as Record<
+              string,
+              { type: "running" } | { type: "idle" } | { type: "failed"; error: { message: string } }
+            >,
+            token,
+          )
+          failed.forEach((message) =>
+            showToast({
+              variant: "error",
+              title: language.t("common.requestFailed"),
+              description: message,
+            }),
+          )
+        })
+        .catch(() => {})
+    }
+    const v2StatusEvent = event as unknown as {
+      type: string
+      properties?: { status?: { type: string; error?: { message?: string } } }
+      data?: { status?: { type: string; error?: { message?: string } } }
+    }
+    const v2Status = v2StatusEvent.properties ?? v2StatusEvent.data
+    if (v2StatusEvent.type === "session.next.execution.status" && v2Status?.status?.type === "failed") {
+      showToast({
+        variant: "error",
+        title: language.t("common.requestFailed"),
+        description: v2Status.status.error?.message ?? language.t("common.requestFailed"),
+      })
+    }
     if (event.type === "session.created" || event.type === "session.updated" || event.type === "session.deleted") {
       homeSessions.apply(event)
     }

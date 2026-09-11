@@ -102,12 +102,10 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
     isOpenaiOauth || input.isWorkflow
       ? input.messages
       : [
-          ...system.map(
-            (x): ModelMessage => ({
-              role: "system",
-              content: x,
-            }),
-          ),
+          ...system.map((x): ModelMessage => ({
+            role: "system",
+            content: x,
+          })),
           ...input.messages,
         ]
 
@@ -154,7 +152,11 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
     input.model.api.npm === "@ai-sdk/azure" ||
     input.model.api.npm === "@ai-sdk/amazon-bedrock/mantle"
   ) {
-    for (const key of Object.keys(tools)) tools[key] = { ...tools[key], strict: false }
+    for (const key of Object.keys(tools)) {
+      const tool = tools[key]
+      if (tool.type === "provider" || tool.type === "dynamic") continue
+      tools[key] = { ...tool, strict: false }
+    }
   }
   if (
     input.model.providerID.includes("github-copilot") &&

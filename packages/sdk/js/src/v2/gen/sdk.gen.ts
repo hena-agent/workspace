@@ -18,6 +18,8 @@ import type {
   AppLogResponses,
   AppSkillsErrors,
   AppSkillsResponses,
+  Arrays2,
+  Arrays3,
   Auth as Auth3,
   AuthRemoveErrors,
   AuthRemoveResponses,
@@ -113,12 +115,14 @@ import type {
   McpConnectResponses,
   McpDisconnectErrors,
   McpDisconnectResponses,
-  McpLocalConfig,
-  McpRemoteConfig,
   McpStatusErrors,
   McpStatusResponses,
   ModelRef,
   MoveSessionDestination,
+  Objects107,
+  Objects56,
+  Objects98,
+  Objects99,
   OutputFormat,
   Part as Part2,
   PartDeleteErrors,
@@ -243,6 +247,19 @@ import type {
   ToolIdsResponses,
   ToolListErrors,
   ToolListResponses,
+  Union,
+  Union1,
+  Union10,
+  Union4,
+  Union42,
+  Union55,
+  Union58,
+  Union59,
+  Union6,
+  Union61,
+  Union62,
+  Union64,
+  Union7,
   V2AgentListErrors,
   V2AgentListResponses,
   V2CommandListErrors,
@@ -607,7 +624,7 @@ export class ControlPlane extends HeyApiClient {
     parameters: {
       sessionID: string
       destination: MoveSessionDestination
-      moveChanges?: boolean
+      moveChanges?: Union1
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<
@@ -920,7 +937,7 @@ export class ProjectCopy extends HeyApiClient {
       projectID: string
       directory?: string
       workspace?: string
-      context?: string
+      context?: Union
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<
@@ -1038,10 +1055,10 @@ export class Workspace extends HeyApiClient {
     parameters: {
       directory?: string
       workspace?: string
-      id?: string
+      id?: Union58
       type: string
-      branch?: string | null
-      extra?: unknown | null
+      branch?: Union61 | null
+      extra?: Union62 | null
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ExperimentalWorkspaceCreateResponses, ExperimentalWorkspaceCreateErrors, ThrowOnError> {
@@ -1191,7 +1208,7 @@ export class Workspace extends HeyApiClient {
       workspace?: string
       id: string | null
       sessionID: string
-      copyChanges?: boolean
+      copyChanges?: Union1
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<ExperimentalWorkspaceWarpResponses, ExperimentalWorkspaceWarpErrors, ThrowOnError> {
@@ -1358,7 +1375,7 @@ export class Global extends HeyApiClient {
    */
   public upgrade<ThrowOnError extends boolean = false>(
     parameters?: {
-      target?: string
+      target?: Union
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<GlobalUpgradeResponses, GlobalUpgradeErrors, ThrowOnError> {
@@ -2431,7 +2448,7 @@ export class Mcp extends HeyApiClient {
       directory?: string
       workspace?: string
       name: string
-      config: McpLocalConfig | McpRemoteConfig
+      config: Union42
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<McpAddResponses, McpAddErrors, ThrowOnError> {
@@ -2627,7 +2644,7 @@ export class Project extends HeyApiClient {
       projectID: string
       directory?: string
       workspace?: string
-      name?: string
+      name?: Union
       icon?: ProjectIcon
       commands?: ProjectCommands
     },
@@ -3122,8 +3139,8 @@ export class Permission extends HeyApiClient {
       requestID: string
       directory?: string
       workspace?: string
-      reply: "once" | "always" | "reject"
-      message?: string
+      reply: Union10
+      message?: Union
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<PermissionReplyResponses, PermissionReplyErrors, ThrowOnError> {
@@ -3166,7 +3183,7 @@ export class Permission extends HeyApiClient {
       permissionID: string
       directory?: string
       workspace?: string
-      response: "once" | "always" | "reject"
+      response: Union10
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<PermissionRespondResponses, PermissionRespondErrors, ThrowOnError> {
@@ -3410,19 +3427,13 @@ export class Session2 extends HeyApiClient {
     parameters?: {
       directory?: string
       workspace?: string
-      parentID?: string
-      title?: string
-      agent?: string
-      model?: {
-        id: string
-        providerID: string
-        variant?: string
-      }
-      metadata?: {
-        [key: string]: unknown
-      }
+      parentID?: Union7
+      title?: Union
+      agent?: Union
+      model?: Objects98
+      metadata?: Objects99
       permission?: PermissionRuleset
-      workspaceID?: string
+      workspaceID?: Union58
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<SessionCreateResponses, SessionCreateErrors, ThrowOnError> {
@@ -3560,13 +3571,11 @@ export class Session2 extends HeyApiClient {
       sessionID: string
       directory?: string
       workspace?: string
-      title?: string
-      metadata?: {
-        [key: string]: unknown
-      }
+      title?: Union
+      metadata?: Objects99
       permission?: PermissionRuleset
       time?: {
-        archived?: number
+        archived?: Union4
       }
     },
     options?: Options<never, ThrowOnError>,
@@ -3743,19 +3752,16 @@ export class Session2 extends HeyApiClient {
       sessionID: string
       directory?: string
       workspace?: string
-      messageID?: string
-      model?: {
-        providerID: string
-        modelID: string
-      }
-      agent?: string
-      noReply?: boolean
+      messageID?: Union55
+      model?: Union59
+      agent?: Union
+      noReply?: Union1
       tools?: {
         [key: string]: boolean
       }
       format?: OutputFormat
-      system?: string
-      variant?: string
+      system?: Union
+      variant?: Union
       parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
     },
     options?: Options<never, ThrowOnError>,
@@ -3875,7 +3881,7 @@ export class Session2 extends HeyApiClient {
       sessionID: string
       directory?: string
       workspace?: string
-      messageID?: string
+      messageID?: Union55
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<SessionForkResponses, SessionForkErrors, ThrowOnError> {
@@ -4055,7 +4061,7 @@ export class Session2 extends HeyApiClient {
       workspace?: string
       providerID: string
       modelID: string
-      auto?: boolean
+      auto?: Union1
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<SessionSummarizeResponses, SessionSummarizeErrors, ThrowOnError> {
@@ -4096,19 +4102,16 @@ export class Session2 extends HeyApiClient {
       sessionID: string
       directory?: string
       workspace?: string
-      messageID?: string
-      model?: {
-        providerID: string
-        modelID: string
-      }
-      agent?: string
-      noReply?: boolean
+      messageID?: Union55
+      model?: Union59
+      agent?: Union
+      noReply?: Union1
       tools?: {
         [key: string]: boolean
       }
       format?: OutputFormat
-      system?: string
-      variant?: string
+      system?: Union
+      variant?: Union
       parts: Array<TextPartInput | FilePartInput | AgentPartInput | SubtaskPartInput>
     },
     options?: Options<never, ThrowOnError>,
@@ -4156,17 +4159,17 @@ export class Session2 extends HeyApiClient {
       sessionID: string
       directory?: string
       workspace?: string
-      messageID?: string
-      agent?: string
-      model?: string
+      messageID?: Union55
+      agent?: Union
+      model?: Union
       arguments: string
       command: string
-      variant?: string
+      variant?: Union
       parts?: Array<{
         id?: string
         type: "file"
         mime: string
-        filename?: string
+        filename?: Union
         url: string
         source?: FilePartSource
       }>
@@ -4214,12 +4217,9 @@ export class Session2 extends HeyApiClient {
       sessionID: string
       directory?: string
       workspace?: string
-      messageID?: string
+      messageID?: Union55
       agent: string
-      model?: {
-        providerID: string
-        modelID: string
-      }
+      model?: Union59
       command: string
     },
     options?: Options<never, ThrowOnError>,
@@ -4485,15 +4485,7 @@ export class Sync extends HeyApiClient {
       query_directory?: string
       workspace?: string
       body_directory: string
-      events: Array<{
-        id: string
-        aggregateID: string
-        seq: number
-        type: string
-        data: {
-          [key: string]: unknown
-        }
-      }>
+      events: Array<Objects107>
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<SyncReplayResponses, SyncReplayErrors, ThrowOnError> {
@@ -4597,10 +4589,7 @@ export class Location extends HeyApiClient {
    */
   public get<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2LocationGetResponses, V2LocationGetErrors, ThrowOnError> {
@@ -4621,10 +4610,7 @@ export class Agent extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2AgentListResponses, V2AgentListErrors, ThrowOnError> {
@@ -4647,7 +4633,7 @@ export class Revert extends HeyApiClient {
     parameters: {
       sessionID: string
       messageID: string
-      files?: boolean
+      files?: Union1
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2SessionRevertStageResponses, V2SessionRevertStageErrors, ThrowOnError> {
@@ -4756,11 +4742,9 @@ export class Permission2 extends HeyApiClient {
       sessionID: string
       id?: string
       action: string
-      resources: Array<string>
-      save?: Array<string>
-      metadata?: {
-        [key: string]: unknown
-      }
+      resources: Arrays2
+      save?: Arrays3
+      metadata?: Objects56
       source?: PermissionV2Source
       agent?: string
     },
@@ -4843,7 +4827,7 @@ export class Permission2 extends HeyApiClient {
       sessionID: string
       requestID: string
       reply: PermissionV2Reply
-      message?: string
+      message?: Union
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2SessionPermissionReplyResponses, V2SessionPermissionReplyErrors, ThrowOnError> {
@@ -5027,7 +5011,7 @@ export class Session3 extends HeyApiClient {
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
-      id?: string
+      id?: Union7
       agent?: string
       model?: ModelRef
       location?: LocationRef
@@ -5180,8 +5164,8 @@ export class Session3 extends HeyApiClient {
       sessionID: string
       id?: string
       prompt: PromptInput
-      delivery?: "steer" | "queue"
-      resume?: boolean
+      delivery?: Union6
+      resume?: Union1
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2SessionPromptResponses, V2SessionPromptErrors, ThrowOnError> {
@@ -5437,10 +5421,7 @@ export class Model extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2ModelListResponses, V2ModelListErrors, ThrowOnError> {
@@ -5461,10 +5442,7 @@ export class Provider2 extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2ProviderListResponses, V2ProviderListErrors, ThrowOnError> {
@@ -5484,10 +5462,7 @@ export class Provider2 extends HeyApiClient {
   public get<ThrowOnError extends boolean = false>(
     parameters: {
       providerID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2ProviderGetResponses, V2ProviderGetErrors, ThrowOnError> {
@@ -5519,12 +5494,9 @@ export class Connect extends HeyApiClient {
   public key<ThrowOnError extends boolean = false>(
     parameters: {
       integrationID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
       key: string
-      label?: string
+      label?: Union
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2IntegrationConnectKeyResponses, V2IntegrationConnectKeyErrors, ThrowOnError> {
@@ -5565,15 +5537,12 @@ export class Connect extends HeyApiClient {
   public oauth<ThrowOnError extends boolean = false>(
     parameters: {
       integrationID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
       methodID: string
       inputs: {
         [key: string]: string
       }
-      label?: string
+      label?: Union
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2IntegrationConnectOauthResponses, V2IntegrationConnectOauthErrors, ThrowOnError> {
@@ -5617,10 +5586,7 @@ export class Attempt extends HeyApiClient {
   public cancel<ThrowOnError extends boolean = false>(
     parameters: {
       attemptID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2IntegrationAttemptCancelResponses, V2IntegrationAttemptCancelErrors, ThrowOnError> {
@@ -5654,10 +5620,7 @@ export class Attempt extends HeyApiClient {
   public status<ThrowOnError extends boolean = false>(
     parameters: {
       attemptID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2IntegrationAttemptStatusResponses, V2IntegrationAttemptStatusErrors, ThrowOnError> {
@@ -5691,11 +5654,8 @@ export class Attempt extends HeyApiClient {
   public complete<ThrowOnError extends boolean = false>(
     parameters: {
       attemptID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
-      code?: string
+      location?: Union64
+      code?: Union
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2IntegrationAttemptCompleteResponses, V2IntegrationAttemptCompleteErrors, ThrowOnError> {
@@ -5736,10 +5696,7 @@ export class Integration extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2IntegrationListResponses, V2IntegrationListErrors, ThrowOnError> {
@@ -5759,10 +5716,7 @@ export class Integration extends HeyApiClient {
   public get<ThrowOnError extends boolean = false>(
     parameters: {
       integrationID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2IntegrationGetResponses, V2IntegrationGetErrors, ThrowOnError> {
@@ -5804,10 +5758,7 @@ export class Credential extends HeyApiClient {
   public remove<ThrowOnError extends boolean = false>(
     parameters: {
       credentialID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2CredentialRemoveResponses, V2CredentialRemoveErrors, ThrowOnError> {
@@ -5839,10 +5790,7 @@ export class Credential extends HeyApiClient {
   public update<ThrowOnError extends boolean = false>(
     parameters: {
       credentialID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
       label: string
     },
     options?: Options<never, ThrowOnError>,
@@ -5880,10 +5828,7 @@ export class Request_ extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2PermissionRequestListResponses, V2PermissionRequestListErrors, ThrowOnError> {
@@ -5968,10 +5913,7 @@ export class Fs extends HeyApiClient {
    */
   public read<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2FsReadResponses, V2FsReadErrors, ThrowOnError> {
@@ -5990,10 +5932,7 @@ export class Fs extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
       path?: string
     },
     options?: Options<never, ThrowOnError>,
@@ -6023,10 +5962,7 @@ export class Fs extends HeyApiClient {
    */
   public find<ThrowOnError extends boolean = false>(
     parameters: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
       query: string
       type?: "file" | "directory"
       limit?: string
@@ -6062,10 +5998,7 @@ export class Command2 extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2CommandListResponses, V2CommandListErrors, ThrowOnError> {
@@ -6086,10 +6019,7 @@ export class Skill extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2SkillListResponses, V2SkillListErrors, ThrowOnError> {
@@ -6126,10 +6056,7 @@ export class Pty2 extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2PtyListResponses, V2PtyListErrors, ThrowOnError> {
@@ -6148,10 +6075,7 @@ export class Pty2 extends HeyApiClient {
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
       command?: string
       args?: Array<string>
       cwd?: string
@@ -6197,10 +6121,7 @@ export class Pty2 extends HeyApiClient {
   public remove<ThrowOnError extends boolean = false>(
     parameters: {
       ptyID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2PtyRemoveResponses, V2PtyRemoveErrors, ThrowOnError> {
@@ -6230,10 +6151,7 @@ export class Pty2 extends HeyApiClient {
   public get<ThrowOnError extends boolean = false>(
     parameters: {
       ptyID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2PtyGetResponses, V2PtyGetErrors, ThrowOnError> {
@@ -6263,10 +6181,7 @@ export class Pty2 extends HeyApiClient {
   public update<ThrowOnError extends boolean = false>(
     parameters: {
       ptyID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
       title?: string
       size?: {
         rows: number
@@ -6308,10 +6223,7 @@ export class Pty2 extends HeyApiClient {
   public connectToken<ThrowOnError extends boolean = false>(
     parameters: {
       ptyID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2PtyConnectTokenResponses, V2PtyConnectTokenErrors, ThrowOnError> {
@@ -6378,10 +6290,7 @@ export class Request2 extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2QuestionRequestListResponses, V2QuestionRequestListErrors, ThrowOnError> {
@@ -6413,10 +6322,7 @@ export class Reference extends HeyApiClient {
    */
   public list<ThrowOnError extends boolean = false>(
     parameters?: {
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2ReferenceListResponses, V2ReferenceListErrors, ThrowOnError> {
@@ -6433,10 +6339,7 @@ export class ProjectCopy2 extends HeyApiClient {
   public remove<ThrowOnError extends boolean = false>(
     parameters: {
       projectID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
       directory: string
       force: boolean
     },
@@ -6474,10 +6377,7 @@ export class ProjectCopy2 extends HeyApiClient {
   public create<ThrowOnError extends boolean = false>(
     parameters: {
       projectID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
       strategy: string
       directory: string
       name?: string
@@ -6515,10 +6415,7 @@ export class ProjectCopy2 extends HeyApiClient {
   public refresh<ThrowOnError extends boolean = false>(
     parameters: {
       projectID: string
-      location?: {
-        directory?: string
-        workspace?: string
-      }
+      location?: Union64
     },
     options?: Options<never, ThrowOnError>,
   ): RequestResult<V2ProjectCopyRefreshResponses, V2ProjectCopyRefreshErrors, ThrowOnError> {

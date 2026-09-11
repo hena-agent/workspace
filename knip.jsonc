@@ -11,32 +11,14 @@
     "namespaceMembers": "off",
   },
   "ignoreIssues": {
-    "packages/sdk/js/src/{gen,v2/gen}/**": [
-      "nsExports",
-      "nsTypes",
-      "enumMembers",
-      "duplicates",
-    ],
-    "packages/client/src/{generated,generated-effect}/**": [
-      "nsExports",
-      "nsTypes",
-      "enumMembers",
-      "duplicates",
-    ],
-    "packages/core/src/database/{migration,schema}.gen.ts": [
-      "nsExports",
-      "nsTypes",
-      "enumMembers",
-      "duplicates",
-    ],
+    "packages/sdk/js/src/{gen,v2/gen}/**": ["nsExports", "nsTypes", "enumMembers", "duplicates"],
+    "packages/client/src/{generated,generated-effect}/**": ["nsExports", "nsTypes", "enumMembers", "duplicates"],
+    "packages/core/src/database/{migration,schema}.gen.ts": ["nsExports", "nsTypes", "enumMembers", "duplicates"],
   },
   "workspaces": {
     ".": {
-      "entry": [
-        "script/**/*.{ts,mjs}",
-        ".hena/tool/*.ts",
-      ],
-      // github/ and sdks/vscode/ have independent package manifests and lockfiles.
+      "entry": ["script/**/*.{ts,mjs}", ".hena/tool/*.ts"],
+      // sdks/vscode/ has an independent package manifest and lockfile.
       "project": ["script/**/*.{ts,mjs}", ".hena/**/*.{ts,tsx}"],
       // `marked` pins marked-shiki's peer for Bun's hoisted Windows linker.
       "ignoreDependencies": ["turbo", "marked"],
@@ -86,12 +68,7 @@
       "ignoreUnresolved": ["@/context/global-sync"],
     },
     "packages/app-v3": {
-      "entry": [
-        "public/theme-preload.js",
-        "integration/**/*.test.ts",
-        "e2e/server.ts",
-        "src/components/{ui,ai-elements}/**/*.tsx",
-      ],
+      "entry": ["integration/**/*.test.ts", "e2e/server.ts", "src/components/{ui,ai-elements}/**/*.tsx"],
     },
     "packages/protocol": {
       "entry": ["**/*.test.{ts,tsx}"],

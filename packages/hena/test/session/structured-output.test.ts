@@ -224,6 +224,7 @@ describe("structured-output.createStructuredOutputTool", () => {
     expect(tool.execute).toBeDefined()
     const testArgs = { name: "Test Company" }
     const result = await tool.execute!(testArgs, {
+      context: {},
       toolCallId: "test-call-id",
       messages: [],
       abortSignal: undefined as any,
@@ -305,6 +306,7 @@ describe("structured-output.createStructuredOutputTool", () => {
     const validResult = await tool.execute!(
       { user: { name: "John", email: "john@test.com" } },
       {
+        context: {},
         toolCallId: "test-call-id",
         messages: [],
         abortSignal: undefined as any,
@@ -344,6 +346,7 @@ describe("structured-output.createStructuredOutputTool", () => {
     const validResult = await tool.execute!(
       { tags: ["a", "b", "c"] },
       {
+        context: {},
         toolCallId: "test-call-id",
         messages: [],
         abortSignal: undefined as any,

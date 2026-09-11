@@ -271,7 +271,7 @@ describe("non-identifier property names render as quoted keys", () => {
   test("Effect Schema structs with non-identifier field names quote too", () => {
     const tool = Tool.make({
       description: "Schema tool with awkward field names",
-      input: Schema.Struct({ "foo-bar": Schema.String, plain: Schema.optionalKey(Schema.Number) }),
+      input: Schema.Struct({ "foo-bar": Schema.String, plain: Schema.optionalKey(Schema.Finite) }),
       run: () => Effect.succeed(null),
     })
     expect(inputTypeScript(tool)).toBe('{ "foo-bar": string; plain?: number }')

@@ -30,6 +30,17 @@ import { LayerNodePlatform } from "@hena/core/effect/app-node-platform"
 
 type ConfigModel = NonNullable<NonNullable<ConfigV1.Info["provider"]>[string]["models"]>[string]
 
+const performance = {
+  effectiveOutputTokensPerSecond: 0,
+  outputTokensPerSecond: undefined,
+  inputTokensPerSecond: undefined,
+  effectiveTotalTokensPerSecond: 0,
+  stepTimeMs: 0,
+  responseTimeMs: 0,
+  toolExecutionMs: {},
+  timeToFirstOutputMs: undefined,
+}
+
 const openAIConfig = (model: ModelsDev.Provider["models"][string], baseURL: string): Partial<ConfigV1.Info> => {
   const { experimental: _experimental, ...configModel } = model
   return {
@@ -219,6 +230,7 @@ describe("session.llm.ai-sdk adapter", () => {
       },
       {
         type: "finish-step",
+        performance,
         response: { id: "response-1", timestamp: new Date(0), modelId: "gpt-test" },
         finishReason: "other",
         rawFinishReason: "other",
@@ -239,8 +251,6 @@ describe("session.llm.ai-sdk adapter", () => {
           inputTokens: 11,
           outputTokens: 6,
           totalTokens: 17,
-          cachedInputTokens: 4,
-          reasoningTokens: 2,
           inputTokenDetails: { noCacheTokens: 7, cacheReadTokens: 4, cacheWriteTokens: undefined },
           outputTokenDetails: { textTokens: 4, reasoningTokens: 2 },
         },
@@ -363,6 +373,7 @@ describe("session.llm.ai-sdk adapter", () => {
     const events = await adapt([
       {
         type: "finish-step",
+        performance,
         response: { id: "response-1", timestamp: new Date(0), modelId: "gpt-test" },
         finishReason: "stop",
         rawFinishReason: "stop",
@@ -371,8 +382,6 @@ describe("session.llm.ai-sdk adapter", () => {
           inputTokens: undefined,
           outputTokens: undefined,
           totalTokens: undefined,
-          reasoningTokens: undefined,
-          cachedInputTokens: undefined,
           inputTokenDetails: { noCacheTokens: undefined, cacheReadTokens: undefined, cacheWriteTokens: undefined },
           outputTokenDetails: { textTokens: undefined, reasoningTokens: undefined },
         },
@@ -405,6 +414,7 @@ describe("session.llm.ai-sdk adapter", () => {
       uncheckedAdapterEvent({ type: "reasoning-end" }),
       {
         type: "finish-step",
+        performance,
         response: { id: "r1", timestamp: new Date(0), modelId: "gpt-test" },
         finishReason: "stop",
         rawFinishReason: "stop",
@@ -455,6 +465,7 @@ describe("session.llm.ai-sdk adapter", () => {
     const events = await adapt([
       {
         type: "finish-step",
+        performance,
         response: { id: "msg_test", timestamp: new Date(0), modelId: "claude-3-5-sonnet" },
         finishReason: "stop",
         rawFinishReason: "stop",
@@ -514,6 +525,7 @@ describe("session.llm.ai-sdk adapter", () => {
       }),
       {
         type: "finish-step",
+        performance,
         response: { id: "msg_test", timestamp: new Date(0), modelId: "claude-sonnet-4.6" },
         finishReason: "stop",
         rawFinishReason: "end_turn",
@@ -528,6 +540,7 @@ describe("session.llm.ai-sdk adapter", () => {
       },
       {
         type: "finish-step",
+        performance,
         response: { id: "msg_follow_up", timestamp: new Date(0), modelId: "claude-sonnet-4.6" },
         finishReason: "stop",
         rawFinishReason: "end_turn",
@@ -1981,8 +1994,7 @@ describe("session.llm.stream", () => {
         const capture = yield* Effect.promise(() => request)
         const body = capture.body
         const config = body.generationConfig as
-          | { temperature?: number; topP?: number; maxOutputTokens?: number }
-          | undefined
+          { temperature?: number; topP?: number; maxOutputTokens?: number } | undefined
 
         expect(capture.url.pathname).toBe(pathSuffix)
         expect(body.contents).toEqual([{ role: "user", parts: [{ text: "Hello" }] }])

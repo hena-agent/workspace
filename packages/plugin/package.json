@@ -21,7 +21,7 @@
     "dist"
   ],
   "dependencies": {
-    "@ai-sdk/provider": "3.0.15",
+    "@ai-sdk/provider": "4.0.13",
     "@hena/sdk": "workspace:*",
     "effect": "catalog:",
     "zod": "catalog:"

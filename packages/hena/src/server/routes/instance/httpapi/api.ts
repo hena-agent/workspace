@@ -25,6 +25,7 @@ import { SessionApi } from "./groups/session"
 import { SyncApi } from "./groups/sync"
 import { WorkspaceApi } from "./groups/workspace"
 import { makeApi } from "@hena/protocol/api"
+import { makeEventSchema } from "@hena/protocol/groups/event"
 import { LocationMiddleware } from "@hena/server/location"
 import { SessionLocationMiddleware } from "@hena/server/middleware/session-location"
 import { GlobalApi } from "./groups/global"
@@ -82,6 +83,7 @@ export const HenaHttpApi = HttpApi.make("hena")
   .addHttpApi(PtyConnectApi)
   .annotate(HttpApi.AdditionalSchemas, [
     EventSchema,
+    makeEventSchema(EventManifest.Latest.values().toArray()),
     Question.Replied,
     Question.Rejected,
     Credential.Value,

@@ -12,7 +12,7 @@ export const log = {
 }
 
 const optional = <Value>(result: Value | symbol) => {
-  if (prompts.isCancel(result)) return Option.none<Value>()
+  if (typeof result === "symbol") return Option.none<Value>()
   return Option.some(result)
 }
 

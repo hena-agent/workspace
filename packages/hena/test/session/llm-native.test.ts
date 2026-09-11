@@ -154,6 +154,22 @@ const expectOpenAIResponsesRequest = (input: {
   })
 
 describe("session.llm-native.request", () => {
+  test.each([
+    "data:image/png;base64,Zm9v",
+    { type: "url", url: new URL("data:image/png;base64,Zm9v") },
+    { type: "data", data: "Zm9v" },
+  ] as const)("accepts legacy and tagged AI SDK file data: %j", (data) => {
+    const request = LLMNative.request({
+      model: baseModel,
+      messages: [{ role: "user", content: [{ type: "file", mediaType: "image/png", data }] }],
+    })
+    expect(request.messages[0].content[0]).toMatchObject({
+      type: "media",
+      mediaType: "image/png",
+      data: typeof data === "object" && data.type === "data" ? "Zm9v" : "data:image/png;base64,Zm9v",
+    })
+  })
+
   test("maps normalized stream inputs to a native LLM request", () => {
     const messages: ModelMessage[] = [
       {

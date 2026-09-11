@@ -1,0 +1,108 @@
+diff --git a/dist/cjs/index.cjs b/dist/cjs/index.cjs
+index d60f3c7bd03767a5bd28ac5df68e4b83fb6ac77a..ba450895b4e022fef9898d60a7da579cafcd4f7e 100644
+--- a/dist/cjs/index.cjs
++++ b/dist/cjs/index.cjs
+@@ -745,17 +745,20 @@ class Virtualizer {
+         this.getMeasurements(),
+         this.getSize(),
+         this.getScrollOffset(),
+-        this.options.lanes
++        this.options.lanes,
++        this.options.paddingEnd
+       ],
+-      (measurements, outerSize, scrollOffset, lanes) => {
++      (measurements, outerSize, scrollOffset, lanes, _paddingEnd) => {
+         if (measurements.length === 0 || outerSize === 0) {
+           this.range = null;
+           return null;
+         }
++        const maxScrollOffset = Math.max(this.options.scrollMargin + this.getTotalSize() - outerSize, 0);
++        const effectiveScrollOffset = Math.min(Math.max(scrollOffset, 0), maxScrollOffset);
+         this.range = calculateRangeImpl(
+           measurements,
+           outerSize,
+-          scrollOffset,
++          effectiveScrollOffset,
+           lanes,
+           // Pass the typed array so binary search + forward-walk can read
+           // start/end directly from Float64Array, skipping the Proxy traps.
+diff --git a/dist/cjs/index.d.cts b/dist/cjs/index.d.cts
+index 65a9f161a8da0d68890fcbaaeb257c518243e9e9..99143f8d9c0753a1f69fe964b2967154cf79c8d2 100644
+--- a/dist/cjs/index.d.cts
++++ b/dist/cjs/index.d.cts
+@@ -146,7 +146,7 @@ export declare class Virtualizer<TScrollElement extends Element | Window, TItemE
+             startIndex: number;
+             endIndex: number;
+         } | null;
+-        updateDeps(newDeps: [VirtualItem[], number, number, number]): void;
++        updateDeps(newDeps: [VirtualItem[], number, number, number, number]): void;
+     };
+     getVirtualIndexes: {
+         (): number[];
+diff --git a/dist/esm/index.d.ts b/dist/esm/index.d.ts
+index ce156f1b346b1ee44988e299ba4ec74be384bfba..ee18a531bc9cfc7fbbf0baf02c846c650ef1670c 100644
+--- a/dist/esm/index.d.ts
++++ b/dist/esm/index.d.ts
+@@ -146,7 +146,7 @@ export declare class Virtualizer<TScrollElement extends Element | Window, TItemE
+             startIndex: number;
+             endIndex: number;
+         } | null;
+-        updateDeps(newDeps: [VirtualItem[], number, number, number]): void;
++        updateDeps(newDeps: [VirtualItem[], number, number, number, number]): void;
+     };
+     getVirtualIndexes: {
+         (): number[];
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index e4547ec39057bdbed965d4417e242c592a194c94..ea7e854526a20edbdc4f0cd63db8f24a7cbaac9f 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -743,17 +743,20 @@ class Virtualizer {
+         this.getMeasurements(),
+         this.getSize(),
+         this.getScrollOffset(),
+-        this.options.lanes
++        this.options.lanes,
++        this.options.paddingEnd
+       ],
+-      (measurements, outerSize, scrollOffset, lanes) => {
++      (measurements, outerSize, scrollOffset, lanes, _paddingEnd) => {
+         if (measurements.length === 0 || outerSize === 0) {
+           this.range = null;
+           return null;
+         }
++        const maxScrollOffset = Math.max(this.options.scrollMargin + this.getTotalSize() - outerSize, 0);
++        const effectiveScrollOffset = Math.min(Math.max(scrollOffset, 0), maxScrollOffset);
+         this.range = calculateRangeImpl(
+           measurements,
+           outerSize,
+-          scrollOffset,
++          effectiveScrollOffset,
+           lanes,
+           // Pass the typed array so binary search + forward-walk can read
+           // start/end directly from Float64Array, skipping the Proxy traps.
+diff --git a/src/index.ts b/src/index.ts
+index 55c276edfa77aff12e23aa47cd0db65851642bdc..6500a3b45465d9c6fa569f6dd8ea62deb98cde6b 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1477,16 +1477,19 @@ export class Virtualizer<
+       this.getSize(),
+       this.getScrollOffset(),
+       this.options.lanes,
++      this.options.paddingEnd,
+     ],
+-    (measurements, outerSize, scrollOffset, lanes) => {
++    (measurements, outerSize, scrollOffset, lanes, _paddingEnd) => {
+       if (measurements.length === 0 || outerSize === 0) {
+         this.range = null
+         return null
+       }
++      const maxScrollOffset = Math.max(this.options.scrollMargin + this.getTotalSize() - outerSize, 0)
++      const effectiveScrollOffset = Math.min(Math.max(scrollOffset, 0), maxScrollOffset)
+       this.range = calculateRangeImpl(
+         measurements,
+         outerSize,
+-        scrollOffset,
++        effectiveScrollOffset,
+         lanes,
+         // Pass the typed array so binary search + forward-walk can read
+         // start/end directly from Float64Array, skipping the Proxy traps.

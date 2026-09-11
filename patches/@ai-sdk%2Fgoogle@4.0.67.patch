@@ -1,0 +1,43 @@
+diff --git a/dist/index.js b/dist/index.js
+index 57935386580d89db62c1154c36b052a922d73ef6..a9436427862f254e45d9f2dfc8061303912b6904 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -981,6 +981,9 @@ function convertToGoogleMessages(prompt, options) {
+             }
+           }).filter((part) => part !== void 0)
+         });
++        if (contents[contents.length - 1].parts.length === 0) {
++          contents.pop();
++        }
+         break;
+       }
+       case "tool": {
+diff --git a/dist/internal/index.js b/dist/internal/index.js
+index 0118f59eb18c8e6f5e07ca7f1bdbd93e0a29fa02..32305dc194cac433516bd5091f77ccf36ad4a60f 100644
+--- a/dist/internal/index.js
++++ b/dist/internal/index.js
+@@ -701,6 +701,9 @@ function convertToGoogleMessages(prompt, options) {
+             }
+           }).filter((part) => part !== void 0)
+         });
++        if (contents[contents.length - 1].parts.length === 0) {
++          contents.pop();
++        }
+         break;
+       }
+       case "tool": {
+diff --git a/src/convert-to-google-messages.ts b/src/convert-to-google-messages.ts
+index 5196aee66aa27dfb5c4f764c380177b4deadec57..0a9751c1431db0d0b81adb35cc818e4f8d6babe1 100644
+--- a/src/convert-to-google-messages.ts
++++ b/src/convert-to-google-messages.ts
+@@ -543,6 +543,10 @@ export function convertToGoogleMessages(
+             })
+             .filter(part => part !== undefined),
+         });
++        // Gemini rejects model entries whose text and reasoning were all filtered out.
++        if (contents[contents.length - 1].parts.length === 0) {
++          contents.pop();
++        }
+ 
+         break;
+       }

@@ -267,6 +267,9 @@ export function toLLMEvents(
     case "abort":
     case "source":
     case "file":
+    case "reasoning-file":
+    case "custom":
+    case "tool-approval-response":
     case "tool-output-denied":
     case "tool-approval-request":
       return Effect.succeed([])

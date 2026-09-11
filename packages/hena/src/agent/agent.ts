@@ -23,7 +23,8 @@ import { Skill } from "../skill"
 import { Effect, Context, Layer, Schema } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import * as Option from "effect/Option"
-import * as OtelTracer from "@effect/opentelemetry/Tracer"
+import { OtelTracer } from "@effect/opentelemetry/OtelTracer"
+import { OpenTelemetry } from "@ai-sdk/otel"
 import { AbsolutePath, type DeepMutable } from "@hena/core/schema"
 import { ProviderV2 } from "@hena/core/provider"
 import { ModelV2 } from "@hena/core/model"
@@ -374,7 +375,7 @@ const layer = Layer.effect(
         const resolved = yield* provider.getModel(model.providerID, model.modelID)
         const language = yield* provider.getLanguage(resolved)
         const tracer = cfg.experimental?.openTelemetry
-          ? Option.getOrUndefined(yield* Effect.serviceOption(OtelTracer.OtelTracer))
+          ? Option.getOrUndefined(yield* Effect.serviceOption(OtelTracer))
           : undefined
 
         const system = [PROMPT_GENERATE]
@@ -386,23 +387,21 @@ const layer = Layer.effect(
         const isOpenaiOauth = model.providerID === "openai" && authInfo?.type === "oauth"
 
         const params = {
-          experimental_telemetry: {
-            isEnabled: cfg.experimental?.openTelemetry,
-            tracer,
-            metadata: {
-              userId: cfg.username ?? "unknown",
-            },
+          telemetry: {
+            isEnabled: cfg.experimental?.openTelemetry ?? false,
+            integrations: cfg.experimental?.openTelemetry
+              ? new OpenTelemetry({ tracer, enrichSpan: () => ({ "user.id": cfg.username ?? "unknown" }) })
+              : [],
           },
+          allowSystemInMessages: true,
           temperature: 0.3,
           messages: [
             ...(isOpenaiOauth
               ? []
-              : system.map(
-                  (item): ModelMessage => ({
-                    role: "system",
-                    content: item,
-                  }),
-                )),
+              : system.map((item): ModelMessage => ({
+                  role: "system",
+                  content: item,
+                }))),
             {
               role: "user",
               content: `Create an agent configuration based on this request: "${input.description}".\n\nIMPORTANT: The following identifiers already exist and must NOT be used: ${existing.map((i) => i.name).join(", ")}\n  Return ONLY the JSON object, no other text, do not wrap in backticks`,

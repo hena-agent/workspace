@@ -31,6 +31,7 @@ type OpenApiSpec = {
 
 type OpenApiSchema = {
   $ref?: string
+  contentSchema?: OpenApiSchema
   additionalProperties?: OpenApiSchema | boolean
   allOf?: OpenApiSchema[]
   anyOf?: OpenApiSchema[]
@@ -96,6 +97,9 @@ function matchLegacyOpenApi(input: Record<string, unknown>) {
     spec.components!.schemas![name] = stripOptionalNull(structuredClone(schema))
   }
   normalizeComponentNames(spec)
+  if (spec.components?.schemas?.V2EventStream) {
+    spec.components.schemas.V2EventStream.contentSchema = { $ref: "#/components/schemas/V2Event" }
+  }
   collapseDuplicateComponents(spec)
   applyLegacySchemaOverrides(spec)
   normalizeComponentDescriptions(spec)
@@ -112,7 +116,11 @@ function matchLegacyOpenApi(input: Record<string, unknown>) {
         // Keep that SDK surface stable while the HttpApi spec is tightened.
         if (!isV2Api) delete operation.requestBody.required
         const body = operation.requestBody.content?.["application/json"]
-        if (body?.schema) body.schema = stripOptionalNull(structuredClone(body.schema))
+        if (body?.schema) {
+          const ref = body.schema.$ref?.replace("#/components/schemas/", "")
+          const schema = ref && /^Objects\d+$/.test(ref) ? spec.components?.schemas?.[ref] : undefined
+          body.schema = stripOptionalNull(structuredClone(schema ?? body.schema))
+        }
         if (path === "/experimental/workspace" && method === "post") {
           // Workspace creation fields `branch` and `extra` are Schema.NullOr —
           // genuinely nullable, not just optional. Re-add the null that the
@@ -170,7 +178,12 @@ function matchLegacyOpenApi(input: Record<string, unknown>) {
         }
       }
       const route = `${method.toUpperCase()} ${path}`
-      for (const param of operation.parameters ?? []) normalizeParameter(param, route)
+      for (const param of operation.parameters ?? []) {
+        const ref = param.schema?.$ref?.replace("#/components/schemas/", "")
+        const schema = ref ? spec.components?.schemas?.[ref] : undefined
+        if (ref && /^Union_?\d*$/.test(ref) && schema?.type === "string") param.schema = structuredClone(schema)
+        normalizeParameter(param, route)
+      }
     }
   }
   deleteUnusedLegacyErrorComponents(spec)
@@ -239,7 +252,14 @@ function normalizeComponentNames(spec: OpenApiSpec) {
       if (stableSchema(schemas[name], schemas) === stableSchema(schemas[next], schemas)) {
         rewriteRefs(spec, name, next)
         delete schemas[name]
+        continue
       }
+      let suffix = 1
+      while (schemas[`${next}${suffix}`]) suffix++
+      const unique = `${next}${suffix}`
+      schemas[unique] = schemas[name]
+      rewriteRefs(spec, name, unique)
+      delete schemas[name]
       continue
     }
     schemas[next] = schemas[name]
@@ -249,6 +269,7 @@ function normalizeComponentNames(spec: OpenApiSpec) {
 }
 
 function componentTypeName(name: string) {
+  name = name.replace(/_(\d+)$/, "$1").replace(/Encoded(\d*)$/, "$1")
   if (!name.includes(".")) return name
   return name
     .split(".")

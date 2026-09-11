@@ -9,7 +9,7 @@ import { Npm } from "@hena/core/npm"
 import { Hash } from "@hena/core/util/hash"
 import { Plugin } from "../plugin"
 import { serviceUse } from "@hena/core/effect/service-use"
-import { type LanguageModelV3 } from "@ai-sdk/provider"
+import { type LanguageModelV3, type LanguageModelV4 } from "@ai-sdk/provider"
 import { ModelsDev } from "@hena/core/models-dev"
 import { Auth } from "../auth"
 import { Env } from "../env"
@@ -100,9 +100,9 @@ function googleVertexAnthropicBaseURL(project: string | undefined, location: str
 }
 
 type BundledSDK = {
-  languageModel(modelId: string): LanguageModelV3
-  chat?: (modelId: string) => LanguageModelV3
-  responses?: (modelId: string) => LanguageModelV3
+  languageModel(modelId: string): LanguageModelV3 | LanguageModelV4
+  chat?: (modelId: string) => LanguageModelV3 | LanguageModelV4
+  responses?: (modelId: string) => LanguageModelV3 | LanguageModelV4
 }
 
 const BUNDLED_PROVIDERS: Record<string, () => Promise<(opts: any) => BundledSDK>> = {
@@ -1070,7 +1070,7 @@ export function defaultModelIDs<T extends { models: Record<string, { id: string 
   return mapValues(providers, (item) => sort(Object.values(item.models))[0].id)
 }
 
-export class ModelNotFoundError extends Schema.TaggedErrorClass<ModelNotFoundError>()("ProviderModelNotFoundError", {
+export class ModelNotFoundError extends Schema.TaggedError<ModelNotFoundError>()("ProviderModelNotFoundError", {
   providerID: ProviderV2.ID,
   modelID: ModelV2.ID,
   suggestions: Schema.optional(Schema.Array(Schema.String)),
@@ -1086,7 +1086,7 @@ export class ModelNotFoundError extends Schema.TaggedErrorClass<ModelNotFoundErr
   }
 }
 
-export class InitError extends Schema.TaggedErrorClass<InitError>()("ProviderInitError", {
+export class InitError extends Schema.TaggedError<InitError>()("ProviderInitError", {
   providerID: ProviderV2.ID,
   cause: Schema.optional(Schema.Defect()),
 }) {
@@ -1099,7 +1099,7 @@ export class InitError extends Schema.TaggedErrorClass<InitError>()("ProviderIni
   }
 }
 
-export class NoProvidersError extends Schema.TaggedErrorClass<NoProvidersError>()("ProviderNoProvidersError", {}) {
+export class NoProvidersError extends Schema.TaggedError<NoProvidersError>()("ProviderNoProvidersError", {}) {
   override get message() {
     return "No providers are available"
   }
@@ -1109,7 +1109,7 @@ export class NoProvidersError extends Schema.TaggedErrorClass<NoProvidersError>(
   }
 }
 
-export class NoModelsError extends Schema.TaggedErrorClass<NoModelsError>()("ProviderNoModelsError", {
+export class NoModelsError extends Schema.TaggedError<NoModelsError>()("ProviderNoModelsError", {
   providerID: ProviderV2.ID,
 }) {
   override get message() {
@@ -1128,7 +1128,7 @@ export interface Interface {
   readonly list: () => Effect.Effect<Record<ProviderV2.ID, Info>>
   readonly getProvider: (providerID: ProviderV2.ID) => Effect.Effect<Info>
   readonly getModel: (providerID: ProviderV2.ID, modelID: ModelV2.ID) => Effect.Effect<Model, ModelNotFoundError>
-  readonly getLanguage: (model: Model) => Effect.Effect<LanguageModelV3, ModelNotFoundError>
+  readonly getLanguage: (model: Model) => Effect.Effect<LanguageModelV3 | LanguageModelV4, ModelNotFoundError>
   readonly closest: (
     providerID: ProviderV2.ID,
     query: string[],
@@ -1138,7 +1138,7 @@ export interface Interface {
 }
 
 interface State {
-  models: Map<string, LanguageModelV3>
+  models: Map<string, LanguageModelV3 | LanguageModelV4>
   providers: Record<ProviderV2.ID, Info>
   catalog: Record<ProviderV2.ID, Info>
   sdk: Map<string, BundledSDK>
@@ -1323,7 +1323,7 @@ const layer = Layer.effect(
         const database = mapValues(catalog, toPublicInfo)
 
         const providers: Record<ProviderV2.ID, Info> = {} as Record<ProviderV2.ID, Info>
-        const languages = new Map<string, LanguageModelV3>()
+        const languages = new Map<string, LanguageModelV3 | LanguageModelV4>()
         const modelLoaders: {
           [providerID: string]: CustomModelLoader
         } = {}

@@ -40,6 +40,11 @@ const execution = Layer.succeed(
       Effect.sync(() => {
         wakeCalls.push(sessionID)
       }),
+    mutate: (_sessionID, effect) => effect,
+    serialize: (sessionID, effect) =>
+      Effect.sync(() => {
+        interruptCalls.push(sessionID)
+      }).pipe(Effect.andThen(effect)),
   }),
 )
 const it = testEffect(

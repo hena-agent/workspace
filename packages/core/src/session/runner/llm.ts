@@ -172,10 +172,15 @@ const layer = Layer.effect(
     const continueAfterOverflowCompaction = (step: number) =>
       new TurnTransitionError({ _tag: "ContinueAfterOverflowCompaction", step })
 
-    const loadSystemContext = (agent: AgentV2.Selection) =>
-      Effect.all([systemContext.load(), skillGuidance.load(agent), referenceGuidance.load()], {
+    const loadSystemContext = (agent: AgentV2.Selection, chat: boolean) => {
+      if (chat)
+        return systemContext
+          .load((key) => ChatPolicy.contextEntries.has(key))
+          .pipe(Effect.map((context) => SystemContext.filter(context, (key) => ChatPolicy.context.has(key))))
+      return Effect.all([systemContext.load(), skillGuidance.load(agent), referenceGuidance.load()], {
         concurrency: "unbounded",
       }).pipe(Effect.map(SystemContext.combine))
+    }
 
     const runTurnAttempt = Effect.fn("SessionRunner.runTurn")(function* (
       sessionID: SessionSchema.ID,
@@ -192,8 +197,9 @@ const layer = Layer.effect(
         .where(eq(ProjectTable.id, session.projectID))
         .get()
         .pipe(Effect.orDie)
+      const chat = project?.mode === "chat"
       const agent = yield* agents.select(session.agent)
-      const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent), session.id)
+      const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent, chat), session.id)
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()
       let needsContinuation = false
       let currentStep = step
@@ -208,7 +214,7 @@ const layer = Layer.effect(
         if (promoted > 0) currentStep = 1
       }
       const system =
-        initialized ?? (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent), session.id))
+        initialized ?? (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent, chat), session.id))
       const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
@@ -216,12 +222,18 @@ const layer = Layer.effect(
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
       const toolMaterialization = isLastStep
         ? undefined
-        : yield* tools.materialize(agent.info?.permissions, project?.mode === "chat" ? ChatPolicy.tools : undefined)
+        : yield* tools.materialize(agent.info?.permissions, chat ? ChatPolicy.tools : undefined)
       const promptCacheKey = /^ses_[0-9a-f]{64}$/.test(session.id) ? session.id.slice(4) : session.id
       const request = LLM.request({
         model,
         providerOptions: { openai: { promptCacheKey } },
-        system: [agent.info?.system, system.baseline, project?.mode === "chat" ? ChatPolicy.system : undefined]
+        system: [
+          chat && agent.id === AgentV2.defaultID && agent.info?.system === AgentV2.defaultSystem
+            ? undefined
+            : agent.info?.system,
+          system.baseline,
+          chat ? ChatPolicy.system : undefined,
+        ]
           .filter((part): part is string => part !== undefined && part.length > 0)
           .map(SystemPart.make),
         messages: [...toLLMMessages(context, model), ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : [])],

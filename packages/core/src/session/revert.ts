@@ -4,10 +4,13 @@ import { and, asc, eq, gt } from "drizzle-orm"
 import { DateTime, Effect, Schema } from "effect"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
+import { ModelV2 } from "../model"
 import { RelativePath } from "../schema"
 import { Snapshot } from "../snapshot"
 import { SessionEvent } from "./event"
 import { SessionMessage } from "./message"
+import { SessionInput } from "./input"
+import { Prompt } from "./prompt"
 import { SessionSchema } from "./schema"
 import { SessionMessageTable } from "./sql"
 
@@ -27,12 +30,12 @@ interface BoundaryInput {
 const plan = Effect.fn("SessionRevert.plan")(function* (input: BoundaryInput) {
   const db = (yield* Database.Service).db
   const boundary = yield* db
-    .select({ seq: SessionMessageTable.seq })
+    .select({ seq: SessionMessageTable.seq, type: SessionMessageTable.type })
     .from(SessionMessageTable)
     .where(and(eq(SessionMessageTable.session_id, input.sessionID), eq(SessionMessageTable.id, input.messageID)))
     .get()
     .pipe(Effect.orDie)
-  if (!boundary) return yield* new MessageNotFoundError(input)
+  if (!boundary || boundary.type !== "user") return yield* new MessageNotFoundError(input)
   const rows = yield* db
     .select()
     .from(SessionMessageTable)
@@ -62,19 +65,29 @@ export const stage = Effect.fn("SessionRevert.stage")(function* (input: {
   readonly messageID: SessionMessage.ID
   readonly files?: boolean
 }) {
-  const snapshot = yield* Snapshot.Service
   const events = yield* EventV2.Service
+  const next = yield* plan({ sessionID: input.session.id, messageID: input.messageID })
+  if (input.files === false) {
+    const revert = { messageID: input.messageID } satisfies SessionSchema.Info["revert"]
+    yield* events.publish(SessionEvent.RevertEvent.Staged, {
+      sessionID: input.session.id,
+      timestamp: yield* DateTime.now,
+      revert,
+    })
+    return revert
+  }
+
+  const snapshot = yield* Snapshot.Service
   const original = input.session.revert?.snapshot
     ? Snapshot.ID.make(input.session.revert.snapshot)
     : yield* snapshot.capture()
-  const next = yield* plan({ sessionID: input.session.id, messageID: input.messageID })
   const restore = new Map<RelativePath, Snapshot.ID>()
   if (original) {
     for (const file of input.session.revert?.files ?? []) restore.set(file.path, original)
   }
-  if (input.files !== false) for (const [file, tree] of next) restore.set(file, tree)
+  for (const [file, tree] of next) restore.set(file, tree)
   if (restore.size) yield* snapshot.restore({ files: restore })
-  const paths = input.files === false ? [] : Array.from(next.keys())
+  const paths = Array.from(next.keys())
   const files = original
     ? yield* snapshot.diff({ from: original, to: (yield* snapshot.capture()) ?? original, paths })
     : []
@@ -97,12 +110,13 @@ export const stage = Effect.fn("SessionRevert.stage")(function* (input: {
 
 export const clear = Effect.fn("SessionRevert.clear")(function* (session: SessionSchema.Info) {
   if (!session.revert) return
-  const snapshot = yield* Snapshot.Service
   const original = session.revert.snapshot ? Snapshot.ID.make(session.revert.snapshot) : undefined
-  if (original)
+  if (original) {
+    const snapshot = yield* Snapshot.Service
     yield* snapshot.restore({
       files: new Map((session.revert.files ?? []).map((file) => [file.path, original])),
     })
+  }
   const events = yield* EventV2.Service
   yield* events.publish(SessionEvent.RevertEvent.Cleared, {
     sessionID: session.id,
@@ -110,12 +124,33 @@ export const clear = Effect.fn("SessionRevert.clear")(function* (session: Sessio
   })
 })
 
-export const commit = Effect.fn("SessionRevert.commit")(function* (session: SessionSchema.Info) {
+export const commit = Effect.fn("SessionRevert.commit")(function* (
+  session: SessionSchema.Info,
+  replacement?: {
+    readonly messageID: SessionMessage.ID
+    readonly prompt: Prompt
+    readonly delivery: SessionInput.Delivery
+    readonly agent: string
+    readonly model: ModelV2.Ref
+  },
+) {
   if (!session.revert) return
   const events = yield* EventV2.Service
-  yield* events.publish(SessionEvent.RevertEvent.Committed, {
+  const timestamp = yield* DateTime.now
+  const event = yield* events.publish(SessionEvent.RevertEvent.Committed, {
     sessionID: session.id,
     messageID: session.revert.messageID,
-    timestamp: yield* DateTime.now,
+    timestamp,
+    replacement,
   })
+  if (!replacement) return
+  if (!event.durable) return yield* Effect.die("Durable Session event is missing aggregate sequence")
+  return {
+    admittedSeq: event.durable.seq,
+    id: replacement.messageID,
+    sessionID: session.id,
+    prompt: replacement.prompt,
+    delivery: replacement.delivery,
+    timeCreated: timestamp,
+  }
 })

@@ -1,6 +1,6 @@
 export * as SessionProjector from "./projector"
 
-import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gte, gt, inArray, isNull, or, sql } from "drizzle-orm"
 import { DateTime, Effect, Layer, Schema } from "effect"
 import { Database } from "../database/database"
 import { EventV2 } from "../event"
@@ -513,7 +513,7 @@ const layer = Layer.effectDiscard(
     yield* events.project(SessionEvent.RevertEvent.Committed, (event) =>
       Effect.gen(function* () {
         const boundary = yield* db
-          .select({ seq: SessionMessageTable.seq })
+          .select({ seq: SessionMessageTable.seq, type: SessionMessageTable.type })
           .from(SessionMessageTable)
           .where(
             and(
@@ -523,11 +523,12 @@ const layer = Layer.effectDiscard(
           )
           .get()
           .pipe(Effect.orDie)
-        if (!boundary) return yield* Effect.die(`Revert boundary message not found: ${event.data.messageID}`)
+        if (!boundary || boundary.type !== "user")
+          return yield* Effect.die(`Revert boundary user message not found: ${event.data.messageID}`)
         yield* db
           .delete(SessionMessageTable)
           .where(
-            and(eq(SessionMessageTable.session_id, event.data.sessionID), gt(SessionMessageTable.seq, boundary.seq)),
+            and(eq(SessionMessageTable.session_id, event.data.sessionID), gte(SessionMessageTable.seq, boundary.seq)),
           )
           .run()
           .pipe(Effect.orDie)
@@ -536,17 +537,33 @@ const layer = Layer.effectDiscard(
           .where(
             and(
               eq(SessionInputTable.session_id, event.data.sessionID),
-              or(gt(SessionInputTable.admitted_seq, boundary.seq), gt(SessionInputTable.promoted_seq, boundary.seq)),
+              gte(SessionInputTable.promoted_seq, boundary.seq),
             ),
           )
           .run()
           .pipe(Effect.orDie)
         yield* db
           .update(SessionTable)
-          .set({ revert: null, time_updated: DateTime.toEpochMillis(event.data.timestamp) })
+          .set({
+            revert: null,
+            agent: event.data.replacement?.agent,
+            model: event.data.replacement?.model,
+            time_updated: DateTime.toEpochMillis(event.data.timestamp),
+          })
           .where(eq(SessionTable.id, event.data.sessionID))
           .run()
           .pipe(Effect.orDie)
+        if (event.data.replacement) {
+          if (!event.durable) return yield* Effect.die("Durable Session event is missing aggregate sequence")
+          yield* SessionInput.projectAdmitted(db, {
+            admittedSeq: event.durable.seq,
+            id: event.data.replacement.messageID,
+            sessionID: event.data.sessionID,
+            prompt: event.data.replacement.prompt,
+            delivery: event.data.replacement.delivery,
+            timeCreated: event.data.timestamp,
+          })
+        }
         yield* SessionContextEpoch.reset(db, event.data.sessionID)
         yield* incrementQueueRevision(db, event.data.sessionID)
       }),

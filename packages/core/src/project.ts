@@ -72,7 +72,7 @@ const layer = Layer.effect(
       const directory = AbsolutePath.make(path.join(projects, id))
       yield* fs.makeDirectory(directory, { recursive: true, mode: 0o700 }).pipe(Effect.orDie)
       if (process.platform !== "win32") yield* fs.chmod(directory, 0o700).pipe(Effect.orDie)
-      return { id, directory }
+      return { id, directory: AbsolutePath.make(yield* fs.resolve(directory)) }
     })
 
     const createChat = Effect.fn("Project.createChat")(function* (input) {
@@ -156,9 +156,10 @@ const layer = Layer.effect(
     })
 
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
-      const managedID = path.relative(projects, input).split(path.sep)[0]
+      const managedRoot = yield* fs.resolve(projects)
+      const managedID = path.relative(managedRoot, yield* fs.resolve(input)).split(path.sep)[0]
       if (managedID && ID.isManaged(managedID)) {
-        return { id: ID.make(managedID), directory: AbsolutePath.make(path.join(projects, managedID)) }
+        return { id: ID.make(managedID), directory: AbsolutePath.make(path.join(managedRoot, managedID)) }
       }
       const attached = yield* projectDirectories.attached(input)
       if (attached) {

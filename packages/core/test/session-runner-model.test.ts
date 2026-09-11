@@ -1,8 +1,8 @@
 import { describe, expect } from "bun:test"
-import { LLM } from "@hena/llm"
+import { LLM, Message, ToolCallPart } from "@hena/llm"
 import { LLMClient } from "@hena/llm/route"
 import { DateTime, Effect } from "effect"
-import { Headers } from "effect/unstable/http"
+import { Headers, HttpClientRequest } from "effect/unstable/http"
 import { Credential } from "@hena/core/credential"
 import { Integration } from "@hena/core/integration"
 import { ModelV2 } from "@hena/core/model"
@@ -275,7 +275,8 @@ describe("SessionRunnerModel", () => {
         }),
         Credential.Key.make({ type: "key", key: "secret" }),
       )
-      const request = LLM.request({ model: resolved, prompt: "Hello" })
+      const request = LLM.request({ model: resolved, prompt: "Hello", generation: { maxTokens: 12 } })
+      const prepared = yield* LLMClient.prepare<Record<string, unknown>>(request)
       const headers = yield* resolved.route.auth.apply({
         request,
         method: "POST",
@@ -285,6 +286,110 @@ describe("SessionRunnerModel", () => {
       })
 
       expect(headers.authorization).toBe("Bearer secret")
+      expect(prepared.body.max_output_tokens).toBe(12)
+    }),
+  )
+
+  it.effect("routes ChatGPT OAuth through Codex without changing Responses request semantics", () =>
+    Effect.gen(function* () {
+      const resolved = yield* SessionRunnerModel.fromCatalogModel(
+        ModelV2.Info.make({
+          ...model({ type: "aisdk", package: "@ai-sdk/openai", url: "https://api.openai.com/v1" }),
+          providerID: ProviderV2.ID.openai,
+          request: { headers: {}, body: {} },
+        }),
+        Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("chatgpt-browser"),
+          access: "oauth-access",
+          refresh: "oauth-refresh",
+          expires: Date.now() + 60_000,
+          metadata: { accountID: "account-id" },
+        }),
+      )
+      const request = LLM.request({
+        model: resolved,
+        system: "System instructions",
+        messages: [
+          Message.user("Use the tool"),
+          Message.assistant([ToolCallPart.make({ id: "call_1", name: "lookup", input: {} })]),
+          Message.tool({ id: "call_1", name: "lookup", result: { value: "result" } }),
+          Message.user("Continue"),
+        ],
+        generation: { maxTokens: 12, temperature: 0.2, topP: 0.8 },
+      })
+      const prepared = yield* LLMClient.prepare<Record<string, unknown>>(request)
+      const transport = yield* resolved.route.prepareTransport(
+        prepared.body,
+        LLM.updateRequest(request, { http: resolved.route.defaults.http }),
+      )
+      const web = yield* HttpClientRequest.toWeb(transport.request).pipe(Effect.orDie)
+
+      expect(resolved.route.id).toBe("openai-codex-responses")
+      expect(web.url).toBe("https://chatgpt.com/backend-api/codex/responses")
+      expect(web.headers.get("authorization")).toBe("Bearer oauth-access")
+      expect(web.headers.get("ChatGPT-Account-ID")).toBe("account-id")
+      expect(prepared.body).toMatchObject({
+        store: false,
+        stream: true,
+        instructions: "System instructions",
+        temperature: 0.2,
+        top_p: 0.8,
+        input: [
+          { role: "user", content: [{ type: "input_text", text: "Use the tool" }] },
+          { type: "function_call", call_id: "call_1", name: "lookup" },
+          { type: "function_call_output", call_id: "call_1" },
+          { role: "user", content: [{ type: "input_text", text: "Continue" }] },
+        ],
+      })
+      expect(prepared.body).not.toHaveProperty("max_output_tokens")
+    }),
+  )
+
+  it.effect("keeps custom OpenAI OAuth proxy URLs", () =>
+    Effect.gen(function* () {
+      const resolved = yield* SessionRunnerModel.fromCatalogModel(
+        ModelV2.Info.make({
+          ...model({ type: "aisdk", package: "@ai-sdk/openai", url: "https://proxy.example/v1" }),
+          providerID: ProviderV2.ID.openai,
+          request: { headers: {}, body: {} },
+        }),
+        Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("chatgpt-browser"),
+          access: "oauth-access",
+          refresh: "oauth-refresh",
+          expires: Date.now() + 60_000,
+        }),
+      )
+
+      expect(resolved.route.id).toBe("openai-codex-responses")
+      expect(resolved.route.endpoint.baseURL).toBe("https://proxy.example/v1")
+    }),
+  )
+
+  it.effect("applies imported Anthropic auth tokens as private authorization headers", () =>
+    Effect.gen(function* () {
+      const resolved = yield* SessionRunnerModel.fromCatalogModel(
+        ModelV2.Info.make({
+          ...model({ type: "aisdk", package: "@ai-sdk/anthropic", url: "https://anthropic.example/v1" }),
+          request: { headers: {}, body: {} },
+        }),
+        Credential.withCompatibility(Credential.Key.make({ type: "key", key: "" }), {
+          authorizationOnly: true,
+          headers: { Authorization: "Bearer imported-auth-token" },
+        }),
+      )
+      const headers = yield* resolved.route.auth.apply({
+        request: LLM.request({ model: resolved, prompt: "Hello" }),
+        method: "POST",
+        url: "https://anthropic.example/v1/messages",
+        body: "{}",
+        headers: Headers.fromInput(resolved.route.defaults.headers),
+      })
+
+      expect(headers.authorization).toBe("Bearer imported-auth-token")
+      expect(headers["x-api-key"]).toBeUndefined()
     }),
   )
 

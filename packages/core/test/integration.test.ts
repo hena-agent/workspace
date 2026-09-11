@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Duration, Effect, Exit, Fiber, Scope, Stream } from "effect"
+import { Clock, Duration, Effect, Exit, Fiber, Scope, Stream } from "effect"
 import * as TestClock from "effect/testing/TestClock"
 import { Credential } from "@hena/core/credential"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
@@ -346,4 +346,196 @@ describe("Integration", () => {
         }),
     )
   })
+
+  it.effect("resolves read-only compatibility keys and only enables OAuth with a refresh handler", () => {
+    const keyID = Credential.ID.make("opencode:custom")
+    const oauthID = Credential.ID.make("opencode:openai")
+    const unsupportedID = Credential.ID.make("opencode:unsupported")
+    const oauthMethod = Integration.MethodID.make("chatgpt-browser")
+    const unsupportedMethod = Integration.MethodID.make("oauth")
+    const values = new Map<Credential.ID, Credential.Value>([
+      [keyID, Credential.Key.make({ type: "key", key: "test-key" })],
+      [
+        oauthID,
+        Credential.OAuth.make({
+          type: "oauth",
+          methodID: oauthMethod,
+          access: "expired-access",
+          refresh: "refresh-token",
+          expires: 0,
+        }),
+      ],
+      [
+        unsupportedID,
+        Credential.OAuth.make({
+          type: "oauth",
+          methodID: unsupportedMethod,
+          access: "unsupported-access",
+          refresh: "unsupported-refresh",
+          expires: 0,
+        }),
+      ],
+    ])
+    const compatibility = {
+      list: () =>
+        Effect.succeed([
+          { id: keyID, integrationID: Integration.ID.make("custom"), label: "OpenCode", type: "key" as const },
+          {
+            id: oauthID,
+            integrationID: Integration.ID.make("openai"),
+            label: "OpenCode",
+            type: "oauth" as const,
+            methodID: oauthMethod,
+          },
+          {
+            id: unsupportedID,
+            integrationID: Integration.ID.make("unsupported"),
+            label: "OpenCode",
+            type: "oauth" as const,
+            methodID: unsupportedMethod,
+          },
+        ]),
+      resolve: (id: Credential.ID) => Effect.succeed(values.get(id)),
+      update: (id: Credential.ID, value: Credential.Value) => Effect.sync(() => void values.set(id, value)),
+    }
+
+    return Effect.gen(function* () {
+      const integrations = yield* Integration.Service
+      yield* integrations.compatibility(compatibility)
+      yield* integrations.transform((editor) => {
+        editor.update(Integration.ID.make("custom"), () => {})
+        editor.update(Integration.ID.make("unsupported"), () => {})
+        editor.method.update({
+          integrationID: Integration.ID.make("openai"),
+          method: { id: oauthMethod, type: "oauth", label: "ChatGPT" },
+          authorize: () => Effect.die("not used"),
+          refresh: () =>
+            Effect.succeed(
+              Credential.OAuth.make({
+                type: "oauth",
+                methodID: oauthMethod,
+                access: "refreshed-access",
+                refresh: "refreshed-token",
+                expires: Date.now() + 3_600_000,
+              }),
+            ),
+        })
+      })
+
+      const custom = yield* integrations.connection.active(Integration.ID.make("custom"))
+      expect(custom && (yield* integrations.connection.resolve(custom))).toEqual(
+        Credential.Key.make({ type: "key", key: "test-key" }),
+      )
+      expect((yield* integrations.get(Integration.ID.make("unsupported")))?.connections).toEqual([])
+
+      const openai = yield* integrations.connection.active(Integration.ID.make("openai"))
+      expect(openai && (yield* integrations.connection.resolve(openai))).toMatchObject({
+        type: "oauth",
+        access: "refreshed-access",
+      })
+      expect(values.get(oauthID)).toMatchObject({ access: "refreshed-access" })
+    })
+  })
+
+  it.effect("resolves an unexpired stored OAuth token without a refresh implementation", () =>
+    Effect.gen(function* () {
+      const integrations = yield* Integration.Service
+      const credentials = yield* Credential.Service
+      const integrationID = Integration.ID.make("oauth-valid")
+      const methodID = Integration.MethodID.make("oauth")
+      const credential = yield* credentials.create({
+        integrationID,
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID,
+          access: "valid-access",
+          refresh: "",
+          expires: (yield* Clock.currentTimeMillis) + 1,
+        }),
+      })
+
+      expect(
+        yield* integrations.connection.resolve({ type: "credential", id: credential.id, label: credential.label }),
+      ).toEqual(credential.value)
+    }),
+  )
+
+  it.effect("rejects an expired stored OAuth token without a refresh implementation", () =>
+    Effect.gen(function* () {
+      const integrations = yield* Integration.Service
+      const credentials = yield* Credential.Service
+      const integrationID = Integration.ID.make("oauth-expired")
+      const methodID = Integration.MethodID.make("oauth")
+      const credential = yield* credentials.create({
+        integrationID,
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID,
+          access: "expired-access",
+          refresh: "",
+          expires: yield* Clock.currentTimeMillis,
+        }),
+      })
+
+      expect(
+        yield* integrations.connection
+          .resolve({ type: "credential", id: credential.id, label: credential.label })
+          .pipe(Effect.flip),
+      ).toBeInstanceOf(Integration.AuthorizationError)
+    }),
+  )
+
+  it.effect("refreshes stored OAuth tokens within five minutes of expiry", () =>
+    Effect.gen(function* () {
+      const integrations = yield* Integration.Service
+      const credentials = yield* Credential.Service
+      const integrationID = Integration.ID.make("oauth-refresh")
+      const methodID = Integration.MethodID.make("oauth")
+      const now = yield* Clock.currentTimeMillis
+      let refreshes = 0
+      yield* integrations.transform((editor) =>
+        editor.method.update({
+          integrationID,
+          method: { id: methodID, type: "oauth", label: "OAuth" },
+          authorize: () => Effect.die("not used"),
+          refresh: () =>
+            Effect.sync(() => {
+              refreshes++
+              return Credential.OAuth.make({
+                type: "oauth",
+                methodID,
+                access: "refreshed-access",
+                refresh: "refresh-token",
+                expires: now + Duration.toMillis(Duration.hours(1)),
+              })
+            }),
+        }),
+      )
+      const credential = yield* credentials.create({
+        integrationID,
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID,
+          access: "valid-access",
+          refresh: "refresh-token",
+          expires: now + Duration.toMillis(Duration.minutes(6)),
+        }),
+      })
+      const connection = { type: "credential" as const, id: credential.id, label: credential.label }
+
+      expect(yield* integrations.connection.resolve(connection)).toMatchObject({ access: "valid-access" })
+      expect(refreshes).toBe(0)
+      yield* credentials.update(credential.id, {
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID,
+          access: "valid-access",
+          refresh: "refresh-token",
+          expires: now + Duration.toMillis(Duration.minutes(5)),
+        }),
+      })
+      expect(yield* integrations.connection.resolve(connection)).toMatchObject({ access: "refreshed-access" })
+      expect(refreshes).toBe(1)
+    }),
+  )
 })

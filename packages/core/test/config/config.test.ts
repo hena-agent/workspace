@@ -4,6 +4,7 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
 import { FastCheck } from "effect/testing"
 import { Config } from "@hena/core/config"
+import { Credential } from "@hena/core/credential"
 import { ConfigProvider } from "@hena/core/config/provider"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
@@ -206,6 +207,125 @@ describe("Config", () => {
           }).pipe(Effect.provide(testLayer(tmp.path)))
         }),
       ),
+    ),
+  )
+
+  it.live("loads OpenCode provider config as a lower-priority fallback without exposing its API key", () =>
+    Effect.acquireRelease(
+      Effect.promise(() => tmpdir()),
+      (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
+    ).pipe(
+      Effect.flatMap((tmp) =>
+        Effect.gen(function* () {
+          yield* Effect.promise(() =>
+            Promise.all([
+              fs.writeFile(
+                path.join(tmp.path, "opencode.jsonc"),
+                JSON.stringify({
+                  provider: {
+                    custom: {
+                      npm: "@ai-sdk/openai-compatible",
+                      options: {
+                        apiKey: "test-key",
+                        baseURL: "https://legacy.example/v1",
+                        headers: { "x-safe": "safe", "x-api-key": "header-test-key" },
+                        timeout: 1000,
+                      },
+                      models: {
+                        chat: {
+                          options: {
+                            apiKey: "model-test-key",
+                            headers: { Authorization: "Bearer model-header-test-key" },
+                            reasoningEffort: "high",
+                          },
+                        },
+                      },
+                    },
+                    unsupported: {
+                      npm: "@ai-sdk/openai-compatible",
+                      options: { baseURL: "https://unsupported.example/v1", clientSecret: "unsupported-test-key" },
+                      models: { chat: {} },
+                    },
+                  },
+                }),
+              ),
+              fs.writeFile(
+                path.join(tmp.path, "hena.json"),
+                JSON.stringify({ providers: { custom: { name: "Hena override" } } }),
+              ),
+            ]),
+          )
+
+          return yield* Effect.gen(function* () {
+            const config = yield* Config.Service
+            const documents = (yield* config.entries()).filter((entry) => entry.type === "document")
+            const legacy = documents.find((document) => document.path?.endsWith("opencode.jsonc"))
+
+            expect(documents.map((document) => document.info.providers?.custom?.name).filter(Boolean)).toEqual([
+              "Hena override",
+            ])
+            expect(legacy?.info.providers?.custom).toMatchObject({
+              api: {
+                type: "aisdk",
+                package: "@ai-sdk/openai-compatible",
+                url: "https://legacy.example/v1",
+                settings: { timeout: 1000 },
+              },
+              request: { headers: undefined },
+              models: { chat: { request: { body: { reasoning_effort: "high" } } } },
+            })
+            expect(JSON.stringify(legacy?.info)).not.toContain("test-key")
+            expect(legacy?.info.providers?.unsupported).toBeUndefined()
+
+            const reference = (yield* config.credential!.list())[0]
+            expect(reference).toMatchObject({ integrationID: "custom", type: "key", label: "OpenCode" })
+            expect(reference && (yield* config.credential!.resolve(reference.id))).toEqual(
+              expect.objectContaining({ type: "key", key: "test-key" }),
+            )
+          }).pipe(Effect.provide(testLayer(tmp.path)))
+        }),
+      ),
+    ),
+  )
+
+  it.live("keeps legacy OpenCode and Hena auth content out of config documents", () =>
+    Effect.acquireUseRelease(
+      Effect.sync(() => {
+        const previous = {
+          opencode: process.env.OPENCODE_AUTH_CONTENT,
+          hena: process.env.HENA_AUTH_CONTENT,
+        }
+        process.env.OPENCODE_AUTH_CONTENT = JSON.stringify({ custom: { type: "api", key: "opencode-auth-test-key" } })
+        process.env.HENA_AUTH_CONTENT = JSON.stringify({ custom: { type: "api", key: "hena-auth-test-key" } })
+        return previous
+      }),
+      () =>
+        Effect.acquireRelease(
+          Effect.promise(() => tmpdir()),
+          (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
+        ).pipe(
+          Effect.flatMap((tmp) =>
+            Effect.gen(function* () {
+              const config = yield* Config.Service
+              const entries = yield* config.entries()
+
+              expect(JSON.stringify(entries)).not.toContain("opencode-auth-test-key")
+              expect(JSON.stringify(entries)).not.toContain("hena-auth-test-key")
+              const reference = (yield* config.credential!.list())[0]
+              expect(reference).toMatchObject({ integrationID: "custom", type: "key", label: "Hena" })
+              expect(reference && (yield* config.credential!.resolve(reference.id))).toEqual(
+                Credential.Key.make({ type: "key", key: "hena-auth-test-key" }),
+              )
+            }).pipe(Effect.provide(testLayer(tmp.path))),
+          ),
+        ),
+      (previous) =>
+        Effect.sync(() => {
+          if (previous.opencode === undefined) delete process.env.OPENCODE_AUTH_CONTENT
+          else process.env.OPENCODE_AUTH_CONTENT = previous.opencode
+          if (previous.hena === undefined) delete process.env.HENA_AUTH_CONTENT
+          else process.env.HENA_AUTH_CONTENT = previous.hena
+        }),
     ),
   )
 

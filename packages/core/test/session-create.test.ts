@@ -21,6 +21,7 @@ import { SessionProjector } from "@hena/core/session/projector"
 import { SessionExecution } from "@hena/core/session/execution"
 import { SessionInput } from "@hena/core/session/input"
 import { SessionEvent } from "@hena/core/session/event"
+import { SessionMessage } from "@hena/core/session/message"
 import { SessionInputTable, SessionTable } from "@hena/core/session/sql"
 import { SessionStore } from "@hena/core/session/store"
 import { WorkspaceV2 } from "@hena/core/workspace"
@@ -176,7 +177,7 @@ describe("SessionV2.create", () => {
           projectID: created.projectID,
           directory: created.location.directory,
           title: "updated",
-          agent: "build",
+          agent: AgentV2.ID.make("build"),
           time: { created: 0, updated: 1 },
         }),
       })
@@ -519,6 +520,188 @@ describe("SessionV2.create", () => {
             Effect.map((error) => error._tag),
           ),
       ).toBe("Session.NotFoundError")
+    }),
+  )
+})
+
+describe("SessionV2.revert", () => {
+  it.effect("stages chat transcript boundaries without snapshots and commits the suffix", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const { db } = yield* Database.Service
+      const projectID = ProjectV2.ID.make("prj_revert")
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: projectID, worktree: AbsolutePath.make("/tmp"), mode: "chat", sandboxes: [] })
+        .run()
+      const info = yield* session.create({ id: SessionV2.ID.make("ses_revert"), projectID })
+
+      const admit = Effect.fn("test.admit")(function* (text: string) {
+        const admitted = yield* session.prompt({
+          sessionID: info.id,
+          prompt: { text },
+          resume: false,
+        })
+        yield* events.publish(SessionEvent.Prompted, {
+          sessionID: info.id,
+          messageID: admitted.id,
+          timestamp: admitted.timeCreated,
+          prompt: admitted.prompt,
+          delivery: admitted.delivery,
+        })
+        return admitted
+      })
+
+      const first = yield* admit("first")
+      const second = yield* admit("second")
+      const pending = yield* session.prompt({
+        sessionID: info.id,
+        prompt: { text: "pending" },
+        delivery: "queue",
+        resume: false,
+      })
+
+      yield* session.revert.stage({ sessionID: info.id, messageID: second.id, files: false })
+      expect((yield* session.get(info.id)).revert).toEqual({ messageID: second.id })
+      expect((yield* session.messages({ sessionID: info.id })).map((message) => message.id)).toEqual([second.id, first.id])
+
+      yield* session.revert.clear(info.id)
+      expect((yield* session.get(info.id)).revert).toBeUndefined()
+
+      yield* session.revert.stage({ sessionID: info.id, messageID: second.id, files: false })
+      const failedReplacement = yield* session.revert
+        .replace({
+          sessionID: info.id,
+          messageID: second.id,
+          id: SessionMessage.ID.create(),
+          prompt: { text: "replacement" },
+          agent: AgentV2.ID.make("build"),
+          model: ModelV2.Ref.make({
+            id: ModelV2.ID.make("missing"),
+            providerID: ProviderV2.ID.make("missing"),
+          }),
+        })
+        .pipe(Effect.flip)
+      expect(failedReplacement._tag).toBe("SessionRunnerModel.ModelUnavailableError")
+      expect((yield* session.get(info.id)).revert).toEqual({ messageID: second.id })
+      expect((yield* session.messages({ sessionID: info.id })).map((message) => message.id)).toEqual([
+        second.id,
+        first.id,
+      ])
+      yield* session.revert.commit(info.id)
+      expect((yield* session.messages({ sessionID: info.id })).map((message) => message.id)).toEqual([first.id])
+      expect((yield* SessionInput.find(db, first.id))?.promotedSeq).toBeDefined()
+      expect(yield* SessionInput.find(db, second.id)).toBeUndefined()
+      expect(yield* SessionInput.find(db, pending.id)).toEqual(pending)
+      expect(
+        yield* session.revert
+          .replace({
+            sessionID: info.id,
+            messageID: second.id,
+            id: pending.id,
+            prompt: { text: "pending" },
+            delivery: "queue",
+            agent: AgentV2.ID.make("build"),
+            model: ModelV2.Ref.make({
+              id: ModelV2.ID.make("missing"),
+              providerID: ProviderV2.ID.make("missing"),
+            }),
+          })
+          .pipe(Effect.flip, Effect.map((error) => error._tag)),
+      ).toBe("Session.RevertConflictError")
+    }),
+  )
+
+  it.effect("rejects a non-user boundary when snapshots are disabled", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const { db } = yield* Database.Service
+      const projectID = ProjectV2.ID.make("prj_revert_boundary")
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: projectID, worktree: AbsolutePath.make("/tmp"), mode: "chat", sandboxes: [] })
+        .run()
+      const info = yield* session.create({ id: SessionV2.ID.make("ses_revert_boundary"), projectID })
+      const prompt = yield* session.prompt({ sessionID: info.id, prompt: { text: "prompt" }, resume: false })
+      yield* events.publish(SessionEvent.Prompted, {
+        sessionID: info.id,
+        messageID: prompt.id,
+        timestamp: prompt.timeCreated,
+        prompt: prompt.prompt,
+        delivery: prompt.delivery,
+      })
+      const assistant = SessionMessage.ID.create()
+      yield* events.publish(SessionEvent.Step.Started, {
+        sessionID: info.id,
+        assistantMessageID: assistant,
+        timestamp: prompt.timeCreated,
+        agent: "build",
+        model: ModelV2.Ref.make({ id: ModelV2.ID.make("model"), providerID: ProviderV2.ID.make("provider") }),
+      })
+
+      expect(
+        yield* session.revert
+          .stage({ sessionID: info.id, messageID: assistant, files: false })
+          .pipe(Effect.flip, Effect.map((error) => error._tag)),
+      ).toBe("Session.MessageNotFoundError")
+      expect((yield* session.get(info.id)).revert).toBeUndefined()
+    }),
+  )
+
+  it.effect("accepts a replacement retry only for its original revert boundary", () =>
+    Effect.gen(function* () {
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const { db } = yield* Database.Service
+      const projectID = ProjectV2.ID.make("prj_revert_retry")
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: projectID, worktree: AbsolutePath.make("/tmp"), mode: "chat", sandboxes: [] })
+        .run()
+      const info = yield* session.create({ id: SessionV2.ID.make("ses_revert_retry"), projectID })
+      const boundary = yield* session.prompt({ sessionID: info.id, prompt: { text: "original" }, resume: false })
+      yield* events.publish(SessionEvent.Prompted, {
+        sessionID: info.id,
+        messageID: boundary.id,
+        timestamp: boundary.timeCreated,
+        prompt: boundary.prompt,
+        delivery: boundary.delivery,
+      })
+      yield* session.revert.stage({ sessionID: info.id, messageID: boundary.id, files: false })
+      const replacementID = SessionMessage.ID.create()
+      const model = ModelV2.Ref.make({
+        id: ModelV2.ID.make("model"),
+        providerID: ProviderV2.ID.make("provider"),
+      })
+      yield* events.publish(SessionEvent.RevertEvent.Committed, {
+        sessionID: info.id,
+        messageID: boundary.id,
+        timestamp: boundary.timeCreated,
+        replacement: {
+          messageID: replacementID,
+          prompt: Prompt.make({ text: "replacement" }),
+          delivery: "steer",
+          agent: "build",
+          model,
+        },
+      })
+
+      const retry = {
+        sessionID: info.id,
+        messageID: boundary.id,
+        id: replacementID,
+        prompt: { text: "replacement" },
+        agent: AgentV2.ID.make("build"),
+        model,
+      }
+      expect(yield* session.revert.replace(retry)).toMatchObject({ id: replacementID, prompt: { text: "replacement" } })
+      expect(
+        yield* session.revert
+          .replace({ ...retry, messageID: SessionMessage.ID.create() })
+          .pipe(Effect.flip, Effect.map((error) => error._tag)),
+      ).toBe("Session.RevertConflictError")
     }),
   )
 })

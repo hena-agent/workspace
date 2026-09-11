@@ -191,6 +191,22 @@ export interface Interface extends State.Transformable<Draft> {
     /** Cancels an attempt and releases its resources. */
     readonly cancel: (attemptID: AttemptID) => Effect.Effect<void>
   }
+  /** Registers a location-scoped, read-only credential compatibility source. */
+  readonly compatibility: (source: CompatibilitySource) => Effect.Effect<void, never, Scope.Scope>
+}
+
+export type CompatibilityCredentialRef = {
+  readonly id: Credential.ID
+  readonly integrationID: ID
+  readonly label: string
+  readonly type: Credential.Value["type"]
+  readonly methodID?: MethodID
+}
+
+export type CompatibilitySource = {
+  readonly list: () => Effect.Effect<ReadonlyArray<CompatibilityCredentialRef>>
+  readonly resolve: (id: Credential.ID) => Effect.Effect<Credential.Value | undefined>
+  readonly update: (id: Credential.ID, value: Credential.Value) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@hena/v2/Integration") {}
@@ -225,6 +241,7 @@ export const locationLayer = Layer.effect(
     const events = yield* EventV2.Service
     const scope = yield* Scope.Scope
     const attempts = SynchronizedRef.makeUnsafe(new Map<AttemptID, AttemptEntry>())
+    const compatibility: { source?: CompatibilitySource } = {}
     const state = State.create<Data, Draft>({
       initial: () => ({ integrations: new Map<ID, Entry>() }),
       draft: (draft) => ({
@@ -285,7 +302,11 @@ export const locationLayer = Layer.effect(
       finalize: () => events.publish(Event.Updated, {}).pipe(Effect.asVoid),
     })
 
-    const resolveConnections = (entry: Entry | undefined, saved: readonly Credential.Info[]) => {
+    const resolveConnections = (
+      entry: Entry | undefined,
+      saved: readonly Credential.Info[],
+      legacy: readonly CompatibilityCredentialRef[],
+    ) => {
       const credentials = saved
         .map((credential) => ({
           type: "credential" as const,
@@ -297,7 +318,15 @@ export const locationLayer = Layer.effect(
         .filter((method) => method.type === "env")
         .flatMap((method) => method.names.filter((name) => process.env[name]))
         .map((name) => ({ type: "env" as const, name }))
-      return [...credentials, ...env]
+      const compatible = (saved.length ? [] : legacy)
+        .filter(
+          (credential) =>
+            credential.type === "key" ||
+            (credential.methodID !== undefined &&
+              entry?.implementations.get(credential.methodID)?.refresh !== undefined),
+        )
+        .map((credential) => ({ type: "credential" as const, id: credential.id, label: credential.label }))
+      return [...credentials, ...compatible, ...env]
     }
 
     const project = (entry: Entry, connections: IntegrationConnection.Info[]) =>
@@ -369,37 +398,85 @@ export const locationLayer = Layer.effect(
       get: Effect.fn("Integration.get")(function* (id) {
         const entry = state.get().integrations.get(id)
         if (!entry) return undefined
-        return project(entry, resolveConnections(entry, yield* credentials.list(id)))
+        return project(
+          entry,
+          resolveConnections(
+            entry,
+            yield* credentials.list(id),
+            (yield* compatibility.source?.list() ?? Effect.succeed([])).filter(
+              (credential) => credential.integrationID === id,
+            ),
+          ),
+        )
       }),
       list: Effect.fn("Integration.list")(function* () {
         const saved = Map.groupBy(yield* credentials.all(), (credential) => credential.integrationID)
+        const legacy = Map.groupBy(
+          yield* compatibility.source?.list() ?? Effect.succeed([]),
+          (credential) => credential.integrationID,
+        )
         return Array.from(state.get().integrations.values(), (entry) =>
-          project(entry, resolveConnections(entry, saved.get(entry.ref.id) ?? [])),
+          project(entry, resolveConnections(entry, saved.get(entry.ref.id) ?? [], legacy.get(entry.ref.id) ?? [])),
         ).toSorted((a, b) => a.name.localeCompare(b.name))
       }),
       connection: {
         active: Effect.fn("Integration.connection.active")(function* (id) {
           const entry = state.get().integrations.get(id)
-          return resolveConnections(entry, yield* credentials.list(id))[0]
+          return resolveConnections(
+            entry,
+            yield* credentials.list(id),
+            (yield* compatibility.source?.list() ?? Effect.succeed([])).filter(
+              (credential) => credential.integrationID === id,
+            ),
+          )[0]
         }),
         resolve: Effect.fn("Integration.connection.resolve")(function* (connection) {
           if (connection.type === "env") {
             const key = process.env[connection.name]
             return key ? Credential.Key.make({ type: "key", key }) : undefined
           }
-          const credential = yield* credentials.get(connection.id)
-          if (!credential) return undefined
-          if (credential.value.type === "key") return credential.value
-          const implementation = state
-            .get()
-            .integrations.get(credential.integrationID)
-            ?.implementations.get(credential.value.methodID)
-          if (!implementation?.refresh) return credential.value
+          const saved = yield* credentials.get(connection.id)
+          const legacy = saved
+            ? undefined
+            : (yield* compatibility.source?.list() ?? Effect.succeed([])).find(
+                (credential) => credential.id === connection.id,
+              )
+          const value =
+            saved?.value ??
+            (legacy ? yield* compatibility.source?.resolve(connection.id) ?? Effect.succeed(undefined) : undefined)
+          if (!value) return undefined
+          const integrationID = saved?.integrationID ?? legacy?.integrationID
+          if (!integrationID) return undefined
+          if (value.type === "key") {
+            if (value.key) return value
+            const name = state
+              .get()
+              .integrations.get(integrationID)
+              ?.methods.filter((method) => method.type === "env")
+              .flatMap((method) => method.names)
+              .find((name) => process.env[name])
+            const key = name && process.env[name]
+            const request = Credential.getCompatibility(value)
+            return key && request
+              ? Credential.withCompatibility(Credential.Key.make({ type: "key", key }), {
+                  ...request,
+                  authorizationOnly: undefined,
+                })
+              : value
+          }
+          const implementation = state.get().integrations.get(integrationID)?.implementations.get(value.methodID)
           const now = yield* Clock.currentTimeMillis
-          if (credential.value.expires > now + Duration.toMillis(Duration.minutes(5))) return credential.value
-          const value = yield* authorize(implementation.refresh(credential.value))
-          yield* credentials.update(credential.id, { value })
-          return value
+          if (!implementation?.refresh) {
+            if (value.expires > now) return value
+            return yield* new AuthorizationError({
+              cause: new Error("OAuth refresh is not supported for this connection"),
+            })
+          }
+          if (value.expires > now + Duration.toMillis(Duration.minutes(5))) return value
+          const refreshed = yield* authorize(implementation.refresh(value))
+          if (saved) yield* credentials.update(saved.id, { value: refreshed })
+          else yield* compatibility.source?.update(connection.id, refreshed) ?? Effect.void
+          return refreshed
         }),
         key: Effect.fn("Integration.connection.key")(function* (input) {
           const method = state
@@ -513,8 +590,37 @@ export const locationLayer = Layer.effect(
           if (attempt) yield* Scope.close(attempt.scope, Exit.void)
         }),
       },
+      compatibility: (source) =>
+        Effect.acquireRelease(
+          Effect.gen(function* () {
+            compatibility.source = source
+            const unsupported = (yield* source.list()).filter(
+              (credential) =>
+                credential.type === "oauth" &&
+                (credential.methodID === undefined ||
+                  state.get().integrations.get(credential.integrationID)?.implementations.get(credential.methodID)
+                    ?.refresh === undefined),
+            )
+            yield* Effect.forEach(
+              unsupported,
+              (credential) =>
+                Effect.logWarning(
+                  `Ignoring OpenCode OAuth credential for ${credential.integrationID}: no compatible refresh handler`,
+                ),
+              { discard: true },
+            )
+          }),
+          () =>
+            Effect.sync(() => {
+              if (compatibility.source === source) delete compatibility.source
+            }),
+        ),
     })
   }),
 )
 
-export const node = makeLocationNode({ service: Service, layer: locationLayer, deps: [Credential.node, EventV2.node] })
+export const node = makeLocationNode({
+  service: Service,
+  layer: locationLayer,
+  deps: [Credential.node, EventV2.node],
+})

@@ -461,7 +461,17 @@ export namespace RevertEvent {
   export const Committed = Event.define({
     type: "session.next.revert.committed",
     ...options,
-    schema: { ...Base, messageID: SessionMessage.ID },
+    schema: {
+      ...Base,
+      messageID: SessionMessage.ID,
+      replacement: Schema.Struct({
+        messageID: SessionMessage.ID,
+        prompt: Prompt,
+        delivery: Delivery,
+        agent: Schema.String,
+        model: Model.Ref,
+      }).pipe(optional),
+    },
   })
 }
 

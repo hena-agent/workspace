@@ -11,7 +11,7 @@ export interface Entry {
 
 export interface Interface {
   readonly register: (entry: Entry) => Effect.Effect<void, never, Scope.Scope>
-  readonly load: () => Effect.Effect<SystemContext.SystemContext>
+  readonly load: (predicate?: (key: SystemContext.Key) => boolean) => Effect.Effect<SystemContext.SystemContext>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@hena/v2/SystemContextRegistry") {}
@@ -36,8 +36,10 @@ const layer = Layer.effect(
           (entry) => Ref.update(entries, (current) => current.filter((item) => item !== entry)),
         )
       }),
-      load: Effect.fn("SystemContextRegistry.load")(function* () {
-        const current = (yield* Ref.get(entries)).toSorted((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+      load: Effect.fn("SystemContextRegistry.load")(function* (predicate) {
+        const current = (yield* Ref.get(entries))
+          .filter((entry) => predicate?.(entry.key) ?? true)
+          .toSorted((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
         return SystemContext.combine(
           yield* Effect.forEach(current, (entry) => entry.load, { concurrency: "unbounded" }),
         )

@@ -23,6 +23,7 @@ import { Reference } from "./reference"
 import { ServerEvent } from "./server-event"
 import { SessionCompactionEvent } from "./session-compaction-event"
 import { SessionEvent } from "./session-event"
+import { SessionExecutionEvent } from "./session-execution-event"
 import { SessionStatusEvent } from "./session-status-event"
 import { SessionTodo } from "./session-todo"
 import { SessionV1 } from "./session-v1"
@@ -33,7 +34,11 @@ import { WorktreeEvent } from "./worktree-event"
 const sessionV1DurableDefinitions = SessionV1.Event.Definitions.filter((definition) => definition.durable !== undefined)
 const sessionV1LiveDefinitions = SessionV1.Event.Definitions.filter((definition) => definition.durable === undefined)
 
-const coreDefinitions = Event.inventory(...sessionV1DurableDefinitions, ...SessionEvent.Definitions)
+const coreDefinitions = Event.inventory(
+  ...sessionV1DurableDefinitions,
+  ...SessionEvent.Definitions,
+  ...SessionExecutionEvent.Definitions,
+)
 
 const foundationDefinitions = Event.inventory(
   ...ModelsDev.Event.Definitions,

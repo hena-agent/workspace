@@ -98,7 +98,13 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* () {
           return {
             data: Object.fromEntries(
-              Array.from(yield* session.active, (sessionID) => [sessionID, { type: "running" as const }]),
+              Array.from(
+                yield* (session.status ??
+                  session.active.pipe(
+                    Effect.map((active) => new Map(Array.from(active, (sessionID) => [sessionID, { type: "running" as const }]))),
+                  )),
+                ([sessionID, status]) => [sessionID, status],
+              ),
             ),
           }
         }),
@@ -323,6 +329,39 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
             ),
           )
           return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.revert.replace",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session.revert.replace({ ...ctx.params, ...ctx.payload }).pipe(
+              Effect.catch((error) => {
+                const mapped: SessionNotFoundError | ConflictError =
+                  error._tag === "Session.NotFoundError"
+                    ? new SessionNotFoundError({
+                        sessionID: error.sessionID,
+                        message: `Session not found: ${error.sessionID}`,
+                      })
+                    : new ConflictError({
+                        resource: ctx.params.sessionID,
+                        message: error.message,
+                      })
+                return Effect.fail(mapped)
+              }),
+              Effect.catchDefect((cause) => {
+                const ref = `err_${crypto.randomUUID().slice(0, 8)}`
+                return Effect.logError("failed to replace session revert", { cause }).pipe(
+                  Effect.annotateLogs({ ref, sessionID: ctx.params.sessionID, messageID: ctx.payload.messageID }),
+                  Effect.andThen(
+                    Effect.fail(
+                      new UnknownError({ message: "Unexpected server error. Check server logs for details.", ref }),
+                    ),
+                  ),
+                )
+              }),
+            ),
+          }
         }),
       )
       .handle(

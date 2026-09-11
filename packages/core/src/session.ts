@@ -26,6 +26,7 @@ import { ProjectAttachState } from "./project/attach-state"
 import path from "path"
 import { fromRow } from "./session/info"
 import { SessionRunner } from "./session/runner/index"
+import { SessionRunnerModel } from "./session/runner/model"
 import { SessionStore } from "./session/store"
 import { SessionExecution } from "./session/execution"
 import { makeGlobalNode } from "./effect/app-node"
@@ -110,6 +111,10 @@ export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictE
   sessionID: SessionSchema.ID,
   messageID: SessionMessage.ID,
 }) {}
+export class RevertConflictError extends Schema.TaggedErrorClass<RevertConflictError>()("Session.RevertConflictError", {
+  sessionID: SessionSchema.ID,
+  messageID: SessionMessage.ID,
+}) {}
 export class AttachConflictError extends Schema.TaggedErrorClass<AttachConflictError>()("Session.AttachConflictError", {
   sessionID: SessionSchema.ID,
   projectID: ProjectV2.ID,
@@ -122,6 +127,7 @@ export type Error =
   | MessageDecodeError
   | OperationUnavailableError
   | PromptConflictError
+  | RevertConflictError
   | AttachConflictError
   | QueueRevisionConflictError
   | QueueStateConflictError
@@ -192,6 +198,7 @@ export interface Interface {
   readonly compact: (input: CompactInput) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly active: Effect.Effect<ReadonlySet<SessionSchema.ID>>
+  readonly status?: Effect.Effect<ReadonlyMap<SessionSchema.ID, SessionExecution.Status>>
   readonly wake: (sessionID: SessionSchema.ID) => Effect.Effect<void>
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
@@ -203,6 +210,18 @@ export interface Interface {
     }) => Effect.Effect<Revert.State, NotFoundError | MessageNotFoundError | Snapshot.Error>
     readonly clear: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | Snapshot.Error>
     readonly commit: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
+    readonly replace: (input: {
+      sessionID: SessionSchema.ID
+      messageID: SessionMessage.ID
+      id: SessionMessage.ID
+      prompt: PromptInput.Prompt
+      delivery?: SessionInput.Delivery
+      agent: AgentV2.ID
+      model: ModelV2.Ref
+    }) => Effect.Effect<
+      SessionInput.Admitted,
+      NotFoundError | RevertConflictError | PromptConflictError | SessionRunnerModel.Error
+    >
   }
 }
 
@@ -407,7 +426,8 @@ const layer = Layer.effect(
         })
       }),
       prompt: Effect.fn("V2Session.prompt")((input) =>
-        Effect.uninterruptible(
+        execution.mutate(
+          input.sessionID,
           Effect.gen(function* () {
             const session = yield* result.get(input.sessionID)
             const project = yield* db
@@ -488,28 +508,38 @@ const layer = Layer.effect(
         return yield* new OperationUnavailableError({ operation: "skill" })
       }),
       switchAgent: Effect.fn("V2Session.switchAgent")(function* (input) {
-        yield* result.get(input.sessionID)
-        yield* events.publish(SessionEvent.AgentSwitched, {
-          sessionID: input.sessionID,
-          messageID: SessionMessage.ID.create(),
-          timestamp: yield* DateTime.now,
-          agent: input.agent,
-        })
+        yield* execution.mutate(
+          input.sessionID,
+          Effect.gen(function* () {
+            yield* result.get(input.sessionID)
+            yield* events.publish(SessionEvent.AgentSwitched, {
+              sessionID: input.sessionID,
+              messageID: SessionMessage.ID.create(),
+              timestamp: yield* DateTime.now,
+              agent: input.agent,
+            })
+          }),
+        )
       }),
       switchModel: Effect.fn("V2Session.switchModel")(function* (input) {
-        const session = yield* result.get(input.sessionID)
-        if (
-          session.model?.providerID === input.model.providerID &&
-          session.model.id === input.model.id &&
-          (session.model.variant ?? "default") === (input.model.variant ?? "default")
+        yield* execution.mutate(
+          input.sessionID,
+          Effect.gen(function* () {
+            const session = yield* result.get(input.sessionID)
+            if (
+              session.model?.providerID === input.model.providerID &&
+              session.model.id === input.model.id &&
+              (session.model.variant ?? "default") === (input.model.variant ?? "default")
+            )
+              return
+            yield* events.publish(SessionEvent.ModelSwitched, {
+              sessionID: input.sessionID,
+              messageID: SessionMessage.ID.create(),
+              timestamp: yield* DateTime.now,
+              model: input.model,
+            })
+          }),
         )
-          return
-        yield* events.publish(SessionEvent.ModelSwitched, {
-          sessionID: input.sessionID,
-          messageID: SessionMessage.ID.create(),
-          timestamp: yield* DateTime.now,
-          model: input.model,
-        })
       }),
       compact: Effect.fn("V2Session.compact")(function* (input) {
         yield* result.get(input.sessionID)
@@ -520,33 +550,86 @@ const layer = Layer.effect(
         return yield* new OperationUnavailableError({ operation: "wait" })
       }),
       active: execution.active,
+      status: execution.status,
       wake: Effect.fn("V2Session.wake")((sessionID) => Effect.uninterruptible(execution.wake(sessionID))),
       resume: Effect.fn("V2Session.resume")(function* (sessionID) {
         yield* result.get(sessionID)
         yield* execution.resume(sessionID)
       }),
-      interrupt: Effect.fn("V2Session.interrupt")((sessionID) =>
-        Effect.uninterruptible(execution.interrupt(sessionID)),
-      ),
+      interrupt: Effect.fn("V2Session.interrupt")((sessionID) => execution.serialize(sessionID, Effect.void)),
       revert: {
         stage: Effect.fn("V2Session.revert.stage")(function* (input) {
-          const session = yield* result.get(input.sessionID)
-          return yield* SessionRevert.stage({ session, messageID: input.messageID, files: input.files }).pipe(
-            Effect.provideService(Database.Service, database),
-            Effect.provideService(EventV2.Service, events),
-            Effect.provide(locations.get(session.location)),
+          return yield* execution.serialize(
+            input.sessionID,
+            Effect.gen(function* () {
+              const session = yield* result.get(input.sessionID)
+              const operation = SessionRevert.stage({ session, messageID: input.messageID, files: input.files }).pipe(
+                Effect.provideService(Database.Service, database),
+                Effect.provideService(EventV2.Service, events),
+              )
+              if (input.files === false) return yield* operation.pipe(Effect.provide(Snapshot.noopLayer))
+              return yield* operation.pipe(Effect.provide(locations.get(session.location)))
+            }),
           )
         }),
         clear: Effect.fn("V2Session.revert.clear")(function* (sessionID) {
-          const session = yield* result.get(sessionID)
-          yield* SessionRevert.clear(session).pipe(
-            Effect.provideService(EventV2.Service, events),
-            Effect.provide(locations.get(session.location)),
+          yield* execution.serialize(
+            sessionID,
+            Effect.gen(function* () {
+              const session = yield* result.get(sessionID)
+              const operation = SessionRevert.clear(session).pipe(Effect.provideService(EventV2.Service, events))
+              if (!session.revert?.snapshot) return yield* operation.pipe(Effect.provide(Snapshot.noopLayer))
+              yield* operation.pipe(Effect.provide(locations.get(session.location)))
+            }),
           )
         }),
         commit: Effect.fn("V2Session.revert.commit")(function* (sessionID) {
-          const session = yield* result.get(sessionID)
-          yield* SessionRevert.commit(session).pipe(Effect.provideService(EventV2.Service, events))
+          yield* execution.serialize(
+            sessionID,
+            Effect.gen(function* () {
+              const session = yield* result.get(sessionID)
+              yield* SessionRevert.commit(session).pipe(Effect.provideService(EventV2.Service, events))
+            }),
+          )
+        }),
+        replace: Effect.fn("V2Session.revert.replace")(function* (input) {
+          return yield* execution.serialize(
+            input.sessionID,
+            Effect.gen(function* () {
+              const prompt = resolvePrompt(input.prompt)
+              const delivery = input.delivery ?? "steer"
+              const expected = { sessionID: input.sessionID, prompt, delivery }
+              const session = yield* result.get(input.sessionID)
+              if (!session.revert) {
+                const existing = yield* SessionInput.lookupReplacement(db, input.id)
+                if (
+                  existing?.boundary === input.messageID &&
+                  SessionInput.equivalent(existing.admitted, expected)
+                )
+                  return existing.admitted
+                return yield* new RevertConflictError({ sessionID: input.sessionID, messageID: input.messageID })
+              }
+              if (session.revert.messageID !== input.messageID)
+                return yield* new RevertConflictError({ sessionID: input.sessionID, messageID: input.messageID })
+              if (yield* SessionInput.lookup(db, input.id))
+                return yield* new PromptConflictError({ sessionID: input.sessionID, messageID: input.id })
+              yield* SessionRunnerModel.Service.pipe(
+                Effect.flatMap((models) => models.resolve({ ...session, agent: input.agent, model: input.model })),
+                Effect.asVoid,
+                Effect.provide(locations.get(session.location)),
+              )
+              const admitted = yield* SessionRevert.commit(session, {
+                messageID: input.id,
+                prompt,
+                delivery,
+                agent: input.agent,
+                model: input.model,
+              }).pipe(Effect.provideService(EventV2.Service, events))
+              if (!admitted) return yield* Effect.die("Replacement prompt was not admitted")
+              yield* execution.wake(input.sessionID)
+              return admitted
+            }),
+          )
         }),
       },
     })

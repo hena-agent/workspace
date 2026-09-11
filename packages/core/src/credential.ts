@@ -20,6 +20,45 @@ export type Key = Credential.Key
 export const Value = Credential.Value
 export type Value = Credential.Value
 
+const compatibilityKey = "__hena_legacy_provider"
+
+export type CompatibilityRequest = {
+  readonly headers?: Readonly<Record<string, string>>
+  readonly apiKey?: string
+  readonly authorizationOnly?: boolean
+}
+
+export type Compatibility = CompatibilityRequest & {
+  readonly models?: Readonly<Record<string, CompatibilityRequest>>
+}
+
+export function withCompatibility(value: Value, compatibility: Compatibility): Value {
+  return { ...value, metadata: { ...value.metadata, [compatibilityKey]: compatibility } }
+}
+
+export function getCompatibility(value: Value | undefined): Compatibility | undefined {
+  const compatibility = value?.metadata?.[compatibilityKey]
+  if (!isRecord(compatibility)) return
+  const models = isRecord(compatibility.models)
+    ? Object.fromEntries(
+        Object.entries(compatibility.models).flatMap(([id, request]) => {
+          const decoded = compatibilityRequest(request)
+          return decoded ? [[id, decoded]] : []
+        }),
+      )
+    : undefined
+  return {
+    ...compatibilityRequest(compatibility),
+    ...(models && Object.keys(models).length ? { models } : {}),
+  }
+}
+
+export function getRequestMetadata(value: Value | undefined) {
+  if (value?.type !== "key" || !value.metadata) return
+  const metadata = Object.fromEntries(Object.entries(value.metadata).filter(([key]) => key !== compatibilityKey))
+  return Object.keys(metadata).length ? metadata : undefined
+}
+
 export class Info extends Schema.Class<Info>("Credential.Info")({
   id: ID,
   integrationID: Integration.ID,
@@ -136,3 +175,21 @@ const layer = Layer.effect(
 )
 
 export const node = makeGlobalNode({ service: Service, layer, deps: [Database.node] })
+
+function compatibilityRequest(input: unknown): CompatibilityRequest | undefined {
+  if (!isRecord(input)) return
+  const headers = isRecord(input.headers)
+    ? Object.fromEntries(
+        Object.entries(input.headers).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+      )
+    : undefined
+  return {
+    ...(headers && Object.keys(headers).length ? { headers } : {}),
+    ...(typeof input.apiKey === "string" ? { apiKey: input.apiKey } : {}),
+    ...(input.authorizationOnly === true ? { authorizationOnly: true } : {}),
+  }
+}
+
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === "object" && input !== null && !Array.isArray(input)
+}

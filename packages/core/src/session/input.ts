@@ -1,6 +1,6 @@
 export * as SessionInput from "./input"
 
-import { and, asc, eq, isNull, lte, sql } from "drizzle-orm"
+import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm"
 import { DateTime, Effect, Schema } from "effect"
 import { Admitted, Delivery } from "@hena/schema/session-input"
 import type { Database } from "../database/database"
@@ -45,28 +45,62 @@ export const find = Effect.fn("SessionInput.find")(function* (db: DatabaseServic
   return row === undefined ? undefined : fromRow(row)
 })
 
-const findHistorical = Effect.fn("SessionInput.findHistorical")(function* (db: DatabaseService, id: SessionMessage.ID) {
+const findHistorical = Effect.fn("SessionInput.findHistorical")(function* (
+  db: DatabaseService,
+  id: SessionMessage.ID,
+  replacementOnly = false,
+) {
+  const admitted = and(
+    eq(EventTable.type, EventV2.versionedType(SessionEvent.PromptAdmitted.type, 1)),
+    eq(sql<string>`json_extract(${EventTable.data}, '$.messageID')`, id),
+  )
+  const replaced = and(
+    eq(EventTable.type, EventV2.versionedType(SessionEvent.RevertEvent.Committed.type, 1)),
+    eq(sql<string>`json_extract(${EventTable.data}, '$.replacement.messageID')`, id),
+  )
   const row = yield* db
     .select({ seq: EventTable.seq, data: EventTable.data })
     .from(EventTable)
-    .where(
-      and(
-        eq(EventTable.type, EventV2.versionedType(SessionEvent.PromptAdmitted.type, 1)),
-        eq(sql<string>`json_extract(${EventTable.data}, '$.messageID')`, id),
-      ),
-    )
+    .where(replacementOnly ? replaced : or(admitted, replaced))
     .get()
     .pipe(Effect.orDie)
   if (!row) return
-  const data = Schema.decodeUnknownSync(SessionEvent.PromptAdmitted.data)(row.data)
-  return Admitted.make({
-    admittedSeq: row.seq,
-    id: data.messageID,
-    sessionID: data.sessionID,
-    prompt: data.prompt,
-    delivery: data.delivery,
-    timeCreated: data.timestamp,
-  })
+  const raw = row.data as Record<string, unknown>
+  const committed = raw.replacement
+    ? Schema.decodeUnknownSync(SessionEvent.RevertEvent.Committed.data)(raw)
+    : undefined
+  const data = committed
+    ? committed.replacement && {
+        ...committed.replacement,
+        sessionID: committed.sessionID,
+        timestamp: committed.timestamp,
+      }
+    : Schema.decodeUnknownSync(SessionEvent.PromptAdmitted.data)(raw)
+  if (!data) return
+  return {
+    admitted: Admitted.make({
+      admittedSeq: row.seq,
+      id: data.messageID,
+      sessionID: data.sessionID,
+      prompt: data.prompt,
+      delivery: data.delivery,
+      timeCreated: data.timestamp,
+    }),
+    boundary: committed?.messageID,
+  }
+})
+
+export const lookup = Effect.fn("SessionInput.lookup")(function* (db: DatabaseService, id: SessionMessage.ID) {
+  return (yield* find(db, id)) ?? (yield* findHistorical(db, id))?.admitted
+})
+
+export const lookupReplacement = Effect.fn("SessionInput.lookupReplacement")(function* (
+  db: DatabaseService,
+  id: SessionMessage.ID,
+) {
+  const historical = yield* findHistorical(db, id, true)
+  if (!historical?.boundary) return
+  return { admitted: historical.admitted, boundary: historical.boundary }
 })
 
 export class LifecycleConflict extends Schema.TaggedErrorClass<LifecycleConflict>()("SessionInput.LifecycleConflict", {
@@ -89,7 +123,7 @@ export const admit = Effect.fn("SessionInput.admit")(function* (
     readonly delivery: Delivery
   },
 ) {
-  const existing = (yield* find(db, input.id)) ?? (yield* findHistorical(db, input.id))
+  const existing = yield* lookup(db, input.id)
   if (existing !== undefined) return existing
   const timestamp = yield* DateTime.now
   return yield* events

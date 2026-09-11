@@ -171,35 +171,36 @@ let systemBaseline = "Initial context"
 let systemRemoved = false
 let systemUnavailable = false
 let systemLoadHook = Effect.void
+let systemEntryLoads = 0
+let additionalSystemContext = SystemContext.empty
 const skillBaselines = new Map<AgentV2.ID, string>()
+let referenceBaseline: string | undefined
 const systemContext = Layer.effectDiscard(
-  SystemContextRegistry.Service.pipe(
-    Effect.flatMap((registry) =>
-      registry.register({
-        key: systemContextKey,
-        load: Effect.sync(() =>
-          SystemContext.combine(
-            systemRemoved
-              ? []
-              : [
-                  SystemContext.make({
-                    key: systemContextKey,
-                    codec: Schema.toCodecJson(Schema.String),
-                    load: systemLoadHook.pipe(
-                      Effect.andThen(
-                        Effect.sync(() => (systemUnavailable ? SystemContext.unavailable : systemBaseline)),
-                      ),
-                    ),
-                    baseline: String,
-                    update: (_previous, current) => current,
-                    removed: () => "System context source removed: test/context",
-                  }),
-                ],
-          ),
-        ),
+  Effect.gen(function* () {
+    const registry = yield* SystemContextRegistry.Service
+    yield* registry.register({
+      key: systemContextKey,
+      load: Effect.sync(() => {
+        systemEntryLoads++
+        return systemRemoved
+          ? SystemContext.empty
+          : SystemContext.make({
+              key: systemContextKey,
+              codec: Schema.toCodecJson(Schema.String),
+              load: systemLoadHook.pipe(
+                Effect.andThen(Effect.sync(() => (systemUnavailable ? SystemContext.unavailable : systemBaseline))),
+              ),
+              baseline: String,
+              update: (_previous, current) => current,
+              removed: () => "System context source removed: test/context",
+            })
       }),
-    ),
-  ),
+    })
+    yield* registry.register({
+      key: SystemContext.Key.make("core/builtins"),
+      load: Effect.sync(() => additionalSystemContext),
+    })
+  }),
 ).pipe(Layer.provideMerge(AppNodeBuilder.build(SystemContextRegistry.node)))
 const skillGuidance = Layer.mock(SkillGuidance.Service, {
   load: (agent) =>
@@ -216,7 +217,21 @@ const skillGuidance = Layer.mock(SkillGuidance.Service, {
         : SystemContext.empty,
     ),
 })
-const referenceGuidance = Layer.mock(ReferenceGuidance.Service, { load: () => Effect.succeed(SystemContext.empty) })
+const referenceGuidance = Layer.mock(ReferenceGuidance.Service, {
+  load: () =>
+    Effect.succeed(
+      referenceBaseline === undefined
+        ? SystemContext.empty
+        : SystemContext.make({
+            key: SystemContext.Key.make("test/reference-guidance"),
+            codec: Schema.toCodecJson(Schema.String),
+            load: Effect.succeed(referenceBaseline),
+            baseline: String,
+            update: (_previous, current) => current,
+            removed: () => "Reference guidance removed",
+          }),
+    ),
+})
 const config = Layer.succeed(
   Config.Service,
   Config.Service.of({
@@ -257,6 +272,8 @@ const execution = Layer.effect(
       resume: coordinator.run,
       wake: coordinator.wake,
       interrupt: coordinator.interrupt,
+      mutate: coordinator.mutate,
+      serialize: coordinator.serialize,
     })
   }),
 ).pipe(Layer.provide(runnerLayer))
@@ -326,9 +343,12 @@ const setup = Effect.gen(function* () {
   systemRemoved = false
   systemUnavailable = false
   systemLoadHook = Effect.void
+  systemEntryLoads = 0
+  additionalSystemContext = SystemContext.empty
   modelResolveHook = Effect.void
   currentModel = model
   skillBaselines.clear()
+  referenceBaseline = undefined
   responses = undefined
   streamFailure = undefined
   responseStream = undefined
@@ -381,6 +401,32 @@ const isTitleRequest = (request: LLMRequest) =>
   messageTexts(request, "user").includes("Generate a title for this conversation:\n")
 const userTexts = (request: LLMRequest) => messageTexts(request, "user")
 const systemTexts = (request: LLMRequest) => messageTexts(request, "system")
+
+const managedContext = () =>
+  SystemContext.combine([
+    SystemContext.make({
+      key: SystemContext.Key.make("core/environment"),
+      codec: Schema.toCodecJson(Schema.String),
+      load: Effect.succeed("/managed/chat"),
+      baseline: (directory) => `Working directory: ${directory}\nWorkspace root folder: ${directory}`,
+      update: (_previous, directory) => `Working directory: ${directory}`,
+    }),
+    SystemContext.make({
+      key: SystemContext.Key.make("core/date"),
+      codec: Schema.toCodecJson(Schema.String),
+      load: Effect.succeed("Tue Sep 08 2026"),
+      baseline: (date) => `Today's date: ${date}`,
+      update: (_previous, date) => `Today's date is now: ${date}`,
+    }),
+    SystemContext.make({
+      key: SystemContext.Key.make("core/instructions"),
+      codec: Schema.toCodecJson(Schema.String),
+      load: Effect.succeed("/managed/chat/AGENTS.md"),
+      baseline: (file) => `Instructions from: ${file}\nInternal workspace instructions`,
+      update: (_previous, file) => `Instructions from: ${file}`,
+      removed: () => "Workspace instructions removed",
+    }),
+  ])
 
 const replaySessionProjection = (id: SessionV2.ID) =>
   Effect.gen(function* () {
@@ -894,6 +940,122 @@ describe("SessionRunnerLLM", () => {
       ).toHaveLength(1)
       yield* replaySessionProjection(sessionID)
       expect(yield* session.messages({ sessionID })).toHaveLength(3)
+    }),
+  )
+
+  it.effect("omits managed workspace context from chat requests", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      additionalSystemContext = managedContext()
+      skillBaselines.set(AgentV2.defaultID, "Load skill from /managed/skills")
+      referenceBaseline = "Project reference: /managed/references/docs"
+      yield* (yield* AgentV2.Service).transform((editor) =>
+        editor.update(AgentV2.defaultID, (agent) => {
+          agent.system = AgentV2.defaultSystem
+          agent.mode = "primary"
+        }),
+      )
+      yield* db.update(ProjectTable).set({ mode: "chat" }).where(eq(ProjectTable.id, Project.ID.global)).run()
+      const session = yield* SessionV2.Service
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Discuss this" }), resume: false })
+
+      yield* session.resume(sessionID)
+
+      const system = requests[0]!.system.map((part) => part.text).join("\n")
+      expect(system).toContain("Today's date: Tue Sep 08 2026")
+      expect(system).toContain("This is a chat project without an attached workspace.")
+      expect(system).not.toContain("You are an AI coding agent")
+      expect(system).not.toContain("/managed/chat")
+      expect(system).not.toContain("AGENTS.md")
+      expect(system).not.toContain("/managed/skills")
+      expect(system).not.toContain("/managed/references")
+      expect(systemEntryLoads).toBe(0)
+    }),
+  )
+
+  it.effect("keeps managed context in workspace requests", () =>
+    Effect.gen(function* () {
+      yield* setup
+      additionalSystemContext = managedContext()
+      skillBaselines.set(AgentV2.defaultID, "Load skill from /managed/skills")
+      referenceBaseline = "Project reference: /managed/references/docs"
+      const session = yield* SessionV2.Service
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Inspect the workspace" }), resume: false })
+
+      yield* session.resume(sessionID)
+
+      const system = requests[0]!.system.map((part) => part.text).join("\n")
+      expect(system).toContain("Working directory: /managed/chat")
+      expect(system).toContain("Instructions from: /managed/chat/AGENTS.md")
+      expect(system).toContain("Load skill from /managed/skills")
+      expect(system).toContain("Project reference: /managed/references/docs")
+    }),
+  )
+
+  it.effect("replaces a prior workspace baseline when a Project becomes chat", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      additionalSystemContext = managedContext()
+      const session = yield* SessionV2.Service
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Keep /user/authored/path" }), resume: false })
+      yield* session.resume(sessionID)
+      yield* db.update(ProjectTable).set({ mode: "chat" }).where(eq(ProjectTable.id, Project.ID.global)).run()
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Continue" }), resume: false })
+
+      yield* session.resume(sessionID)
+
+      expect(requests[0]!.system.map((part) => part.text).join("\n")).toContain("/managed/chat")
+      expect(requests[1]!.system.map((part) => part.text).join("\n")).not.toContain("/managed/chat")
+      expect(userTexts(requests[1]!)).toEqual(["Keep /user/authored/path", "Continue"])
+    }),
+  )
+
+  it.effect("keeps explicit agent system text in chat", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const agents = yield* AgentV2.Service
+      yield* agents.transform((editor) =>
+        editor.update(AgentV2.defaultID, (agent) => {
+          agent.system = "User configured system path: /user/explicit/path"
+          agent.mode = "primary"
+        }),
+      )
+      yield* db.update(ProjectTable).set({ mode: "chat" }).where(eq(ProjectTable.id, Project.ID.global)).run()
+      const session = yield* SessionV2.Service
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Discuss this" }), resume: false })
+
+      yield* session.resume(sessionID)
+
+      expect(requests[0]!.system.map((part) => part.text)).toContain("User configured system path: /user/explicit/path")
+    }),
+  )
+
+  it.effect("loads workspace context after a chat Session is attached", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const { db } = yield* Database.Service
+      const events = yield* EventV2.Service
+      additionalSystemContext = managedContext()
+      yield* db.update(ProjectTable).set({ mode: "chat" }).where(eq(ProjectTable.id, Project.ID.global)).run()
+      const session = yield* SessionV2.Service
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Before attach" }), resume: false })
+      yield* session.resume(sessionID)
+
+      yield* db.update(ProjectTable).set({ mode: "workspace" }).where(eq(ProjectTable.id, Project.ID.global)).run()
+      yield* events.publish(SessionEvent.Moved, {
+        sessionID,
+        timestamp: DateTime.makeUnsafe(1),
+        location: Location.Ref.make({ directory: AbsolutePath.make("/project") }),
+      })
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "After attach" }), resume: false })
+      yield* session.resume(sessionID)
+
+      expect(requests[0]!.system.map((part) => part.text).join("\n")).not.toContain("/managed/chat")
+      expect(requests[1]!.system.map((part) => part.text).join("\n")).toContain("Working directory: /managed/chat")
+      expect(userTexts(requests[1]!)).toEqual(["Before attach", "After attach"])
     }),
   )
 
@@ -1973,6 +2135,75 @@ describe("SessionRunnerLLM", () => {
         "user",
         "assistant",
       ])
+    }),
+  )
+
+  it.effect("changes agent and model without interrupting an active provider turn", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      yield* session.prompt({ sessionID, prompt: Prompt.make({ text: "Keep running" }), resume: false })
+      requests.length = 0
+      response = [
+        LLMEvent.stepStart({ index: 0 }),
+        LLMEvent.stepFinish({ index: 0, reason: "stop" }),
+        LLMEvent.finish({ reason: "stop" }),
+      ]
+      streamGate = yield* Deferred.make<void>()
+      streamStarted = yield* Deferred.make<void>()
+
+      const run = yield* session.resume(sessionID).pipe(Effect.forkChild)
+      yield* Deferred.await(streamStarted)
+      yield* session.switchAgent({ sessionID, agent: "plan" })
+      yield* session.switchModel({
+        sessionID,
+        model: ModelV2.Ref.make({ id: ModelV2.ID.make("replacement"), providerID: ProviderV2.ID.make("fake") }),
+      })
+      expect(requests).toHaveLength(1)
+
+      yield* Deferred.succeed(streamGate, undefined)
+      yield* Fiber.join(run)
+      streamGate = undefined
+      streamStarted = undefined
+      expect(yield* session.get(sessionID)).toMatchObject({ agent: "plan", model: { id: "replacement" } })
+    }),
+  )
+
+  it.effect("preserves an admission competing with destructive revert", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const { db } = yield* Database.Service
+      const boundary = yield* session.prompt({
+        sessionID,
+        prompt: Prompt.make({ text: "Revert boundary" }),
+        resume: false,
+      })
+      requests.length = 0
+      response = []
+      streamGate = yield* Deferred.make<void>()
+      streamStarted = yield* Deferred.make<void>()
+
+      const run = yield* session.resume(sessionID).pipe(Effect.forkChild)
+      yield* Deferred.await(streamStarted)
+      const admitted = yield* session
+        .prompt({
+          sessionID,
+          prompt: Prompt.make({ text: "Do not lose this" }),
+          delivery: "queue",
+          resume: false,
+        })
+        .pipe(Effect.forkChild)
+      const reverted = yield* session.revert
+        .stage({ sessionID, messageID: boundary.id, files: false })
+        .pipe(Effect.forkChild)
+      const input = yield* Fiber.join(admitted)
+      yield* Fiber.join(reverted)
+
+      expect(yield* Fiber.await(run)).toMatchObject({ _tag: "Failure" })
+      expect(yield* SessionInput.find(db, input.id)).toEqual(input)
+      streamGate = undefined
+      streamStarted = undefined
     }),
   )
 

@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { DateTime, Effect, Schema } from "effect"
+import { DateTime, Effect, Exit, Schema } from "effect"
 import { asc, eq } from "drizzle-orm"
 import { Database } from "@hena/core/database/database"
 import { LayerNode } from "@hena/core/effect/layer-node"
@@ -41,6 +41,15 @@ const assistantRow = (
     ...data
   } = encodeMessage(SessionMessage.Assistant.make({ id, type: "assistant", agent: "build", model, content: [], time }))
   return { id, session_id: sessionID, type, seq, time_created: DateTime.toEpochMillis(time.created), data }
+}
+
+const userRow = (id: SessionMessage.ID, seq: number) => {
+  const {
+    id: _,
+    type,
+    ...data
+  } = encodeMessage(SessionMessage.User.make({ id, type: "user", text: "prompt", time: { created } }))
+  return { id, session_id: sessionID, type, seq, time_created: DateTime.toEpochMillis(created), data }
 }
 
 describe("SessionProjector", () => {
@@ -113,7 +122,7 @@ describe("SessionProjector", () => {
       const boundary = SessionMessage.ID.make("msg_boundary")
       yield* db
         .insert(SessionMessageTable)
-        .values([assistantRow(boundary, 1), assistantRow(SessionMessage.ID.make("msg_later"), 2)])
+        .values([userRow(boundary, 2), assistantRow(SessionMessage.ID.make("msg_later"), 3)])
         .run()
       yield* db
         .insert(SessionInputTable)
@@ -125,6 +134,7 @@ describe("SessionProjector", () => {
             delivery: "queue",
             admitted_seq: 1,
             queue_position: 1,
+            promoted_seq: 1,
           },
           {
             id: SessionMessage.ID.make("msg_input_after"),
@@ -133,6 +143,7 @@ describe("SessionProjector", () => {
             delivery: "queue",
             admitted_seq: 3,
             queue_position: 3,
+            promoted_seq: 3,
           },
         ])
         .run()
@@ -162,7 +173,7 @@ describe("SessionProjector", () => {
       })
       expect(
         (yield* db.select({ id: SessionMessageTable.id }).from(SessionMessageTable).all()).map((row) => row.id),
-      ).toEqual([boundary])
+      ).toEqual([])
       expect(
         yield* db
           .select({
@@ -172,23 +183,148 @@ describe("SessionProjector", () => {
           .where(eq(SessionTable.id, sessionID))
           .get(),
       ).toEqual({ revision: 3 })
+    }),
+  )
+
+  it.effect("rolls back the transcript commit when replacement admission conflicts", () =>
+    Effect.gen(function* () {
+      const db = (yield* Database.Service).db
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+        .run()
+      const boundary = SessionMessage.ID.make("msg_boundary")
+      const later = SessionMessage.ID.make("msg_later")
+      const replacement = SessionMessage.ID.make("msg_replacement")
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          project_id: Project.ID.global,
+          slug: "test",
+          directory: "/project",
+          title: "test",
+          version: "test",
+        })
+        .run()
+      yield* db.insert(SessionMessageTable).values([userRow(boundary, 1), assistantRow(later, 2)]).run()
+      yield* db
+        .insert(SessionInputTable)
+        .values({
+          id: replacement,
+          session_id: sessionID,
+          prompt: Prompt.make({ text: "already queued" }),
+          delivery: "queue",
+          admitted_seq: 3,
+          queue_position: 3,
+        })
+        .run()
+      const events = yield* EventV2.Service
       yield* events.publish(SessionEvent.RevertEvent.Staged, {
         sessionID,
-        timestamp: DateTime.makeUnsafe(5),
-        revert: { messageID: boundary, files: [] },
+        timestamp: DateTime.makeUnsafe(1),
+        revert: { messageID: boundary },
       })
-      yield* events.publish(SessionEvent.RevertEvent.Committed, {
+
+      const exit = yield* events
+        .publish(SessionEvent.RevertEvent.Committed, {
+          sessionID,
+          messageID: boundary,
+          timestamp: DateTime.makeUnsafe(2),
+          replacement: {
+            messageID: replacement,
+            prompt: Prompt.make({ text: "replacement" }),
+            delivery: "steer",
+            agent: "build",
+            model,
+          },
+        })
+        .pipe(Effect.exit)
+
+      expect(Exit.isFailure(exit)).toBeTrue()
+      expect(
+        (yield* db.select({ id: SessionMessageTable.id }).from(SessionMessageTable).orderBy(asc(SessionMessageTable.seq))).map(
+          (row) => row.id,
+        ),
+      ).toEqual([boundary, later])
+      expect((yield* db.select({ revert: SessionTable.revert }).from(SessionTable).get())?.revert).toEqual({
+        messageID: boundary,
+      })
+      expect(yield* SessionInput.find(db, replacement)).toBeDefined()
+    }),
+  )
+
+  it.effect("admits a replacement atomically and resolves its exact retry from durable history", () =>
+    Effect.gen(function* () {
+      const db = (yield* Database.Service).db
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+        .run()
+      const boundary = SessionMessage.ID.make("msg_boundary")
+      const replacement = SessionMessage.ID.make("msg_replacement")
+      const pending = SessionMessage.ID.make("msg_pending")
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          project_id: Project.ID.global,
+          slug: "test",
+          directory: "/project",
+          title: "test",
+          version: "test",
+        })
+        .run()
+      yield* db.insert(SessionMessageTable).values(userRow(boundary, 1)).run()
+      yield* db
+        .insert(SessionInputTable)
+        .values({
+          id: pending,
+          session_id: sessionID,
+          prompt: Prompt.make({ text: "pending" }),
+          delivery: "queue",
+          admitted_seq: 2,
+          queue_position: 2,
+        })
+        .run()
+      const events = yield* EventV2.Service
+      yield* events.publish(SessionEvent.RevertEvent.Staged, {
+        sessionID,
+        timestamp: DateTime.makeUnsafe(1),
+        revert: { messageID: boundary },
+      })
+      const committed = yield* events.publish(SessionEvent.RevertEvent.Committed, {
         sessionID,
         messageID: boundary,
-        timestamp: DateTime.makeUnsafe(6),
+        timestamp: DateTime.makeUnsafe(2),
+        replacement: {
+          messageID: replacement,
+          prompt: Prompt.make({ text: "replacement" }),
+          delivery: "steer",
+          agent: "build",
+          model,
+        },
       })
-      expect(
-        yield* db
-          .select({ revision: SessionTable.queue_revision })
-          .from(SessionTable)
-          .where(eq(SessionTable.id, sessionID))
-          .get(),
-      ).toEqual({ revision: 4 })
+
+      expect(yield* SessionInput.find(db, pending)).toBeDefined()
+      expect(yield* SessionInput.find(db, replacement)).toMatchObject({
+        admittedSeq: committed.durable?.seq,
+        id: replacement,
+        sessionID,
+        prompt: { text: "replacement" },
+        delivery: "steer",
+      })
+      yield* db.delete(SessionInputTable).where(eq(SessionInputTable.id, replacement)).run()
+      expect(yield* SessionInput.lookupReplacement(db, replacement)).toMatchObject({
+        boundary,
+        admitted: {
+          admittedSeq: committed.durable?.seq,
+          id: replacement,
+          sessionID,
+          prompt: { text: "replacement" },
+          delivery: "steer",
+        },
+      })
     }),
   )
 

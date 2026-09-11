@@ -27,6 +27,8 @@ import type {
   SessionsClearOutput,
   SessionsCommitInput,
   SessionsCommitOutput,
+  SessionsReplaceInput,
+  SessionsReplaceOutput,
   SessionsContextInput,
   SessionsContextOutput,
   SessionsHistoryInput,
@@ -440,6 +442,25 @@ export function make(options: ClientOptions) {
           },
           requestOptions,
         ),
+      replace: (input: SessionsReplaceInput, requestOptions?: RequestOptions) =>
+        request<{ readonly data: SessionsReplaceOutput }>(
+          {
+            method: "POST",
+            path: `/api/session/${encodeURIComponent(input.sessionID)}/revert/replace`,
+            body: {
+              messageID: input["messageID"],
+              id: input["id"],
+              prompt: input["prompt"],
+              delivery: input["delivery"],
+              agent: input["agent"],
+              model: input["model"],
+            },
+            successStatus: 200,
+            declaredStatuses: [409, 404, 500, 400, 401],
+            empty: false,
+          },
+          requestOptions,
+        ).then((value) => value.data),
       context: (input: SessionsContextInput, requestOptions?: RequestOptions) =>
         request<{ readonly data: SessionsContextOutput }>(
           {

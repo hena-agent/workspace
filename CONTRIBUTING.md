@@ -31,7 +31,7 @@ https://github.com/anomalyco/models.dev
 
 ## Developing Hena
 
-- Requirements: Bun 1.3+
+- Requirements: Bun 1.4.2 (see `packageManager` in [package.json](./package.json))
 - Install dependencies and start the dev server from the repo root:
 
   ```bash
@@ -162,7 +162,21 @@ Other tips and tricks:
 
 #### VSCode Setup
 
-If you use VSCode, you can use our example configurations [.vscode/settings.example.json](.vscode/settings.example.json) and [.vscode/launch.example.json](.vscode/launch.example.json).
+Install the `oven.bun-vscode` extension and create a local `.vscode/launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "bun",
+      "request": "attach",
+      "name": "hena (attach)",
+      "url": "ws://localhost:6499/"
+    }
+  ]
+}
+```
 
 Some debug methods that can be problematic:
 

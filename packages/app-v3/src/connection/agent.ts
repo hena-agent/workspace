@@ -515,7 +515,7 @@ async function loadDecoders() {
     const result = decode(value)
     return result._tag === "Some" ? result.value : undefined
   }
-  const json = Schema.decodeUnknownOption(Schema.UnknownFromJsonString)
+  const json = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
   const frame = Schema.decodeUnknownOption(Sync.StreamFrame)
   return {
     capabilities: option(Schema.decodeUnknownOption(Sync.Capabilities)),

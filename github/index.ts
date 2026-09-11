@@ -4,7 +4,6 @@ import { Octokit } from "@octokit/rest"
 import { graphql } from "@octokit/graphql"
 import * as core from "@actions/core"
 import * as github from "@actions/github"
-import type { Context as GitHubContext } from "@actions/github/lib/context"
 import type { IssueCommentEvent, PullRequestReviewCommentEvent } from "@octokit/webhooks-types"
 import { createHenaClient } from "@hena/sdk"
 import { spawn } from "node:child_process"
@@ -354,7 +353,7 @@ function isPullRequest() {
 }
 
 function useContext() {
-  return isMock() ? (JSON.parse(useEnvMock().mockEvent!) as GitHubContext) : github.context
+  return isMock() ? (JSON.parse(useEnvMock().mockEvent!) as typeof github.context) : github.context
 }
 
 function useIssueId() {
@@ -577,7 +576,7 @@ async function summarize(response: string) {
   try {
     return await chat(`Summarize the following in less than 40 characters:\n\n${response}`)
   } catch {
-    if (isScheduleEvent()) {
+    if (useContext().eventName === "schedule") {
       return "Scheduled task changes"
     }
     const payload = useContext().payload as IssueCommentEvent
@@ -590,7 +589,7 @@ async function resolveAgent(): Promise<string | undefined> {
   if (!envAgent) return undefined
 
   // Validate the agent exists and is a primary agent
-  const agents = await client.agent.list<true>()
+  const agents = await client.app.agents<true>()
   const agent = agents.data?.find((a) => a.name === envAgent)
 
   if (!agent) {
@@ -611,11 +610,10 @@ async function chat(text: string, files: PromptFiles = []) {
   const { providerID, modelID } = useEnvModel()
   const agent = await resolveAgent()
 
-  const chat = await client.session.chat<true>({
+  const chat = await client.session.prompt<true>({
     path: session,
     body: {
-      providerID,
-      modelID,
+      model: { providerID, modelID },
       agent,
       parts: [
         {
@@ -643,7 +641,6 @@ async function chat(text: string, files: PromptFiles = []) {
     },
   })
 
-  // @ts-ignore
   const match = chat.data.parts.findLast((p) => p.type === "text")
   if (!match) throw new Error("Failed to parse the text response")
 

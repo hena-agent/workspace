@@ -83,7 +83,7 @@ jobs:
           permission-pull-requests: read
 
       - name: Checkout workflow workspace
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # A stacked PR's base can differ from the trusted workflow commit.
           ref: ${{ github.workflow_sha }}
@@ -95,7 +95,7 @@ jobs:
 
       - name: Checkout pull request as review data
         if: inputs.command != ''
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           ref: ${{ github.event.pull_request.head.sha }}

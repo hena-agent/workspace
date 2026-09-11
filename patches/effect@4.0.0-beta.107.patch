@@ -1,5 +1,17 @@
+diff --git a/dist/SchemaAST.js b/dist/SchemaAST.js
+index 7a7c621884a5c540a29e40b0b37a17bda3c6b6bf..edaaf2ce69016cfff0b46599f632af0f83fde003 100644
+--- a/dist/SchemaAST.js
++++ b/dist/SchemaAST.js
+@@ -3250,6 +3250,7 @@ export const Json = /*#__PURE__*/new Declaration([], () => (input, ast, options)
+     payload: null
+   },
+   expected: "JSON value",
++  toCode: () => ({ runtime: "Schema.Json", Type: "Schema.Json" }),
+   toCodecJson: () => undefined,
+   toCodecStringTree: () => unknownToStringTree,
+   toArbitrary: () => fc => fc.jsonValue()
 diff --git a/dist/unstable/httpapi/HttpApiSchema.js b/dist/unstable/httpapi/HttpApiSchema.js
-index ecb6603d1ee4e89e92174b3a1100e8c9c720b3f3..08b832b6b3e9e4d10df156eca36b16f571f67f6e 100644
+index 56e87ce366277ffd2030580ae3d865070dd39302..16ab3b1cd07ad8875d0cf23c39ffdc615d34a936 100644
 --- a/dist/unstable/httpapi/HttpApiSchema.js
 +++ b/dist/unstable/httpapi/HttpApiSchema.js
 @@ -151,7 +151,7 @@ export const StreamSse = options => {
@@ -11,26 +23,37 @@ index ecb6603d1ee4e89e92174b3a1100e8c9c720b3f3..08b832b6b3e9e4d10df156eca36b16f5
    }));
    if (events === undefined) {
      throw new Error("StreamSse requires either an events schema or a data schema");
-@@ -166,6 +166,14 @@ export const StreamSse = options => {
+@@ -166,6 +166,13 @@ export const StreamSse = options => {
      error: options.error ?? Schema.Never
    });
  };
 +const sseDataJsonSchema = data => {
 +  const identifier = SchemaAST.resolveIdentifier(data.ast);
 +  return identifier === undefined ? Schema.fromJsonString(data) : Schema.fromJsonString(data).annotate({
-+    // The SSE transport field is a JSON string. Give that wrapper its own
-+    // OpenAPI identifier so it does not claim the decoded data schema's name.
++    // The SSE transport wrapper must not claim the decoded data schema's name.
 +    identifier: `${identifier}Stream`
 +  });
 +};
  /**
   * Creates a streaming `Uint8Array` success response schema.
   *
+diff --git a/src/SchemaAST.ts b/src/SchemaAST.ts
+index b1a8897873d1313b5c8c985092b1242a36165a30..248c113576035f4c87a83279407a81510ab0f5ee 100644
+--- a/src/SchemaAST.ts
++++ b/src/SchemaAST.ts
+@@ -4221,6 +4221,7 @@ export const Json = new Declaration(
+       payload: null
+     },
+     expected: "JSON value",
++    toCode: () => ({ runtime: "Schema.Json", Type: "Schema.Json" }),
+     toCodecJson: () => undefined,
+     toCodecStringTree: () => unknownToStringTree,
+     toArbitrary: () => (fc: typeof FastCheck) => fc.jsonValue()
 diff --git a/src/unstable/httpapi/HttpApiSchema.ts b/src/unstable/httpapi/HttpApiSchema.ts
-index f2920365cf0328146523ce2e2dba04d6a8809a4a..5482d635cdf01a72063ff683d244fab891910211 100644
+index 1c05edd95572bf83cc07069738ff356b0609362b..99b5df9d8ebbc2e58c1079d131d7ff13480e9dd9 100644
 --- a/src/unstable/httpapi/HttpApiSchema.ts
 +++ b/src/unstable/httpapi/HttpApiSchema.ts
-@@ -433,7 +433,7 @@ export const StreamSse: {
+@@ -447,7 +447,7 @@ export const StreamSse: {
    const events = options.events ?? (options.data === undefined ? undefined : Schema.Struct({
      id: Schema.UndefinedOr(Schema.String),
      event: Schema.String,
@@ -39,15 +62,14 @@ index f2920365cf0328146523ce2e2dba04d6a8809a4a..5482d635cdf01a72063ff683d244fab8
    }))
    if (events === undefined) {
      throw new Error("StreamSse requires either an events schema or a data schema")
-@@ -449,6 +449,15 @@ export const StreamSse: {
+@@ -463,6 +463,14 @@ export const StreamSse: {
    })
  }
  
 +const sseDataJsonSchema = (data: Schema.Constraint) => {
 +  const identifier = SchemaAST.resolveIdentifier(data.ast)
 +  return identifier === undefined ? Schema.fromJsonString(data) : Schema.fromJsonString(data).annotate({
-+    // The SSE transport field is a JSON string. Give that wrapper its own
-+    // OpenAPI identifier so it does not claim the decoded data schema's name.
++    // The SSE transport wrapper must not claim the decoded data schema's name.
 +    identifier: `${identifier}Stream`
 +  })
 +}

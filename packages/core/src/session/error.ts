@@ -4,7 +4,7 @@ import { SessionMessage } from "./message"
 import { SessionSchema } from "./schema"
 import { SessionTodo } from "@hena/schema/session-todo"
 
-export class MessageDecodeError extends Schema.TaggedErrorClass<MessageDecodeError>()("Session.MessageDecodeError", {
+export class MessageDecodeError extends Schema.TaggedError<MessageDecodeError>()("Session.MessageDecodeError", {
   sessionID: SessionSchema.ID,
   messageID: SessionMessage.ID,
 }) {
@@ -13,7 +13,7 @@ export class MessageDecodeError extends Schema.TaggedErrorClass<MessageDecodeErr
   }
 }
 
-export class ContextSnapshotDecodeError extends Schema.TaggedErrorClass<ContextSnapshotDecodeError>()(
+export class ContextSnapshotDecodeError extends Schema.TaggedError<ContextSnapshotDecodeError>()(
   "Session.ContextSnapshotDecodeError",
   {
     sessionID: SessionSchema.ID,
@@ -25,7 +25,7 @@ export class ContextSnapshotDecodeError extends Schema.TaggedErrorClass<ContextS
   }
 }
 
-export class QueueRevisionConflictError extends Schema.TaggedErrorClass<QueueRevisionConflictError>()(
+export class QueueRevisionConflictError extends Schema.TaggedError<QueueRevisionConflictError>()(
   "Session.QueueRevisionConflictError",
   {
     sessionID: SessionSchema.ID,
@@ -35,7 +35,7 @@ export class QueueRevisionConflictError extends Schema.TaggedErrorClass<QueueRev
   },
 ) {}
 
-export class QueueStateConflictError extends Schema.TaggedErrorClass<QueueStateConflictError>()(
+export class QueueStateConflictError extends Schema.TaggedError<QueueStateConflictError>()(
   "Session.QueueStateConflictError",
   {
     sessionID: SessionSchema.ID,
@@ -44,7 +44,7 @@ export class QueueStateConflictError extends Schema.TaggedErrorClass<QueueStateC
   },
 ) {}
 
-export class TodoConflictError extends Schema.TaggedErrorClass<TodoConflictError>()("Session.TodoConflictError", {
+export class TodoConflictError extends Schema.TaggedError<TodoConflictError>()("Session.TodoConflictError", {
   sessionID: SessionSchema.ID,
   todoID: SessionTodo.ID,
   reason: Schema.Literals(["duplicate", "owned_by_another_session"]),

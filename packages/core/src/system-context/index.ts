@@ -53,7 +53,7 @@ export const SourceSnapshot = Schema.Struct({
 export type SourceSnapshot = typeof SourceSnapshot.Type
 
 /** Durable structured comparison state for one active context generation. */
-export const Snapshot = Schema.Record(Key, SourceSnapshot)
+export const Snapshot = Schema.Record(Schema.String, SourceSnapshot).check(Schema.isPropertyNames(Key))
 export type Snapshot = Readonly<Record<string, SourceSnapshot>>
 
 export interface Generation {
@@ -79,7 +79,7 @@ export interface ReplacementBlocked {
 export type ReplacementResult = ReplacementReady | ReplacementBlocked
 export type ReconcileResult = { readonly _tag: "Unchanged" } | Updated | ReplacementResult
 
-export class InitializationBlocked extends Schema.TaggedErrorClass<InitializationBlocked>()(
+export class InitializationBlocked extends Schema.TaggedError<InitializationBlocked>()(
   "SystemContext.InitializationBlocked",
   { keys: Schema.Array(Key) },
 ) {
@@ -88,7 +88,7 @@ export class InitializationBlocked extends Schema.TaggedErrorClass<Initializatio
   }
 }
 
-export class DuplicateKeyError extends Schema.TaggedErrorClass<DuplicateKeyError>()("SystemContext.DuplicateKeyError", {
+export class DuplicateKeyError extends Schema.TaggedError<DuplicateKeyError>()("SystemContext.DuplicateKeyError", {
   key: Key,
 }) {
   override get message() {
@@ -184,11 +184,10 @@ const observe = (value: SystemContext) =>
     value[ContextTypeId],
     (source) =>
       source.load.pipe(
-        Effect.map(
-          (result): Entry =>
-            result === unavailable
-              ? { _tag: "Unavailable", key: source.key }
-              : { _tag: "Available", key: source.key, ...result },
+        Effect.map((result): Entry =>
+          result === unavailable
+            ? { _tag: "Unavailable", key: source.key }
+            : { _tag: "Available", key: source.key, ...result },
         ),
       ),
     { concurrency: "unbounded" },

@@ -1,20 +1,12 @@
 import type { JsonSchema, LLMRequest, ProviderMetadata } from "@hena/llm"
 import { LLM, Message, SystemPart, ToolCallPart, ToolDefinition, ToolResultPart } from "@hena/llm"
-import {
-  AmazonBedrock,
-  Anthropic,
-  Azure,
-  Google,
-  OpenAI,
-  OpenAICompatible,
-  OpenRouter,
-} from "@hena/llm/providers"
-import type { ModelMessage } from "ai"
+import { AmazonBedrock, Anthropic, Azure, Google, OpenAI, OpenAICompatible, OpenRouter } from "@hena/llm/providers"
+import type { ModelMessage, Tool } from "ai"
 import type { Provider } from "@/provider/provider"
 import { isRecord } from "@/util/record"
 
 type ToolInput = {
-  readonly description?: string
+  readonly description?: Tool["description"]
   readonly inputSchema?: unknown
 }
 
@@ -54,12 +46,20 @@ const textPart = (part: Record<string, unknown>) => ({
 })
 
 const mediaPart = (part: Record<string, unknown>) => {
-  if (typeof part.data !== "string" && !(part.data instanceof Uint8Array))
+  const data =
+    isRecord(part.data) && !(part.data instanceof Uint8Array)
+      ? part.data.type === "url" && part.data.url instanceof URL
+        ? part.data.url.toString()
+        : part.data.type === "data"
+          ? part.data.data
+          : undefined
+      : part.data
+  if (typeof data !== "string" && !(data instanceof Uint8Array))
     throw new Error("Native LLM request adapter only supports file parts with string or Uint8Array data")
   return {
     type: "media" as const,
     mediaType: typeof part.mediaType === "string" ? part.mediaType : "application/octet-stream",
-    data: part.data,
+    data,
     filename: typeof part.filename === "string" ? part.filename : undefined,
   }
 }
@@ -127,7 +127,8 @@ const tools = (input: Record<string, ToolInput> | undefined): ToolDefinition[] =
   Object.entries(input ?? {}).map(([name, item]) =>
     ToolDefinition.make({
       name,
-      description: item.description ?? "",
+      description:
+        typeof item.description === "function" ? item.description({ context: {} }) : (item.description ?? ""),
       inputSchema: schema(item.inputSchema),
     }),
   )

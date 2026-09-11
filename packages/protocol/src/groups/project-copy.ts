@@ -6,7 +6,7 @@ import { LocationQuery, locationQueryOpenApi } from "./location"
 
 const root = "/experimental/project/:projectID/copy"
 
-export class ProjectCopyError extends Schema.ErrorClass<ProjectCopyError>("ProjectCopyError")(
+export class ProjectCopyError extends Schema.Error<ProjectCopyError>("ProjectCopyError")(
   {
     name: Schema.Literal("ProjectCopyError"),
     data: Schema.Struct({

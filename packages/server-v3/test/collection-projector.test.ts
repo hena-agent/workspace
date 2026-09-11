@@ -20,54 +20,67 @@ import { Session } from "@hena/schema/session"
 import { SessionEvent } from "@hena/schema/session-event"
 
 describe("collection projector", () => {
-  test.each(["MissingSessionID", "Provider turn interrupted"])("projects a zero-part assistant failure: %s", async (message) => {
-    const layer = AppNodeBuilder.build(
-      LayerNode.group([Database.node, EventV2.node, SessionProjector.node, CollectionProjector]),
-      [[Database.node, Database.layerFromPath(":memory:")]],
-    )
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const database = (yield* Database.Service).db
-        const events = yield* EventV2.Service
-        yield* database.run(sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`)
-        yield* database.run(sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_failed', 'global', 'session', '/project', 'Session', '1', 1, 1)`)
-        yield* database.run(sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`)
-        const sessionID = Session.ID.make("ses_failed")
-        const assistantMessageID = SessionMessage.ID.make("msg_failed")
-        yield* refreshDurableEvent(database, {
-          type: SessionEvent.PromptAdmitted.type,
-          data: { sessionID, delivery: "steer" },
-        })
-        expect(yield* sessionWorking(database, sessionID)).toBe(true)
-        yield* events.publish(SessionEvent.Step.Started, {
-          sessionID,
-          assistantMessageID,
-          timestamp: DateTime.makeUnsafe(2),
-          agent: "build",
-          model: Schema.decodeUnknownSync(SessionMessage.Assistant.fields.model)({
-            id: "muse-spark-1.3-contributor-free",
-            providerID: "opencode",
-          }),
-        })
-        yield* events.publish(SessionEvent.Step.Failed, {
-          sessionID,
-          assistantMessageID,
-          timestamp: DateTime.makeUnsafe(3),
-          error: { type: "unknown", message },
-        })
-        const projected = yield* database.get<{ row: string }>(sql`
+  test.each(["MissingSessionID", "Provider turn interrupted"])(
+    "projects a zero-part assistant failure: %s",
+    async (message) => {
+      const layer = AppNodeBuilder.build(
+        LayerNode.group([Database.node, EventV2.node, SessionProjector.node, CollectionProjector]),
+        [[Database.node, Database.layerFromPath(":memory:")]],
+      )
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const database = (yield* Database.Service).db
+          const events = yield* EventV2.Service
+          yield* database.run(
+            sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`,
+          )
+          yield* database.run(
+            sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_failed', 'global', 'session', '/project', 'Session', '1', 1, 1)`,
+          )
+          yield* database.run(
+            sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`,
+          )
+          const sessionID = Session.ID.make("ses_failed")
+          const assistantMessageID = SessionMessage.ID.make("msg_failed")
+          yield* refreshDurableEvent(database, {
+            type: SessionEvent.PromptAdmitted.type,
+            data: { sessionID, delivery: "steer" },
+          })
+          expect(yield* sessionWorking(database, sessionID)).toBe(true)
+          yield* events.publish(SessionEvent.Step.Started, {
+            sessionID,
+            assistantMessageID,
+            timestamp: DateTime.makeUnsafe(2),
+            agent: "build",
+            model: Schema.decodeUnknownSync(SessionMessage.Assistant.fields.model)({
+              id: "muse-spark-1.3-contributor-free",
+              providerID: "opencode",
+            }),
+          })
+          yield* events.publish(SessionEvent.Step.Failed, {
+            sessionID,
+            assistantMessageID,
+            timestamp: DateTime.makeUnsafe(3),
+            error: { type: "unknown", message },
+          })
+          const projected = yield* database.get<{ row: string }>(sql`
           SELECT row FROM collection_row WHERE collection = 'messages' AND scope_key = ${sessionID} AND row_key = ${assistantMessageID}
         `)
-        expect(projected && JSON.parse(projected.row)).toMatchObject({
-          type: "assistant",
-          error: { type: "unknown", message },
-          time: { completed: 3 },
-        })
-        expect(yield* database.all(sql`SELECT row FROM collection_row WHERE collection = 'parts' AND scope_key = ${sessionID}`)).toEqual([])
-        expect(yield* sessionWorking(database, sessionID)).toBe(false)
-      }).pipe(Effect.provide(layer), Effect.scoped),
-    )
-  })
+          expect(projected && JSON.parse(projected.row)).toMatchObject({
+            type: "assistant",
+            error: { type: "unknown", message },
+            time: { completed: 3 },
+          })
+          expect(
+            yield* database.all(
+              sql`SELECT row FROM collection_row WHERE collection = 'parts' AND scope_key = ${sessionID}`,
+            ),
+          ).toEqual([])
+          expect(yield* sessionWorking(database, sessionID)).toBe(false)
+        }).pipe(Effect.provide(layer), Effect.scoped),
+      )
+    },
+  )
 
   test("publishes durable title updates to the sessions collection", async () => {
     const layer = AppNodeBuilder.build(
@@ -104,7 +117,9 @@ describe("collection projector", () => {
         const projected = yield* database.get<{ row: string }>(
           sql`SELECT row FROM collection_row WHERE collection = 'sessions' AND scope_key = '' AND row_key = 'ses_title'`,
         )
-        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+        expect(
+          projected && Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(projected.row),
+        ).toMatchObject({
           id: "ses_title",
           title: "Generated title",
         })
@@ -121,9 +136,15 @@ describe("collection projector", () => {
     await Effect.runPromise(
       Effect.gen(function* () {
         const { db: database } = yield* Database.Service
-        yield* database.run(sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`)
-        yield* database.run(sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_working', 'global', 'session', '/project', 'Session', '1', 1, 1)`)
-        yield* database.run(sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`)
+        yield* database.run(
+          sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`,
+        )
+        yield* database.run(
+          sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_working', 'global', 'session', '/project', 'Session', '1', 1, 1)`,
+        )
+        yield* database.run(
+          sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`,
+        )
 
         yield* refreshDurableEvent(database, {
           type: SessionEvent.PromptAdmitted.type,
@@ -177,7 +198,7 @@ describe("collection projector", () => {
           WHERE collection = 'todos' AND scope_key = 'ses_1'
           ORDER BY row_key
         `)
-        expect(rows.map((row) => Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(row.row))).toEqual([
+        expect(rows.map((row) => Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(row.row))).toEqual([
           { id: "todo_1", content: "First", status: "pending", priority: "high", position: 1 },
           { id: "todo_2", content: "Second", status: "pending", priority: "low", position: 0 },
         ])
@@ -513,7 +534,9 @@ describe("collection projector", () => {
           SELECT row FROM collection_row
           WHERE collection = 'messages' AND scope_key = 'ses_1' AND row_key = 'msg_previous'
         `)
-        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+        expect(
+          projected && Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(projected.row),
+        ).toMatchObject({
           time: { completed: 2 },
         })
       }).pipe(Effect.provide(Database.layerFromPath(":memory:")), Effect.scoped),
@@ -554,7 +577,9 @@ describe("collection projector", () => {
           SELECT row FROM collection_row
           WHERE collection = 'messages' AND scope_key = 'ses_1' AND row_key = 'msg_user'
         `)
-        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+        expect(
+          projected && Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(projected.row),
+        ).toMatchObject({
           files: [{ truncated: true, content: { bytes: expect.any(Number) } }],
         })
         expect(
@@ -610,7 +635,9 @@ describe("collection projector", () => {
           WHERE collection = 'parts' AND scope_key = 'ses_1'
         `)
         expect(projected?.row.length).toBeLessThan(1024 * 1024)
-        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+        expect(
+          projected && Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(projected.row),
+        ).toMatchObject({
           ordinal: 0,
           state: { input: expect.any(String), truncated: true, content: { bytes: 2 * 1024 * 1024 } },
         })
@@ -627,27 +654,37 @@ describe("collection projector", () => {
     await Effect.runPromise(
       Effect.gen(function* () {
         const { db: database } = yield* Database.Service
-        yield* database.run(sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`)
-        yield* database.run(sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1)`)
-        yield* database.run(sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`)
+        yield* database.run(
+          sql`INSERT INTO project (id, worktree, time_created, time_updated, sandboxes) VALUES ('global', '/project', 1, 1, '[]')`,
+        )
+        yield* database.run(
+          sql`INSERT INTO session (id, project_id, slug, directory, title, version, time_created, time_updated) VALUES ('ses_1', 'global', 'session', '/project', 'Session', '1', 1, 1)`,
+        )
+        yield* database.run(
+          sql`INSERT INTO collection_feed (id, feed_id, retained_floor, runtime_id) VALUES (1, 'feed', 0, 'runtime')`,
+        )
         yield* database.run(sql`
           INSERT INTO session_message (id, session_id, type, seq, time_created, time_updated, data)
           VALUES ('msg_tool', 'ses_1', 'assistant', 1, 1, 1, ${JSON.stringify({
             agent: "build",
             model: { id: "model", providerID: "provider" },
-            content: [{
-              type: "tool",
-              id: "tool_1",
-              name: "bash",
-              state: {
-                status: "completed",
-                input: {},
-                structured: {},
-                content: [{ type: "file", mime: "image/png", uri: `data:image/png;base64,${"A".repeat(2 * 1024 * 1024)}` }],
-                result: { value: "x".repeat(2 * 1024 * 1024) },
+            content: [
+              {
+                type: "tool",
+                id: "tool_1",
+                name: "bash",
+                state: {
+                  status: "completed",
+                  input: {},
+                  structured: {},
+                  content: [
+                    { type: "file", mime: "image/png", uri: `data:image/png;base64,${"A".repeat(2 * 1024 * 1024)}` },
+                  ],
+                  result: { value: "x".repeat(2 * 1024 * 1024) },
+                },
+                time: { created: 1, completed: 2 },
               },
-              time: { created: 1, completed: 2 },
-            }],
+            ],
             time: { created: 1 },
           })})
         `)
@@ -657,9 +694,13 @@ describe("collection projector", () => {
           data: { sessionID: "ses_1", assistantMessageID: "msg_tool" },
         })
 
-        const projected = yield* database.get<{ row: string }>(sql`SELECT row FROM collection_row WHERE collection = 'parts' AND scope_key = 'ses_1'`)
+        const projected = yield* database.get<{ row: string }>(
+          sql`SELECT row FROM collection_row WHERE collection = 'parts' AND scope_key = 'ses_1'`,
+        )
         expect(projected?.row.length).toBeLessThan(1024 * 1024)
-        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+        expect(
+          projected && Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(projected.row),
+        ).toMatchObject({
           state: {
             content: [{ type: "file", truncated: true, content: { bytes: expect.any(Number) } }],
             result: { truncated: true, content: { bytes: expect.any(Number) } },
@@ -705,7 +746,9 @@ describe("collection projector", () => {
           WHERE collection = 'messages' AND scope_key = 'ses_1' AND row_key = 'msg_shell'
         `)
         expect(projected?.row.length).toBeLessThan(1024 * 1024)
-        expect(projected && Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(projected.row)).toMatchObject({
+        expect(
+          projected && Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(projected.row),
+        ).toMatchObject({
           output: expect.any(String),
           truncated: true,
           content: { bytes: 2 * 1024 * 1024 },
@@ -716,7 +759,11 @@ describe("collection projector", () => {
 })
 
 function sessionWorking(database: Database.Interface["db"], sessionID: string) {
-  return database.get<{ row: string }>(sql`
+  return database
+    .get<{ row: string }>(
+      sql`
     SELECT row FROM collection_row WHERE collection = 'sessions' AND scope_key = '' AND row_key = ${sessionID}
-  `).pipe(Effect.map((result) => result ? (JSON.parse(result.row) as { working: boolean }).working : undefined))
+  `,
+    )
+    .pipe(Effect.map((result) => (result ? (JSON.parse(result.row) as { working: boolean }).working : undefined)))
 }

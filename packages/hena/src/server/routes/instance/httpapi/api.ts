@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Context, Schema } from "effect"
 import { HttpApi } from "effect/unstable/httpapi"
 import { EventV2 } from "@hena/core/event"
 import { EventManifest } from "@/event-manifest"
@@ -82,6 +82,7 @@ export const HenaHttpApi = HttpApi.make("hena")
   .addHttpApi(PtyConnectApi)
   .annotate(HttpApi.AdditionalSchemas, [
     EventSchema,
+    ...Context.getUnsafe(ServerApi.annotations, HttpApi.AdditionalSchemas),
     Question.Replied,
     Question.Rejected,
     Credential.Value,

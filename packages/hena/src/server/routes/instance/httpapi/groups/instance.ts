@@ -29,7 +29,7 @@ export const VcsDiffQuery = Schema.Struct({
   context: Schema.optional(Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThanOrEqualTo(0))),
 })
 
-export class ApiVcsApplyError extends Schema.ErrorClass<ApiVcsApplyError>("VcsApplyError")(
+export class ApiVcsApplyError extends Schema.Error<ApiVcsApplyError>("VcsApplyError")(
   {
     name: Schema.Literal("VcsApplyError"),
     data: Schema.Struct({
@@ -76,8 +76,7 @@ export const InstanceApi = HttpApi.make("instance")
           OpenApi.annotations({
             identifier: "path.get",
             summary: "Get paths",
-            description:
-              "Retrieve the current working directory and related path information for the Hena instance.",
+            description: "Retrieve the current working directory and related path information for the Hena instance.",
           }),
         ),
         HttpApiEndpoint.get("vcs", InstancePaths.vcs, {

@@ -15,7 +15,7 @@ const Endpoint2Params = Schema.Struct({ sessionID: Schema.String })
 
 const Endpoint2Success = Schema.Struct({ data: Schema.String })
 
-class Endpoint2Error0Class extends Schema.TaggedErrorClass<Endpoint2Error0Class>("Missing")("Missing", {
+class Endpoint2Error0Class extends Schema.TaggedError<Endpoint2Error0Class>("Missing")("Missing", {
   message: Schema.String,
 }) {}
 const Endpoint2Error0 = Endpoint2Error0Class.annotate({ httpApiStatus: 404 })
@@ -41,7 +41,7 @@ export const Group0 = HttpApiGroup.make("session", { topLevel: false })
     }),
   )
 
-type RawGroup = HttpApiClient.Client.Group<typeof Group0, "session", never, never>
+type RawGroup = HttpApiClient.Client.Group<typeof Group0, never, never>
 
 const Endpoint0DeclaredError = Schema.Never
 const mapEndpoint0Error = (error: unknown) =>

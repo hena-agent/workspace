@@ -1,8 +1,8 @@
 diff --git a/dist/cjs/index.cjs b/dist/cjs/index.cjs
-index e470032a9572b3ced764ca02238a8c6be435a9d4..946bd0a6a3a6c0b6f3bc3403832c5043ef5a8548 100644
+index d60f3c7bd03767a5bd28ac5df68e4b83fb6ac77a..ba450895b4e022fef9898d60a7da579cafcd4f7e 100644
 --- a/dist/cjs/index.cjs
 +++ b/dist/cjs/index.cjs
-@@ -725,17 +725,20 @@ class Virtualizer {
+@@ -745,17 +745,20 @@ class Virtualizer {
          this.getMeasurements(),
          this.getSize(),
          this.getScrollOffset(),
@@ -27,10 +27,10 @@ index e470032a9572b3ced764ca02238a8c6be435a9d4..946bd0a6a3a6c0b6f3bc3403832c5043
            // Pass the typed array so binary search + forward-walk can read
            // start/end directly from Float64Array, skipping the Proxy traps.
 diff --git a/dist/cjs/index.d.cts b/dist/cjs/index.d.cts
-index cc1001b8a14d06aa73a3a9e8f59870557ee9e7d6..70b202ed436ce1f3283a8465a81faf2e6e2e7983 100644
+index 65a9f161a8da0d68890fcbaaeb257c518243e9e9..99143f8d9c0753a1f69fe964b2967154cf79c8d2 100644
 --- a/dist/cjs/index.d.cts
 +++ b/dist/cjs/index.d.cts
-@@ -144,7 +144,7 @@ export declare class Virtualizer<TScrollElement extends Element | Window, TItemE
+@@ -146,7 +146,7 @@ export declare class Virtualizer<TScrollElement extends Element | Window, TItemE
              startIndex: number;
              endIndex: number;
          } | null;
@@ -40,10 +40,10 @@ index cc1001b8a14d06aa73a3a9e8f59870557ee9e7d6..70b202ed436ce1f3283a8465a81faf2e
      getVirtualIndexes: {
          (): number[];
 diff --git a/dist/esm/index.d.ts b/dist/esm/index.d.ts
-index 6b43c0aea7ed9eeef75cbfb1351fcbd243913bdd..7be2680967934ddfbc4583a210a3d11ee2cddc94 100644
+index ce156f1b346b1ee44988e299ba4ec74be384bfba..ee18a531bc9cfc7fbbf0baf02c846c650ef1670c 100644
 --- a/dist/esm/index.d.ts
 +++ b/dist/esm/index.d.ts
-@@ -144,7 +144,7 @@ export declare class Virtualizer<TScrollElement extends Element | Window, TItemE
+@@ -146,7 +146,7 @@ export declare class Virtualizer<TScrollElement extends Element | Window, TItemE
              startIndex: number;
              endIndex: number;
          } | null;
@@ -53,10 +53,10 @@ index 6b43c0aea7ed9eeef75cbfb1351fcbd243913bdd..7be2680967934ddfbc4583a210a3d11e
      getVirtualIndexes: {
          (): number[];
 diff --git a/dist/esm/index.js b/dist/esm/index.js
-index 2495b26cf2c3589213546b3958eaadf2eb6b751d..3527da2a85712c46ecd8495adc6cfa6606cceae5 100644
+index e4547ec39057bdbed965d4417e242c592a194c94..ea7e854526a20edbdc4f0cd63db8f24a7cbaac9f 100644
 --- a/dist/esm/index.js
 +++ b/dist/esm/index.js
-@@ -723,17 +723,20 @@ class Virtualizer {
+@@ -743,17 +743,20 @@ class Virtualizer {
          this.getMeasurements(),
          this.getSize(),
          this.getScrollOffset(),
@@ -81,10 +81,10 @@ index 2495b26cf2c3589213546b3958eaadf2eb6b751d..3527da2a85712c46ecd8495adc6cfa66
            // Pass the typed array so binary search + forward-walk can read
            // start/end directly from Float64Array, skipping the Proxy traps.
 diff --git a/src/index.ts b/src/index.ts
-index dc6f1010c4d4758de9c46fb8d69209e582e47171..b102f3cb8b9ab560557f8b163748da358bdddecd 100644
+index 55c276edfa77aff12e23aa47cd0db65851642bdc..6500a3b45465d9c6fa569f6dd8ea62deb98cde6b 100644
 --- a/src/index.ts
 +++ b/src/index.ts
-@@ -1410,16 +1410,19 @@ export class Virtualizer<
+@@ -1477,16 +1477,19 @@ export class Virtualizer<
        this.getSize(),
        this.getScrollOffset(),
        this.options.lanes,

@@ -1,7 +1,7 @@
 export * as AISDK from "./aisdk"
 
 import { makeLocationNode } from "./effect/app-node"
-import type { LanguageModelV3 } from "@ai-sdk/provider"
+import type { LanguageModelV3, LanguageModelV4 } from "@ai-sdk/provider"
 import { Cause, Context, Effect, Layer, Schema, Scope } from "effect"
 import { ModelV2 } from "./model"
 import { ProviderV2 } from "./provider"
@@ -20,7 +20,7 @@ export interface LanguageEvent {
   readonly model: ModelV2.Info
   readonly sdk: SDK
   readonly options: Record<string, any>
-  language?: LanguageModelV3
+  language?: LanguageModelV3 | LanguageModelV4
 }
 
 function wrapSSE(res: Response, ms: number, ctl: AbortController) {
@@ -121,7 +121,7 @@ function prepareOptions(model: ModelV2.Info, pkg: string) {
   return options
 }
 
-export class InitError extends Schema.TaggedErrorClass<InitError>()("AISDK.InitError", {
+export class InitError extends Schema.TaggedError<InitError>()("AISDK.InitError", {
   providerID: ProviderV2.ID,
   cause: Schema.Defect(),
 }) {}
@@ -141,7 +141,7 @@ export interface Interface {
   }
   readonly runSDK: (event: SDKEvent) => Effect.Effect<SDKEvent>
   readonly runLanguage: (event: LanguageEvent) => Effect.Effect<LanguageEvent>
-  readonly language: (model: ModelV2.Info) => Effect.Effect<LanguageModelV3, InitError>
+  readonly language: (model: ModelV2.Info) => Effect.Effect<LanguageModelV3 | LanguageModelV4, InitError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@hena/v2/AISDK") {}
@@ -151,7 +151,7 @@ export const locationLayer = Layer.effect(
   Effect.gen(function* () {
     let sdkHooks: ((event: SDKEvent) => Effect.Effect<void> | void)[] = []
     let languageHooks: ((event: LanguageEvent) => Effect.Effect<void> | void)[] = []
-    const languages = new Map<string, LanguageModelV3>()
+    const languages = new Map<string, LanguageModelV3 | LanguageModelV4>()
     const sdks = new Map<string, SDK>()
 
     const register = <Event>(

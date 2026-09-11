@@ -4,7 +4,7 @@ const glyphs = ["                  ", "█  █ █▀▀ █▄ █ █▀█",
 
 const wordmark = glyphs.map((row) => row.trimEnd())
 
-export class CancelledError extends Schema.TaggedErrorClass<CancelledError>()("UICancelledError", {}) {}
+export class CancelledError extends Schema.TaggedError<CancelledError>()("UICancelledError", {}) {}
 
 export const Style = {
   TEXT_HIGHLIGHT: "\x1b[96m",

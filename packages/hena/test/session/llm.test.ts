@@ -3,7 +3,7 @@ import { ConfigV1 } from "@hena/core/v1/config/config"
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test"
 import { SessionV1 } from "@hena/core/v1/session"
 import path from "path"
-import { tool, type ModelMessage } from "ai"
+import { dynamicTool, tool, type ModelMessage } from "ai"
 import { Cause, Effect, Exit, Fiber, Layer, Stream } from "effect"
 import { InstanceRef } from "../../src/effect/instance-ref"
 import { HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
@@ -29,6 +29,17 @@ import { LayerNode } from "@hena/core/effect/layer-node"
 import { LayerNodePlatform } from "@hena/core/effect/app-node-platform"
 
 type ConfigModel = NonNullable<NonNullable<ConfigV1.Info["provider"]>[string]["models"]>[string]
+
+const performance = {
+  effectiveOutputTokensPerSecond: 0,
+  outputTokensPerSecond: undefined,
+  inputTokensPerSecond: undefined,
+  effectiveTotalTokensPerSecond: 0,
+  stepTimeMs: 0,
+  responseTimeMs: 0,
+  toolExecutionMs: {},
+  timeToFirstOutputMs: undefined,
+}
 
 const openAIConfig = (model: ModelsDev.Provider["models"][string], baseURL: string): Partial<ConfigV1.Info> => {
   const { experimental: _experimental, ...configModel } = model
@@ -219,6 +230,7 @@ describe("session.llm.ai-sdk adapter", () => {
       },
       {
         type: "finish-step",
+        performance,
         response: { id: "response-1", timestamp: new Date(0), modelId: "gpt-test" },
         finishReason: "other",
         rawFinishReason: "other",
@@ -239,8 +251,6 @@ describe("session.llm.ai-sdk adapter", () => {
           inputTokens: 11,
           outputTokens: 6,
           totalTokens: 17,
-          cachedInputTokens: 4,
-          reasoningTokens: 2,
           inputTokenDetails: { noCacheTokens: 7, cacheReadTokens: 4, cacheWriteTokens: undefined },
           outputTokenDetails: { textTokens: 4, reasoningTokens: 2 },
         },
@@ -363,6 +373,7 @@ describe("session.llm.ai-sdk adapter", () => {
     const events = await adapt([
       {
         type: "finish-step",
+        performance,
         response: { id: "response-1", timestamp: new Date(0), modelId: "gpt-test" },
         finishReason: "stop",
         rawFinishReason: "stop",
@@ -371,8 +382,6 @@ describe("session.llm.ai-sdk adapter", () => {
           inputTokens: undefined,
           outputTokens: undefined,
           totalTokens: undefined,
-          reasoningTokens: undefined,
-          cachedInputTokens: undefined,
           inputTokenDetails: { noCacheTokens: undefined, cacheReadTokens: undefined, cacheWriteTokens: undefined },
           outputTokenDetails: { textTokens: undefined, reasoningTokens: undefined },
         },
@@ -405,6 +414,7 @@ describe("session.llm.ai-sdk adapter", () => {
       uncheckedAdapterEvent({ type: "reasoning-end" }),
       {
         type: "finish-step",
+        performance,
         response: { id: "r1", timestamp: new Date(0), modelId: "gpt-test" },
         finishReason: "stop",
         rawFinishReason: "stop",
@@ -455,6 +465,7 @@ describe("session.llm.ai-sdk adapter", () => {
     const events = await adapt([
       {
         type: "finish-step",
+        performance,
         response: { id: "msg_test", timestamp: new Date(0), modelId: "claude-3-5-sonnet" },
         finishReason: "stop",
         rawFinishReason: "stop",
@@ -514,6 +525,7 @@ describe("session.llm.ai-sdk adapter", () => {
       }),
       {
         type: "finish-step",
+        performance,
         response: { id: "msg_test", timestamp: new Date(0), modelId: "claude-sonnet-4.6" },
         finishReason: "stop",
         rawFinishReason: "end_turn",
@@ -528,6 +540,7 @@ describe("session.llm.ai-sdk adapter", () => {
       },
       {
         type: "finish-step",
+        performance,
         response: { id: "msg_follow_up", timestamp: new Date(0), modelId: "claude-sonnet-4.6" },
         finishReason: "stop",
         rawFinishReason: "end_turn",
@@ -1221,13 +1234,20 @@ describe("session.llm.stream", () => {
             agent,
             system: ["You are a helpful assistant."],
             messages: [{ role: "user", content: "Hello" }],
-            tools: {},
+            tools: {
+              lookup: tool({ inputSchema: z.object({ query: z.string().optional() }) }),
+              mcp_lookup: dynamicTool({ inputSchema: z.object({ query: z.string().optional() }) }),
+            },
           },
         )
 
         const capture = yield* Effect.promise(() => request)
         expect(capture.url.pathname.endsWith("/responses")).toBe(true)
         expect(capture.body.model).toBe(resolved.api.id)
+        expect(capture.body.tools).toMatchObject([
+          { type: "function", name: "lookup", strict: false },
+          { type: "function", name: "mcp_lookup", strict: false },
+        ])
       }),
     { config: () => openAIConfig(loadFixture("openai", "gpt-5.2").model, `${state.server!.url.origin}/v1`) },
   )
@@ -1981,8 +2001,7 @@ describe("session.llm.stream", () => {
         const capture = yield* Effect.promise(() => request)
         const body = capture.body
         const config = body.generationConfig as
-          | { temperature?: number; topP?: number; maxOutputTokens?: number }
-          | undefined
+          { temperature?: number; topP?: number; maxOutputTokens?: number } | undefined
 
         expect(capture.url.pathname).toBe(pathSuffix)
         expect(body.contents).toEqual([{ role: "user", parts: [{ text: "Hello" }] }])

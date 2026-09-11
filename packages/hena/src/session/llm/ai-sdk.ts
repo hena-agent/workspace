@@ -267,6 +267,11 @@ export function toLLMEvents(
     case "abort":
     case "source":
     case "file":
+    // The shared transcript has no binary/custom stream-part representation;
+    // approvals are handled by Hena's tool permissions, not AI SDK UI approvals.
+    case "reasoning-file":
+    case "custom":
+    case "tool-approval-response":
     case "tool-output-denied":
     case "tool-approval-request":
       return Effect.succeed([])

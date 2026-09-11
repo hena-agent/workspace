@@ -583,7 +583,8 @@ describe("ProviderTransform.options - gpt-5 textVerbosity", () => {
     expect(result.params.options.reasoningEffort).toBe("high")
     expect(result.params.options.reasoningSummary).toBeUndefined()
     expect(result.params.options.include).toBeUndefined()
-    expect(result.tools.lookup.strict).toBe(false)
+    // Strictness is applied after SDK tool lowering; llm.test.ts checks the wire payload.
+    expect(result.tools.lookup.strict).toBeUndefined()
   })
 
   test("gpt-5.1 should have textVerbosity set to low", () => {

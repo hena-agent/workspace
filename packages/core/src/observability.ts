@@ -4,7 +4,7 @@ import { NodeFileSystem } from "@effect/platform-node"
 import { LayerNode } from "./effect/layer-node"
 import { Effect, Layer, Logger, References } from "effect"
 import { FetchHttpClient } from "effect/unstable/http"
-import { OtlpSerialization } from "effect/unstable/observability"
+import { OtlpExporter, OtlpSerialization } from "effect/unstable/observability"
 import { Logging } from "./observability/logging"
 import { Otlp } from "./observability/otlp"
 
@@ -17,7 +17,7 @@ export const layer = Layer.unwrap(
       Layer.orDie,
       Layer.merge(Layer.succeed(References.MinimumLogLevel, Logging.minimumLogLevel())),
     )
-    return Layer.merge(logs, yield* Effect.promise(Otlp.tracingLayer))
+    return Layer.merge(logs, yield* Effect.promise(Otlp.tracingLayer)).pipe(Layer.provide(OtlpExporter.layerFlusher))
   }),
 )
 

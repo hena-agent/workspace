@@ -24,7 +24,7 @@ export type FileReference = BaseReference & {
 
 export type Reference = RemoteReference | FileReference
 
-export class InvalidRepositoryReferenceError extends Schema.TaggedErrorClass<InvalidRepositoryReferenceError>()(
+export class InvalidRepositoryReferenceError extends Schema.TaggedError<InvalidRepositoryReferenceError>()(
   "RepositoryInvalidReferenceError",
   {
     repository: Schema.String,
@@ -32,7 +32,7 @@ export class InvalidRepositoryReferenceError extends Schema.TaggedErrorClass<Inv
   },
 ) {}
 
-export class UnsupportedLocalRepositoryError extends Schema.TaggedErrorClass<UnsupportedLocalRepositoryError>()(
+export class UnsupportedLocalRepositoryError extends Schema.TaggedError<UnsupportedLocalRepositoryError>()(
   "RepositoryUnsupportedLocalRepositoryError",
   {
     repository: Schema.String,
@@ -40,7 +40,7 @@ export class UnsupportedLocalRepositoryError extends Schema.TaggedErrorClass<Uns
   },
 ) {}
 
-export class InvalidRepositoryBranchError extends Schema.TaggedErrorClass<InvalidRepositoryBranchError>()(
+export class InvalidRepositoryBranchError extends Schema.TaggedError<InvalidRepositoryBranchError>()(
   "RepositoryInvalidBranchError",
   {
     branch: Schema.String,
@@ -49,9 +49,7 @@ export class InvalidRepositoryBranchError extends Schema.TaggedErrorClass<Invali
 ) {}
 
 export type RepositoryError =
-  | InvalidRepositoryReferenceError
-  | UnsupportedLocalRepositoryError
-  | InvalidRepositoryBranchError
+  InvalidRepositoryReferenceError | UnsupportedLocalRepositoryError | InvalidRepositoryBranchError
 
 export function isRepositoryError(error: unknown): error is RepositoryError {
   return (

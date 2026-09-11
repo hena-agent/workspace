@@ -4,17 +4,22 @@
   "type": "module",
   "private": true,
   "license": "MIT",
+  "scripts": {
+    "typecheck": "bunx --package @typescript/native tsc --noEmit"
+  },
   "devDependencies": {
-    "@types/bun": "catalog:"
+    "@octokit/webhooks-types": "7.6.1",
+    "@types/bun": "catalog:",
+    "@typescript/native": "catalog:"
   },
   "peerDependencies": {
     "typescript": "^7.0.2"
   },
   "dependencies": {
-    "@actions/core": "1.11.1",
-    "@actions/github": "6.0.1",
-    "@octokit/graphql": "9.0.1",
-    "@octokit/rest": "catalog:",
-    "@hena/sdk": "workspace:*"
+    "@actions/core": "3.0.1",
+    "@actions/github": "9.1.1",
+    "@hena/sdk": "workspace:*",
+    "@octokit/graphql": "9.0.5",
+    "@octokit/rest": "catalog:"
   }
 }

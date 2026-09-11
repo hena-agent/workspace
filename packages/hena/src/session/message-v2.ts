@@ -178,7 +178,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
         value: [
           ...(outputObject.text ? [{ type: "text", text: outputObject.text }] : []),
           ...attachments.map((attachment) => ({
-            type: "media",
+            type: "file-data",
             mediaType: attachment.mime,
             data: iife(() => {
               const commaIndex = attachment.url.indexOf(",")

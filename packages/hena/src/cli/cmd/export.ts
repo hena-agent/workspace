@@ -269,7 +269,7 @@ const run = Effect.fn("Cli.export.body")(function* (args: { sessionID?: string; 
       }),
     )
 
-    if (prompts.isCancel(selectedSession)) {
+    if (typeof selectedSession === "symbol") {
       return yield* Effect.die(new UI.CancelledError())
     }
 

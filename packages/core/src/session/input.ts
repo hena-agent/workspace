@@ -20,7 +20,9 @@ const decodePrompt = Schema.decodeUnknownSync(Prompt)
 const encodePrompt = Schema.encodeSync(Prompt)
 export const queueOrder = sql<number>`CASE WHEN ${SessionInputTable.queue_position} = ${Number.MAX_SAFE_INTEGER} THEN ${SessionInputTable.admitted_seq} ELSE ${SessionInputTable.queue_position} END`
 
-export const normalizeQueuePositions = Effect.fn("SessionInput.normalizeQueuePositions")(function* (db: DatabaseService) {
+export const normalizeQueuePositions = Effect.fn("SessionInput.normalizeQueuePositions")(function* (
+  db: DatabaseService,
+) {
   yield* db
     .update(SessionInputTable)
     .set({ queue_position: sql`${SessionInputTable.admitted_seq}` })
@@ -69,7 +71,7 @@ const findHistorical = Effect.fn("SessionInput.findHistorical")(function* (db: D
   })
 })
 
-export class LifecycleConflict extends Schema.TaggedErrorClass<LifecycleConflict>()("SessionInput.LifecycleConflict", {
+export class LifecycleConflict extends Schema.TaggedError<LifecycleConflict>()("SessionInput.LifecycleConflict", {
   id: SessionMessage.ID,
 }) {}
 
@@ -285,7 +287,7 @@ const publish = Effect.fn("SessionInput.publish")(function* (
               )
             : defect instanceof PromotionConflict
               ? Effect.die(new PromotionConflict(index))
-            : Effect.die(defect),
+              : Effect.die(defect),
         ),
       )
   }

@@ -33,6 +33,10 @@ For a reverse proxy, add the complete browser origin, such as `https://app.examp
 `src/components/ui`, `src/components/ai-elements`, and the supporting `src/hooks/use-mobile.ts` hook are
 generated source. Do not edit them by hand or with automated fixes.
 
+The app typecheck includes catalog components reached through application imports. Unused catalog entries are not
+standalone TypeScript roots: the frozen snapshot can reference older SDK APIs. Importing such an entry will surface its
+compatibility errors and requires an approved catalog refresh before use.
+
 The current snapshot was imported on 2026-08-26 from:
 
 - shadcn/ui using CLI version `4.16.2` and the checked-in `components.json` (`radix-nova`)

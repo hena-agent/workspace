@@ -24,14 +24,14 @@
   },
   "main": "./out/main/index.js",
   "dependencies": {
-    "@zip.js/zip.js": "2.11.2",
+    "@zip.js/zip.js": "2.14.0",
     "effect": "catalog:",
     "electron-context-menu": "5.0.0",
     "electron-log": "^5.4.4",
     "electron-store": "11.0.2",
     "electron-updater": "6.8.9",
     "electron-window-state": "^5.0.3",
-    "marked": "^18.0.11"
+    "marked": "^18.0.12"
   },
   "devDependencies": {
     "@hena/app": "workspace:*",
@@ -46,7 +46,7 @@
     "@types/bun": "catalog:",
     "@types/node": "catalog:",
     "@typescript/native": "catalog:",
-    "electron": "44.2.0",
+    "electron": "44.3.0",
     "electron-builder": "26.15.3",
     "electron-vite": "6.0.0-beta.1",
     "solid-js": "catalog:",

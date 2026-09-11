@@ -197,7 +197,7 @@ async function delayedHeaderServer(delay: number): Promise<{ server: Server; url
   const server = createServer((_, res) => {
     setTimeout(() => {
       res.writeHead(200, { "content-type": "text/event-stream" })
-      res.end('data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: [DONE]\n\n')
+      res.end('data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n')
     }, delay)
   })
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
@@ -211,7 +211,7 @@ async function delayedBodyServer(delay: number): Promise<{ server: Server; url: 
     res.writeHead(200, { "content-type": "text/event-stream" })
     res.flushHeaders()
     setTimeout(() => {
-      res.end('data: {"choices":[{"delta":{"content":"late"}}]}\n\ndata: [DONE]\n\n')
+      res.end('data: {"choices":[{"delta":{"content":"late"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n')
     }, delay)
   })
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))

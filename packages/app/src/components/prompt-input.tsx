@@ -568,15 +568,13 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   const referenceList = createMemo(() =>
     sync()
       .data.reference.filter((reference) => !reference.hidden)
-      .map(
-        (reference): AtOption => ({
-          type: "reference",
-          name: reference.name,
-          path: reference.path,
-          display: reference.name,
-          description: reference.description ?? referenceDescription(reference),
-        }),
-      ),
+      .map((reference): AtOption => ({
+        type: "reference",
+        name: reference.name,
+        path: reference.path,
+        display: reference.name,
+        description: reference.description ?? referenceDescription(reference),
+      })),
   )
 
   const agentList = createMemo(() =>
@@ -586,17 +584,15 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   )
 
   const mcpResourceList = createMemo(() =>
-    Object.values(sync().data.mcp_resource).map(
-      (resource): AtOption => ({
-        type: "resource",
-        name: resource.name,
-        uri: resource.uri,
-        client: resource.client,
-        display: resource.name,
-        description: resource.description,
-        mime: resource.mimeType,
-      }),
-    ),
+    Object.values(sync().data.mcp_resource).map((resource): AtOption => ({
+      type: "resource",
+      name: resource.name,
+      uri: resource.uri,
+      client: resource.client,
+      display: resource.name,
+      description: resource.description,
+      mime: resource.mimeType,
+    })),
   )
 
   const handleAtSelect = (option: AtOption | undefined) => {
@@ -1434,7 +1430,7 @@ export const PromptInput: Component<PromptInputProps> = (props) => {
   }
   return (
     <div class="relative size-full flex flex-col gap-0">
-      {(promptReady(), null)}
+      {void promptReady()}
       <PromptPopover
         popover={store.popover}
         setSlashPopoverRef={(el) => (slashPopoverRef = el)}

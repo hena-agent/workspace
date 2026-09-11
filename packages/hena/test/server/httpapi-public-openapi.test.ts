@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { OpenApi } from "effect/unstable/httpapi"
+import { Context, Schema } from "effect"
+import { HttpApi, OpenApi } from "effect/unstable/httpapi"
+import { ServerApi } from "../../src/server/routes/instance/httpapi/api"
 import { PublicApi } from "../../src/server/routes/instance/httpapi/public"
 
 type Method = "get" | "post" | "put" | "delete" | "patch"
@@ -25,7 +27,10 @@ type OpenApiOperation = {
     readonly schema?: { readonly type?: string }
   }>
   readonly responses?: Record<string, OpenApiResponse>
-  readonly requestBody?: { readonly required?: boolean }
+  readonly requestBody?: {
+    readonly required?: boolean
+    readonly content?: Record<string, { readonly schema?: OpenApiSchema }>
+  }
   readonly security?: unknown
 }
 type OpenApiPathItem = Partial<Record<Method, OpenApiOperation>>
@@ -70,6 +75,36 @@ function isBuiltInEndpointError(name: string) {
 }
 
 describe("PublicApi OpenAPI v2 errors", () => {
+  test("reuses the endpoint event schema in public documentation", () => {
+    const [event] = Context.getUnsafe(ServerApi.annotations, HttpApi.AdditionalSchemas)
+    expect(Context.getUnsafe(PublicApi.annotations, HttpApi.AdditionalSchemas)).toContain(event)
+    const [success] = ServerApi.groups["server.event"].endpoints["event.subscribe"].success
+    const events: unknown = Reflect.get(success, "events")
+    if (!Schema.isSchema(events)) throw new Error("Expected SSE endpoint")
+    const fields: unknown = Reflect.get(events, "fields")
+    if (!fields || typeof fields !== "object" || !("data" in fields) || !Schema.isSchema(fields.data)) {
+      throw new Error("Expected SSE data codec")
+    }
+    expect(Reflect.get(fields.data, "to")).toBe(event)
+  })
+
+  test("keeps inline SDK input shapes instead of anonymous Effect aliases", () => {
+    const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
+    expect(
+      Object.keys(spec.components.schemas).filter((name) => /^(?:Objects|Arrays|Union|Declaration)_?\d*$/.test(name)),
+    ).toEqual([])
+    const prompt = spec.paths["/session/{sessionID}/message"]?.post?.requestBody?.content?.["application/json"]?.schema
+    expect(prompt?.properties?.noReply).toEqual({ type: "boolean" })
+    expect(prompt?.properties?.model).toMatchObject({
+      type: "object",
+      properties: { providerID: { type: "string" }, modelID: { type: "string" } },
+    })
+    const mcp = spec.paths["/mcp"]?.post?.requestBody?.content?.["application/json"]?.schema
+    expect(mcp?.properties?.config).toMatchObject({
+      anyOf: [{ $ref: "#/components/schemas/McpLocalConfig" }, { $ref: "#/components/schemas/McpRemoteConfig" }],
+    })
+  })
+
   test("includes plugin-facing core schemas", () => {
     const spec = OpenApi.fromApi(PublicApi) as OpenApiSpec
 

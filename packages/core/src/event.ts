@@ -17,9 +17,10 @@ export type { Data, Definition, Payload } from "@hena/schema/event"
 
 export type Subscriber<D extends Definition = Definition> = (event: Payload<D>) => Effect.Effect<void>
 export type Unsubscribe = Effect.Effect<void>
-export const DeferredNotifications = Context.Reference<
-  ((notification: Effect.Effect<void>) => void) | undefined
->("@hena/Event/DeferredNotifications", { defaultValue: () => undefined })
+export const DeferredNotifications = Context.Reference<((notification: Effect.Effect<void>) => void) | undefined>(
+  "@hena/Event/DeferredNotifications",
+  { defaultValue: () => undefined },
+)
 
 export const latestSequence = Effect.fn("EventV2.latestSequence")(function* (
   db: Database.Interface["db"],
@@ -42,7 +43,7 @@ export type SerializedEvent = {
   readonly data: Record<string, unknown>
 }
 
-export class InvalidDurableEventError extends Schema.TaggedErrorClass<InvalidDurableEventError>()(
+export class InvalidDurableEventError extends Schema.TaggedError<InvalidDurableEventError>()(
   "EventV2.InvalidDurableEvent",
   {
     type: Schema.String,
@@ -110,7 +111,7 @@ export const readAggregate = Effect.fn("EventV2.readAggregate")(function* <A>(
   }
 })
 
-export class SubscriberOverflowError extends Schema.TaggedErrorClass<SubscriberOverflowError>()(
+export class SubscriberOverflowError extends Schema.TaggedError<SubscriberOverflowError>()(
   "EventV2.SubscriberOverflow",
   { capacity: Schema.Int },
 ) {}

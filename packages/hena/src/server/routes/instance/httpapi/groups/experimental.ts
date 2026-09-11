@@ -70,7 +70,7 @@ const WorktreeErrorName = Schema.Union([
   Schema.Literal("WorktreeResetFailedError"),
   Schema.Literal("WorktreeListFailedError"),
 ])
-export class WorktreeApiError extends Schema.ErrorClass<WorktreeApiError>("WorktreeError")(
+export class WorktreeApiError extends Schema.Error<WorktreeApiError>("WorktreeError")(
   {
     name: WorktreeErrorName,
     data: Schema.Struct({ message: Schema.String }),
@@ -186,8 +186,8 @@ export const ExperimentalApi = HttpApi.make("experimental")
         ),
         HttpApiEndpoint.post("worktreeCreate", ExperimentalPaths.worktree, {
           disableCodecs: true,
-          query: WorkspaceRoutingQuery,
-          payload: [HttpApiSchema.NoContent, Worktree.CreateInput],
+          query: WorkspaceRoutingQuery.fields,
+          payload: [Schema.Undefined, Worktree.CreateInput],
           success: described(Worktree.Info, "Worktree created"),
           error: WorktreeApiError,
         }).annotateMerge(

@@ -105,7 +105,7 @@ const AgentCreateCommand = effectCmd({
               },
             ],
           })
-          if (prompts.isCancel(scopeResult)) throw new UI.CancelledError()
+          if (typeof scopeResult === "symbol") throw new UI.CancelledError()
           scope = scopeResult
         }
         targetPath = path.join(scope === "global" ? Global.Path.config : path.join(ctx.worktree, ".hena"), "agents")
@@ -121,7 +121,7 @@ const AgentCreateCommand = effectCmd({
           placeholder: "What should this agent do?",
           validate: (x) => (x && x.length > 0 ? undefined : "Required"),
         })
-        if (prompts.isCancel(query)) throw new UI.CancelledError()
+        if (typeof query === "symbol") throw new UI.CancelledError()
         description = query
       }
 
@@ -149,7 +149,7 @@ const AgentCreateCommand = effectCmd({
           })),
           initialValues: AVAILABLE_PERMISSIONS,
         })
-        if (prompts.isCancel(result)) throw new UI.CancelledError()
+        if (typeof result === "symbol") throw new UI.CancelledError()
         selected = result
       }
 
@@ -179,7 +179,7 @@ const AgentCreateCommand = effectCmd({
           ],
           initialValue: "all" as const,
         })
-        if (prompts.isCancel(modeResult)) throw new UI.CancelledError()
+        if (typeof modeResult === "symbol") throw new UI.CancelledError()
         mode = modeResult
       }
 

@@ -12,10 +12,8 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
-    "composite": true,
-    "noEmit": false,
-    "emitDeclarationOnly": true,
-    "outDir": "./node_modules/.ts-dist/app",
+    "incremental": true,
+    "noEmit": true,
     "jsx": "react-jsx",
 
     /* Linting */
@@ -28,5 +26,8 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Frozen vendor catalogs enter the program through application imports, not as standalone roots.
+  // Imported components are still typechecked; unused snapshot components may target older SDK APIs.
+  "exclude": ["src/components/ui", "src/components/ai-elements"]
 }

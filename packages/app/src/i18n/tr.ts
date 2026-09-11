@@ -609,8 +609,6 @@ export const dict = {
   "home.project.openFolder.description": "Mevcut bir klasörde çalışın.",
   "home.project.name": "Proje adı",
   "home.project.create": "Proje oluştur",
-  "project.mode.chat": "Sohbet projesi",
-  "project.mode.code": "Kod projesi",
   "home.recentlyClosed": "Yakın zamanda kapatılanlar",
   "home.server.collapse": "Sunucu projelerini daralt",
   "home.server.expand": "Sunucu projelerini genişlet",

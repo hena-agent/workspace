@@ -604,8 +604,6 @@ export const dict = {
   "home.project.openFolder.description": "Radite u postojećoj mapi.",
   "home.project.name": "Naziv projekta",
   "home.project.create": "Kreiraj projekat",
-  "project.mode.chat": "Chat projekat",
-  "project.mode.code": "Kodni projekat",
   "home.recentlyClosed": "Nedavno zatvoreni projekti",
   "home.server.collapse": "Sažmi projekte servera",
   "home.server.expand": "Proširi projekte servera",

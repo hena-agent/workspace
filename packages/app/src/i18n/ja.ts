@@ -551,8 +551,6 @@ export const dict = {
   "home.project.openFolder.description": "既存のフォルダで作業します。",
   "home.project.name": "プロジェクト名",
   "home.project.create": "プロジェクトを作成",
-  "project.mode.chat": "チャットプロジェクト",
-  "project.mode.code": "コードプロジェクト",
   "home.recentlyClosed": "最近閉じたプロジェクト",
   "home.server.collapse": "サーバーのプロジェクトを折りたたむ",
   "home.server.expand": "サーバーのプロジェクトを展開",

@@ -601,8 +601,6 @@ export const dict = {
   "home.project.openFolder.description": "在现有文件夹中工作。",
   "home.project.name": "项目名称",
   "home.project.create": "创建项目",
-  "project.mode.chat": "聊天项目",
-  "project.mode.code": "代码项目",
   "home.recentlyClosed": "最近关闭",
   "home.server.collapse": "折叠服务器项目",
   "home.server.expand": "展开服务器项目",

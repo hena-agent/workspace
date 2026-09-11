@@ -600,8 +600,6 @@ export const dict = {
   "home.project.openFolder.description": "ทำงานในโฟลเดอร์ที่มีอยู่",
   "home.project.name": "ชื่อโปรเจกต์",
   "home.project.create": "สร้างโปรเจกต์",
-  "project.mode.chat": "โปรเจกต์แชต",
-  "project.mode.code": "โปรเจกต์โค้ด",
   "home.recentlyClosed": "ที่ปิดไปล่าสุด",
   "home.server.collapse": "ย่อโปรเจกต์ของเซิร์ฟเวอร์",
   "home.server.expand": "ขยายโปรเจกต์ของเซิร์ฟเวอร์",

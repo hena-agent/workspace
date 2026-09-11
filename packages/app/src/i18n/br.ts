@@ -553,8 +553,6 @@ export const dict = {
   "home.project.openFolder.description": "Trabalhe em uma pasta existente.",
   "home.project.name": "Nome do projeto",
   "home.project.create": "Criar projeto",
-  "project.mode.chat": "Projeto de chat",
-  "project.mode.code": "Projeto de código",
   "home.recentlyClosed": "Projetos fechados recentemente",
   "home.server.collapse": "Recolher projetos do servidor",
   "home.server.expand": "Expandir projetos do servidor",

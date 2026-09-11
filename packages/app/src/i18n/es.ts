@@ -605,8 +605,6 @@ export const dict = {
   "home.project.openFolder.description": "Trabaja en una carpeta existente.",
   "home.project.name": "Nombre del proyecto",
   "home.project.create": "Crear proyecto",
-  "project.mode.chat": "Proyecto de chat",
-  "project.mode.code": "Proyecto de código",
   "home.recentlyClosed": "Proyectos cerrados recientemente",
   "home.server.collapse": "Contraer proyectos del servidor",
   "home.server.expand": "Expandir proyectos del servidor",

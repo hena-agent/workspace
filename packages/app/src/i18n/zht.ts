@@ -596,8 +596,6 @@ export const dict = {
   "home.project.openFolder.description": "在現有資料夾中工作。",
   "home.project.name": "專案名稱",
   "home.project.create": "建立專案",
-  "project.mode.chat": "聊天專案",
-  "project.mode.code": "程式碼專案",
   "home.recentlyClosed": "最近關閉",
   "home.server.collapse": "收合伺服器專案",
   "home.server.expand": "展開伺服器專案",

@@ -549,8 +549,6 @@ export const dict = {
   "home.project.openFolder.description": "اعمل في مجلد موجود.",
   "home.project.name": "اسم المشروع",
   "home.project.create": "إنشاء المشروع",
-  "project.mode.chat": "مشروع دردشة",
-  "project.mode.code": "مشروع برمجي",
   "home.recentlyClosed": "المغلقة مؤخرًا",
   "home.server.collapse": "طي مشاريع الخادم",
   "home.server.expand": "توسيع مشاريع الخادم",

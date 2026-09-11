@@ -12,7 +12,6 @@ import { useLanguage } from "@/context/language"
 import { useNotification } from "@/context/notification"
 import { ProjectIcon, SessionItem, type SessionItemProps } from "./sidebar-items"
 import { displayName, sortedRootSessions } from "./helpers"
-import { ProjectModeIcon } from "@/components/project-mode-icon"
 
 export type ProjectSidebarContext = {
   currentDir: Accessor<string>
@@ -201,7 +200,6 @@ const ProjectPreviewPanel = (props: {
   <div class="-m-3 p-2 flex flex-col w-72">
     <div class="px-4 pt-2 pb-1 flex items-center gap-2">
       <div class="text-14-medium text-text-strong truncate grow">{displayName(props.project)}</div>
-      <ProjectModeIcon mode={props.project.mode} class="text-icon-base" />
     </div>
     <div class="px-4 pb-2 text-12-medium text-text-weak">{props.language.t("sidebar.project.recentSessions")}</div>
     <div class="px-2 pb-2 flex flex-col gap-2">

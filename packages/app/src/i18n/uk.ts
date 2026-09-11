@@ -627,8 +627,6 @@ export const dict = {
   "home.project.openFolder.description": "Працюйте в наявній папці.",
   "home.project.name": "Назва проєкту",
   "home.project.create": "Створити проєкт",
-  "project.mode.chat": "Чат-проєкт",
-  "project.mode.code": "Проєкт коду",
   "home.recentlyClosed": "Нещодавно закриті",
   "home.server.collapse": "Згорнути проєкти сервера",
   "home.server.expand": "Розгорнути проєкти сервера",

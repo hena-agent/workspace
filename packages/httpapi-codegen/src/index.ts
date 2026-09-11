@@ -999,6 +999,9 @@ function streamEncodedDataSchema(schema: Extract<HttpApiSchema.StreamSchema, { r
 }
 
 function streamSourceSchema(schema: Extract<HttpApiSchema.StreamSchema, { readonly _tag: "StreamSse" }>) {
+  // StreamSse's data overload builds a Struct with a fromJsonString data field.
+  // Its public constraint erases .fields/.to; validate them here and fail loudly
+  // instead of guessing a codec from the decoded AST (which loses wire transforms).
   const fields: unknown = Reflect.get(schema.events, "fields")
   if (typeof fields === "object" && fields !== null && "data" in fields && Schema.isSchema(fields.data)) {
     const source: unknown = Reflect.get(fields.data, "to")

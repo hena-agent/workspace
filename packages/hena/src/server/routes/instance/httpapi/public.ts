@@ -72,6 +72,8 @@ const QueryParameterSchemas: Record<string, OpenApiSchema> = {
   "GET /api/session start": { type: "number" },
   "GET /api/session roots": QueryBooleanOpenApi,
   "GET /api/session/{sessionID}/message limit": { type: "number" },
+  "GET /api/session/{sessionID}/history limit": { type: "number" },
+  "GET /api/session/{sessionID}/history after": { type: "number" },
 }
 
 const LegacyComponentDescriptions: Record<string, string> = {
@@ -97,6 +99,7 @@ function matchLegacyOpenApi(input: Record<string, unknown>) {
     spec.components!.schemas![name] = stripOptionalNull(structuredClone(schema))
   }
   normalizeComponentNames(spec)
+  inlineAnonymousComponents(spec)
   if (spec.components?.schemas?.V2EventStream) {
     spec.components.schemas.V2EventStream.contentSchema = { $ref: "#/components/schemas/V2Event" }
   }
@@ -116,11 +119,7 @@ function matchLegacyOpenApi(input: Record<string, unknown>) {
         // Keep that SDK surface stable while the HttpApi spec is tightened.
         if (!isV2Api) delete operation.requestBody.required
         const body = operation.requestBody.content?.["application/json"]
-        if (body?.schema) {
-          const ref = body.schema.$ref?.replace("#/components/schemas/", "")
-          const schema = ref && /^Objects\d+$/.test(ref) ? spec.components?.schemas?.[ref] : undefined
-          body.schema = stripOptionalNull(structuredClone(schema ?? body.schema))
-        }
+        if (body?.schema) body.schema = stripOptionalNull(structuredClone(body.schema))
         if (path === "/experimental/workspace" && method === "post") {
           // Workspace creation fields `branch` and `extra` are Schema.NullOr —
           // genuinely nullable, not just optional. Re-add the null that the
@@ -178,12 +177,7 @@ function matchLegacyOpenApi(input: Record<string, unknown>) {
         }
       }
       const route = `${method.toUpperCase()} ${path}`
-      for (const param of operation.parameters ?? []) {
-        const ref = param.schema?.$ref?.replace("#/components/schemas/", "")
-        const schema = ref ? spec.components?.schemas?.[ref] : undefined
-        if (ref && /^Union_?\d*$/.test(ref) && schema?.type === "string") param.schema = structuredClone(schema)
-        normalizeParameter(param, route)
-      }
+      for (const param of operation.parameters ?? []) normalizeParameter(param, route)
     }
   }
   deleteUnusedLegacyErrorComponents(spec)
@@ -269,6 +263,8 @@ function normalizeComponentNames(spec: OpenApiSpec) {
 }
 
 function componentTypeName(name: string) {
+  // Effect beta.107 distinguishes encoded schemas with Encoded and _N suffixes.
+  // Keep the established SDK names; real collisions are handled above.
   name = name.replace(/_(\d+)$/, "$1").replace(/Encoded(\d*)$/, "$1")
   if (!name.includes(".")) return name
   return name
@@ -276,6 +272,33 @@ function componentTypeName(name: string) {
     .filter((part) => !/^\d+$/.test(part))
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
     .join("")
+}
+
+function inlineAnonymousComponents(spec: OpenApiSpec) {
+  const schemas = spec.components?.schemas
+  if (!schemas) return
+  // Effect beta.107 hoists repeated anonymous AST nodes under these generated
+  // names. They are implementation details, not public SDK type identities.
+  const anonymous = new Set(
+    Object.keys(schemas).filter((name) => /^(?:Objects|Arrays|Union|Declaration)_?\d*$/.test(name)),
+  )
+  const expanded = new Map<string, OpenApiSchema>()
+  const visit = (value: unknown, seen: ReadonlySet<string>): unknown => {
+    if (Array.isArray(value)) return value.map((item) => visit(item, seen))
+    if (!value || typeof value !== "object") return value
+    const schema = value as OpenApiSchema
+    const name = schema.$ref?.replace("#/components/schemas/", "")
+    if (name && anonymous.has(name)) {
+      if (seen.has(name)) throw new Error(`Recursive anonymous OpenAPI schema needs a public identifier: ${name}`)
+      const resolved = expanded.get(name) ?? (visit(schemas[name], new Set([...seen, name])) as OpenApiSchema)
+      expanded.set(name, resolved)
+      const siblings = Object.fromEntries(Object.entries(schema).filter(([key]) => key !== "$ref"))
+      return { ...resolved, ...(visit(siblings, seen) as OpenApiSchema) }
+    }
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, visit(child, seen)]))
+  }
+  Object.assign(spec, visit(spec, new Set()))
+  for (const name of anonymous) delete spec.components?.schemas?.[name]
 }
 
 function applyLegacySchemaOverrides(spec: OpenApiSpec) {

@@ -9,7 +9,7 @@ import { makePermissionGroup } from "./groups/permission"
 import { FileSystemGroup } from "./groups/fs"
 import { CommandGroup } from "./groups/command"
 import { SkillGroup } from "./groups/skill"
-import { EventGroup, makeEventGroup } from "./groups/event"
+import { EventGroup, HenaEvent, makeEvent } from "./groups/event"
 import type { Definition } from "@hena/schema/event"
 import { AgentGroup } from "./groups/agent"
 import { HealthGroup } from "./groups/health"
@@ -72,8 +72,13 @@ export const makeApi = <
   readonly definitions: ReadonlyArray<Definition>
   readonly locationMiddleware: Context.Key<LocationId, LocationService>
   readonly sessionLocationMiddleware: Context.Key<SessionLocationId, SessionLocationService>
-}) =>
-  makeApiFromGroup(makeEventGroup(options.definitions), options.locationMiddleware, options.sessionLocationMiddleware)
+}) => {
+  const event = makeEvent(options.definitions)
+  return makeApiFromGroup(event.group, options.locationMiddleware, options.sessionLocationMiddleware).annotate(
+    HttpApi.AdditionalSchemas,
+    [event.schema],
+  )
+}
 
 export const makeDefaultApi = <
   LocationId extends HttpApiMiddleware.AnyId,
@@ -83,4 +88,8 @@ export const makeDefaultApi = <
 >(options: {
   readonly locationMiddleware: Context.Key<LocationId, LocationService>
   readonly sessionLocationMiddleware: Context.Key<SessionLocationId, SessionLocationService>
-}) => makeApiFromGroup(EventGroup, options.locationMiddleware, options.sessionLocationMiddleware)
+}) =>
+  makeApiFromGroup(EventGroup, options.locationMiddleware, options.sessionLocationMiddleware).annotate(
+    HttpApi.AdditionalSchemas,
+    [HenaEvent],
+  )

@@ -319,6 +319,17 @@ const live: Layer.Layer<
               {
                 specificationVersion: "v3" as const,
                 async transformParams(args) {
+                  // Apply Codex parity after AI SDK lowers both static and MCP/dynamic
+                  // tools to provider function tools. DynamicTool has no strict option.
+                  if (
+                    input.model.api.npm === "@ai-sdk/openai" ||
+                    input.model.api.npm === "@ai-sdk/azure" ||
+                    input.model.api.npm === "@ai-sdk/amazon-bedrock/mantle"
+                  ) {
+                    args.params.tools = args.params.tools?.map((tool) =>
+                      tool.type === "function" ? { ...tool, strict: false } : tool,
+                    )
+                  }
                   if (args.type === "stream") {
                     // @ts-expect-error
                     args.params.prompt = ProviderTransform.message(

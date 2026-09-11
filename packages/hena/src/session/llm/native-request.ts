@@ -46,13 +46,14 @@ const textPart = (part: Record<string, unknown>) => ({
 })
 
 const mediaPart = (part: Record<string, unknown>) => {
-  const data = isRecord(part.data)
-    ? part.data.type === "url" && part.data.url instanceof URL
-      ? part.data.url.toString()
-      : part.data.type === "data"
-        ? part.data.data
-        : undefined
-    : part.data
+  const data =
+    isRecord(part.data) && !(part.data instanceof Uint8Array)
+      ? part.data.type === "url" && part.data.url instanceof URL
+        ? part.data.url.toString()
+        : part.data.type === "data"
+          ? part.data.data
+          : undefined
+      : part.data
   if (typeof data !== "string" && !(data instanceof Uint8Array))
     throw new Error("Native LLM request adapter only supports file parts with string or Uint8Array data")
   return {

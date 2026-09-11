@@ -155,6 +155,21 @@ const expectOpenAIResponsesRequest = (input: {
 
 describe("session.llm-native.request", () => {
   test.each([
+    new Uint8Array([102, 111, 111]),
+    Buffer.from("foo"),
+    { type: "data", data: new Uint8Array([102, 111, 111]) },
+    { type: "data", data: Buffer.from("foo") },
+  ] as const)("preserves raw and tagged byte-array file inputs: %j", (data) => {
+    const request = LLMNative.request({
+      model: baseModel,
+      messages: [{ role: "user", content: [{ type: "file", mediaType: "image/png", data }] }],
+    })
+    const part = request.messages[0].content[0]
+    if (part.type !== "media" || !(part.data instanceof Uint8Array)) throw new Error("Expected native media bytes")
+    expect([...part.data]).toEqual([102, 111, 111])
+  })
+
+  test.each([
     "data:image/png;base64,Zm9v",
     { type: "url", url: new URL("data:image/png;base64,Zm9v") },
     { type: "data", data: "Zm9v" },

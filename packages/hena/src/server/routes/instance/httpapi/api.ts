@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Context, Schema } from "effect"
 import { HttpApi } from "effect/unstable/httpapi"
 import { EventV2 } from "@hena/core/event"
 import { EventManifest } from "@/event-manifest"
@@ -25,7 +25,6 @@ import { SessionApi } from "./groups/session"
 import { SyncApi } from "./groups/sync"
 import { WorkspaceApi } from "./groups/workspace"
 import { makeApi } from "@hena/protocol/api"
-import { makeEventSchema } from "@hena/protocol/groups/event"
 import { LocationMiddleware } from "@hena/server/location"
 import { SessionLocationMiddleware } from "@hena/server/middleware/session-location"
 import { GlobalApi } from "./groups/global"
@@ -83,7 +82,7 @@ export const HenaHttpApi = HttpApi.make("hena")
   .addHttpApi(PtyConnectApi)
   .annotate(HttpApi.AdditionalSchemas, [
     EventSchema,
-    makeEventSchema(EventManifest.Latest.values().toArray()),
+    ...Context.getUnsafe(ServerApi.annotations, HttpApi.AdditionalSchemas),
     Question.Replied,
     Question.Rejected,
     Credential.Value,

@@ -3,7 +3,7 @@ import { ConfigV1 } from "@hena/core/v1/config/config"
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test"
 import { SessionV1 } from "@hena/core/v1/session"
 import path from "path"
-import { tool, type ModelMessage } from "ai"
+import { dynamicTool, tool, type ModelMessage } from "ai"
 import { Cause, Effect, Exit, Fiber, Layer, Stream } from "effect"
 import { InstanceRef } from "../../src/effect/instance-ref"
 import { HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
@@ -1234,13 +1234,20 @@ describe("session.llm.stream", () => {
             agent,
             system: ["You are a helpful assistant."],
             messages: [{ role: "user", content: "Hello" }],
-            tools: {},
+            tools: {
+              lookup: tool({ inputSchema: z.object({ query: z.string().optional() }) }),
+              mcp_lookup: dynamicTool({ inputSchema: z.object({ query: z.string().optional() }) }),
+            },
           },
         )
 
         const capture = yield* Effect.promise(() => request)
         expect(capture.url.pathname.endsWith("/responses")).toBe(true)
         expect(capture.body.model).toBe(resolved.api.id)
+        expect(capture.body.tools).toMatchObject([
+          { type: "function", name: "lookup", strict: false },
+          { type: "function", name: "mcp_lookup", strict: false },
+        ])
       }),
     { config: () => openAIConfig(loadFixture("openai", "gpt-5.2").model, `${state.server!.url.origin}/v1`) },
   )

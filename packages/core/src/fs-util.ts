@@ -27,6 +27,7 @@ export namespace FSUtil {
     readonly type: "file" | "directory" | "symlink" | "other"
   }
 
+  // Keep Hena's existing Glob.Options contract instead of Effect's newer glob signature.
   export interface Interface extends Omit<FileSystem.FileSystem, "glob"> {
     readonly isDir: (path: string) => Effect.Effect<boolean>
     readonly isFile: (path: string) => Effect.Effect<boolean>

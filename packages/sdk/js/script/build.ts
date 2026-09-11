@@ -10,10 +10,11 @@ import path from "path"
 import { createClient } from "@hey-api/openapi-ts"
 
 const hena = path.resolve(dir, "../../hena")
+const openapi = path.resolve(dir, "../openapi.json")
 
-await $`bun dev generate > ${dir}/openapi.json`.cwd(hena)
+await $`bun dev generate > ${openapi}`.cwd(hena)
 
-const document = (await Bun.file("./openapi.json").json()) as {
+const document = (await Bun.file(openapi).json()) as {
   components?: { schemas?: Record<string, unknown> }
   [key: string]: unknown
 }
@@ -41,11 +42,11 @@ if (schemas) {
   for (const name of Object.keys(schemas)) {
     if (/^SessionNext\w+1$/.test(name) && !reachable.has(name)) delete schemas[name]
   }
-  await Bun.write("./openapi.json", JSON.stringify(document))
+  await Bun.write(openapi, JSON.stringify(document))
 }
 
 await createClient({
-  input: "./openapi.json",
+  input: openapi,
   output: {
     path: "./src/v2/gen",
     tsConfigPath: path.join(dir, "tsconfig.json"),
@@ -75,26 +76,22 @@ const generatedTypes = await Bun.file("./src/v2/gen/types.gen.ts").text()
 if (/export type SessionNext\w+1 =/.test(generatedTypes)) {
   throw new Error("Session history generated duplicate Session event variants")
 }
-const historyTypesPatched = generatedTypes.replace(
-  /(export type V2SessionHistoryData = \{[\s\S]*?query\?: \{\s*limit\?: )string([;,]\s*after\?: )string/,
-  "$1number$2number",
-)
-if (historyTypesPatched === generatedTypes) {
-  throw new Error("Session history numeric query patch did not apply")
-}
-await Bun.write("./src/v2/gen/types.gen.ts", historyTypesPatched)
+// These collision-numbered names shipped from @hena/sdk/v2/types. Preserve
+// imports even when Effect deduplicates the underlying schema differently.
+const aliases = Object.entries({
+  OutputFormat1: "OutputFormat",
+  SessionStatus2: "SessionStatus1",
+  QuestionReplied2: "QuestionReplied1",
+  QuestionRejected2: "QuestionRejected1",
+}).flatMap(([name, target]) => {
+  if (new RegExp(`export type ${name}\\b`).test(generatedTypes)) return []
+  if (!new RegExp(`export type ${target}\\b`).test(generatedTypes)) {
+    throw new Error(`Cannot preserve public SDK type ${name}: missing ${target}`)
+  }
+  return [`export type ${name} = ${target}`]
+})
+await Bun.write("./src/v2/gen/types.gen.ts", `${generatedTypes}\n${aliases.join("\n")}\n`)
 
-const generatedSdk = await Bun.file("./src/v2/gen/sdk.gen.ts").text()
-const historySdkPatched = generatedSdk.replace(
-  /(Get session history[\s\S]*?parameters: \{\s*sessionID: string[;,]\s*limit\?: )string([;,]\s*after\?: )string/,
-  "$1number$2number",
-)
-if (historySdkPatched === generatedSdk) {
-  throw new Error("Session history numeric SDK patch did not apply")
-}
-await Bun.write("./src/v2/gen/sdk.gen.ts", historySdkPatched)
-
-await $`bun prettier --write src/v2`
+await $`bun prettier --write src/v2 ${openapi}`
 await $`rm -rf dist`
 await $`bunx --package @typescript/native tsc`
-await $`rm openapi.json`

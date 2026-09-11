@@ -12,7 +12,7 @@ const fields = {
   location: Schema.optional(Location.Ref),
 }
 
-export const makeEventSchema = <const Definitions extends ReadonlyArray<Definition>>(definitions: Definitions) =>
+const schema = <const Definitions extends ReadonlyArray<Definition>>(definitions: Definitions) =>
   Schema.Union([
     ...definitions,
     ...(definitions.some((definition) => definition.type === "server.connected")
@@ -26,8 +26,8 @@ export const makeEventSchema = <const Definitions extends ReadonlyArray<Definiti
         ]),
   ]).annotate({ identifier: "V2Event" })
 
-const make = <const Definitions extends ReadonlyArray<Definition>>(definitions: Definitions) => {
-  const EventSchema = makeEventSchema(definitions)
+export const makeEvent = <const Definitions extends ReadonlyArray<Definition>>(definitions: Definitions) => {
+  const EventSchema = schema(definitions)
   return {
     schema: EventSchema,
     group: HttpApiGroup.make("server.event")
@@ -47,9 +47,9 @@ const make = <const Definitions extends ReadonlyArray<Definition>>(definitions: 
 }
 
 export const makeEventGroup = <const Definitions extends ReadonlyArray<Definition>>(definitions: Definitions) =>
-  make(definitions).group
+  makeEvent(definitions).group
 
-const event = make(EventManifest.ServerDefinitions)
+const event = makeEvent(EventManifest.ServerDefinitions)
 export const EventGroup = event.group
 export const HenaEvent = event.schema
 export type HenaEvent = typeof HenaEvent.Type

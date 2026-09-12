@@ -1,0 +1,43 @@
+name: Set up agent-browser
+description: Install the pinned browser CLI, OpenCode skill, and recording dependencies.
+runs:
+  using: composite
+  steps:
+    - name: Cache agent-browser CLI
+      id: cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.bun/install/global
+          ~/.bun/bin/agent-browser
+        key: agent-browser-${{ runner.os }}-${{ runner.arch }}-0.37.1
+
+    - name: Install agent-browser CLI
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: bun add --global --trust agent-browser@0.37.1
+
+    - name: Install agent-browser skill for OpenCode
+      shell: bash
+      # The installer uses the universal ~/.agents path for OpenCode. Copy its
+      # installed stub into native config too: external skill scanning is disabled.
+      # The skill source and CLI are pinned to the same release.
+      run: |
+        bunx skills@1.5.26 add https://github.com/vercel-labs/agent-browser/tree/72007a6788d863611b23bed0b59d0d659c638d8e/skills/agent-browser --skill agent-browser -a opencode -g -y --copy
+        install -d -m 700 "$HOME/.config/opencode/skill/agent-browser"
+        install -m 600 "$HOME/.agents/skills/agent-browser/SKILL.md" "$HOME/.config/opencode/skill/agent-browser/SKILL.md"
+
+    - name: Prepare recording dependencies
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends ffmpeg
+        # ubuntu-24.04 already includes Chrome/Chromium. Use it explicitly: no
+        # browser download or cache restore is needed on each hosted runner.
+        CHROME=$(command -v google-chrome || command -v chromium)
+        echo "AGENT_BROWSER_EXECUTABLE_PATH=$CHROME" >> "$GITHUB_ENV"
+        echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+        "$CHROME" --version
+        "$HOME/.bun/bin/agent-browser" --version
+        ffmpeg -hide_banner -encoders | grep libx264

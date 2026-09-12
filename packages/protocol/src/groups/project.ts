@@ -8,7 +8,7 @@ export const ProjectGroup = HttpApiGroup.make("server.project")
   .add(
     HttpApiEndpoint.post("project.create", "/api/project", {
       payload: Schema.Struct({
-        id: Project.ID.pipe(Schema.optional),
+        id: Project.ID.managed.pipe(Schema.optional),
         name: Schema.String,
       }),
       success: Schema.Struct({ data: Project.Info }),

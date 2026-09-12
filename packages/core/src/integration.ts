@@ -206,7 +206,6 @@ export type CompatibilityCredentialRef = {
 export type CompatibilitySource = {
   readonly list: () => Effect.Effect<ReadonlyArray<CompatibilityCredentialRef>>
   readonly resolve: (id: Credential.ID) => Effect.Effect<Credential.Value | undefined>
-  readonly update: (id: Credential.ID, value: Credential.Value) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@hena/v2/Integration") {}
@@ -436,14 +435,14 @@ export const locationLayer = Layer.effect(
             return key ? Credential.Key.make({ type: "key", key }) : undefined
           }
           const saved = yield* credentials.get(connection.id)
-          const legacy = saved
-            ? undefined
-            : (yield* compatibility.source?.list() ?? Effect.succeed([])).find(
-                (credential) => credential.id === connection.id,
-              )
-          const value =
-            saved?.value ??
-            (legacy ? yield* compatibility.source?.resolve(connection.id) ?? Effect.succeed(undefined) : undefined)
+          const legacy = (yield* compatibility.source?.list() ?? Effect.succeed([])).find(
+            (credential) => credential.id === connection.id,
+          )
+          const fallback = legacy
+            ? yield* compatibility.source?.resolve(connection.id) ?? Effect.succeed(undefined)
+            : undefined
+          const value = saved?.value ?? fallback
+          const request = Credential.getCompatibility(fallback)
           if (!value) return undefined
           const integrationID = saved?.integrationID ?? legacy?.integrationID
           if (!integrationID) return undefined
@@ -467,16 +466,16 @@ export const locationLayer = Layer.effect(
           const implementation = state.get().integrations.get(integrationID)?.implementations.get(value.methodID)
           const now = yield* Clock.currentTimeMillis
           if (!implementation?.refresh) {
-            if (value.expires > now) return value
+            if (value.expires > now) return request ? Credential.withCompatibility(value, request) : value
             return yield* new AuthorizationError({
               cause: new Error("OAuth refresh is not supported for this connection"),
             })
           }
-          if (value.expires > now + Duration.toMillis(Duration.minutes(5))) return value
-          const refreshed = yield* authorize(implementation.refresh(value))
-          if (saved) yield* credentials.update(saved.id, { value: refreshed })
-          else yield* compatibility.source?.update(connection.id, refreshed) ?? Effect.void
-          return refreshed
+          return yield* credentials
+            .refresh({ id: connection.id, integrationID, label: connection.label, value }, (current) =>
+              authorize(implementation.refresh!(current)),
+            )
+            .pipe(Effect.map((value) => (request ? Credential.withCompatibility(value, request) : value)))
         }),
         key: Effect.fn("Integration.connection.key")(function* (input) {
           const method = state

@@ -154,11 +154,11 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
       HttpApiEndpoint.get("session.active", "/api/session/active", {
         success: Schema.Struct({ data: Schema.Record(Session.ID, SessionActive) }),
       }).annotateMerge(
-          OpenApi.annotations({
-            identifier: "v2.session.active",
-            summary: "List active sessions",
-            description:
-              "Retrieve the latest advisory execution state for Sessions known to this Hena process. The snapshot is process-local and may be stale.",
+        OpenApi.annotations({
+          identifier: "v2.session.active",
+          summary: "List active sessions",
+          description:
+            "Retrieve the latest advisory execution state for Sessions known to this Hena process. The snapshot is process-local and may be stale.",
         }),
       ),
     )
@@ -215,6 +215,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
         payload: Schema.Struct({
           id: SessionMessage.ID.pipe(Schema.optional),
           prompt: PromptInput.Prompt,
+          selection: SessionInput.Selection.pipe(Schema.optional),
           delivery: SessionInput.Delivery.pipe(Schema.optional),
           resume: Schema.Boolean.pipe(Schema.optional),
         }),
@@ -294,7 +295,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
           OpenApi.annotations({ identifier: "v2.session.revert.commit", summary: "Commit staged revert" }),
-      ),
+        ),
     )
     .add(
       HttpApiEndpoint.post("session.revert.replace", "/api/session/:sessionID/revert/replace", {

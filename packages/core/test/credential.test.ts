@@ -1,5 +1,9 @@
 import { describe, expect } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
+import path from "path"
+import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { Database } from "@hena/core/database/database"
+import { tmpdir } from "./fixture/tmpdir"
 import { Credential } from "@hena/core/credential"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { Integration } from "@hena/core/integration"
@@ -8,6 +12,46 @@ import { testEffect } from "./lib/effect"
 const it = testEffect(LayerNode.compile(Credential.node))
 
 describe("Credential", () => {
+  testEffect(Layer.empty).live("keeps rotated imports after closing and reopening the credential database", () =>
+    Effect.gen(function* () {
+      const tmp = yield* Effect.acquireRelease(
+        Effect.promise(() => tmpdir()),
+        (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
+      )
+      const layer = AppNodeBuilder.build(Credential.node, [
+        [Database.node, Database.layerFromPath(path.join(tmp.path, "auth.sqlite"))],
+      ])
+      const input = {
+        id: Credential.ID.make("legacy:openai:source"),
+        integrationID: Integration.ID.make("openai"),
+        label: "OpenCode",
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("oauth"),
+          access: "expired",
+          refresh: "original",
+          expires: 0,
+        }),
+      }
+      yield* Effect.gen(function* () {
+        const credentials = yield* Credential.Service
+        yield* credentials.refresh(input, (value) =>
+          Effect.succeed(
+            Credential.OAuth.make({ ...value, access: "fresh", refresh: "rotated", expires: Date.now() + 3_600_000 }),
+          ),
+        )
+      }).pipe(Effect.provide(Layer.fresh(layer)), Effect.scoped)
+      yield* Effect.gen(function* () {
+        const credentials = yield* Credential.Service
+        expect(yield* credentials.refresh(input, () => Effect.die("must not reuse the original token"))).toMatchObject({
+          access: "fresh",
+          refresh: "rotated",
+        })
+        expect(yield* credentials.all()).toEqual([])
+      }).pipe(Effect.provide(Layer.fresh(layer)), Effect.scoped)
+    }),
+  )
+
   it.effect("stores, updates, lists, and removes credentials", () =>
     Effect.gen(function* () {
       const credentials = yield* Credential.Service

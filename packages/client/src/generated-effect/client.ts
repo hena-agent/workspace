@@ -118,13 +118,20 @@ type Endpoint3_6Input = {
   readonly sessionID: Endpoint3_6Request["params"]["sessionID"]
   readonly id?: Endpoint3_6Request["payload"]["id"]
   readonly prompt: Endpoint3_6Request["payload"]["prompt"]
+  readonly selection?: Endpoint3_6Request["payload"]["selection"]
   readonly delivery?: Endpoint3_6Request["payload"]["delivery"]
   readonly resume?: Endpoint3_6Request["payload"]["resume"]
 }
 const Endpoint3_6 = (raw: RawClient["server.session"]) => (input: Endpoint3_6Input) =>
   raw["session.prompt"]({
     params: { sessionID: input["sessionID"] },
-    payload: { id: input["id"], prompt: input["prompt"], delivery: input["delivery"], resume: input["resume"] },
+    payload: {
+      id: input["id"],
+      prompt: input["prompt"],
+      selection: input["selection"],
+      delivery: input["delivery"],
+      resume: input["resume"],
+    },
   }).pipe(
     Effect.mapError(mapClientError),
     Effect.map((value) => value.data),

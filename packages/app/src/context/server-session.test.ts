@@ -69,6 +69,103 @@ const response = (data: MessageResponse["data"] = [], cursor?: string): MessageR
 
 const singleResponse = (info: Message, parts: Part[] = []): SingleMessageResponse => ({ data: { info, parts } })
 
+test.each(["ended", "failed"])("canonical %s survives an older in-flight history response", async (ending) => {
+  const started = Promise.withResolvers<void>()
+  const gate = Promise.withResolvers<void>()
+  let loading = false
+  let histories = 0
+  const client = createHenaClient({
+    baseUrl: "http://server",
+    fetch: (async (request: RequestInfo | URL) => {
+      const url = new URL(request instanceof Request ? request.url : String(request))
+      if (url.pathname === "/session/child") return Response.json(session("child"))
+      const current = ++histories > 2
+      if (loading) {
+        started.resolve()
+        await gate.promise
+      }
+      return Response.json({
+        data: [
+          {
+            id: "assistant",
+            type: "assistant",
+            agent: "build",
+            model: { id: "model", providerID: "provider" },
+            time: { created: 2, completed: current ? 3 : undefined },
+            content: [],
+            ...(current
+              ? ending === "ended"
+                ? { cost: 1.5, finish: "stop" }
+                : { error: { type: "unknown", message: "provider failed" } }
+              : {}),
+          },
+          { id: "user", type: "user", time: { created: 1 }, text: "hello" },
+        ],
+        cursor: {},
+      })
+    }) as typeof fetch,
+  })
+  const store = createServerSession(client, { managedSession: () => true })
+  await store.sync("child")
+  loading = true
+  const pending = store.sync("child", { force: true })
+  await started.promise
+  store.apply({
+    type: `session.next.step.${ending}`,
+    properties: {
+      sessionID: "child",
+      assistantMessageID: "assistant",
+      timestamp: 3,
+      cost: 1.5,
+      finish: "stop",
+      error: { type: "unknown", message: "provider failed" },
+    },
+  })
+  gate.resolve()
+  await pending
+  expect(store.data.message.child.find((message) => message.id === "assistant")).toMatchObject({
+    time: { completed: 3 },
+    ...(ending === "ended"
+      ? { cost: 1.5, finish: "stop" }
+      : { error: { name: "UnknownError", data: { message: "provider failed" } } }),
+  })
+  await store.sync("child", { force: true })
+  expect(histories).toBe(3)
+})
+
+test("hydrates each user prompt's admitted selection instead of the latest session selection", async () => {
+  const generated = generatedClient({
+    "/session/child": { ...session("child"), agent: "latest", model: { id: "latest", providerID: "provider" } },
+    "/api/session/child/message": {
+      data: [
+        {
+          id: "second",
+          type: "user",
+          text: "two",
+          time: { created: 2 },
+          agent: "second-agent",
+          model: { id: "second-model", providerID: "provider" },
+        },
+        {
+          id: "first",
+          type: "user",
+          text: "one",
+          time: { created: 1 },
+          agent: "first-agent",
+          model: { id: "first-model", providerID: "provider" },
+        },
+      ],
+      cursor: {},
+    },
+  })
+  const store = createServerSession(generated.client, { managedSession: () => true })
+  await store.sync("child")
+  expect(store.timeline("child")).toMatchObject([
+    { id: "first", agent: "first-agent", model: { modelID: "first-model" } },
+    { id: "second", agent: "second-agent", model: { modelID: "second-model" } },
+  ])
+})
+
 function generatedClient(routes: Record<string, unknown>) {
   const requests: string[] = []
   const client = createHenaClient({
@@ -464,7 +561,10 @@ describe("server session", () => {
   test("retains authoritative runtime through incomplete list and event updates after attachment", async () => {
     const generated = generatedClient({
       "/session/child": { ...session("child"), metadata: { appRuntime: "canonical" } },
-      "/api/session/child/message": { data: [{ id: "user", type: "user", time: { created: 1 }, text: "saved" }], cursor: {} },
+      "/api/session/child/message": {
+        data: [{ id: "user", type: "user", time: { created: 1 }, text: "saved" }],
+        cursor: {},
+      },
     })
     const store = createServerSession(generated.client, { managedSession: (item) => usesCanonicalSession(item, false) })
     store.remember(session("child"))
@@ -484,7 +584,11 @@ describe("server session", () => {
     const generated = generatedClient({})
     const store = createServerSession(generated.client)
     store.remember({ ...session("child"), metadata: { appRuntime: "canonical" } })
-    const question = { id: "que_pending", sessionID: "child", questions: [{ question: "Pick", header: "Choice", options: [] }] }
+    const question = {
+      id: "que_pending",
+      sessionID: "child",
+      questions: [{ question: "Pick", header: "Choice", options: [] }],
+    }
     for (const type of ["question.v2.replied", "question.v2.rejected"]) {
       store.apply({ type: "question.v2.asked", data: question })
       const expected = { ...question, appRuntime: "canonical" }
@@ -541,10 +645,12 @@ describe("server session", () => {
       parts: [],
     })
 
-    expect(store.timeline("child").filter((item) => item.role === "user").map((item) => item.id)).toEqual([
-      first.id,
-      second.id,
-    ])
+    expect(
+      store
+        .timeline("child")
+        .filter((item) => item.role === "user")
+        .map((item) => item.id),
+    ).toEqual([first.id, second.id])
 
     routes["/api/session/child/message"] = {
       data: [secondAssistant, second, firstAssistant, first],
@@ -576,12 +682,22 @@ describe("server session", () => {
         model: { providerID: "provider", id: "model" },
       },
     })
-    expect(store.timeline("child").filter((item) => item.role === "user").at(-1)?.id).toBe(second.id)
+    expect(
+      store
+        .timeline("child")
+        .filter((item) => item.role === "user")
+        .at(-1)?.id,
+    ).toBe(second.id)
     expect(store.timeline("child").find((item) => item.id === liveAssistant.id)).toMatchObject({ parentID: second.id })
 
     await store.sync("child", { force: true })
     await store.sync("child", { force: true })
-    expect(store.timeline("child").filter((item) => item.role === "user").at(-1)?.id).toBe(second.id)
+    expect(
+      store
+        .timeline("child")
+        .filter((item) => item.role === "user")
+        .at(-1)?.id,
+    ).toBe(second.id)
   })
 
   test("reconciles managed canonical prompt parts with different IDs", async () => {
@@ -677,7 +793,6 @@ describe("server session", () => {
       id: "message:text",
       text: "authoritative update",
     })
-
   })
 
   test("clears confirmed joined optimistic text before a later canonical update", async () => {
@@ -1045,7 +1160,12 @@ describe("server session", () => {
           messages: async (input: unknown) => {
             requests.push(input)
             return requests.length === 1
-              ? { data: { data: Array.from({ length: 20 }, (_, index) => ({ ...control, id: `control-${index}` })), cursor: { next: "older" } } }
+              ? {
+                  data: {
+                    data: Array.from({ length: 20 }, (_, index) => ({ ...control, id: `control-${index}` })),
+                    cursor: { next: "older" },
+                  },
+                }
               : { data: { data: [assistant, user], cursor: {} } }
           },
         },
@@ -1065,14 +1185,29 @@ describe("server session", () => {
 
   test("fetches preceding canonical users across page boundaries and controls despite timestamp ties", async () => {
     const assistant = (id: string): SessionMessage => ({
-      id, type: "assistant", time: { created: 1 }, agent: "build",
-      model: { providerID: "provider", id: "model" }, content: [],
+      id,
+      type: "assistant",
+      time: { created: 1 },
+      agent: "build",
+      model: { providerID: "provider", id: "model" },
+      content: [],
     })
     const pages: SessionMessage[][] = [
-      [assistant("msg_a_latest"), { id: "msg_z_new_user", type: "user", time: { created: 1 }, text: "new" }, assistant("msg_b_older")],
+      [
+        assistant("msg_a_latest"),
+        { id: "msg_z_new_user", type: "user", time: { created: 1 }, text: "new" },
+        assistant("msg_b_older"),
+      ],
       [
         { id: "control-system", type: "system", time: { created: 1 }, text: "internal" },
-        { id: "control-summary", type: "compaction", time: { created: 1 }, reason: "auto", summary: "summary", recent: "recent" },
+        {
+          id: "control-summary",
+          type: "compaction",
+          time: { created: 1 },
+          reason: "auto",
+          summary: "summary",
+          recent: "recent",
+        },
         { id: "control-agent", type: "agent-switched", time: { created: 1 }, agent: "build" },
       ],
       [{ id: "msg_y_original", type: "user", time: { created: 1 }, text: "original" }],
@@ -1093,36 +1228,75 @@ describe("server session", () => {
     const store = createServerSession(client, { managedSession: () => true })
     await store.sync("child", { messageLimit: 3 })
     expect(calls).toEqual(["?limit=3&order=desc", "?limit=3&cursor=page-1", "?limit=3&cursor=page-2"])
-    expect(store.timeline("child").filter((message) => message.role === "assistant").map((message) => message.parentID))
-      .toEqual(["msg_y_original", "msg_z_new_user"])
+    expect(
+      store
+        .timeline("child")
+        .filter((message) => message.role === "assistant")
+        .map((message) => message.parentID),
+    ).toEqual(["msg_y_original", "msg_z_new_user"])
     expect(store.history.more("child")).toBe(false)
   })
 
   test("keeps live reasoning, text, and named pending questions in event order, not ID order", async () => {
     const generated = generatedClient({
       "/session/child": session("child"),
-      "/api/session/child/message": { data: [{ id: "user", type: "user", time: { created: 1 }, text: "ask" }], cursor: {} },
+      "/api/session/child/message": {
+        data: [{ id: "user", type: "user", time: { created: 1 }, text: "ask" }],
+        cursor: {},
+      },
     })
     const store = createServerSession(generated.client, { managedSession: () => true })
     await store.sync("child")
-    store.apply({ type: "session.next.step.started", data: {
-      sessionID: "child", assistantMessageID: "assistant", timestamp: 2, agent: "build", model: { providerID: "provider", id: "model" },
-    } })
-    store.apply({ type: "session.next.reasoning.started", data: {
-      sessionID: "child", assistantMessageID: "assistant", timestamp: 2, reasoningID: "rs_reasoning",
-    } })
-    store.apply({ type: "session.next.text.started", data: {
-      sessionID: "child", assistantMessageID: "assistant", timestamp: 2, textID: "msg_text",
-    } })
-    store.apply({ type: "session.next.tool.input.started", data: {
-      sessionID: "child", assistantMessageID: "assistant", callID: "call_question", timestamp: 2, name: "question",
-    } })
+    store.apply({
+      type: "session.next.step.started",
+      data: {
+        sessionID: "child",
+        assistantMessageID: "assistant",
+        timestamp: 2,
+        agent: "build",
+        model: { providerID: "provider", id: "model" },
+      },
+    })
+    store.apply({
+      type: "session.next.reasoning.started",
+      data: {
+        sessionID: "child",
+        assistantMessageID: "assistant",
+        timestamp: 2,
+        reasoningID: "rs_reasoning",
+      },
+    })
+    store.apply({
+      type: "session.next.text.started",
+      data: {
+        sessionID: "child",
+        assistantMessageID: "assistant",
+        timestamp: 2,
+        textID: "msg_text",
+      },
+    })
+    store.apply({
+      type: "session.next.tool.input.started",
+      data: {
+        sessionID: "child",
+        assistantMessageID: "assistant",
+        callID: "call_question",
+        timestamp: 2,
+        name: "question",
+      },
+    })
     expect(store.data.part.assistant?.[0]).toMatchObject({ tool: "question", state: { status: "pending" } })
     expect(store.data.part.assistant?.map((part) => part.id)).toEqual(["call_question", "msg_text", "rs_reasoning"])
     expect(store.parts("assistant")?.map((part) => part.id)).toEqual(["rs_reasoning", "msg_text", "call_question"])
-    store.apply({ type: "session.next.text.delta", data: {
-      sessionID: "child", assistantMessageID: "assistant", textID: "msg_text", delta: "answer",
-    } })
+    store.apply({
+      type: "session.next.text.delta",
+      data: {
+        sessionID: "child",
+        assistantMessageID: "assistant",
+        textID: "msg_text",
+        delta: "answer",
+      },
+    })
     expect(store.parts("assistant")?.[1]).toMatchObject({ id: "msg_text", text: "answer" })
   })
 
@@ -1131,17 +1305,27 @@ describe("server session", () => {
       { type: "reasoning", id: "rs_reasoning", text: "thinking" },
       { type: "text", id: "msg_text", text: "answer" },
       {
-        type: "tool", id: "call_question", name: "question", time: { created: 1, completed: 1 },
+        type: "tool",
+        id: "call_question",
+        name: "question",
+        time: { created: 1, completed: 1 },
         state: { status: "completed", input: {}, structured: {}, content: [{ type: "text", text: "answered" }] },
       },
     ]
     const assistant: Extract<SessionMessage, { type: "assistant" }> = {
-      id: "assistant", type: "assistant", agent: "build", model: { providerID: "provider", id: "model" },
-      time: { created: 1 }, content,
+      id: "assistant",
+      type: "assistant",
+      agent: "build",
+      model: { providerID: "provider", id: "model" },
+      time: { created: 1 },
+      content,
     }
     const routes = {
       "/session/child": session("child"),
-      "/api/session/child/message": { data: [assistant, { id: "user", type: "user", time: { created: 1 }, text: "ask" }], cursor: {} },
+      "/api/session/child/message": {
+        data: [assistant, { id: "user", type: "user", time: { created: 1 }, text: "ask" }],
+        cursor: {},
+      },
     }
     const generated = generatedClient(routes)
     const store = createServerSession(generated.client, { managedSession: () => true })
@@ -1160,10 +1344,20 @@ describe("server session", () => {
   test("stops at a full terminal canonical page without inventing a cached user parent or fetching an empty page", async () => {
     const generated = generatedClient({
       "/session/child": session("child"),
-      "/api/session/child/message": { data: [
-        { id: "assistant", type: "assistant", time: { created: 10 }, agent: "build", model: { providerID: "provider", id: "model" }, content: [] },
-        { id: "control", type: "system", time: { created: 1 }, text: "not a user" },
-      ], cursor: {} },
+      "/api/session/child/message": {
+        data: [
+          {
+            id: "assistant",
+            type: "assistant",
+            time: { created: 10 },
+            agent: "build",
+            model: { providerID: "provider", id: "model" },
+            content: [],
+          },
+          { id: "control", type: "system", time: { created: 1 }, text: "not a user" },
+        ],
+        cursor: {},
+      },
     })
     const store = createServerSession(generated.client, { managedSession: () => true })
     store.apply({ type: "message.updated", properties: { info: userMessage("cached", { time: { created: 1 } }) } })
@@ -1177,7 +1371,10 @@ describe("server session", () => {
   test("caps canonical transport pages when a retained turn window exceeds the API limit", async () => {
     const generated = generatedClient({
       "/session/child": session("child"),
-      "/api/session/child/message": { data: [{ id: "user", type: "user", time: { created: 1 }, text: "ask" }], cursor: {} },
+      "/api/session/child/message": {
+        data: [{ id: "user", type: "user", time: { created: 1 }, text: "ask" }],
+        cursor: {},
+      },
     })
     const store = createServerSession(generated.client, { managedSession: () => true })
     await store.sync("child", { messageLimit: 250 })
@@ -1186,16 +1383,24 @@ describe("server session", () => {
 
   test("preserves older canonical history by sequence rather than tied timestamps and lexical IDs", async () => {
     const assistant = (id: string): SessionMessage => ({
-      id, type: "assistant", time: { created: 1 }, agent: "build", model: { providerID: "provider", id: "model" }, content: [],
+      id,
+      type: "assistant",
+      time: { created: 1 },
+      agent: "build",
+      model: { providerID: "provider", id: "model" },
+      content: [],
     })
     const older: SessionMessage[] = [
-      assistant("msg_z_old_assistant"), { id: "msg_z_old_user", type: "user", time: { created: 1 }, text: "old" },
+      assistant("msg_z_old_assistant"),
+      { id: "msg_z_old_user", type: "user", time: { created: 1 }, text: "old" },
     ]
     const latest: SessionMessage[] = [
-      assistant("msg_b_new_assistant"), { id: "msg_a_new_user", type: "user", time: { created: 1 }, text: "new" },
+      assistant("msg_b_new_assistant"),
+      { id: "msg_a_new_user", type: "user", time: { created: 1 }, text: "new" },
     ]
     const page: { data: SessionMessage[]; cursor: { next?: string } } = {
-      data: [...latest, ...older], cursor: {},
+      data: [...latest, ...older],
+      cursor: {},
     }
     const generated = generatedClient({ "/session/child": session("child"), "/api/session/child/message": page })
     const store = createServerSession(generated.client, { managedSession: () => true })
@@ -1204,10 +1409,16 @@ describe("server session", () => {
     page.cursor = { next: "older" }
     await store.sync("child", { force: true, messageLimit: 2 })
     expect(store.data.message.child?.map((message) => message?.id)).toStrictEqual([
-      "msg_a_new_user", "msg_b_new_assistant", "msg_z_old_assistant", "msg_z_old_user",
+      "msg_a_new_user",
+      "msg_b_new_assistant",
+      "msg_z_old_assistant",
+      "msg_z_old_user",
     ])
     expect(store.timeline("child").map((message) => message.id)).toEqual([
-      "msg_z_old_user", "msg_z_old_assistant", "msg_a_new_user", "msg_b_new_assistant",
+      "msg_z_old_user",
+      "msg_z_old_assistant",
+      "msg_a_new_user",
+      "msg_b_new_assistant",
     ])
   })
 
@@ -1216,9 +1427,17 @@ describe("server session", () => {
     const refresh = Promise.withResolvers<Response>()
     const history = {
       data: [
-        { id: "assistant", type: "assistant", agent: "build", model: { providerID: "provider", id: "model" }, time: { created: 1 }, content: [] },
+        {
+          id: "assistant",
+          type: "assistant",
+          agent: "build",
+          model: { providerID: "provider", id: "model" },
+          time: { created: 1 },
+          content: [],
+        },
         { id: "user", type: "user", time: { created: 1 }, text: "ask" },
-      ], cursor: {},
+      ],
+      cursor: {},
     }
     let reads = 0
     const client = createHenaClient({
@@ -1237,11 +1456,16 @@ describe("server session", () => {
     const data = { sessionID: "child", assistantMessageID: "assistant", timestamp: 2 }
     store.apply({ type: "session.next.reasoning.started", data: { ...data, reasoningID: "rs_reasoning" } })
     store.apply({ type: "session.next.text.started", data: { ...data, textID: "msg_text" } })
-    store.apply({ type: "session.next.tool.input.started", data: { ...data, callID: "call_question", name: "question" } })
-    refresh.resolve(Response.json({
-      ...history,
-      data: [{ ...history.data[0], content: [{ type: "reasoning", id: "rs_reasoning", text: "" }] }, history.data[1]],
-    }))
+    store.apply({
+      type: "session.next.tool.input.started",
+      data: { ...data, callID: "call_question", name: "question" },
+    })
+    refresh.resolve(
+      Response.json({
+        ...history,
+        data: [{ ...history.data[0], content: [{ type: "reasoning", id: "rs_reasoning", text: "" }] }, history.data[1]],
+      }),
+    )
     await loading
     expect(store.parts("assistant")?.map((part) => part.id)).toEqual(["rs_reasoning", "msg_text", "call_question"])
     expect(store.parts("assistant")?.[2]).toMatchObject({ tool: "question", state: { status: "pending" } })

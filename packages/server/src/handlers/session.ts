@@ -99,10 +99,12 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
           return {
             data: Object.fromEntries(
               Array.from(
-                yield* (session.status ??
+                yield* session.status ??
                   session.active.pipe(
-                    Effect.map((active) => new Map(Array.from(active, (sessionID) => [sessionID, { type: "running" as const }]))),
-                  )),
+                    Effect.map(
+                      (active) => new Map(Array.from(active, (sessionID) => [sessionID, { type: "running" as const }])),
+                    ),
+                  ),
                 ([sessionID, status]) => [sessionID, status],
               ),
             ),
@@ -167,6 +169,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                 sessionID: ctx.params.sessionID,
                 id: ctx.payload.id,
                 prompt: ctx.payload.prompt,
+                selection: ctx.payload.selection,
                 delivery: ctx.payload.delivery,
                 resume: ctx.payload.resume,
               })
@@ -194,6 +197,11 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                       resource: error.projectID,
                     }),
                   ),
+                ),
+                Effect.mapError((error) =>
+                  error instanceof SessionNotFoundError || error instanceof ConflictError
+                    ? error
+                    : new InvalidRequestError({ message: error.message }),
                 ),
               ),
           }

@@ -188,33 +188,37 @@ const layer = Layer.effect(
       step: number,
       recoverOverflow?: typeof compaction.compactAfterOverflow,
     ) {
-      const session = yield* getSession(sessionID)
-      if (session.location.directory !== location.directory || session.location.workspaceID !== location.workspaceID)
+      const sampled = yield* getSession(sessionID)
+      if (sampled.location.directory !== location.directory || sampled.location.workspaceID !== location.workspaceID)
         return yield* Effect.interrupt
       const project = yield* db
         .select({ mode: ProjectTable.mode })
         .from(ProjectTable)
-        .where(eq(ProjectTable.id, session.projectID))
+        .where(eq(ProjectTable.id, sampled.projectID))
         .get()
         .pipe(Effect.orDie)
       const chat = project?.mode === "chat"
-      const agent = yield* agents.select(session.agent)
-      const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(agent, chat), session.id)
+      const sampledAgent = yield* agents.select(sampled.agent)
+      const initialized = yield* SessionContextEpoch.initialize(db, loadSystemContext(sampledAgent, chat), sampled.id)
       const toolFibers = yield* FiberSet.make<void, ToolOutputStore.Error>()
       let needsContinuation = false
-      let currentStep = step
-      if (promotion) {
-        const cutoff = yield* EventV2.latestSequence(db, session.id)
-        let promoted = 0
-        if (promotion === "steer") promoted = yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
-        if (promotion === "queue") {
-          promoted += Number(yield* SessionInput.promoteNextQueued(db, events, session.id))
-          promoted += yield* SessionInput.promoteSteers(db, events, session.id, cutoff)
-        }
-        if (promoted > 0) currentStep = 1
-      }
+      const promoted = promotion
+        ? yield* Effect.gen(function* () {
+            const cutoff = yield* EventV2.latestSequence(db, sampled.id)
+            const queued =
+              promotion === "queue" ? yield* SessionInput.promoteNextQueued(db, events, sampled.id) : { count: 0 }
+            const steered = yield* SessionInput.promoteSteers(db, events, sampled.id, cutoff)
+            return { count: queued.count + steered.count, selection: steered.selection ?? queued.selection }
+          })
+        : { count: 0, selection: undefined }
+      const currentStep = promoted.count > 0 ? 1 : step
+      const session = promoted.selection
+        ? { ...sampled, ...promoted.selection, agent: AgentV2.ID.make(promoted.selection.agent) }
+        : sampled
+      const agent = promoted.selection ? yield* agents.select(promoted.selection.agent) : sampledAgent
       const system =
-        initialized ?? (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent, chat), session.id))
+        (!promoted.selection && initialized) ||
+        (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent, chat), session.id))
       const model = yield* models.resolve(session)
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)

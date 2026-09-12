@@ -27,6 +27,7 @@ import { ConfigV1 } from "./v1/config/config"
 import { ConfigMigrateV1 } from "./v1/config/migrate"
 import { Credential } from "./credential"
 import { Integration } from "@hena/schema/integration"
+import { Hash } from "./util/hash"
 
 export class Info extends Schema.Class<Info>("Config.Info")({
   $schema: Schema.optional(Schema.String).annotate({
@@ -142,7 +143,6 @@ export interface Interface {
   readonly credential?: {
     readonly list: () => Effect.Effect<ReadonlyArray<LegacyCredentialRef>>
     readonly resolve: (id: Credential.ID) => Effect.Effect<Credential.Value | undefined>
-    readonly update: (id: Credential.ID, value: Credential.Value) => Effect.Effect<void>
   }
 }
 
@@ -165,7 +165,14 @@ const layer = Layer.effect(
 
     const setLegacyCredential = (providerID: string, value: Credential.Value, label = "OpenCode") => {
       const integrationID = Integration.ID.make(providerID.replace(/\/+$/, ""))
-      const id = Credential.ID.make(`legacy:${integrationID}`)
+      const id = Credential.ID.make(
+        value.type === "oauth"
+          ? `legacy:${integrationID}:${Hash.fast(`${label}:${value.refresh}`)}`
+          : `legacy:${integrationID}`,
+      )
+      for (const [key, entry] of legacyCredentials) {
+        if (entry.ref.integrationID === integrationID) legacyCredentials.delete(key)
+      }
       legacyCredentials.set(id, {
         ref: {
           id,
@@ -193,8 +200,12 @@ const layer = Layer.effect(
         yield* Effect.logError(`Ignoring OpenCode provider ${providerID}: unsupported secret configuration`)
       }
       for (const [providerID, credential] of result?.credentials ?? []) {
-        const id = Credential.ID.make(`legacy:${providerID.replace(/\/+$/, "")}`)
-        if (credential.type === "key" && !credential.key && legacyCredentials.has(id)) continue
+        if (
+          credential.type === "key" &&
+          !credential.key &&
+          [...legacyCredentials.values()].some((entry) => entry.ref.integrationID === providerID.replace(/\/+$/, ""))
+        )
+          continue
         setLegacyCredential(providerID, credential)
       }
       for (const [providerID, compatibility] of result?.compatibility ?? []) {
@@ -342,14 +353,16 @@ const layer = Layer.effect(
       Effect.map((configs) => configs.filter((config): config is Document => config !== undefined)),
     )
     for (const [integrationID, compatibility] of legacyCompatibility) {
-      const id = Credential.ID.make(`legacy:${integrationID}`)
-      const current = legacyCredentials.get(id)
+      const current = [...legacyCredentials.values()].find((entry) => entry.ref.integrationID === integrationID)
       if (!current) continue
       const resolved =
         compatibility.authorizationOnly && (current.value.type === "oauth" || current.value.key)
           ? { ...compatibility, authorizationOnly: undefined }
           : compatibility
-      legacyCredentials.set(id, { ...current, value: Credential.withCompatibility(current.value, resolved) })
+      legacyCredentials.set(current.ref.id, {
+        ...current,
+        value: Credential.withCompatibility(current.value, resolved),
+      })
     }
     // Apply general settings first and more specific settings last:
     // OpenCode config is a compatibility fallback; Hena documents are merged later and win.
@@ -379,10 +392,6 @@ const layer = Layer.effect(
         }),
         resolve: Effect.fn("Config.credential.resolve")(function* (id) {
           return legacyCredentials.get(id)?.value
-        }),
-        update: Effect.fn("Config.credential.update")(function* (id, value) {
-          const credential = legacyCredentials.get(id)
-          if (credential) legacyCredentials.set(id, { ...credential, value })
         }),
       },
     })

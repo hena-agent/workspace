@@ -1,7 +1,7 @@
 export * as SessionV2 from "./session"
 export * from "./session/schema"
 
-import { DateTime, Effect, Layer, Schema, Context, Stream } from "effect"
+import { DateTime, Effect, Layer, Schema, Context, Stream, Option } from "effect"
 import { ListAnchor } from "@hena/schema/session"
 import { and, asc, desc, eq, gt, like, lt, or, type SQL } from "drizzle-orm"
 import { ProjectV2 } from "./project"
@@ -94,9 +94,12 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Ses
   sessionID: SessionSchema.ID,
 }) {}
 
-export class ProjectNotFoundError extends Schema.TaggedErrorClass<ProjectNotFoundError>()("Session.ProjectNotFoundError", {
-  projectID: ProjectV2.ID,
-}) {}
+export class ProjectNotFoundError extends Schema.TaggedErrorClass<ProjectNotFoundError>()(
+  "Session.ProjectNotFoundError",
+  {
+    projectID: ProjectV2.ID,
+  },
+) {}
 
 export class OperationUnavailableError extends Schema.TaggedErrorClass<OperationUnavailableError>()(
   "Session.OperationUnavailableError",
@@ -105,12 +108,23 @@ export class OperationUnavailableError extends Schema.TaggedErrorClass<Operation
   },
 ) {}
 
-export { ContextSnapshotDecodeError, MessageDecodeError, QueueRevisionConflictError, QueueStateConflictError } from "./session/error"
+export {
+  ContextSnapshotDecodeError,
+  MessageDecodeError,
+  QueueRevisionConflictError,
+  QueueStateConflictError,
+} from "./session/error"
 
 export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictError>()("Session.PromptConflictError", {
   sessionID: SessionSchema.ID,
   messageID: SessionMessage.ID,
 }) {}
+export class InvalidSelectionError extends Schema.TaggedErrorClass<InvalidSelectionError>()(
+  "Session.InvalidSelectionError",
+  {
+    message: Schema.String,
+  },
+) {}
 export class RevertConflictError extends Schema.TaggedErrorClass<RevertConflictError>()("Session.RevertConflictError", {
   sessionID: SessionSchema.ID,
   messageID: SessionMessage.ID,
@@ -127,6 +141,7 @@ export type Error =
   | MessageDecodeError
   | OperationUnavailableError
   | PromptConflictError
+  | InvalidSelectionError
   | RevertConflictError
   | AttachConflictError
   | QueueRevisionConflictError
@@ -171,8 +186,12 @@ export interface Interface {
     sessionID: SessionSchema.ID
     prompt: PromptInput.Prompt
     delivery?: SessionInput.Delivery
+    selection?: SessionInput.Selection
     resume?: boolean
-  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError | AttachConflictError>
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    NotFoundError | PromptConflictError | AttachConflictError | InvalidSelectionError | SessionRunnerModel.Error
+  >
   readonly cancelInput: (input: {
     sessionID: SessionSchema.ID
     messageID: SessionMessage.ID
@@ -220,7 +239,7 @@ export interface Interface {
       model: ModelV2.Ref
     }) => Effect.Effect<
       SessionInput.Admitted,
-      NotFoundError | RevertConflictError | PromptConflictError | SessionRunnerModel.Error
+      NotFoundError | RevertConflictError | PromptConflictError | InvalidSelectionError | SessionRunnerModel.Error
     >
   }
 }
@@ -254,7 +273,12 @@ const layer = Layer.effect(
 
     const placement = Effect.fnUntraced(function* (input: CreateInput) {
       if ("projectID" in input) {
-        const project = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, input.projectID)).get().pipe(Effect.orDie)
+        const project = yield* db
+          .select()
+          .from(ProjectTable)
+          .where(eq(ProjectTable.id, input.projectID))
+          .get()
+          .pipe(Effect.orDie)
         if (!project) return yield* new ProjectNotFoundError({ projectID: input.projectID })
         return {
           project: { id: project.id, directory: project.worktree },
@@ -449,12 +473,16 @@ const layer = Layer.effect(
             const prompt = resolvePrompt(input.prompt)
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery = input.delivery ?? "steer"
-            const expected = { sessionID: input.sessionID, messageID, prompt, delivery }
+            const expected = { sessionID: input.sessionID, messageID, prompt, delivery, selection: input.selection }
+            if (input.selection && !(yield* SessionInput.lookup(db, messageID))) {
+              yield* validateSelection(session, input.selection).pipe(Effect.provide(locations.get(session.location)))
+            }
             const admitted = yield* SessionInput.admit(db, events, {
               id: messageID,
               sessionID: input.sessionID,
               prompt,
               delivery,
+              selection: input.selection,
             }).pipe(
               Effect.catchDefect((defect) =>
                 defect instanceof SessionInput.LifecycleConflict
@@ -567,7 +595,8 @@ const layer = Layer.effect(
                 Effect.provideService(Database.Service, database),
                 Effect.provideService(EventV2.Service, events),
               )
-              if (input.files === false) return yield* operation.pipe(Effect.provide(Snapshot.noopLayer))
+              if (input.files === false && !session.revert?.snapshot)
+                return yield* operation.pipe(Effect.provide(Snapshot.noopLayer))
               return yield* operation.pipe(Effect.provide(locations.get(session.location)))
             }),
           )
@@ -593,31 +622,12 @@ const layer = Layer.effect(
           )
         }),
         replace: Effect.fn("V2Session.revert.replace")(function* (input) {
+          const prompt = resolvePrompt(input.prompt)
+          const delivery = input.delivery ?? "steer"
           return yield* execution.serialize(
             input.sessionID,
             Effect.gen(function* () {
-              const prompt = resolvePrompt(input.prompt)
-              const delivery = input.delivery ?? "steer"
-              const expected = { sessionID: input.sessionID, prompt, delivery }
               const session = yield* result.get(input.sessionID)
-              if (!session.revert) {
-                const existing = yield* SessionInput.lookupReplacement(db, input.id)
-                if (
-                  existing?.boundary === input.messageID &&
-                  SessionInput.equivalent(existing.admitted, expected)
-                )
-                  return existing.admitted
-                return yield* new RevertConflictError({ sessionID: input.sessionID, messageID: input.messageID })
-              }
-              if (session.revert.messageID !== input.messageID)
-                return yield* new RevertConflictError({ sessionID: input.sessionID, messageID: input.messageID })
-              if (yield* SessionInput.lookup(db, input.id))
-                return yield* new PromptConflictError({ sessionID: input.sessionID, messageID: input.id })
-              yield* SessionRunnerModel.Service.pipe(
-                Effect.flatMap((models) => models.resolve({ ...session, agent: input.agent, model: input.model })),
-                Effect.asVoid,
-                Effect.provide(locations.get(session.location)),
-              )
               const admitted = yield* SessionRevert.commit(session, {
                 messageID: input.id,
                 prompt,
@@ -629,6 +639,27 @@ const layer = Layer.effect(
               yield* execution.wake(input.sessionID)
               return admitted
             }),
+            Effect.gen(function* () {
+              const expected = {
+                sessionID: input.sessionID,
+                prompt,
+                delivery,
+                selection: { agent: input.agent, model: input.model },
+              }
+              const session = yield* result.get(input.sessionID)
+              if (!session.revert) {
+                const existing = yield* SessionInput.lookupReplacement(db, input.id)
+                if (existing?.boundary === input.messageID && SessionInput.equivalent(existing.admitted, expected))
+                  return Option.some(existing.admitted)
+                return yield* new RevertConflictError({ sessionID: input.sessionID, messageID: input.messageID })
+              }
+              if (session.revert.messageID !== input.messageID)
+                return yield* new RevertConflictError({ sessionID: input.sessionID, messageID: input.messageID })
+              if (yield* SessionInput.lookup(db, input.id))
+                return yield* new PromptConflictError({ sessionID: input.sessionID, messageID: input.id })
+              yield* validateSelection(session, input).pipe(Effect.provide(locations.get(session.location)))
+              return Option.none<SessionInput.Admitted>()
+            }),
           )
         }),
       },
@@ -637,6 +668,17 @@ const layer = Layer.effect(
     return result
   }),
 )
+
+const validateSelection = Effect.fn("Session.validateSelection")(function* (
+  session: SessionSchema.Info,
+  selection: SessionInput.Selection,
+) {
+  const agents = yield* AgentV2.Service
+  if (selection.agent !== AgentV2.defaultID && !(yield* agents.resolve(selection.agent)))
+    return yield* new InvalidSelectionError({ message: `Agent unavailable: ${selection.agent}` })
+  const models = yield* SessionRunnerModel.Service
+  yield* models.resolve({ ...session, ...selection, agent: AgentV2.ID.make(selection.agent) })
+})
 
 const resolvePrompt = (input: PromptInput.Prompt) =>
   Prompt.make({

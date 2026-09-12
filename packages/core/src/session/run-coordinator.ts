@@ -1,6 +1,6 @@
 export * as SessionRunCoordinator from "./run-coordinator"
 
-import { Deferred, Effect, Exit, Fiber, FiberSet, Scope } from "effect"
+import { Deferred, Effect, Exit, Fiber, FiberSet, Option, Scope } from "effect"
 import { KeyedMutex } from "../effect/keyed-mutex"
 
 /** Serializes execution for each key while allowing different keys to run concurrently. */
@@ -16,7 +16,11 @@ export interface Coordinator<Key, E> {
   /** Holds the mutation gate without disturbing active execution. */
   readonly mutate: <A, E2, R>(key: Key, effect: Effect.Effect<A, E2, R>) => Effect.Effect<A, E2, R>
   /** Stops execution and holds the key while a mutation is recorded. */
-  readonly serialize: <A, E2, R>(key: Key, effect: Effect.Effect<A, E2, R>) => Effect.Effect<A, E2, R>
+  readonly serialize: <A, E2, R>(
+    key: Key,
+    effect: Effect.Effect<A, E2, R>,
+    reconcile?: Effect.Effect<Option.Option<A>, E2, R>,
+  ) => Effect.Effect<A, E2, R>
 }
 
 type Entry<E> = {
@@ -98,7 +102,8 @@ export const make = <Key, E>(options: {
       Effect.uninterruptibleMask((restore) => {
         const entry = active.get(key)
         if (entry !== undefined) {
-          if (entry.stopping || entry.finalizing) return restore(Deferred.await(entry.done).pipe(Effect.andThen(run(key))))
+          if (entry.stopping || entry.finalizing)
+            return restore(Deferred.await(entry.done).pipe(Effect.andThen(run(key))))
           return restore(Deferred.await(entry.done))
         }
 
@@ -136,8 +141,7 @@ export const make = <Key, E>(options: {
           Effect.andThen(
             Effect.suspend(() => {
               const current = active.get(key)
-              if (current)
-                return Deferred.await(current.done).pipe(Effect.exit, Effect.andThen(fence(key, effect)))
+              if (current) return Deferred.await(current.done).pipe(Effect.exit, Effect.andThen(fence(key, effect)))
 
               const entry = makeEntry()
               entry.stopping = true
@@ -161,7 +165,15 @@ export const make = <Key, E>(options: {
       )
 
     const mutate = <A, E2, R>(key: Key, effect: Effect.Effect<A, E2, R>) => mutations.withLock(key)(effect)
-    const serialize = <A, E2, R>(key: Key, effect: Effect.Effect<A, E2, R>) => mutations.withLock(key)(fence(key, effect))
+    // Reconcile retries under the same lock, before interrupting an active drain.
+    const serialize: Coordinator<Key, E>["serialize"] = (key, effect, reconcile) =>
+      mutations.withLock(key)(
+        reconcile
+          ? reconcile.pipe(
+              Effect.flatMap((result) => (Option.isSome(result) ? Effect.succeed(result.value) : fence(key, effect))),
+            )
+          : fence(key, effect),
+      )
 
     return { active: Effect.sync(() => new Set(active.keys())), run, wake, interrupt, mutate, serialize }
   })

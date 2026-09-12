@@ -8,9 +8,6 @@ import type {
   QuestionRequest,
   Session,
   SessionMessage,
-  SessionMessageAssistantReasoning,
-  SessionMessageAssistantText,
-  SessionMessageAssistantTool,
   SessionStatus,
   SnapshotFileDiff,
   Todo,
@@ -21,6 +18,7 @@ import { diffs as cleanDiffs, message as cleanMessage } from "@/utils/diffs"
 import { sessionNotFoundError } from "@/utils/server-errors"
 import { rootSession } from "@/utils/session-route"
 import { preserveSessionRuntime } from "./session-runtime"
+import { mapV2Messages, mapV2Assistant } from "./canonical-transcript"
 import { dropSessionCaches, pickSessionCacheEvictions, SESSION_CACHE_LIMIT } from "./global-sync/session-cache"
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
@@ -226,188 +224,6 @@ function reconcileFetched<T extends { id: string }>(
   return [...result.values()].sort((a, b) => cmp(a.id, b.id))
 }
 
-function mapV2Messages(values: SessionMessage[], sessionID: string, session?: Session) {
-  let parentID = ""
-  let agent = session?.agent ?? ""
-  let model = session?.model
-  const sessionMessages: Message[] = []
-  const parts: { id: string; part: Part[] }[] = []
-  for (const value of values) {
-    // These records change execution context; they are not conversation bubbles.
-    if (value.type === "agent-switched") {
-      agent = value.agent
-      continue
-    }
-    if (value.type === "model-switched") {
-      model = value.model
-      continue
-    }
-    if (value.type === "system" || value.type === "synthetic") continue
-    if (value.type === "user" || value.type === "shell" || value.type === "compaction") {
-      const message: Message = {
-        id: value.id,
-        sessionID,
-        role: "user",
-        time: { created: value.time.created },
-        agent,
-        model: {
-          providerID: model?.providerID ?? "",
-          modelID: model?.id ?? "",
-          variant: model?.variant,
-        },
-      }
-      sessionMessages.push(message)
-      if (value.type === "user") parentID = value.id
-      const content: Part[] = []
-      if (value.type === "compaction") {
-        content.push({
-          id: `${value.id}:compaction`,
-          sessionID,
-          messageID: value.id,
-          type: "compaction",
-          auto: value.reason === "auto",
-        })
-      }
-      content.push({
-        id: `${value.id}:text`,
-        sessionID,
-        messageID: value.id,
-        type: "text",
-        text:
-          value.type === "user"
-            ? value.text
-            : value.type === "shell"
-              ? `${value.command}\n${value.output}`
-              : value.summary,
-        synthetic: value.type === "compaction" ? true : undefined,
-      })
-      if (value.type === "user") {
-        content.push(
-          ...(value.files ?? []).map(
-            (file, index): Part => ({
-              id: `${value.id}:file:${index}`,
-              sessionID,
-              messageID: value.id,
-              type: "file",
-              url: file.uri,
-              mime: file.mime,
-              filename: file.name,
-              source: file.source
-                ? {
-                    type: "file",
-                    path: file.uri,
-                    text: { value: file.source.text, start: file.source.start, end: file.source.end },
-                  }
-                : undefined,
-            }),
-          ),
-        )
-        content.push(
-          ...(value.agents ?? []).map(
-            (attachment, index): Part => ({
-              id: `${value.id}:agent:${index}`,
-              sessionID,
-              messageID: value.id,
-              type: "agent",
-              name: attachment.name,
-              source: attachment.source
-                ? { value: attachment.source.text, start: attachment.source.start, end: attachment.source.end }
-                : undefined,
-            }),
-          ),
-        )
-      }
-      parts.push({ id: value.id, part: content })
-      continue
-    }
-    value.type satisfies "assistant"
-    const message: Message = {
-      id: value.id,
-      sessionID,
-      role: "assistant",
-      time: { created: value.time.created, completed: value.time.completed },
-      parentID,
-      modelID: value.model.id,
-      providerID: value.model.providerID,
-      mode: value.agent,
-      agent: value.agent,
-      path: { cwd: session?.directory ?? "", root: session?.directory ?? "" },
-      cost: value.cost ?? 0,
-      tokens: value.tokens ?? { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-      finish: value.finish,
-      error: value.error ? { name: "UnknownError", data: { message: value.error.message } } : undefined,
-      variant: value.model.variant,
-    }
-    sessionMessages.push(message)
-    const mappedParts = value.content.flatMap((item) => mapV2Part(item, sessionID, value.id, value.time.created))
-    parts.push({ id: value.id, part: mappedParts })
-  }
-  return { session: sessionMessages, part: parts }
-}
-
-function mapV2Part(
-  value: SessionMessageAssistantText | SessionMessageAssistantReasoning | SessionMessageAssistantTool,
-  sessionID: string,
-  messageID: string,
-  created: number,
-): Part[] {
-  if (value.type === "text") {
-    return [{ id: value.id, sessionID, messageID, type: value.type, text: value.text }]
-  }
-  if (value.type === "reasoning") {
-    return [
-      {
-        id: value.id,
-        sessionID,
-        messageID,
-        type: value.type,
-        text: value.text,
-        time: { start: value.time?.created ?? created, end: value.time?.completed },
-        metadata: value.providerMetadata,
-      },
-    ]
-  }
-  const state = value.state
-  const tool: Part = {
-    id: value.id,
-    sessionID,
-    messageID,
-    type: "tool",
-    callID: value.id,
-    tool: value.name,
-    state:
-      state.status === "completed"
-        ? {
-            status: "completed",
-            input: state.input,
-            output: JSON.stringify(state.result ?? state.content) ?? "",
-            title: value.name,
-            metadata: { structured: state.structured },
-            time: {
-              start: value.time.ran ?? value.time.created,
-              end: value.time.completed ?? value.time.created,
-              compacted: value.time.pruned,
-            },
-          }
-        : state.status === "error"
-          ? {
-              status: "error",
-              input: state.input,
-              error: state.error.message,
-              time: { start: value.time.ran ?? value.time.created, end: value.time.completed ?? value.time.created },
-            }
-          : state.status === "running"
-            ? {
-                status: "running",
-                input: state.input,
-                time: { start: value.time.ran ?? value.time.created },
-                metadata: { structured: state.structured },
-              }
-            : { status: "pending", input: {}, raw: state.input },
-  }
-  return [tool]
-}
-
 export function createServerSession(
   client: HenaClient,
   options?: { retry?: typeof retry; managedSession?: (session: Session) => boolean | Promise<boolean> },
@@ -529,7 +345,11 @@ export function createServerSession(
 
   const resolve = (sessionID: string, settings?: { force?: boolean }) => {
     const cached = data.info[sessionID]
-    if (cached && !settings?.force && (!options?.managedSession || resolvedInfo.has(sessionID) || cached.metadata?.appRuntime))
+    if (
+      cached &&
+      !settings?.force &&
+      (!options?.managedSession || resolvedInfo.has(sessionID) || cached.metadata?.appRuntime)
+    )
       return Promise.resolve(cached)
     const pending = requests.get(sessionID)
     if (pending) return pending
@@ -770,7 +590,12 @@ export function createServerSession(
       pickSessionCacheEvictions({ seen, keep: sessionID, limit: SESSION_CACHE_LIMIT, preserve: protectedSessions() }),
     )
 
-  const fetchMessages = async (sessionID: string, limit: number, before?: string, onAttempt?: () => void): Promise<MessagePage> => {
+  const fetchMessages = async (
+    sessionID: string,
+    limit: number,
+    before?: string,
+    onAttempt?: () => void,
+  ): Promise<MessagePage> => {
     const managed = options?.managedSession?.(data.info[sessionID]!)
     const useManagedHistory = managed === true || (managed !== undefined && managed !== false && (await managed))
     if (options?.managedSession) managedSessions.set(sessionID, useManagedHistory)
@@ -784,7 +609,12 @@ export function createServerSession(
         let values: SessionMessage[] = []
         let lastPageSize = 0
         while (true) {
-          const response = await client.v2.session.messages({ sessionID, limit: pageLimit, order: cursor ? undefined : "desc", cursor })
+          const response = await client.v2.session.messages({
+            sessionID,
+            limit: pageLimit,
+            order: cursor ? undefined : "desc",
+            cursor,
+          })
           const page = response.data?.data ?? []
           values = values.concat(page)
           lastPageSize = page.length
@@ -873,7 +703,10 @@ export function createServerSession(
       if (!ordered.has(message.id)) order.push(message.id)
     })
     const live = new Set(messages.map((message) => message.id))
-    messageOrder.set(sessionID, order.filter((id) => live.has(id)))
+    messageOrder.set(
+      sessionID,
+      order.filter((id) => live.has(id)),
+    )
   }
 
   const timeline = (sessionID: string) => {
@@ -978,10 +811,15 @@ export function createServerSession(
           if (!present.size) continue
           const fetched = item.part.map((part) => part.id)
           const known = new Set(fetched)
-          setData("part_order", item.id, reconcile([
-            ...fetched,
-            ...(data.part_order[item.id] ?? []).filter((id) => !known.has(id)),
-          ].filter((id) => present.has(id))))
+          setData(
+            "part_order",
+            item.id,
+            reconcile(
+              [...fetched, ...(data.part_order[item.id] ?? []).filter((id) => !known.has(id))].filter((id) =>
+                present.has(id),
+              ),
+            ),
+          )
         }
       }
       const orphans = orphanParts.get(sessionID)
@@ -1152,6 +990,11 @@ export function createServerSession(
     )
   }
 
+  const refresh = (sessionID: string) => {
+    const reload = () => sync(sessionID, { force: true })
+    void (inflight.get(sessionID)?.then(reload) ?? reload()).catch(() => {})
+  }
+
   const prefetch = async (sessionID: string, limit: number) => {
     touch(sessionID)
     await inflight.get(sessionID)
@@ -1208,35 +1051,13 @@ export function createServerSession(
       return properties.part.sessionID
   }
 
-  const upsertV2Message = (message: Message) => {
-    const messages = data.message[message.sessionID] ?? []
-    const result = Binary.search(messages, message.id, (item) => item.id)
-    if (result.found) setData("message", message.sessionID, result.index, reconcile(message))
-    else
-      setData("message", message.sessionID, (value = []) => {
-        const next = value.slice()
-        next.splice(result.index, 0, message)
-        return next
-      })
-    const order = messageOrder.get(message.sessionID)
-    if (order && !order.includes(message.id)) messageOrder.set(message.sessionID, [...order, message.id])
-  }
-
   const upsertV2Part = (part: Part) => {
-    trackPartChange(part.sessionID, part.messageID, part.id)
     const parts = data.part[part.messageID] ?? []
-    const result = Binary.search(parts, part.id, (item) => item.id)
     batch(() => {
       const order = data.part_order[part.messageID] ?? parts.map((part) => part.id)
       if (!data.part_order[part.messageID] || !order.includes(part.id))
         setData("part_order", part.messageID, order.includes(part.id) ? order : [...order, part.id])
-      if (result.found) setData("part", part.messageID, result.index, reconcile(part))
-      else
-        setData("part", part.messageID, (value = []) => {
-          const next = value.slice()
-          next.splice(result.index, 0, part)
-          return next
-        })
+      apply({ type: "message.part.updated", properties: { part } })
     })
   }
 
@@ -1266,23 +1087,14 @@ export function createServerSession(
     const session = data.info[input.sessionID]
     const parentID = timeline(input.sessionID).findLast((message) => message.role === "user")?.id
     if (!session || !parentID) return
-    const message: Extract<Message, { role: "assistant" }> = {
-      id: input.assistantMessageID,
-      sessionID: input.sessionID,
-      role: "assistant",
-      time: { created: input.timestamp },
+    const message = mapV2Assistant(
+      { id: input.assistantMessageID, time: { created: input.timestamp }, model: input.model, agent: input.agent },
+      input.sessionID,
       parentID,
-      modelID: input.model.id,
-      providerID: input.model.providerID,
-      mode: input.agent,
-      agent: input.agent,
-      path: { cwd: session.directory, root: session.directory },
-      cost: 0,
-      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-      variant: input.model.variant,
-    }
+      session.directory,
+    )
     v2Assistants.set(message.id, message)
-    upsertV2Message(message)
+    apply({ type: "message.updated", properties: { info: message } })
     return message
   }
 
@@ -1295,7 +1107,7 @@ export function createServerSession(
     if (!current) return
     const next = { ...current, ...update }
     v2Assistants.set(messageID, next)
-    upsertV2Message(next)
+    apply({ type: "message.updated", properties: { info: next } })
   }
 
   const apply = (rawEvent: { type: string; properties?: unknown; data?: unknown }) => {
@@ -1378,8 +1190,7 @@ export function createServerSession(
         }
         if (props.status.type === "failed") {
           setExecutionStatus(props.sessionID, props.status)
-          if (!options?.managedSession || managedSessions.get(props.sessionID) !== false)
-            void sync(props.sessionID, { force: true }).catch(() => {})
+          if (!options?.managedSession || managedSessions.get(props.sessionID) !== false) refresh(props.sessionID)
           return
         }
         setExecutionStatus(props.sessionID, props.status)
@@ -1406,8 +1217,7 @@ export function createServerSession(
                 : {}),
             }),
           )
-        const refresh = () => sync(props.sessionID, { force: true })
-        void (inflight.get(props.sessionID)?.then(refresh) ?? refresh()).catch(() => {})
+        refresh(props.sessionID)
         return
       }
       case "session.next.step.ended":
@@ -1418,7 +1228,7 @@ export function createServerSession(
           cost?: number
           tokens?: Extract<Message, { role: "assistant" }>["tokens"]
           finish?: string
-          error?: Extract<Message, { role: "assistant" }>["error"]
+          error?: { message: string }
         }
         updateV2Assistant(props.assistantMessageID, eventID, {
           time: {
@@ -1431,9 +1241,9 @@ export function createServerSession(
                 tokens: props.tokens ?? v2Assistant(props.assistantMessageID, eventID)?.tokens,
                 finish: props.finish,
               }
-            : { error: props.error }),
+            : { error: props.error ? { name: "UnknownError", data: { message: props.error.message } } : undefined }),
         })
-        if (eventID) void sync(eventID, { force: true }).catch(() => {})
+        if (eventID) refresh(eventID)
         return
       }
       case "session.next.step.started": {
@@ -1686,7 +1496,11 @@ export function createServerSession(
         removedMessages.set(props.sessionID, removedMessagesForSession)
         clearOptimistic(props.sessionID, props.messageID)
         const order = messageOrder.get(props.sessionID)
-        if (order) messageOrder.set(props.sessionID, order.filter((id) => id !== props.messageID))
+        if (order)
+          messageOrder.set(
+            props.sessionID,
+            order.filter((id) => id !== props.messageID),
+          )
         setData(
           produce((draft) => {
             const messages = draft.message[props.sessionID]
@@ -1995,7 +1809,11 @@ export function createServerSession(
         }
         setData("message", input.sessionID, (messages) => messages?.filter((message) => message.id !== input.messageID))
         const order = messageOrder.get(input.sessionID)
-        if (order) messageOrder.set(input.sessionID, order.filter((id) => id !== input.messageID))
+        if (order)
+          messageOrder.set(
+            input.sessionID,
+            order.filter((id) => id !== input.messageID),
+          )
         setData(produce((draft) => deleteMessageParts(draft, input.messageID)))
       },
     },

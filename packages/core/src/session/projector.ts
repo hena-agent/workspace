@@ -392,9 +392,17 @@ const layer = Layer.effectDiscard(
           sessionID: event.data.sessionID,
           prompt: event.data.prompt,
           delivery: event.data.delivery,
+          selection: event.data.selection,
           timeCreated: event.data.timestamp,
           promotedSeq: event.durable.seq,
         })
+        if (event.data.selection)
+          yield* db
+            .update(SessionTable)
+            .set({ ...event.data.selection, time_updated: DateTime.toEpochMillis(event.data.timestamp) })
+            .where(eq(SessionTable.id, event.data.sessionID))
+            .run()
+            .pipe(Effect.orDie)
         yield* run(db, event)
         yield* incrementQueueRevision(db, event.data.sessionID)
       }),
@@ -408,6 +416,7 @@ const layer = Layer.effectDiscard(
           sessionID: event.data.sessionID,
           prompt: event.data.prompt,
           delivery: event.data.delivery,
+          selection: event.data.selection,
           timeCreated: event.data.timestamp,
         })
         yield* incrementQueueRevision(db, event.data.sessionID)
@@ -561,6 +570,7 @@ const layer = Layer.effectDiscard(
             sessionID: event.data.sessionID,
             prompt: event.data.replacement.prompt,
             delivery: event.data.replacement.delivery,
+            selection: { agent: event.data.replacement.agent, model: event.data.replacement.model },
             timeCreated: event.data.timestamp,
           })
         }
@@ -634,20 +644,23 @@ function validateTodoIDs(
 ) {
   return Effect.gen(function* () {
     const duplicate = todos.find((todo, index) => todos.findIndex((candidate) => candidate.id === todo.id) !== index)
-    if (duplicate)
-      yield* Effect.die(new TodoConflictError({ sessionID, todoID: duplicate.id, reason: "duplicate" }))
-    const owned = todos.length === 0
-      ? []
-      : yield* db
-        .select({ id: TodoTable.id, sessionID: TodoTable.session_id })
-        .from(TodoTable)
-        .where(inArray(TodoTable.id, todos.map((todo) => todo.id)))
-        .all()
-        .pipe(Effect.orDie)
+    if (duplicate) yield* Effect.die(new TodoConflictError({ sessionID, todoID: duplicate.id, reason: "duplicate" }))
+    const owned =
+      todos.length === 0
+        ? []
+        : yield* db
+            .select({ id: TodoTable.id, sessionID: TodoTable.session_id })
+            .from(TodoTable)
+            .where(
+              inArray(
+                TodoTable.id,
+                todos.map((todo) => todo.id),
+              ),
+            )
+            .all()
+            .pipe(Effect.orDie)
     const foreign = owned.find((todo) => todo.sessionID !== sessionID)
     if (foreign)
-      yield* Effect.die(
-        new TodoConflictError({ sessionID, todoID: foreign.id, reason: "owned_by_another_session" }),
-      )
+      yield* Effect.die(new TodoConflictError({ sessionID, todoID: foreign.id, reason: "owned_by_another_session" }))
   })
 }

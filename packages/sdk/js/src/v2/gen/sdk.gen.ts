@@ -136,6 +136,7 @@ import type {
   ProjectInitGitResponses,
   ProjectListErrors,
   ProjectListResponses,
+  ProjectManagedId,
   ProjectUpdateErrors,
   ProjectUpdateResponses,
   PromptInput,
@@ -191,6 +192,7 @@ import type {
   SessionGetResponses,
   SessionInitErrors,
   SessionInitResponses,
+  SessionInputSelection,
   SessionListErrors,
   SessionListResponses,
   SessionMessageErrors,
@@ -5204,6 +5206,7 @@ export class Session3 extends HeyApiClient {
       sessionID: string
       id?: string
       prompt?: PromptInput
+      selection?: SessionInputSelection
       delivery?: "steer" | "queue"
       resume?: boolean
     },
@@ -5217,6 +5220,7 @@ export class Session3 extends HeyApiClient {
             { in: "path", key: "sessionID" },
             { in: "body", key: "id" },
             { in: "body", key: "prompt" },
+            { in: "body", key: "selection" },
             { in: "body", key: "delivery" },
             { in: "body", key: "resume" },
           ],
@@ -6459,7 +6463,7 @@ export class Project2 extends HeyApiClient {
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
-      id?: string
+      id?: ProjectManagedId
       name?: string
     },
     options?: Options<never, ThrowOnError>,

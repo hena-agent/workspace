@@ -1,5 +1,5 @@
 import { describe, expect } from "bun:test"
-import { Clock, Duration, Effect, Exit, Fiber, Scope, Stream } from "effect"
+import { Clock, Duration, Effect, Exit, Fiber, Layer, Scope, Stream } from "effect"
 import * as TestClock from "effect/testing/TestClock"
 import { Credential } from "@hena/core/credential"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
@@ -396,7 +396,6 @@ describe("Integration", () => {
           },
         ]),
       resolve: (id: Credential.ID) => Effect.succeed(values.get(id)),
-      update: (id: Credential.ID, value: Credential.Value) => Effect.sync(() => void values.set(id, value)),
     }
 
     return Effect.gen(function* () {
@@ -433,9 +432,66 @@ describe("Integration", () => {
         type: "oauth",
         access: "refreshed-access",
       })
-      expect(values.get(oauthID)).toMatchObject({ access: "refreshed-access" })
+      const credentials = yield* Credential.Service
+      expect((yield* credentials.get(oauthID))?.value).toMatchObject({ access: "refreshed-access" })
+      expect(values.get(oauthID)).toMatchObject({ access: "expired-access" })
     })
   })
+
+  it.effect("shares imported OAuth rotation across Location scopes and preserves explicit credentials", () =>
+    Effect.gen(function* () {
+      const credentials = yield* Credential.Service
+      const integrationID = Integration.ID.make("rotation")
+      const methodID = Integration.MethodID.make("oauth")
+      const id = Credential.ID.make("legacy:rotation:source")
+      const original = Credential.OAuth.make({ type: "oauth", methodID, access: "old", refresh: "one-use", expires: 0 })
+      const explicit = yield* credentials.create({
+        integrationID,
+        value: Credential.Key.make({ type: "key", key: "explicit" }),
+      })
+      const rotations: string[] = []
+      const resolve = (header: string) =>
+        Effect.gen(function* () {
+          const integrations = yield* Integration.Service
+          yield* integrations.compatibility({
+            list: () => Effect.succeed([{ id, integrationID, label: "OpenCode", type: "oauth", methodID }]),
+            resolve: () =>
+              Effect.succeed(Credential.withCompatibility(original, { headers: { "X-Location": header } })),
+          })
+          yield* integrations.transform((editor) =>
+            editor.method.update({
+              integrationID,
+              method: { id: methodID, type: "oauth", label: "OAuth" },
+              authorize: () => Effect.die("unused"),
+              refresh: (current) =>
+                Effect.gen(function* () {
+                  rotations.push(current.refresh)
+                  yield* Effect.yieldNow
+                  return Credential.OAuth.make({
+                    ...current,
+                    access: "new",
+                    refresh: "rotated",
+                    expires: (yield* Clock.currentTimeMillis) + 3_600_000,
+                  })
+                }),
+            }),
+          )
+          expect(yield* integrations.connection.active(integrationID)).toMatchObject({ id: explicit.id })
+          return yield* integrations.connection.resolve({ type: "credential", id, label: "OpenCode" })
+        }).pipe(Effect.provide(Layer.fresh(Integration.locationLayer)), Effect.scoped)
+      const values = yield* Effect.all([resolve("first"), resolve("second")], { concurrency: "unbounded" })
+      expect(values).toMatchObject([{ access: "new" }, { access: "new" }])
+      expect(values.map((value) => Credential.getCompatibility(value)?.headers)).toEqual([
+        { "X-Location": "first" },
+        { "X-Location": "second" },
+      ])
+      expect(yield* resolve("reopened")).toMatchObject({ access: "new", refresh: "rotated" })
+      expect(rotations).toEqual(["one-use"])
+      expect((yield* credentials.get(id))?.value).toMatchObject({ refresh: "rotated" })
+      expect(Credential.getCompatibility((yield* credentials.get(id))?.value)).toBeUndefined()
+      expect(yield* credentials.list(integrationID)).toEqual([explicit])
+    }),
+  )
 
   it.effect("resolves an unexpired stored OAuth token without a refresh implementation", () =>
     Effect.gen(function* () {

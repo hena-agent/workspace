@@ -1,6 +1,6 @@
 export * as SessionExecution from "./execution"
 
-import { Context, Effect, Layer } from "effect"
+import { Context, Effect, Layer, Option } from "effect"
 import { LayerNode } from "../effect/layer-node"
 import { Node } from "../effect/app-node"
 import { SessionRunner } from "./runner/index"
@@ -25,6 +25,7 @@ export interface Interface {
   readonly serialize: <A, E, R>(
     sessionID: SessionSchema.ID,
     effect: Effect.Effect<A, E, R>,
+    reconcile?: Effect.Effect<Option.Option<A>, E, R>,
   ) => Effect.Effect<A, E, R>
 }
 
@@ -43,6 +44,9 @@ export const noopLayer = Layer.succeed(
     wake: () => Effect.void,
     interrupt: () => Effect.void,
     mutate: (_sessionID, effect) => effect,
-    serialize: (_sessionID, effect) => effect,
+    serialize: (_sessionID, effect, reconcile) =>
+      reconcile
+        ? reconcile.pipe(Effect.flatMap((result) => (Option.isSome(result) ? Effect.succeed(result.value) : effect)))
+        : effect,
   }),
 )

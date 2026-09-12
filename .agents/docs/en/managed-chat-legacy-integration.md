@@ -199,3 +199,74 @@ Verification from `packages/app`:
 - The parent supplied independent review findings, which drove the follow-up fixes
   and regression tests documented here.
 - No commits or pushes were made.
+
+## PR #108 review corrections
+
+The follow-up review uses `develop...HEAD`. The fixes preserve the legacy Chat
+execution path while correcting these shared and canonical boundaries:
+
+- Managed project creation validates its ID before filesystem work and checks the
+  resolved child against its canonical storage root before chmod. HTTP uses a
+  portable, creation-only managed-ID schema; legacy lookup IDs remain unchanged.
+- Replacement reconciliation runs inside the mutation lock, before the destructive
+  execution fence. Exact retries and conflicting requests leave an active drain
+  alone. Replacement retries also compare their recorded agent/model selection.
+- Transcript-only restaging restores prior file-revert changes with the real
+  Location Snapshot service before publishing the new boundary. Clear and restage
+  reuse the same file-restoration operation.
+- Credential owns OAuth refresh serialization and persistence. Config no longer
+  exposes an update operation. Imported refresh state does not replace explicit
+  credentials, and Location-specific request headers are not persisted with it.
+- Canonical messages and parts use the existing cache mutation handlers, including
+  in-flight HTTP tracking. History and live assistant creation share the canonical
+  transcript adapter. Terminal events schedule a refresh after an existing load.
+- Canonical prompt submission sends selection with the admission request instead
+  of separately switching agent and model. A nullable inbox `selection` column
+  preserves it until promotion and through event replay. The runner keeps its
+  initial context-readiness gate and applies the promoted selection at the next
+  provider boundary. Projected user messages retain that selection so history
+  does not relabel old prompts with the Session's latest agent/model.
+
+Regression coverage includes path traversal and symlinks, active replacement
+retries, real Git file restoration, concurrent OAuth readers in separate Location
+scopes, closing and reopening a credential database, stale history responses after
+completion/failure, selection conflicts, and queued selections used by the runner.
+The project tests now explicitly bind Global data to a temporary directory. The
+first path test exposed the old fixture's real-data default; its newly created
+empty directory and symlink were identified and removed.
+
+Production renderer measurements used the existing session-tab benchmark with
+`PLAYWRIGHT_PORT=4777 SESSION_TAB_SWITCH_RUNS=1`, before and after the App changes.
+All four scenarios completed with zero blank or wrong-destination samples.
+
+| Review pane / cache | First correct paint before | After |
+| --- | ---: | ---: |
+| Closed / cold | 35.3 ms | 39.6 ms |
+| Closed / hot | 2.2 ms | 2.8 ms |
+| Open / cold | 9.1 ms | 8.8 ms |
+| Open / hot | 4.2 ms | 5.8 ms |
+
+Baseline run: `2026-09-11T18-18-50-314Z-52269`; final run:
+`2026-09-11T18-58-34-647Z-56791`. An intermediate build recorded 42.3 / 2.7 /
+10.3 / 6.8 ms respectively, also with zero blank or wrong-destination samples.
+
+These are single-run observations, not evidence of a performance improvement or
+a statistically established regression. They use a production renderer with
+fixture-backed HTTP, not the running Electron app or real model providers.
+The existing five-key i18n parity failure remains outside this review's changes.
+
+Verification:
+
+- Core focused suites: 234 passed across 11 files; the final user-selection
+  projection change was also checked with 160 Session tests across four files.
+- Mounted HTTP Session integration: 26 passed, including malformed project IDs,
+  rejected selections without partial admission, and exact/conflicting retries.
+- App cache, submission, and runtime tests: 107 passed. Browser-condition suite:
+  33 passed, including cold-start initialization.
+- App full unit suite: 660 passed, one existing i18n parity failure.
+- Client promise tests: 7 passed. Session-create and database-migration checks:
+  43 passed. `bun run migration --check` passed.
+- Package typechecks passed for Core, Hena, Server, Client, App, Desktop, Schema,
+  Protocol, SDK, SDK Next, Server V3, and App V3.
+- Client and SDK outputs were regenerated with the repository scripts.
+- `git diff --check` passed.

@@ -108,7 +108,9 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
 
   const messageID = input.messageID ?? Identifier.ascending("message")
   const { requestParts, optimisticParts } = buildRequestParts({
-    prompt: managedChat ? input.draft.prompt.filter((part) => part.type === "text" || part.type === "image") : input.draft.prompt,
+    prompt: managedChat
+      ? input.draft.prompt.filter((part) => part.type === "text" || part.type === "image")
+      : input.draft.prompt,
     context: managedChat ? [] : input.draft.context,
     images,
     text,
@@ -159,7 +161,11 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
       const available = await input.client.v2.model.list({
         location: { directory: input.draft.sessionDirectory },
       })
-      if (!available.data?.data?.some((model) => model.providerID === input.draft.model.providerID && model.id === input.draft.model.modelID))
+      if (
+        !available.data?.data?.some(
+          (model) => model.providerID === input.draft.model.providerID && model.id === input.draft.model.modelID,
+        )
+      )
         throw new Error(`Selected model is unavailable: ${input.draft.model.providerID}/${input.draft.model.modelID}`)
       const prompt = {
         text: requestParts
@@ -205,21 +211,18 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
         await input.sync.session.sync(input.draft.sessionID, { force: true })
         return true
       }
-      await Promise.all([
-        input.client.v2.session.switchAgent({ sessionID: input.draft.sessionID, agent: input.draft.agent }),
-        input.client.v2.session.switchModel({
-          sessionID: input.draft.sessionID,
+      await input.client.v2.session.prompt({
+        sessionID: input.draft.sessionID,
+        id: messageID,
+        prompt,
+        selection: {
+          agent: input.draft.agent,
           model: {
             id: input.draft.model.modelID,
             providerID: input.draft.model.providerID,
             variant: input.draft.variant,
           },
-        }),
-      ])
-      await input.client.v2.session.prompt({
-        sessionID: input.draft.sessionID,
-        id: messageID,
-        prompt,
+        },
       })
     } else {
       await input.client.session.promptAsync({
@@ -436,16 +439,20 @@ export function createPromptSubmit(input: PromptSubmitInput) {
 
     let session = input.info()
     if (!session && isNewSession) {
-      const created = await client.session.create().then((x) => {
-        if (managedChat && x.data?.projectID !== projectID) throw new Error("Session was created in a different project")
-        return x.data ?? undefined
-      }).catch((err) => {
-        showToast({
-          title: language.t("prompt.toast.sessionCreateFailed.title"),
-          description: errorMessage(err),
+      const created = await client.session
+        .create()
+        .then((x) => {
+          if (managedChat && x.data?.projectID !== projectID)
+            throw new Error("Session was created in a different project")
+          return x.data ?? undefined
         })
-        return undefined
-      })
+        .catch((err) => {
+          showToast({
+            title: language.t("prompt.toast.sessionCreateFailed.title"),
+            description: errorMessage(err),
+          })
+          return undefined
+        })
       if (created) {
         seed(sessionDirectory, created)
         session = created

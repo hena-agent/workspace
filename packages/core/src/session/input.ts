@@ -2,7 +2,7 @@ export * as SessionInput from "./input"
 
 import { and, asc, eq, isNull, lte, or, sql } from "drizzle-orm"
 import { DateTime, Effect, Schema } from "effect"
-import { Admitted, Delivery } from "@hena/schema/session-input"
+import { Admitted, Delivery, Selection } from "@hena/schema/session-input"
 import type { Database } from "../database/database"
 import { EventV2 } from "../event"
 import { EventTable } from "../event/sql"
@@ -14,13 +14,16 @@ import { SessionInputTable, SessionMessageTable } from "./sql"
 
 type DatabaseService = Database.Interface["db"]
 
-export { Admitted, Delivery }
+export { Admitted, Delivery, Selection }
 
 const decodePrompt = Schema.decodeUnknownSync(Prompt)
 const encodePrompt = Schema.encodeSync(Prompt)
+const selectionEquals = Schema.toEquivalence(Selection)
 export const queueOrder = sql<number>`CASE WHEN ${SessionInputTable.queue_position} = ${Number.MAX_SAFE_INTEGER} THEN ${SessionInputTable.admitted_seq} ELSE ${SessionInputTable.queue_position} END`
 
-export const normalizeQueuePositions = Effect.fn("SessionInput.normalizeQueuePositions")(function* (db: DatabaseService) {
+export const normalizeQueuePositions = Effect.fn("SessionInput.normalizeQueuePositions")(function* (
+  db: DatabaseService,
+) {
   yield* db
     .update(SessionInputTable)
     .set({ queue_position: sql`${SessionInputTable.admitted_seq}` })
@@ -36,6 +39,7 @@ const fromRow = (row: typeof SessionInputTable.$inferSelect): Admitted =>
     sessionID: SessionSchema.ID.make(row.session_id),
     prompt: decodePrompt(row.prompt),
     delivery: row.delivery,
+    selection: row.selection ?? undefined,
     timeCreated: DateTime.makeUnsafe(row.time_created),
     ...(row.promoted_seq === null ? {} : { promotedSeq: row.promoted_seq }),
   })
@@ -66,12 +70,11 @@ const findHistorical = Effect.fn("SessionInput.findHistorical")(function* (
     .pipe(Effect.orDie)
   if (!row) return
   const raw = row.data as Record<string, unknown>
-  const committed = raw.replacement
-    ? Schema.decodeUnknownSync(SessionEvent.RevertEvent.Committed.data)(raw)
-    : undefined
+  const committed = raw.replacement ? Schema.decodeUnknownSync(SessionEvent.RevertEvent.Committed.data)(raw) : undefined
   const data = committed
     ? committed.replacement && {
         ...committed.replacement,
+        selection: { agent: committed.replacement.agent, model: committed.replacement.model },
         sessionID: committed.sessionID,
         timestamp: committed.timestamp,
       }
@@ -84,6 +87,7 @@ const findHistorical = Effect.fn("SessionInput.findHistorical")(function* (
       sessionID: data.sessionID,
       prompt: data.prompt,
       delivery: data.delivery,
+      selection: "selection" in data ? data.selection : undefined,
       timeCreated: data.timestamp,
     }),
     boundary: committed?.messageID,
@@ -108,10 +112,15 @@ export class LifecycleConflict extends Schema.TaggedErrorClass<LifecycleConflict
 }) {}
 
 class PromotionConflict extends Error {
-  constructor(readonly promoted = 0) {
+  constructor(
+    readonly promoted = 0,
+    readonly selection?: Selection,
+  ) {
     super()
   }
 }
+
+export type Promotion = { count: number; selection?: Selection }
 
 export const admit = Effect.fn("SessionInput.admit")(function* (
   db: DatabaseService,
@@ -121,6 +130,7 @@ export const admit = Effect.fn("SessionInput.admit")(function* (
     readonly sessionID: SessionSchema.ID
     readonly prompt: Prompt
     readonly delivery: Delivery
+    readonly selection?: Selection
   },
 ) {
   const existing = yield* lookup(db, input.id)
@@ -133,6 +143,7 @@ export const admit = Effect.fn("SessionInput.admit")(function* (
       timestamp,
       prompt: input.prompt,
       delivery: input.delivery,
+      selection: input.selection,
     })
     .pipe(
       Effect.flatMap((event) =>
@@ -145,6 +156,7 @@ export const admit = Effect.fn("SessionInput.admit")(function* (
                 sessionID: input.sessionID,
                 prompt: input.prompt,
                 delivery: input.delivery,
+                selection: input.selection,
                 timeCreated: timestamp,
               }),
             ),
@@ -163,6 +175,7 @@ export const projectAdmitted = Effect.fn("SessionInput.projectAdmitted")(functio
     readonly sessionID: SessionSchema.ID
     readonly prompt: Prompt
     readonly delivery: Delivery
+    readonly selection?: Selection
     readonly timeCreated: DateTime.Utc
   },
 ) {
@@ -182,6 +195,7 @@ export const projectAdmitted = Effect.fn("SessionInput.projectAdmitted")(functio
       queue_position: input.admittedSeq,
       prompt: encodePrompt(input.prompt),
       delivery: input.delivery,
+      selection: input.selection,
       time_created: DateTime.toEpochMillis(input.timeCreated),
     })
     .onConflictDoNothing()
@@ -198,6 +212,7 @@ export const projectPrompted = Effect.fn("SessionInput.projectPrompted")(functio
     readonly sessionID: SessionSchema.ID
     readonly prompt: Prompt
     readonly delivery: Delivery
+    readonly selection?: Selection
     readonly timeCreated: DateTime.Utc
     readonly promotedSeq: number
   },
@@ -237,6 +252,7 @@ export const projectPrompted = Effect.fn("SessionInput.projectPrompted")(functio
       delivery: input.delivery,
       admitted_seq: input.promotedSeq,
       queue_position: input.promotedSeq,
+      selection: input.selection,
       promoted_seq: input.promotedSeq,
       time_created: DateTime.toEpochMillis(input.timeCreated),
     })
@@ -271,8 +287,14 @@ export const equivalent = (
     readonly sessionID: SessionSchema.ID
     readonly prompt: Prompt
     readonly delivery: Delivery
+    readonly selection?: Selection
   },
-) => input.delivery === expected.delivery && matchesPrompt(input, expected)
+) =>
+  input.delivery === expected.delivery &&
+  matchesPrompt(input, expected) &&
+  (input.selection === undefined
+    ? expected.selection === undefined
+    : expected.selection !== undefined && selectionEquals(input.selection, expected.selection))
 
 const matchesPrompt = (input: Admitted, expected: { readonly sessionID: SessionSchema.ID; readonly prompt: Prompt }) =>
   input.sessionID === expected.sessionID &&
@@ -284,6 +306,7 @@ const matchesProjection = (
     readonly sessionID: SessionSchema.ID
     readonly prompt: Prompt
     readonly delivery: Delivery
+    readonly selection?: Selection
     readonly timeCreated: DateTime.Utc
   },
 ) =>
@@ -308,6 +331,7 @@ const publish = Effect.fn("SessionInput.publish")(function* (
           messageID: id,
           prompt: decodePrompt(row.prompt),
           delivery: row.delivery,
+          selection: row.selection ?? undefined,
         },
         guard ? { guard: () => guard(row) } : undefined,
       )
@@ -318,12 +342,17 @@ const publish = Effect.fn("SessionInput.publish")(function* (
                 Effect.flatMap((stored) => (stored?.promotedSeq === undefined ? Effect.die(defect) : Effect.void)),
               )
             : defect instanceof PromotionConflict
-              ? Effect.die(new PromotionConflict(index))
-            : Effect.die(defect),
+              ? Effect.die(
+                  new PromotionConflict(
+                    index,
+                    rows.slice(0, index).findLast((row) => row.selection)?.selection ?? undefined,
+                  ),
+                )
+              : Effect.die(defect),
         ),
       )
   }
-  return rows.length
+  return { count: rows.length, selection: rows.findLast((row) => row.selection)?.selection ?? undefined }
 })
 
 export const promoteSteers: (
@@ -331,7 +360,7 @@ export const promoteSteers: (
   events: EventV2.Interface,
   sessionID: SessionSchema.ID,
   cutoff: number,
-) => Effect.Effect<number> = Effect.fn("SessionInput.promoteSteers")(function* (
+) => Effect.Effect<Promotion> = Effect.fn("SessionInput.promoteSteers")(function* (
   db: DatabaseService,
   events: EventV2.Interface,
   sessionID: SessionSchema.ID,
@@ -372,7 +401,12 @@ export const promoteSteers: (
   ).pipe(
     Effect.catchDefect((defect) =>
       defect instanceof PromotionConflict
-        ? promoteSteers(db, events, sessionID, cutoff).pipe(Effect.map((promoted) => defect.promoted + promoted))
+        ? promoteSteers(db, events, sessionID, cutoff).pipe(
+            Effect.map((promoted) => ({
+              count: defect.promoted + promoted.count,
+              selection: promoted.selection ?? defect.selection,
+            })),
+          )
         : Effect.die(defect),
     ),
   )
@@ -382,7 +416,7 @@ export const promoteNextQueued: (
   db: DatabaseService,
   events: EventV2.Interface,
   sessionID: SessionSchema.ID,
-) => Effect.Effect<boolean> = Effect.fn("SessionInput.promoteNextQueued")(function* (
+) => Effect.Effect<Promotion> = Effect.fn("SessionInput.promoteNextQueued")(function* (
   db: DatabaseService,
   events: EventV2.Interface,
   sessionID: SessionSchema.ID,
@@ -401,7 +435,7 @@ export const promoteNextQueued: (
     .limit(1)
     .get()
     .pipe(Effect.orDie)
-  if (row === undefined) return false
+  if (row === undefined) return { count: 0 }
   return yield* publish(db, events, sessionID, [row], () =>
     db
       .select({ id: SessionInputTable.id })
@@ -421,7 +455,6 @@ export const promoteNextQueued: (
         Effect.flatMap((stored) => (stored?.id === row.id ? Effect.void : Effect.die(new PromotionConflict()))),
       ),
   ).pipe(
-    Effect.as(true),
     Effect.catchDefect((defect) =>
       defect instanceof PromotionConflict ? promoteNextQueued(db, events, sessionID) : Effect.die(defect),
     ),

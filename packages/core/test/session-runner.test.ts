@@ -2169,6 +2169,65 @@ describe("SessionRunnerLLM", () => {
     }),
   )
 
+  it.effect("keeps the replacement drain alive across exact and conflicting retries", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const boundary = yield* session.prompt({ sessionID, prompt: { text: "original" }, resume: false })
+      yield* events.publish(SessionEvent.Prompted, {
+        sessionID,
+        messageID: boundary.id,
+        prompt: boundary.prompt,
+        delivery: boundary.delivery,
+        timestamp: boundary.timeCreated,
+      })
+      yield* session.revert.stage({ sessionID, messageID: boundary.id, files: false })
+      response = [
+        LLMEvent.stepStart({ index: 0 }),
+        LLMEvent.stepFinish({ index: 0, reason: "stop" }),
+        LLMEvent.finish({ reason: "stop" }),
+      ]
+      streamGate = yield* Deferred.make<void>()
+      streamStarted = yield* Deferred.make<void>()
+      const retry = {
+        sessionID,
+        messageID: boundary.id,
+        id: SessionMessage.ID.create(),
+        prompt: { text: "replacement" },
+        agent: AgentV2.ID.make("build"),
+        model: ModelV2.Ref.make({ id: ModelV2.ID.make("replacement"), providerID: ProviderV2.ID.make("fake") }),
+      }
+      yield* events.publish(SessionEvent.RevertEvent.Committed, {
+        sessionID,
+        messageID: boundary.id,
+        timestamp: boundary.timeCreated,
+        replacement: {
+          messageID: retry.id,
+          prompt: Prompt.make(retry.prompt),
+          delivery: "steer",
+          agent: retry.agent,
+          model: retry.model,
+        },
+      })
+      const running = yield* session.resume(sessionID).pipe(Effect.forkChild)
+      yield* Deferred.await(streamStarted)
+      expect(yield* session.revert.replace(retry)).toMatchObject({ id: retry.id })
+      expect((yield* session.active).has(sessionID)).toBe(true)
+      expect(
+        yield* session.revert.replace({ ...retry, messageID: SessionMessage.ID.create() }).pipe(Effect.exit),
+      ).toMatchObject({ _tag: "Failure" })
+      expect(
+        yield* session.revert.replace({ ...retry, agent: AgentV2.ID.make("plan") }).pipe(Effect.exit),
+      ).toMatchObject({ _tag: "Failure" })
+      expect((yield* session.active).has(sessionID)).toBe(true)
+      yield* Deferred.succeed(streamGate, undefined)
+      yield* Fiber.join(running)
+      streamGate = undefined
+      streamStarted = undefined
+    }),
+  )
+
   it.effect("preserves an admission competing with destructive revert", () =>
     Effect.gen(function* () {
       yield* setup
@@ -2204,6 +2263,37 @@ describe("SessionRunnerLLM", () => {
       expect(yield* SessionInput.find(db, input.id)).toEqual(input)
       streamGate = undefined
       streamStarted = undefined
+    }),
+  )
+
+  it.effect("uses each queued prompt's admitted selection at its provider boundary", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const database = yield* Database.Service
+      requests.length = 0
+      response = [
+        LLMEvent.stepStart({ index: 0 }),
+        LLMEvent.stepFinish({ index: 0, reason: "stop" }),
+        LLMEvent.finish({ reason: "stop" }),
+      ]
+      for (const id of ["replacement", "original"]) {
+        yield* SessionInput.admit(database.db, events, {
+          id: SessionMessage.ID.create(),
+          sessionID,
+          prompt: Prompt.make({ text: id }),
+          delivery: "queue",
+          selection: {
+            agent: "build",
+            model: ModelV2.Ref.make({ id: ModelV2.ID.make(id), providerID: ProviderV2.ID.make("fake") }),
+          },
+        })
+      }
+      yield* session.resume(sessionID)
+      expect(requests.map((request) => request.model)).toEqual([replacementModel, model])
+      expect(userTexts(requests[0]!)).toEqual(["replacement"])
+      expect(userTexts(requests[1]!)).toEqual(["replacement", "original"])
     }),
   )
 

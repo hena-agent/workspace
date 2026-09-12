@@ -31,8 +31,7 @@ import { tmpdir } from "./fixture/tmpdir"
 const projects = Layer.succeed(
   ProjectV2.Service,
   ProjectV2.Service.of({
-    create: (id) =>
-      Effect.succeed({ id: id ?? ProjectV2.ID.make("prj_chat"), directory: AbsolutePath.make("/chat") }),
+    create: (id) => Effect.succeed({ id: id ?? ProjectV2.ID.make("prj_chat"), directory: AbsolutePath.make("/chat") }),
     createChat: () => Effect.die("unused"),
     resolve: (directory) => Effect.succeed({ id: ProjectV2.ID.global, directory }),
     directories: () => Effect.succeed([]),
@@ -236,10 +235,16 @@ describe("SessionV2.create", () => {
       const sourceEvents = yield* EventV2.Service
       const sourceDb = (yield* Database.Service).db
       const created = yield* session.create({ id: SessionV2.ID.make("ses_fresh_target_replay"), location })
-      const admitted = yield* session.prompt({
+      const selection = {
+        agent: "plan",
+        model: ModelV2.Ref.make({ id: ModelV2.ID.make("selected"), providerID: ProviderV2.ID.make("provider") }),
+      }
+      const admitted = yield* SessionInput.admit(sourceDb, sourceEvents, {
+        id: SessionMessage.ID.create(),
         sessionID: created.id,
         prompt: Prompt.make({ text: "Replay lifecycle" }),
-        resume: false,
+        delivery: "steer",
+        selection,
       })
       yield* SessionInput.promoteSteers(sourceDb, sourceEvents, created.id, Number.MAX_SAFE_INTEGER)
       const serialized = (yield* sourceDb
@@ -284,8 +289,10 @@ describe("SessionV2.create", () => {
           prompt: { text: "Replay lifecycle" },
           delivery: "steer",
           admittedSeq: 1,
+          selection,
         })
         expect(yield* store.context(created.id)).toEqual([])
+        expect((yield* store.get(created.id))?.model).toEqual(created.model)
 
         expect(yield* events.replayAll(serialized.slice(2))).toBe(created.id)
         expect(yield* SessionInput.find(db, admitted.id)).toMatchObject({
@@ -295,9 +302,11 @@ describe("SessionV2.create", () => {
           delivery: "steer",
           admittedSeq: 1,
           promotedSeq: 2,
+          selection,
         })
+        expect(yield* store.get(created.id)).toMatchObject(selection)
         expect(yield* store.context(created.id)).toMatchObject([
-          { id: admitted.id, type: "user", text: "Replay lifecycle" },
+          { id: admitted.id, type: "user", text: "Replay lifecycle", ...selection },
         ])
         expect(
           (yield* db
@@ -564,7 +573,10 @@ describe("SessionV2.revert", () => {
 
       yield* session.revert.stage({ sessionID: info.id, messageID: second.id, files: false })
       expect((yield* session.get(info.id)).revert).toEqual({ messageID: second.id })
-      expect((yield* session.messages({ sessionID: info.id })).map((message) => message.id)).toEqual([second.id, first.id])
+      expect((yield* session.messages({ sessionID: info.id })).map((message) => message.id)).toEqual([
+        second.id,
+        first.id,
+      ])
 
       yield* session.revert.clear(info.id)
       expect((yield* session.get(info.id)).revert).toBeUndefined()
@@ -608,7 +620,10 @@ describe("SessionV2.revert", () => {
               providerID: ProviderV2.ID.make("missing"),
             }),
           })
-          .pipe(Effect.flip, Effect.map((error) => error._tag)),
+          .pipe(
+            Effect.flip,
+            Effect.map((error) => error._tag),
+          ),
       ).toBe("Session.RevertConflictError")
     }),
   )
@@ -642,9 +657,10 @@ describe("SessionV2.revert", () => {
       })
 
       expect(
-        yield* session.revert
-          .stage({ sessionID: info.id, messageID: assistant, files: false })
-          .pipe(Effect.flip, Effect.map((error) => error._tag)),
+        yield* session.revert.stage({ sessionID: info.id, messageID: assistant, files: false }).pipe(
+          Effect.flip,
+          Effect.map((error) => error._tag),
+        ),
       ).toBe("Session.MessageNotFoundError")
       expect((yield* session.get(info.id)).revert).toBeUndefined()
     }),
@@ -698,9 +714,10 @@ describe("SessionV2.revert", () => {
       }
       expect(yield* session.revert.replace(retry)).toMatchObject({ id: replacementID, prompt: { text: "replacement" } })
       expect(
-        yield* session.revert
-          .replace({ ...retry, messageID: SessionMessage.ID.create() })
-          .pipe(Effect.flip, Effect.map((error) => error._tag)),
+        yield* session.revert.replace({ ...retry, messageID: SessionMessage.ID.create() }).pipe(
+          Effect.flip,
+          Effect.map((error) => error._tag),
+        ),
       ).toBe("Session.RevertConflictError")
     }),
   )

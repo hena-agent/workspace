@@ -1,7 +1,8 @@
 export * as Credential from "./credential"
 
-import { asc, eq } from "drizzle-orm"
-import { Context, Effect, Layer, Schema } from "effect"
+import { and, asc, eq, notLike } from "drizzle-orm"
+import { Clock, Context, Duration, Effect, Layer, Schema } from "effect"
+import { KeyedMutex } from "./effect/keyed-mutex"
 import { Credential } from "@hena/schema/credential"
 import { Integration } from "@hena/schema/integration"
 import { Database } from "./database/database"
@@ -81,6 +82,10 @@ export interface Interface {
   }) => Effect.Effect<Info>
   /** Updates the label or secret value of a stored credential. */
   readonly update: (id: ID, updates: Partial<Pick<Info, "label" | "value">>) => Effect.Effect<void>
+  readonly refresh: <E, R>(
+    input: Info & { value: OAuth },
+    refresh: (value: OAuth) => Effect.Effect<OAuth, E, R>,
+  ) => Effect.Effect<OAuth, E, R>
   /** Removes a stored credential. */
   readonly remove: (id: ID) => Effect.Effect<void>
 }
@@ -92,6 +97,7 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     const decode = Schema.decodeUnknownSync(Value)
+    const refreshes = KeyedMutex.makeUnsafe<ID>()
     const stored = (row: typeof CredentialTable.$inferSelect) => {
       if (!row.integration_id) return
       return new Info({
@@ -107,6 +113,7 @@ const layer = Layer.effect(
         return (yield* db
           .select()
           .from(CredentialTable)
+          .where(notLike(CredentialTable.id, "legacy:%"))
           .orderBy(asc(CredentialTable.time_created))
           .all()
           .pipe(Effect.orDie)).flatMap((row) => {
@@ -118,7 +125,7 @@ const layer = Layer.effect(
         return (yield* db
           .select()
           .from(CredentialTable)
-          .where(eq(CredentialTable.integration_id, integrationID))
+          .where(and(eq(CredentialTable.integration_id, integrationID), notLike(CredentialTable.id, "legacy:%")))
           .orderBy(asc(CredentialTable.time_created))
           .all()
           .pipe(Effect.orDie)).flatMap((row) => {
@@ -167,6 +174,34 @@ const layer = Layer.effect(
           .run()
           .pipe(Effect.orDie)
       }),
+      refresh: (input, refresh) =>
+        refreshes.withLock(input.id)(
+          Effect.gen(function* () {
+            const row = yield* db
+              .select()
+              .from(CredentialTable)
+              .where(eq(CredentialTable.id, input.id))
+              .get()
+              .pipe(Effect.orDie)
+            const current = row ? decode(row.value) : input.value
+            if (current.type !== "oauth") return yield* Effect.die("Credential is no longer OAuth")
+            if (current.expires > (yield* Clock.currentTimeMillis) + Duration.toMillis(Duration.minutes(5)))
+              return current
+            const value = yield* refresh(current)
+            const metadata = Object.fromEntries(
+              Object.entries(value.metadata ?? {}).filter(([key]) => key !== compatibilityKey),
+            )
+            const storedValue = { ...value, metadata: Object.keys(metadata).length ? metadata : undefined }
+            // Imported OAuth state is persisted without replacing an explicitly saved connection.
+            yield* db
+              .insert(CredentialTable)
+              .values({ id: input.id, integration_id: input.integrationID, label: input.label, value: storedValue })
+              .onConflictDoUpdate({ target: CredentialTable.id, set: { value: storedValue } })
+              .run()
+              .pipe(Effect.orDie)
+            return value
+          }).pipe(Effect.uninterruptible),
+        ),
       remove: Effect.fn("Credential.remove")(function* (id) {
         yield* db.delete(CredentialTable).where(eq(CredentialTable.id, id)).run().pipe(Effect.orDie)
       }),

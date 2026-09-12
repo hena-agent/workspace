@@ -134,7 +134,7 @@ describe("SessionV2.prompt", () => {
         .run()
         .pipe(Effect.orDie)
 
-      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toMatchObject({ count: 1 })
       expect(yield* admitted(first)).toMatchObject({ id: first, promotedSeq: 0 })
       expect((yield* admitted(second))?.promotedSeq).toBeUndefined()
     }),
@@ -199,9 +199,9 @@ describe("SessionV2.prompt", () => {
         .run()
         .pipe(Effect.orDie)
 
-      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
-      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
-      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toBe(true)
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toMatchObject({ count: 1 })
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toMatchObject({ count: 1 })
+      expect(yield* SessionInput.promoteNextQueued(db, events, sessionID)).toMatchObject({ count: 1 })
       expect(
         (yield* db
           .select({ id: SessionInputTable.id })
@@ -654,7 +654,7 @@ describe("SessionV2.prompt", () => {
           }),
       })
 
-      expect(yield* SessionInput.promoteNextQueued(db, racingEvents, sessionID)).toBe(false)
+      expect(yield* SessionInput.promoteNextQueued(db, racingEvents, sessionID)).toMatchObject({ count: 0 })
       expect(yield* admitted(input.id)).toBeUndefined()
       expect(yield* session.messages({ sessionID })).toEqual([])
     }),
@@ -696,7 +696,7 @@ describe("SessionV2.prompt", () => {
           }),
       })
 
-      expect(yield* SessionInput.promoteNextQueued(db, racingEvents, sessionID)).toBe(true)
+      expect(yield* SessionInput.promoteNextQueued(db, racingEvents, sessionID)).toMatchObject({ count: 1 })
       expect(yield* admitted(first.id)).not.toHaveProperty("promotedSeq")
       expect(yield* admitted(second.id)).toHaveProperty("promotedSeq")
       expect(yield* session.messages({ sessionID })).toMatchObject([
@@ -730,7 +730,9 @@ describe("SessionV2.prompt", () => {
           }),
       })
 
-      expect(yield* SessionInput.promoteSteers(db, racingEvents, sessionID, Number.MAX_SAFE_INTEGER)).toBe(1)
+      expect(yield* SessionInput.promoteSteers(db, racingEvents, sessionID, Number.MAX_SAFE_INTEGER)).toMatchObject({
+        count: 1,
+      })
       expect(yield* admitted(first.id)).toHaveProperty("promotedSeq")
       expect(yield* admitted(second.id)).toBeUndefined()
     }),

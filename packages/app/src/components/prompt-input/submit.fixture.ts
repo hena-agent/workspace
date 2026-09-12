@@ -28,6 +28,7 @@ const legacyPrompts: Array<{ sessionID: string; parts: unknown[] }> = []
 const abortedSessions: string[] = []
 const managedPrompts: Array<{
   sessionID: string
+  selection?: unknown
   prompt?: {
     text?: string
     files?: Array<{ uri: string; name?: string; source?: { text: string; start: number; end: number } }>
@@ -136,17 +137,14 @@ const clientFor = (directory: string) => {
             },
           }
         },
-        switchAgent: async () => ({ data: undefined }),
-        switchModel: async () => ({ data: undefined }),
-        prompt: async (input: {
-          sessionID: string
-          prompt?: {
-            text?: string
-            files?: Array<{ uri: string; name?: string; source?: { text: string; start: number; end: number } }>
-            agents?: unknown[]
-          }
-        }) => {
-          managedPrompts.push({ sessionID: input.sessionID, prompt: input.prompt })
+        switchAgent: async () => {
+          throw new Error("Prompt selection must be admitted atomically")
+        },
+        switchModel: async () => {
+          throw new Error("Prompt selection must be admitted atomically")
+        },
+        prompt: async (input: (typeof managedPrompts)[number]) => {
+          managedPrompts.push(input)
           return { data: undefined }
         },
       },
@@ -253,9 +251,12 @@ beforeAll(async () => {
     useSync: () => () => ({
       data: { command: [] },
       session: {
-        get: (id: string) => stagedRevert
-          ? { revert: { messageID: "message-old" } }
-          : Object.values(storedSessions).flat().find((session) => session.id === id),
+        get: (id: string) =>
+          stagedRevert
+            ? { revert: { messageID: "message-old" } }
+            : Object.values(storedSessions)
+                .flat()
+                .find((session) => session.id === id),
         optimistic: {
           add: (value: {
             directory?: string
@@ -485,7 +486,7 @@ describe("prompt submit worktree selection", () => {
     promptValue.push({ type: "file", path: "src/app.ts", content: "@src/app.ts", start: 3, end: 14 })
     const submit = createPromptSubmit({
       prompt,
-      info: () => params.id ? { id: params.id } : undefined,
+      info: () => (params.id ? { id: params.id } : undefined),
       imageAttachments: () => [],
       commentCount: () => 0,
       autoAccept: () => false,
@@ -509,7 +510,10 @@ describe("prompt submit worktree selection", () => {
     expect(managedSessions).toEqual([])
     expect(managedPrompts).toEqual([])
     expect(createdSessions).toEqual(["/repo/main"])
-    expect(legacyPrompts.at(-1)).toMatchObject({ sessionID: "session-1", parts: [{ type: "text", text: "ls@src/app.ts" }] })
+    expect(legacyPrompts.at(-1)).toMatchObject({
+      sessionID: "session-1",
+      parts: [{ type: "text", text: "ls@src/app.ts" }],
+    })
     expect(JSON.stringify(legacyPrompts.at(-1))).not.toContain("file://")
     expect(sentShell).toEqual([])
     params.id = "session-1"
@@ -523,11 +527,11 @@ describe("prompt submit worktree selection", () => {
     expect(abortedSessions).toEqual(["session-1"])
   })
 
-  test("atomically replaces a staged managed-chat branch", async () => {
+  test.each([true, false])("admits canonical selection atomically, with staged revert: %s", async (replace) => {
     params = { id: "managed-session" }
     search = { draftId: "draft-1" }
     draftProjectID = "project-1"
-    stagedRevert = true
+    stagedRevert = replace
     const submit = createPromptSubmit({
       prompt,
       info: () => ({ id: "managed-session" }),
@@ -548,9 +552,18 @@ describe("prompt submit worktree selection", () => {
     await submit.handleSubmit({ preventDefault: () => undefined } as unknown as Event)
     await Bun.sleep(0)
 
-    expect(replacedReverts).toHaveLength(1)
-    expect(replacedReverts[0]).toMatchObject({ sessionID: "managed-session", messageID: "message-old" })
-    expect(managedPrompts).toEqual([])
+    if (replace) {
+      expect(replacedReverts).toHaveLength(1)
+      expect(replacedReverts[0]).toMatchObject({ sessionID: "managed-session", messageID: "message-old" })
+      expect(managedPrompts).toEqual([])
+      return
+    }
+    expect(replacedReverts).toEqual([])
+    expect(managedPrompts).toHaveLength(1)
+    expect(managedPrompts[0]).toMatchObject({
+      sessionID: "managed-session",
+      selection: { agent: "agent", model: { providerID: "provider", id: "model" } },
+    })
   })
 
   test("rejects a managed prompt when the selected model is missing from the catalog", async () => {

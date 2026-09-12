@@ -68,6 +68,7 @@ export const stage = Effect.fn("SessionRevert.stage")(function* (input: {
   const events = yield* EventV2.Service
   const next = yield* plan({ sessionID: input.session.id, messageID: input.messageID })
   if (input.files === false) {
+    yield* restoreFiles(input.session)
     const revert = { messageID: input.messageID } satisfies SessionSchema.Info["revert"]
     yield* events.publish(SessionEvent.RevertEvent.Staged, {
       sessionID: input.session.id,
@@ -110,18 +111,22 @@ export const stage = Effect.fn("SessionRevert.stage")(function* (input: {
 
 export const clear = Effect.fn("SessionRevert.clear")(function* (session: SessionSchema.Info) {
   if (!session.revert) return
-  const original = session.revert.snapshot ? Snapshot.ID.make(session.revert.snapshot) : undefined
-  if (original) {
-    const snapshot = yield* Snapshot.Service
-    yield* snapshot.restore({
-      files: new Map((session.revert.files ?? []).map((file) => [file.path, original])),
-    })
-  }
+  yield* restoreFiles(session)
   const events = yield* EventV2.Service
   yield* events.publish(SessionEvent.RevertEvent.Cleared, {
     sessionID: session.id,
     timestamp: yield* DateTime.now,
   })
+})
+
+const restoreFiles = Effect.fn("SessionRevert.restoreFiles")(function* (session: SessionSchema.Info) {
+  const original = session.revert?.snapshot ? Snapshot.ID.make(session.revert.snapshot) : undefined
+  if (original) {
+    const snapshot = yield* Snapshot.Service
+    yield* snapshot.restore({
+      files: new Map((session.revert?.files ?? []).map((file) => [file.path, original])),
+    })
+  }
 })
 
 export const commit = Effect.fn("SessionRevert.commit")(function* (
@@ -151,6 +156,7 @@ export const commit = Effect.fn("SessionRevert.commit")(function* (
     sessionID: session.id,
     prompt: replacement.prompt,
     delivery: replacement.delivery,
+    selection: { agent: replacement.agent, model: replacement.model },
     timeCreated: timestamp,
   }
 })

@@ -427,6 +427,10 @@ export type SessionsPromptInput = {
         readonly source?: { readonly start: number; readonly end: number; readonly text: string }
       }>
     }
+    readonly selection?: {
+      readonly agent: string
+      readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+    } | null
     readonly delivery?: "steer" | "queue" | null
     readonly resume?: boolean | null
   }["id"]
@@ -445,9 +449,35 @@ export type SessionsPromptInput = {
         readonly source?: { readonly start: number; readonly end: number; readonly text: string }
       }>
     }
+    readonly selection?: {
+      readonly agent: string
+      readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+    } | null
     readonly delivery?: "steer" | "queue" | null
     readonly resume?: boolean | null
   }["prompt"]
+  readonly selection?: {
+    readonly id?: string | null
+    readonly prompt: {
+      readonly text: string
+      readonly files?: ReadonlyArray<{
+        readonly uri: string
+        readonly name?: string
+        readonly description?: string
+        readonly source?: { readonly start: number; readonly end: number; readonly text: string }
+      }>
+      readonly agents?: ReadonlyArray<{
+        readonly name: string
+        readonly source?: { readonly start: number; readonly end: number; readonly text: string }
+      }>
+    }
+    readonly selection?: {
+      readonly agent: string
+      readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+    } | null
+    readonly delivery?: "steer" | "queue" | null
+    readonly resume?: boolean | null
+  }["selection"]
   readonly delivery?: {
     readonly id?: string | null
     readonly prompt: {
@@ -463,6 +493,10 @@ export type SessionsPromptInput = {
         readonly source?: { readonly start: number; readonly end: number; readonly text: string }
       }>
     }
+    readonly selection?: {
+      readonly agent: string
+      readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+    } | null
     readonly delivery?: "steer" | "queue" | null
     readonly resume?: boolean | null
   }["delivery"]
@@ -481,6 +515,10 @@ export type SessionsPromptInput = {
         readonly source?: { readonly start: number; readonly end: number; readonly text: string }
       }>
     }
+    readonly selection?: {
+      readonly agent: string
+      readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+    } | null
     readonly delivery?: "steer" | "queue" | null
     readonly resume?: boolean | null
   }["resume"]
@@ -506,6 +544,10 @@ export type SessionsPromptOutput = {
       }>
     }
     readonly delivery: "steer" | "queue"
+    readonly selection?: {
+      readonly agent: string
+      readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+    }
     readonly timeCreated: number
     readonly promotedSeq?: number
   }
@@ -693,6 +735,10 @@ export type SessionsReplaceOutput = {
       }>
     }
     readonly delivery: "steer" | "queue"
+    readonly selection?: {
+      readonly agent: string
+      readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+    }
     readonly timeCreated: number
     readonly promotedSeq?: number
   }
@@ -732,6 +778,8 @@ export type SessionsContextOutput = {
           readonly name: string
           readonly source?: { readonly start: number; readonly end: number; readonly text: string }
         }>
+        readonly agent?: string
+        readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
         readonly type: "user"
       }
     | {
@@ -934,6 +982,10 @@ export type SessionsHistoryOutput = {
             }>
           }
           readonly delivery: "steer" | "queue"
+          readonly selection?: {
+            readonly agent: string
+            readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+          }
         }
       }
     | {
@@ -961,6 +1013,10 @@ export type SessionsHistoryOutput = {
             }>
           }
           readonly delivery: "steer" | "queue"
+          readonly selection?: {
+            readonly agent: string
+            readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+          }
         }
       }
     | {
@@ -1458,6 +1514,10 @@ export type SessionsEventsOutput =
           }>
         }
         readonly delivery: "steer" | "queue"
+        readonly selection?: {
+          readonly agent: string
+          readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+        }
       }
     }
   | {
@@ -1485,6 +1545,10 @@ export type SessionsEventsOutput =
           }>
         }
         readonly delivery: "steer" | "queue"
+        readonly selection?: {
+          readonly agent: string
+          readonly model: { readonly id: string; readonly providerID: string; readonly variant?: string }
+        }
       }
     }
   | {
@@ -1942,6 +2006,8 @@ export type SessionsMessageOutput = {
           readonly name: string
           readonly source?: { readonly start: number; readonly end: number; readonly text: string }
         }>
+        readonly agent?: string
+        readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
         readonly type: "user"
       }
     | {
@@ -2114,6 +2180,8 @@ export type MessagesListOutput = {
           readonly name: string
           readonly source?: { readonly start: number; readonly end: number; readonly text: string }
         }>
+        readonly agent?: string
+        readonly model?: { readonly id: string; readonly providerID: string; readonly variant?: string }
         readonly type: "user"
       }
     | {

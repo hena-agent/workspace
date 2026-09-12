@@ -466,6 +466,8 @@ export namespace RevertEvent {
     schema: {
       ...Base,
       messageID: SessionMessage.ID,
+      // Absence preserves v1 semantics: keep the boundary; discard inputs admitted or promoted later.
+      // Presence replaces the boundary atomically and preserves unrelated pending inputs.
       replacement: Schema.Struct({
         messageID: SessionMessage.ID,
         prompt: Prompt,

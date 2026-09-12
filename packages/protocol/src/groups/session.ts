@@ -81,14 +81,7 @@ export const SessionsCursor = Schema.String.pipe(
 )
 export type SessionsCursor = typeof SessionsCursor.Type
 
-const SessionActive = Schema.Union([
-  Schema.Struct({ type: Schema.Literal("running") }),
-  Schema.Struct({ type: Schema.Literal("idle") }),
-  Schema.Struct({
-    type: Schema.Literal("failed"),
-    error: Schema.Struct({ type: Schema.Literal("unknown"), message: Schema.String }),
-  }),
-]).annotate({ identifier: "SessionActive" })
+const SessionActive = Schema.Struct({ type: Schema.Literal("running") }).annotate({ identifier: "SessionActive" })
 
 const SessionHistoryLimit = PositiveInt.check(Schema.isLessThanOrEqualTo(100))
 
@@ -157,8 +150,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
         OpenApi.annotations({
           identifier: "v2.session.active",
           summary: "List active sessions",
-          description:
-            "Retrieve the latest advisory execution state for Sessions known to this Hena process. The snapshot is process-local and may be stale.",
+          description: "Retrieve Sessions currently running in this Hena process.",
         }),
       ),
     )

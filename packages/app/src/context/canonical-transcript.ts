@@ -1,4 +1,5 @@
 import type {
+  EventSessionNextPrompted,
   Message,
   Part,
   Session,
@@ -7,6 +8,14 @@ import type {
   SessionMessageAssistantText,
   SessionMessageAssistantTool,
 } from "@hena/sdk/v2/client"
+
+export function mapV2Prompted(value: EventSessionNextPrompted["properties"], session?: Session) {
+  return mapV2Messages(
+    [{ type: "user", id: value.messageID, time: { created: value.timestamp }, ...value.prompt, ...value.selection }],
+    value.sessionID,
+    session,
+  )
+}
 
 // Canonical storage records are translated at the boundary; cache ownership stays in server-session.
 export function mapV2Messages(values: SessionMessage[], sessionID: string, session?: Session) {

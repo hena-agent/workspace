@@ -82,8 +82,9 @@ export interface Interface {
   }) => Effect.Effect<Info>
   /** Updates the label or secret value of a stored credential. */
   readonly update: (id: ID, updates: Partial<Pick<Info, "label" | "value">>) => Effect.Effect<void>
+  /** Only an imported credential may be persisted when no stored record exists. */
   readonly refresh: <E, R>(
-    input: Info & { value: OAuth },
+    input: Info & { value: OAuth; imported?: boolean },
     refresh: (value: OAuth) => Effect.Effect<OAuth, E, R>,
   ) => Effect.Effect<OAuth, E, R>
   /** Removes a stored credential. */
@@ -183,6 +184,20 @@ const layer = Layer.effect(
               .where(eq(CredentialTable.id, input.id))
               .get()
               .pipe(Effect.orDie)
+            const explicit =
+              !row && input.imported
+                ? yield* db
+                    .select({ id: CredentialTable.id })
+                    .from(CredentialTable)
+                    .where(
+                      and(
+                        eq(CredentialTable.integration_id, input.integrationID),
+                        notLike(CredentialTable.id, "legacy:%"),
+                      ),
+                    )
+                    .get()
+                    .pipe(Effect.orDie)
+                : undefined
             const current = row ? decode(row.value) : input.value
             if (current.type !== "oauth") return yield* Effect.die("Credential is no longer OAuth")
             if (current.expires > (yield* Clock.currentTimeMillis) + Duration.toMillis(Duration.minutes(5)))
@@ -192,13 +207,43 @@ const layer = Layer.effect(
               Object.entries(value.metadata ?? {}).filter(([key]) => key !== compatibilityKey),
             )
             const storedValue = { ...value, metadata: Object.keys(metadata).length ? metadata : undefined }
-            // Imported OAuth state is persisted without replacing an explicitly saved connection.
-            yield* db
-              .insert(CredentialTable)
-              .values({ id: input.id, integration_id: input.integrationID, label: input.label, value: storedValue })
-              .onConflictDoUpdate({ target: CredentialTable.id, set: { value: storedValue } })
-              .run()
-              .pipe(Effect.orDie)
+            // Only persist if the stored secret still belongs to this refresh.
+            if (row)
+              yield* db
+                .update(CredentialTable)
+                .set({ value: storedValue })
+                .where(and(eq(CredentialTable.id, input.id), eq(CredentialTable.value, row.value)))
+                .run()
+                .pipe(Effect.orDie)
+            // Only imports may start without a row; never recreate a missing explicit credential.
+            if (!row && input.imported)
+              yield* db
+                .transaction((tx) =>
+                  Effect.gen(function* () {
+                    const existing = yield* tx
+                      .select({ id: CredentialTable.id })
+                      .from(CredentialTable)
+                      .where(
+                        and(
+                          eq(CredentialTable.integration_id, input.integrationID),
+                          notLike(CredentialTable.id, "legacy:%"),
+                        ),
+                      )
+                      .get()
+                    if (existing?.id !== explicit?.id) return
+                    yield* tx
+                      .insert(CredentialTable)
+                      .values({
+                        id: input.id,
+                        integration_id: input.integrationID,
+                        label: input.label,
+                        value: storedValue,
+                      })
+                      .onConflictDoNothing({ target: CredentialTable.id })
+                      .run()
+                  }),
+                )
+                .pipe(Effect.orDie)
             return value
           }).pipe(Effect.uninterruptible),
         ),

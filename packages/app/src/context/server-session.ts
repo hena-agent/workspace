@@ -1,6 +1,7 @@
 import { Binary } from "@hena/core/util/binary"
 import { retry } from "@hena/core/util/retry"
 import type {
+  EventSessionNextPrompted,
   Message,
   HenaClient,
   Part,
@@ -18,7 +19,7 @@ import { diffs as cleanDiffs, message as cleanMessage } from "@/utils/diffs"
 import { sessionNotFoundError } from "@/utils/server-errors"
 import { rootSession } from "@/utils/session-route"
 import { preserveSessionRuntime } from "./session-runtime"
-import { mapV2Messages, mapV2Assistant } from "./canonical-transcript"
+import { mapV2Messages, mapV2Assistant, mapV2Prompted } from "./canonical-transcript"
 import { dropSessionCaches, pickSessionCacheEvictions, SESSION_CACHE_LIMIT } from "./global-sync/session-cache"
 
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
@@ -50,6 +51,7 @@ type MessagePage = {
 type ServerEvent = { type: string; properties?: unknown; data?: unknown }
 
 const V2_STREAM_EVENTS = new Set([
+  "session.next.prompted",
   "session.next.step.started",
   "session.next.step.ended",
   "session.next.step.failed",
@@ -912,6 +914,13 @@ export function createServerSession(
           if (!parent) continue
           if (parent.message.role !== "user") throw new Error(`Assistant parent is not a user message: ${parentID}`)
           parents.push(parent)
+          const children = new Set(
+            page.session.flatMap((message) =>
+              message.role === "assistant" && message.parentID === parentID ? [message.id] : [],
+            ),
+          )
+          const index = page.order?.findIndex((id) => children.has(id)) ?? -1
+          if (index >= 0) page.order?.splice(index, 0, parentID)
         }
       }
       if (generations.get(sessionID) !== active) return
@@ -1244,6 +1253,15 @@ export function createServerSession(
             : { error: props.error ? { name: "UnknownError", data: { message: props.error.message } } : undefined }),
         })
         if (eventID) refresh(eventID)
+        return
+      }
+      case "session.next.prompted": {
+        const props = event.properties as EventSessionNextPrompted["properties"]
+        const mapped = mapV2Prompted(props, data.info[props.sessionID])
+        batch(() => {
+          mapped.session.forEach((info) => apply({ type: "message.updated", properties: { info } }))
+          mapped.part.forEach((item) => item.part.forEach(upsertV2Part))
+        })
         return
       }
       case "session.next.step.started": {

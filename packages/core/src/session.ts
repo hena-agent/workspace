@@ -217,7 +217,6 @@ export interface Interface {
   readonly compact: (input: CompactInput) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
   readonly active: Effect.Effect<ReadonlySet<SessionSchema.ID>>
-  readonly status?: Effect.Effect<ReadonlyMap<SessionSchema.ID, SessionExecution.Status>>
   readonly wake: (sessionID: SessionSchema.ID) => Effect.Effect<void>
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
   readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
@@ -477,23 +476,28 @@ const layer = Layer.effect(
             if (input.selection && !(yield* SessionInput.lookup(db, messageID))) {
               yield* validateSelection(session, input.selection).pipe(Effect.provide(locations.get(session.location)))
             }
-            const admitted = yield* SessionInput.admit(db, events, {
-              id: messageID,
-              sessionID: input.sessionID,
-              prompt,
-              delivery,
-              selection: input.selection,
-            }).pipe(
-              Effect.catchDefect((defect) =>
-                defect instanceof SessionInput.LifecycleConflict
-                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
-                  : Effect.die(defect),
-              ),
+            // Once admission starts, cancellation must not strand it before the advisory wake.
+            return yield* Effect.uninterruptible(
+              Effect.gen(function* () {
+                const admitted = yield* SessionInput.admit(db, events, {
+                  id: messageID,
+                  sessionID: input.sessionID,
+                  prompt,
+                  delivery,
+                  selection: input.selection,
+                }).pipe(
+                  Effect.catchDefect((defect) =>
+                    defect instanceof SessionInput.LifecycleConflict
+                      ? new PromptConflictError({ sessionID: input.sessionID, messageID })
+                      : Effect.die(defect),
+                  ),
+                )
+                if (!SessionInput.equivalent(admitted, expected))
+                  return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+                if (input.resume !== false) yield* execution.wake(admitted.sessionID)
+                return admitted
+              }),
             )
-            if (!SessionInput.equivalent(admitted, expected))
-              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
-            if (input.resume !== false) yield* execution.wake(admitted.sessionID)
-            return admitted
           }),
         ),
       ),
@@ -578,7 +582,6 @@ const layer = Layer.effect(
         return yield* new OperationUnavailableError({ operation: "wait" })
       }),
       active: execution.active,
-      status: execution.status,
       wake: Effect.fn("V2Session.wake")((sessionID) => Effect.uninterruptible(execution.wake(sessionID))),
       resume: Effect.fn("V2Session.resume")(function* (sessionID) {
         yield* result.get(sessionID)
@@ -628,16 +631,20 @@ const layer = Layer.effect(
             input.sessionID,
             Effect.gen(function* () {
               const session = yield* result.get(input.sessionID)
-              const admitted = yield* SessionRevert.commit(session, {
-                messageID: input.id,
-                prompt,
-                delivery,
-                agent: input.agent,
-                model: input.model,
-              }).pipe(Effect.provideService(EventV2.Service, events))
-              if (!admitted) return yield* Effect.die("Replacement prompt was not admitted")
-              yield* execution.wake(input.sessionID)
-              return admitted
+              return yield* Effect.uninterruptible(
+                Effect.gen(function* () {
+                  const admitted = yield* SessionRevert.commit(session, {
+                    messageID: input.id,
+                    prompt,
+                    delivery,
+                    agent: input.agent,
+                    model: input.model,
+                  }).pipe(Effect.provideService(EventV2.Service, events))
+                  if (!admitted) return yield* Effect.die("Replacement prompt was not admitted")
+                  yield* execution.wake(input.sessionID)
+                  return admitted
+                }),
+              )
             }),
             Effect.gen(function* () {
               const expected = {

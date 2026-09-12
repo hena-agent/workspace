@@ -9,6 +9,7 @@ import type { State } from "./global-sync/types"
 const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 const sessionFields = new Set([
   "session_status",
+  "execution_error",
   "session_working",
   "session_diff",
   "todo",

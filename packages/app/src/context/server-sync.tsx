@@ -205,7 +205,10 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
   const session = createServerSession(serverSDK.client, {
     managedSession: async (item) => {
       if (bootstrap.isPending) await queryClient.fetchQuery({ queryKey: [serverSDK.scope, "bootstrap"] })
-      return usesCanonicalSession(item, globalStore.project.some((project) => project.id === item.projectID && project.mode === "chat"))
+      return usesCanonicalSession(
+        item,
+        globalStore.project.some((project) => project.id === item.projectID && project.mode === "chat"),
+      )
     },
   })
 
@@ -378,19 +381,14 @@ export function createServerSyncContextInner(serverSDK: ServerSDK) {
       void serverSDK.client.v2.session
         .active()
         .then((result) => {
-          const failed = session.reconcileExecutionSnapshot(
-            (result.data?.data ?? {}) as Record<
-              string,
-              { type: "running" } | { type: "idle" } | { type: "failed"; error: { message: string } }
-            >,
+          // Reconnect snapshots restore running state, never replay failure notifications.
+          session.reconcileExecutionSnapshot(
+            Object.fromEntries(
+              Object.entries((result.data?.data ?? {}) as Record<string, { type: string }>).flatMap(
+                ([sessionID, status]) => (status.type === "running" ? [[sessionID, { type: "running" as const }]] : []),
+              ),
+            ),
             token,
-          )
-          failed.forEach((message) =>
-            showToast({
-              variant: "error",
-              title: language.t("common.requestFailed"),
-              description: message,
-            }),
           )
         })
         .catch(() => {})

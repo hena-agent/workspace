@@ -158,15 +158,6 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
     }
 
     if (usesCanonicalSession(input.sync.session.get(input.draft.sessionID), !!managedChat)) {
-      const available = await input.client.v2.model.list({
-        location: { directory: input.draft.sessionDirectory },
-      })
-      if (
-        !available.data?.data?.some(
-          (model) => model.providerID === input.draft.model.providerID && model.id === input.draft.model.modelID,
-        )
-      )
-        throw new Error(`Selected model is unavailable: ${input.draft.model.providerID}/${input.draft.model.modelID}`)
       const prompt = {
         text: requestParts
           .filter((part) => part.type === "text")

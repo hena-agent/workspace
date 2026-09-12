@@ -1,11 +1,14 @@
 import { describe, expect } from "bun:test"
-import { DateTime, Effect, Fiber, Layer, Stream } from "effect"
+import { DateTime, Deferred, Effect, Exit, Fiber, Layer, Stream } from "effect"
 import { asc, eq, sql } from "drizzle-orm"
 import { Database } from "@hena/core/database/database"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
 import { LayerNode } from "@hena/core/effect/layer-node"
 import { EventV2 } from "@hena/core/event"
 import { EventTable } from "@hena/core/event/sql"
+import { AgentV2 } from "@hena/core/agent"
+import { ModelV2 } from "@hena/core/model"
+import { ProviderV2 } from "@hena/core/provider"
 import { SessionEvent } from "@hena/core/session/event"
 import { Project } from "@hena/core/project"
 import { ProjectTable } from "@hena/core/project/sql"
@@ -104,6 +107,74 @@ const eventCount = (type: string) =>
   )
 
 describe("SessionV2.prompt", () => {
+  it.effect("finishes durable admission and advisory wake when canceled during projection", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const entered = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      const id = SessionMessage.ID.create()
+      wakeCalls.length = 0
+      yield* events.project(SessionEvent.PromptAdmitted, () =>
+        Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release))),
+      )
+      const fiber = yield* session
+        .prompt({ id, sessionID, prompt: { text: "Canceled admission" } })
+        .pipe(Effect.forkChild)
+      yield* Deferred.await(entered)
+      // Request cancellation synchronously before allowing the durable transaction to finish.
+      fiber.interruptUnsafe()
+      yield* Deferred.succeed(release, undefined)
+      expect(Exit.hasInterrupts(yield* Fiber.await(fiber))).toBeTrue()
+      expect(yield* admitted(id)).toMatchObject({ id, prompt: { text: "Canceled admission" } })
+      expect(wakeCalls).toEqual([sessionID])
+      expect(yield* eventCount("session.next.prompt.admitted.1")).toBe(1)
+    }),
+  )
+
+  it.effect("finishes replacement admission and advisory wake when canceled during projection", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const session = yield* SessionV2.Service
+      const events = yield* EventV2.Service
+      const original = yield* session.prompt({ sessionID, prompt: { text: "Original" }, resume: false })
+      yield* events.publish(SessionEvent.Prompted, {
+        sessionID,
+        messageID: original.id,
+        timestamp: original.timeCreated,
+        prompt: original.prompt,
+        delivery: original.delivery,
+      })
+      yield* session.revert.stage({ sessionID, messageID: original.id, files: false })
+      const entered = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      const id = SessionMessage.ID.create()
+      wakeCalls.length = 0
+      yield* events.project(SessionEvent.RevertEvent.Committed, () =>
+        Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release))),
+      )
+      const fiber = yield* session.revert
+        .replace({
+          sessionID,
+          messageID: original.id,
+          id,
+          prompt: { text: "Replacement" },
+          agent: AgentV2.ID.make("build"),
+          model: ModelV2.Ref.make({ id: ModelV2.ID.make("model"), providerID: ProviderV2.ID.make("provider") }),
+        })
+        .pipe(Effect.forkChild)
+      yield* Deferred.await(entered)
+      fiber.interruptUnsafe()
+      yield* Deferred.succeed(release, undefined)
+
+      expect(Exit.hasInterrupts(yield* Fiber.await(fiber))).toBeTrue()
+      expect(yield* admitted(id)).toMatchObject({ id, prompt: { text: "Replacement" } })
+      expect(wakeCalls).toEqual([sessionID])
+      expect(yield* eventCount("session.next.revert.committed.1")).toBe(1)
+    }),
+  )
+
   it.effect("uses admission order when rollback-created queue positions tie", () =>
     Effect.gen(function* () {
       yield* setup

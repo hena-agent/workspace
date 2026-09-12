@@ -14,7 +14,6 @@ export type Status =
 export interface Interface {
   /** Snapshots active execution owned by this process. */
   readonly active: Effect.Effect<ReadonlySet<SessionSchema.ID>>
-  readonly status?: Effect.Effect<ReadonlyMap<SessionSchema.ID, Status>>
   /** Starts execution while idle or joins the active execution. */
   readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, SessionRunner.RunError>
   /** Registers newly recorded work. Repeated wakeups may coalesce. */
@@ -39,7 +38,6 @@ export const noopLayer = Layer.succeed(
   Service,
   Service.of({
     active: Effect.succeed(new Set()),
-    status: Effect.succeed(new Map()),
     resume: () => Effect.void,
     wake: () => Effect.void,
     interrupt: () => Effect.void,

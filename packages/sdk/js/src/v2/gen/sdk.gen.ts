@@ -5090,7 +5090,7 @@ export class Session3 extends HeyApiClient {
   /**
    * List active sessions
    *
-   * Retrieve the latest advisory execution state for Sessions known to this Hena process. The snapshot is process-local and may be stale.
+   * Retrieve Sessions currently running in this Hena process.
    */
   public active<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>) {
     return (options?.client ?? this.client).get<V2SessionActiveResponses, V2SessionActiveErrors, ThrowOnError>({

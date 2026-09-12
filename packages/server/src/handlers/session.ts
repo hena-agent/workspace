@@ -98,15 +98,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* () {
           return {
             data: Object.fromEntries(
-              Array.from(
-                yield* session.status ??
-                  session.active.pipe(
-                    Effect.map(
-                      (active) => new Map(Array.from(active, (sessionID) => [sessionID, { type: "running" as const }])),
-                    ),
-                  ),
-                ([sessionID, status]) => [sessionID, status],
-              ),
+              Array.from(yield* session.active, (sessionID) => [sessionID, { type: "running" as const }]),
             ),
           }
         }),

@@ -36,7 +36,7 @@ const managedPrompts: Array<{
   }
 }> = []
 const replacedReverts: Array<{ sessionID: string; messageID: string; id: string }> = []
-const catalogModels: Array<{ providerID: string; id: string }> = [{ providerID: "provider", id: "model" }]
+const catalogRequests: string[] = []
 const sessionStatuses: Array<{ sessionID: string; type: string }> = []
 const syncedDirectories: string[] = []
 const promotedDrafts: Array<{ draftID: string; server: string; sessionId: string }> = []
@@ -111,7 +111,10 @@ const clientFor = (directory: string) => {
     },
     v2: {
       model: {
-        list: async () => ({ data: { data: catalogModels } }),
+        list: async () => {
+          catalogRequests.push(directory)
+          throw new Error("Model catalog is unavailable")
+        },
       },
       session: {
         revert: {
@@ -341,7 +344,7 @@ beforeEach(() => {
   legacyPrompts.length = 0
   abortedSessions.length = 0
   replacedReverts.length = 0
-  catalogModels.splice(0, catalogModels.length, { providerID: "provider", id: "model" })
+  catalogRequests.length = 0
   sessionStatuses.length = 0
   syncedDirectories.length = 0
   selected = "/repo/worktree-a"
@@ -517,7 +520,6 @@ describe("prompt submit worktree selection", () => {
     expect(JSON.stringify(legacyPrompts.at(-1))).not.toContain("file://")
     expect(sentShell).toEqual([])
     params.id = "session-1"
-    catalogModels.length = 0
     await submit.handleSubmit({ preventDefault: () => undefined } as unknown as Event)
     await Bun.sleep(0)
     expect(createdSessions).toHaveLength(1)
@@ -553,6 +555,7 @@ describe("prompt submit worktree selection", () => {
     await Bun.sleep(0)
 
     if (replace) {
+      expect(catalogRequests).toEqual([])
       expect(replacedReverts).toHaveLength(1)
       expect(replacedReverts[0]).toMatchObject({ sessionID: "managed-session", messageID: "message-old" })
       expect(managedPrompts).toEqual([])
@@ -566,11 +569,10 @@ describe("prompt submit worktree selection", () => {
     })
   })
 
-  test("rejects a managed prompt when the selected model is missing from the catalog", async () => {
+  test("submits canonical selection without consulting the model catalog", async () => {
     params = { id: "managed-session" }
     search = { draftId: "draft-1" }
     draftProjectID = "project-1"
-    catalogModels.length = 0
     const submit = createPromptSubmit({
       prompt,
       info: () => ({ id: "managed-session" }),
@@ -591,9 +593,13 @@ describe("prompt submit worktree selection", () => {
     await submit.handleSubmit({ preventDefault: () => undefined } as unknown as Event)
     await Bun.sleep(0)
 
-    expect(managedPrompts).toEqual([])
-    expect(optimisticRemoved.length).toBeGreaterThan(0)
-    expect(sessionStatuses.at(-1)).toEqual({ sessionID: "managed-session", type: "idle" })
+    expect(catalogRequests).toEqual([])
+    expect(managedPrompts).toHaveLength(1)
+    expect(managedPrompts[0]?.selection).toEqual({
+      agent: "agent",
+      model: { providerID: "provider", id: "model" },
+    })
+    expect(optimisticRemoved).toEqual([])
   })
 
   test("includes the selected variant on optimistic prompts", async () => {

@@ -14,7 +14,7 @@ import { EventV2 } from "../../event"
 import { SessionExecutionEvent } from "@hena/schema/session-execution-event"
 
 /** Current-process routing for implicit-local Locations. Future remote placement belongs here. */
-const layer = Layer.effect(
+export const layer = Layer.effect(
   SessionExecution.Service,
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
@@ -22,7 +22,6 @@ const layer = Layer.effect(
     const store = yield* SessionStore.Service
     const locations = yield* LocationServiceMap.Service
     const events = yield* EventV2.Service
-    const statuses = new Map<SessionSchema.ID, SessionExecution.Status>()
     const publishStatus = (sessionID: SessionSchema.ID, status: SessionExecution.Status) =>
       Effect.gen(function* () {
         yield* events.publish(SessionExecutionEvent.Status, {
@@ -44,30 +43,23 @@ const layer = Layer.effect(
           return
         return yield* SessionRunner.Service.use((runner) => runner.run({ sessionID, force })).pipe(
           Effect.provide(locations.get(session.location)),
-          Effect.tapCause((cause) =>
-            Cause.hasInterruptsOnly(cause)
-              ? Effect.void
-              : Effect.logError("Failed to drain Session", cause).pipe(Effect.annotateLogs({ sessionID })),
-          ),
         )
       }),
-      onStart: (sessionID) =>
-        Effect.sync(() => {
-          statuses.set(sessionID, { type: "running" })
-        }).pipe(
-          Effect.andThen(publishStatus(sessionID, { type: "running" })),
-        ),
-      onSettle: (sessionID, exit) => {
-        const status: SessionExecution.Status = Exit.isSuccess(exit) || Cause.hasInterruptsOnly(exit.cause)
-          ? { type: "idle" }
-          : { type: "failed", error: { type: "unknown", message: Cause.pretty(exit.cause) } }
-        return Effect.sync(() => statuses.set(sessionID, status)).pipe(Effect.andThen(publishStatus(sessionID, status)))
-      },
+      onStart: (sessionID) => publishStatus(sessionID, { type: "running" }),
+      onSettle: (sessionID, exit) =>
+        Effect.gen(function* () {
+          if (Exit.isSuccess(exit) || Cause.hasInterruptsOnly(exit.cause))
+            return yield* publishStatus(sessionID, { type: "idle" })
+          yield* Effect.logError("Failed to drain Session", exit.cause).pipe(Effect.annotateLogs({ sessionID }))
+          yield* publishStatus(sessionID, {
+            type: "failed",
+            error: { type: "unknown", message: "Session execution failed. Check server logs for details." },
+          })
+        }),
     })
 
     return SessionExecution.Service.of({
       active: coordinator.active,
-      status: Effect.sync(() => new Map(statuses)),
       interrupt: coordinator.interrupt,
       mutate: coordinator.mutate,
       serialize: coordinator.serialize,

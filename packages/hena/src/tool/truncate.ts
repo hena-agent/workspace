@@ -8,7 +8,7 @@ import { evaluate } from "@/permission/evaluate"
 import { Config } from "@/config/config"
 import { ToolID } from "./schema"
 import { TRUNCATION_DIR } from "./truncation-dir"
-import { InstanceState } from "@/effect/instance-state"
+import { InstanceRef } from "@/effect/instance-ref"
 
 const RETENTION = Duration.days(7)
 
@@ -135,7 +135,7 @@ const layer = Layer.effect(
       const removed = hitBytes ? totalBytes - bytes : lines.length - out.length
       const unit = hitBytes ? "bytes" : "lines"
       const preview = out.join("\n")
-      if ((yield* InstanceState.context).project.mode === "chat")
+      if ((yield* InstanceRef)?.project.mode === "chat")
         return { content: `${preview}\n\n...${removed} ${unit} truncated...`, truncated: true } as const
       const file = yield* write(text)
 

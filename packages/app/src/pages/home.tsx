@@ -781,6 +781,7 @@ export function NewHome() {
               })
               return
             }
+            tabs.retargetProjectDrafts(ServerConnection.key(conn), projectID, directory)
             ctx.projects.remove(project.worktree)
             ctx.projects.open(directory)
             ctx.projects.touch(directory)

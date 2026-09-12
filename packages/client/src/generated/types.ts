@@ -348,14 +348,7 @@ export type SessionsCreateOutput = {
   }
 }["data"]
 
-export type SessionsActiveOutput = {
-  readonly data: {
-    readonly [x: string]:
-      | { readonly type: "running" }
-      | { readonly type: "idle" }
-      | { readonly type: "failed"; readonly error: { readonly type: "unknown"; readonly message: string } }
-  }
-}["data"]
+export type SessionsActiveOutput = { readonly data: { readonly [x: string]: { readonly type: "running" } } }["data"]
 
 export type SessionsGetInput = { readonly sessionID: { readonly sessionID: string }["sessionID"] }
 

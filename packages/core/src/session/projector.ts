@@ -532,12 +532,17 @@ const layer = Layer.effectDiscard(
           )
           .get()
           .pipe(Effect.orDie)
-        if (!boundary || boundary.type !== "user")
-          return yield* Effect.die(`Revert boundary user message not found: ${event.data.messageID}`)
+        if (!boundary || (event.data.replacement && boundary.type !== "user"))
+          return yield* Effect.die(`Revert boundary message not found: ${event.data.messageID}`)
         yield* db
           .delete(SessionMessageTable)
           .where(
-            and(eq(SessionMessageTable.session_id, event.data.sessionID), gte(SessionMessageTable.seq, boundary.seq)),
+            and(
+              eq(SessionMessageTable.session_id, event.data.sessionID),
+              event.data.replacement
+                ? gte(SessionMessageTable.seq, boundary.seq)
+                : gt(SessionMessageTable.seq, boundary.seq),
+            ),
           )
           .run()
           .pipe(Effect.orDie)
@@ -546,7 +551,12 @@ const layer = Layer.effectDiscard(
           .where(
             and(
               eq(SessionInputTable.session_id, event.data.sessionID),
-              gte(SessionInputTable.promoted_seq, boundary.seq),
+              event.data.replacement
+                ? gte(SessionInputTable.promoted_seq, boundary.seq)
+                : or(
+                    gt(SessionInputTable.admitted_seq, boundary.seq),
+                    gt(SessionInputTable.promoted_seq, boundary.seq),
+                  ),
             ),
           )
           .run()

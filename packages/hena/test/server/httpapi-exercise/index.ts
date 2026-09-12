@@ -1058,6 +1058,20 @@ const scenarios: Scenario[] = [
     }))
     .json(404, object, "status"),
   http.protected
+    .post("/api/session/{sessionID}/revert/replace", "v2.session.revert.replace")
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/revert/replace", { sessionID: "ses_httpapi_missing" }),
+      headers: { ...ctx.headers(), "content-type": "application/json" },
+      body: {
+        messageID: "msg_httpapi_missing",
+        id: "msg_httpapi_replacement",
+        prompt: { parts: [{ type: "text", text: "Replacement prompt" }] },
+        agent: "build",
+        model: { providerID: "hena", id: "big-pickle" },
+      },
+    }))
+    .json(404, object, "status"),
+  http.protected
     .get("/api/session/{sessionID}/message", "v2.session.messages")
     .at((ctx) => ({
       path: route("/api/session/{sessionID}/message", { sessionID: "ses_httpapi_missing" }),
@@ -1296,7 +1310,9 @@ const scenarios: Scenario[] = [
     .json(200, (body, ctx) => {
       check(Array.isArray(body) && body.length === ctx.state.todos.length, "todos should match seeded state")
       check(
-        isRecord(body[0]) && typeof body[0].id === "string" && body[0].id.startsWith("todo_") &&
+        isRecord(body[0]) &&
+          typeof body[0].id === "string" &&
+          body[0].id.startsWith("todo_") &&
           body[0].content === ctx.state.todos[0]?.content,
         "todos should expose stable IDs",
       )

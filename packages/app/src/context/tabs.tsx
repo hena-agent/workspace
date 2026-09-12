@@ -50,6 +50,15 @@ export function sessionHasOpenTab(tabs: Tab[], server: ServerConnection.Key, ses
   return tabs.some((tab) => tab.type === "session" && tab.server === server && tab.sessionId === session.id)
 }
 
+export function retargetProjectDrafts(tabs: Tab[], server: ServerConnection.Key, projectID: string, directory: string) {
+  tabs.forEach((tab) => {
+    if (tab.type !== "draft" || tab.server !== server || tab.projectID !== projectID) return
+    tab.directory = directory
+    delete tab.projectID
+    delete tab.worktree
+  })
+}
+
 export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
   name: "Tabs",
   gate: false,
@@ -229,6 +238,11 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
             (tab) => tab.type === "draft" && tab.draftID === draftID,
             produce((tab) => Object.assign(tab, draft)),
           )
+        })
+      },
+      retargetProjectDrafts(server: ServerConnection.Key, projectID: string, directory: string) {
+        void startTransition(() => {
+          setStore(produce((tabs) => retargetProjectDrafts(tabs, server, projectID, directory)))
         })
       },
       promoteDraft(draftID: string, session: Omit<SessionTab, "type">) {

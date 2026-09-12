@@ -2663,20 +2663,9 @@ export type InvalidCursorError = {
   message: string
 }
 
-export type SessionActive =
-  | {
-      type: "running"
-    }
-  | {
-      type: "idle"
-    }
-  | {
-      type: "failed"
-      error: {
-        type: "unknown"
-        message: string
-      }
-    }
+export type SessionActive = {
+  type: "running"
+}
 
 export type SessionNotFoundError = {
   _tag: "SessionNotFoundError"

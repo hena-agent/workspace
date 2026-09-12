@@ -602,10 +602,13 @@ describe("SessionV2.revert", () => {
         first.id,
       ])
       yield* session.revert.commit(info.id)
-      expect((yield* session.messages({ sessionID: info.id })).map((message) => message.id)).toEqual([first.id])
+      expect((yield* session.messages({ sessionID: info.id })).map((message) => message.id)).toEqual([
+        second.id,
+        first.id,
+      ])
       expect((yield* SessionInput.find(db, first.id))?.promotedSeq).toBeDefined()
-      expect(yield* SessionInput.find(db, second.id)).toBeUndefined()
-      expect(yield* SessionInput.find(db, pending.id)).toEqual(pending)
+      expect((yield* SessionInput.find(db, second.id))?.promotedSeq).toBeDefined()
+      expect(yield* SessionInput.find(db, pending.id)).toBeUndefined()
       expect(
         yield* session.revert
           .replace({

@@ -472,8 +472,9 @@ export const locationLayer = Layer.effect(
             })
           }
           return yield* credentials
-            .refresh({ id: connection.id, integrationID, label: connection.label, value }, (current) =>
-              authorize(implementation.refresh!(current)),
+            .refresh(
+              { id: connection.id, integrationID, label: connection.label, value, imported: !saved && !!legacy },
+              (current) => authorize(implementation.refresh!(current)),
             )
             .pipe(Effect.map((value) => (request ? Credential.withCompatibility(value, request) : value)))
         }),

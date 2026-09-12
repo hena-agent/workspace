@@ -3,7 +3,7 @@ import { Schema } from "effect"
 import { SessionEvent } from "@hena/schema/session-event"
 import type { retry } from "@hena/core/util/retry"
 import { createHenaClient } from "@hena/sdk/v2/client"
-import type { Message, HenaClient, Part, Session, SessionMessage } from "@hena/sdk/v2/client"
+import type { EventSessionNextPrompted, Message, HenaClient, Part, Session, SessionMessage } from "@hena/sdk/v2/client"
 import { createServerSession } from "./server-session"
 import { usesCanonicalSession } from "./session-runtime"
 
@@ -487,6 +487,145 @@ describe("server session", () => {
     await store.sync("child")
 
     expect(store.data.message.child?.map((item) => item.id)).toEqual(["assistant", "user"])
+  })
+
+  test.each([true, false])("observes promoted prompts before steps, hydrated=%s", async (hydrated) => {
+    const generated = generatedClient({
+      "/session/ses_child": {
+        ...session("ses_child"),
+        agent: "fallback-agent",
+        model: { providerID: "fallback-provider", id: "fallback-model", variant: "fallback" },
+      },
+      "/api/session/ses_child/message": {
+        data: [{ id: "msg_old", type: "user", time: { created: 1 }, text: "old" }],
+        cursor: {},
+      },
+    })
+    const store = createServerSession(generated.client, { managedSession: () => true })
+    if (hydrated) await store.sync("ses_child")
+    const properties = {
+      sessionID: "ses_child",
+      messageID: "msg_new",
+      timestamp: 1,
+      delivery: "queue",
+      prompt: {
+        text: "inspect\ncontext note",
+        files: [
+          {
+            uri: "file:///repo/report.txt",
+            mime: "text/plain",
+            name: "report.txt",
+            source: { text: "report", start: 1, end: 7 },
+          },
+        ],
+        agents: [{ name: "reviewer", source: { text: "reviewer", start: 8, end: 16 } }],
+      },
+      ...(hydrated
+        ? {
+            selection: {
+              agent: "selected-agent",
+              model: { providerID: "selected-provider", id: "selected-model", variant: "selected" },
+            },
+          }
+        : {}),
+    } satisfies EventSessionNextPrompted["properties"]
+    Schema.decodeUnknownSync(SessionEvent.Prompted.data)(properties)
+    store.apply({ type: "session.next.prompt.admitted", data: properties })
+    expect(store.timeline("ses_child").some((message) => message.id === properties.messageID)).toBe(false)
+    store.apply({ type: "session.next.prompted", data: properties })
+    if (hydrated) expect(store.timeline("ses_child").map((message) => message.id)).toEqual(["msg_old", "msg_new"])
+    store.apply({
+      type: "session.next.step.started",
+      data: {
+        sessionID: "ses_child",
+        assistantMessageID: "msg_assistant",
+        timestamp: 1,
+        agent: "build",
+        model: { providerID: "provider", id: "model" },
+      },
+    })
+    await store.sync("ses_child")
+    store.apply({ type: "session.next.prompted", properties })
+    expect(store.timeline("ses_child")).toMatchObject([
+      { id: "msg_old" },
+      {
+        id: "msg_new",
+        role: "user",
+        time: { created: 1 },
+        agent: hydrated ? "selected-agent" : "fallback-agent",
+        model: {
+          providerID: hydrated ? "selected-provider" : "fallback-provider",
+          modelID: hydrated ? "selected-model" : "fallback-model",
+          variant: hydrated ? "selected" : "fallback",
+        },
+      },
+      { id: "msg_assistant", role: "assistant", parentID: "msg_new" },
+    ])
+    expect(store.parts("msg_new")).toMatchObject([
+      { id: "msg_new:text", type: "text", text: "inspect\ncontext note" },
+      {
+        id: "msg_new:file:0",
+        type: "file",
+        url: "file:///repo/report.txt",
+        mime: "text/plain",
+        filename: "report.txt",
+        source: { type: "file", path: "file:///repo/report.txt", text: { value: "report", start: 1, end: 7 } },
+      },
+      { id: "msg_new:agent:0", type: "agent", name: "reviewer", source: { value: "reviewer", start: 8, end: 16 } },
+    ])
+    expect(generated.requests).toHaveLength(2)
+  })
+
+  test("preserves a promoted prompt and its assistant across an older in-flight history response", async () => {
+    const started = Promise.withResolvers<void>()
+    const gate = Promise.withResolvers<void>()
+    let histories = 0
+    const client = createHenaClient({
+      baseUrl: "http://server",
+      fetch: (async (request: Request) => {
+        if (new URL(request.url).pathname === "/session/child") return Response.json(session("child"))
+        if (++histories === 2) {
+          started.resolve()
+          await gate.promise
+        }
+        return Response.json({
+          data: [{ id: "old", type: "user", time: { created: 1 }, text: "old" }],
+          cursor: {},
+        })
+      }) as typeof fetch,
+    })
+    const store = createServerSession(client, { managedSession: () => true })
+    await store.sync("child")
+    const pending = store.sync("child", { force: true })
+    await started.promise
+    store.apply({
+      type: "session.next.prompted",
+      data: {
+        sessionID: "child",
+        messageID: "new",
+        timestamp: 2,
+        delivery: "steer",
+        prompt: { text: "new" },
+      },
+    })
+    store.apply({
+      type: "session.next.step.started",
+      data: {
+        sessionID: "child",
+        assistantMessageID: "assistant",
+        timestamp: 3,
+        agent: "build",
+        model: { providerID: "provider", id: "model" },
+      },
+    })
+    gate.resolve()
+    await pending
+    expect(store.timeline("child")).toMatchObject([
+      { id: "old" },
+      { id: "new", role: "user" },
+      { id: "assistant", parentID: "new" },
+    ])
+    expect(store.parts("new")).toMatchObject([{ type: "text", text: "new" }])
   })
 
   test("discards buffered V2 events when canonical hydration fails", async () => {
@@ -1699,6 +1838,7 @@ describe("server session", () => {
     expect(client.requests).toEqual([{ sessionID: "child", limit: 20, before: undefined }])
     expect(client.rootRequests).toEqual([{ sessionID: "child", messageID: user.id }])
     expect(store.data.message.child).toEqual([user, ...assistants])
+    expect(store.timeline("child")).toEqual([user, ...assistants])
     expect(store.history.more("child")).toBe(true)
   })
 
@@ -1826,6 +1966,7 @@ describe("server session", () => {
 
     expect(client.rootRequests).toEqual([{ sessionID: "child", messageID: stale.id }])
     expect(store.data.message.child).toEqual([fresh, assistant])
+    expect(store.timeline("child")).toEqual([fresh, assistant])
     expect(store.data.part[stale.id]).toEqual([freshPart])
   })
 

@@ -1,7 +1,7 @@
 export * as SessionV2 from "./session"
 export * from "./session/schema"
 
-import { DateTime, Effect, Layer, Schema, Context, Stream } from "effect"
+import { DateTime, Effect, Layer, Schema, Context, Stream, Option } from "effect"
 import { ListAnchor } from "@hena/schema/session"
 import { and, asc, desc, eq, gt, like, lt, or, type SQL } from "drizzle-orm"
 import { ProjectV2 } from "./project"
@@ -26,6 +26,7 @@ import { ProjectAttachState } from "./project/attach-state"
 import path from "path"
 import { fromRow } from "./session/info"
 import { SessionRunner } from "./session/runner/index"
+import { SessionRunnerModel } from "./session/runner/model"
 import { SessionStore } from "./session/store"
 import { SessionExecution } from "./session/execution"
 import { makeGlobalNode } from "./effect/app-node"
@@ -93,9 +94,12 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Ses
   sessionID: SessionSchema.ID,
 }) {}
 
-export class ProjectNotFoundError extends Schema.TaggedErrorClass<ProjectNotFoundError>()("Session.ProjectNotFoundError", {
-  projectID: ProjectV2.ID,
-}) {}
+export class ProjectNotFoundError extends Schema.TaggedErrorClass<ProjectNotFoundError>()(
+  "Session.ProjectNotFoundError",
+  {
+    projectID: ProjectV2.ID,
+  },
+) {}
 
 export class OperationUnavailableError extends Schema.TaggedErrorClass<OperationUnavailableError>()(
   "Session.OperationUnavailableError",
@@ -104,9 +108,24 @@ export class OperationUnavailableError extends Schema.TaggedErrorClass<Operation
   },
 ) {}
 
-export { ContextSnapshotDecodeError, MessageDecodeError, QueueRevisionConflictError, QueueStateConflictError } from "./session/error"
+export {
+  ContextSnapshotDecodeError,
+  MessageDecodeError,
+  QueueRevisionConflictError,
+  QueueStateConflictError,
+} from "./session/error"
 
 export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictError>()("Session.PromptConflictError", {
+  sessionID: SessionSchema.ID,
+  messageID: SessionMessage.ID,
+}) {}
+export class InvalidSelectionError extends Schema.TaggedErrorClass<InvalidSelectionError>()(
+  "Session.InvalidSelectionError",
+  {
+    message: Schema.String,
+  },
+) {}
+export class RevertConflictError extends Schema.TaggedErrorClass<RevertConflictError>()("Session.RevertConflictError", {
   sessionID: SessionSchema.ID,
   messageID: SessionMessage.ID,
 }) {}
@@ -122,6 +141,8 @@ export type Error =
   | MessageDecodeError
   | OperationUnavailableError
   | PromptConflictError
+  | InvalidSelectionError
+  | RevertConflictError
   | AttachConflictError
   | QueueRevisionConflictError
   | QueueStateConflictError
@@ -165,8 +186,12 @@ export interface Interface {
     sessionID: SessionSchema.ID
     prompt: PromptInput.Prompt
     delivery?: SessionInput.Delivery
+    selection?: SessionInput.Selection
     resume?: boolean
-  }) => Effect.Effect<SessionInput.Admitted, NotFoundError | PromptConflictError | AttachConflictError>
+  }) => Effect.Effect<
+    SessionInput.Admitted,
+    NotFoundError | PromptConflictError | AttachConflictError | InvalidSelectionError | SessionRunnerModel.Error
+  >
   readonly cancelInput: (input: {
     sessionID: SessionSchema.ID
     messageID: SessionMessage.ID
@@ -203,6 +228,18 @@ export interface Interface {
     }) => Effect.Effect<Revert.State, NotFoundError | MessageNotFoundError | Snapshot.Error>
     readonly clear: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | Snapshot.Error>
     readonly commit: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
+    readonly replace: (input: {
+      sessionID: SessionSchema.ID
+      messageID: SessionMessage.ID
+      id: SessionMessage.ID
+      prompt: PromptInput.Prompt
+      delivery?: SessionInput.Delivery
+      agent: AgentV2.ID
+      model: ModelV2.Ref
+    }) => Effect.Effect<
+      SessionInput.Admitted,
+      NotFoundError | RevertConflictError | PromptConflictError | InvalidSelectionError | SessionRunnerModel.Error
+    >
   }
 }
 
@@ -235,7 +272,12 @@ const layer = Layer.effect(
 
     const placement = Effect.fnUntraced(function* (input: CreateInput) {
       if ("projectID" in input) {
-        const project = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, input.projectID)).get().pipe(Effect.orDie)
+        const project = yield* db
+          .select()
+          .from(ProjectTable)
+          .where(eq(ProjectTable.id, input.projectID))
+          .get()
+          .pipe(Effect.orDie)
         if (!project) return yield* new ProjectNotFoundError({ projectID: input.projectID })
         return {
           project: { id: project.id, directory: project.worktree },
@@ -407,7 +449,8 @@ const layer = Layer.effect(
         })
       }),
       prompt: Effect.fn("V2Session.prompt")((input) =>
-        Effect.uninterruptible(
+        execution.mutate(
+          input.sessionID,
           Effect.gen(function* () {
             const session = yield* result.get(input.sessionID)
             const project = yield* db
@@ -429,23 +472,32 @@ const layer = Layer.effect(
             const prompt = resolvePrompt(input.prompt)
             const messageID = input.id ?? SessionMessage.ID.create()
             const delivery = input.delivery ?? "steer"
-            const expected = { sessionID: input.sessionID, messageID, prompt, delivery }
-            const admitted = yield* SessionInput.admit(db, events, {
-              id: messageID,
-              sessionID: input.sessionID,
-              prompt,
-              delivery,
-            }).pipe(
-              Effect.catchDefect((defect) =>
-                defect instanceof SessionInput.LifecycleConflict
-                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
-                  : Effect.die(defect),
-              ),
+            const expected = { sessionID: input.sessionID, messageID, prompt, delivery, selection: input.selection }
+            if (input.selection && !(yield* SessionInput.lookup(db, messageID))) {
+              yield* validateSelection(session, input.selection).pipe(Effect.provide(locations.get(session.location)))
+            }
+            // Once admission starts, cancellation must not strand it before the advisory wake.
+            return yield* Effect.uninterruptible(
+              Effect.gen(function* () {
+                const admitted = yield* SessionInput.admit(db, events, {
+                  id: messageID,
+                  sessionID: input.sessionID,
+                  prompt,
+                  delivery,
+                  selection: input.selection,
+                }).pipe(
+                  Effect.catchDefect((defect) =>
+                    defect instanceof SessionInput.LifecycleConflict
+                      ? new PromptConflictError({ sessionID: input.sessionID, messageID })
+                      : Effect.die(defect),
+                  ),
+                )
+                if (!SessionInput.equivalent(admitted, expected))
+                  return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
+                if (input.resume !== false) yield* execution.wake(admitted.sessionID)
+                return admitted
+              }),
             )
-            if (!SessionInput.equivalent(admitted, expected))
-              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
-            if (input.resume !== false) yield* execution.wake(admitted.sessionID)
-            return admitted
           }),
         ),
       ),
@@ -488,28 +540,38 @@ const layer = Layer.effect(
         return yield* new OperationUnavailableError({ operation: "skill" })
       }),
       switchAgent: Effect.fn("V2Session.switchAgent")(function* (input) {
-        yield* result.get(input.sessionID)
-        yield* events.publish(SessionEvent.AgentSwitched, {
-          sessionID: input.sessionID,
-          messageID: SessionMessage.ID.create(),
-          timestamp: yield* DateTime.now,
-          agent: input.agent,
-        })
+        yield* execution.mutate(
+          input.sessionID,
+          Effect.gen(function* () {
+            yield* result.get(input.sessionID)
+            yield* events.publish(SessionEvent.AgentSwitched, {
+              sessionID: input.sessionID,
+              messageID: SessionMessage.ID.create(),
+              timestamp: yield* DateTime.now,
+              agent: input.agent,
+            })
+          }),
+        )
       }),
       switchModel: Effect.fn("V2Session.switchModel")(function* (input) {
-        const session = yield* result.get(input.sessionID)
-        if (
-          session.model?.providerID === input.model.providerID &&
-          session.model.id === input.model.id &&
-          (session.model.variant ?? "default") === (input.model.variant ?? "default")
+        yield* execution.mutate(
+          input.sessionID,
+          Effect.gen(function* () {
+            const session = yield* result.get(input.sessionID)
+            if (
+              session.model?.providerID === input.model.providerID &&
+              session.model.id === input.model.id &&
+              (session.model.variant ?? "default") === (input.model.variant ?? "default")
+            )
+              return
+            yield* events.publish(SessionEvent.ModelSwitched, {
+              sessionID: input.sessionID,
+              messageID: SessionMessage.ID.create(),
+              timestamp: yield* DateTime.now,
+              model: input.model,
+            })
+          }),
         )
-          return
-        yield* events.publish(SessionEvent.ModelSwitched, {
-          sessionID: input.sessionID,
-          messageID: SessionMessage.ID.create(),
-          timestamp: yield* DateTime.now,
-          model: input.model,
-        })
       }),
       compact: Effect.fn("V2Session.compact")(function* (input) {
         yield* result.get(input.sessionID)
@@ -525,28 +587,87 @@ const layer = Layer.effect(
         yield* result.get(sessionID)
         yield* execution.resume(sessionID)
       }),
-      interrupt: Effect.fn("V2Session.interrupt")((sessionID) =>
-        Effect.uninterruptible(execution.interrupt(sessionID)),
-      ),
+      interrupt: Effect.fn("V2Session.interrupt")((sessionID) => execution.serialize(sessionID, Effect.void)),
       revert: {
         stage: Effect.fn("V2Session.revert.stage")(function* (input) {
-          const session = yield* result.get(input.sessionID)
-          return yield* SessionRevert.stage({ session, messageID: input.messageID, files: input.files }).pipe(
-            Effect.provideService(Database.Service, database),
-            Effect.provideService(EventV2.Service, events),
-            Effect.provide(locations.get(session.location)),
+          return yield* execution.serialize(
+            input.sessionID,
+            Effect.gen(function* () {
+              const session = yield* result.get(input.sessionID)
+              const operation = SessionRevert.stage({ session, messageID: input.messageID, files: input.files }).pipe(
+                Effect.provideService(Database.Service, database),
+                Effect.provideService(EventV2.Service, events),
+              )
+              if (input.files === false && !session.revert?.snapshot)
+                return yield* operation.pipe(Effect.provide(Snapshot.noopLayer))
+              return yield* operation.pipe(Effect.provide(locations.get(session.location)))
+            }),
           )
         }),
         clear: Effect.fn("V2Session.revert.clear")(function* (sessionID) {
-          const session = yield* result.get(sessionID)
-          yield* SessionRevert.clear(session).pipe(
-            Effect.provideService(EventV2.Service, events),
-            Effect.provide(locations.get(session.location)),
+          yield* execution.serialize(
+            sessionID,
+            Effect.gen(function* () {
+              const session = yield* result.get(sessionID)
+              const operation = SessionRevert.clear(session).pipe(Effect.provideService(EventV2.Service, events))
+              if (!session.revert?.snapshot) return yield* operation.pipe(Effect.provide(Snapshot.noopLayer))
+              yield* operation.pipe(Effect.provide(locations.get(session.location)))
+            }),
           )
         }),
         commit: Effect.fn("V2Session.revert.commit")(function* (sessionID) {
-          const session = yield* result.get(sessionID)
-          yield* SessionRevert.commit(session).pipe(Effect.provideService(EventV2.Service, events))
+          yield* execution.serialize(
+            sessionID,
+            Effect.gen(function* () {
+              const session = yield* result.get(sessionID)
+              yield* SessionRevert.commit(session).pipe(Effect.provideService(EventV2.Service, events))
+            }),
+          )
+        }),
+        replace: Effect.fn("V2Session.revert.replace")(function* (input) {
+          const prompt = resolvePrompt(input.prompt)
+          const delivery = input.delivery ?? "steer"
+          return yield* execution.serialize(
+            input.sessionID,
+            Effect.gen(function* () {
+              const session = yield* result.get(input.sessionID)
+              return yield* Effect.uninterruptible(
+                Effect.gen(function* () {
+                  const admitted = yield* SessionRevert.commit(session, {
+                    messageID: input.id,
+                    prompt,
+                    delivery,
+                    agent: input.agent,
+                    model: input.model,
+                  }).pipe(Effect.provideService(EventV2.Service, events))
+                  if (!admitted) return yield* Effect.die("Replacement prompt was not admitted")
+                  yield* execution.wake(input.sessionID)
+                  return admitted
+                }),
+              )
+            }),
+            Effect.gen(function* () {
+              const expected = {
+                sessionID: input.sessionID,
+                prompt,
+                delivery,
+                selection: { agent: input.agent, model: input.model },
+              }
+              const session = yield* result.get(input.sessionID)
+              if (!session.revert) {
+                const existing = yield* SessionInput.lookupReplacement(db, input.id)
+                if (existing?.boundary === input.messageID && SessionInput.equivalent(existing.admitted, expected))
+                  return Option.some(existing.admitted)
+                return yield* new RevertConflictError({ sessionID: input.sessionID, messageID: input.messageID })
+              }
+              if (session.revert.messageID !== input.messageID)
+                return yield* new RevertConflictError({ sessionID: input.sessionID, messageID: input.messageID })
+              if (yield* SessionInput.lookup(db, input.id))
+                return yield* new PromptConflictError({ sessionID: input.sessionID, messageID: input.id })
+              yield* validateSelection(session, input).pipe(Effect.provide(locations.get(session.location)))
+              return Option.none<SessionInput.Admitted>()
+            }),
+          )
         }),
       },
     })
@@ -554,6 +675,17 @@ const layer = Layer.effect(
     return result
   }),
 )
+
+const validateSelection = Effect.fn("Session.validateSelection")(function* (
+  session: SessionSchema.Info,
+  selection: SessionInput.Selection,
+) {
+  const agents = yield* AgentV2.Service
+  if (selection.agent !== AgentV2.defaultID && !(yield* agents.resolve(selection.agent)))
+    return yield* new InvalidSelectionError({ message: `Agent unavailable: ${selection.agent}` })
+  const models = yield* SessionRunnerModel.Service
+  yield* models.resolve({ ...session, ...selection, agent: AgentV2.ID.make(selection.agent) })
+})
 
 const resolvePrompt = (input: PromptInput.Prompt) =>
   Prompt.make({

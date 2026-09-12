@@ -1,17 +1,32 @@
 import { describe, expect, test } from "bun:test"
 import type { AssistantMessage, Message, UserMessage } from "@hena/sdk/v2"
 import { isTimelineReady, loadOlderTimeline, selectUserMessages, selectVisibleUserMessages } from "./model"
+import { splitAtMessage } from "../message-order"
 
 const user = (id: string) => ({ id, role: "user" }) as UserMessage
 const assistant = (id: string) => ({ id, role: "assistant" }) as AssistantMessage
 
 describe("timeline model", () => {
-  test("selects users and applies the revert boundary", () => {
-    const messages: Message[] = [user("msg_1"), assistant("msg_2"), user("msg_3"), user("msg_5")]
+  test("undo hides its selected user and suffix while redo restores them", () => {
+    const messages: Message[] = [
+      user("msg_fa30157fc00125kydn4AhAV5Up"),
+      assistant("msg_fa3015891001YKqmBAebsk9DsF"),
+      user("msg_0800ad7bf001S6PWTI5wjHdtXS"),
+      user("msg_0800b4125001dJoBn2djFCaoph"),
+    ]
     const users = selectUserMessages(messages)
 
-    expect(users.map((message) => message.id)).toEqual(["msg_1", "msg_3", "msg_5"])
-    expect(selectVisibleUserMessages(users, "msg_5").map((message) => message.id)).toEqual(["msg_1", "msg_3"])
+    expect(users.map((message) => message.id)).toEqual([
+      "msg_fa30157fc00125kydn4AhAV5Up",
+      "msg_0800ad7bf001S6PWTI5wjHdtXS",
+      "msg_0800b4125001dJoBn2djFCaoph",
+    ])
+    expect(
+      selectVisibleUserMessages(users, "msg_0800ad7bf001S6PWTI5wjHdtXS").map((message) => message.id),
+    ).toEqual(["msg_fa30157fc00125kydn4AhAV5Up"])
+    const undo = splitAtMessage(users, "msg_0800ad7bf001S6PWTI5wjHdtXS")
+    expect(undo.before.at(-1)?.id).toBe("msg_fa30157fc00125kydn4AhAV5Up")
+    expect(undo.after[0]?.id).toBe("msg_0800b4125001dJoBn2djFCaoph")
     expect(selectVisibleUserMessages(users)).toBe(users)
   })
 

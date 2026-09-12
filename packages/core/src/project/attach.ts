@@ -313,6 +313,7 @@ const layer = Layer.effect(
 
     const execute = Effect.fn("ProjectAttach.execute")(function* (file: AbsolutePath, manifest: Manifest) {
       yield* Effect.forEach(manifest.sessions, (session) => execution.interrupt(session.id), { discard: true })
+      yield* ProjectAttachState.interrupt(manifest.projectID)
       yield* fs.writeFileString(marker(manifest, manifest.source), manifest.id).pipe(Effect.orDie)
       yield* Effect.tryPromise(async () => {
         const { cp } = await import("fs/promises")
@@ -345,7 +346,10 @@ const layer = Layer.effect(
               .from(ProjectTable)
               .where(eq(ProjectTable.id, manifest.projectID))
               .get()
-            if (project?.mode !== "chat" || project.worktree !== manifest.source)
+            if (
+              project?.mode !== "chat" ||
+              path.join(yield* fs.resolve(path.dirname(project.worktree)), path.basename(project.worktree)) !== manifest.source
+            )
               return yield* Effect.die("Project changed during attach")
             const directories = yield* tx
               .select({ directory: ProjectDirectoryTable.directory })
@@ -508,6 +512,7 @@ const layer = Layer.effect(
 
                 const result = yield* Effect.exit(execute(file, manifest))
                 if (Exit.isSuccess(result)) return
+                yield* Effect.logError("Project attach failed", { projectID: project.id, cause: result.cause })
                 const recovery = yield* Effect.exit(recoverUnlocked(file))
                 if (Exit.isFailure(recovery)) {
                   yield* Effect.logError("Project attach rollback failed", {

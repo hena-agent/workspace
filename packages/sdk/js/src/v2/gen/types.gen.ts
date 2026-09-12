@@ -52,6 +52,7 @@ export type Event =
   | EventSessionNextRevertCommitted
   | EventSessionNextInputCanceled
   | EventSessionNextInputReordered
+  | EventSessionNextExecutionStatus
   | EventMessagePartDelta
   | EventSessionDiff
   | EventSessionError
@@ -867,6 +868,7 @@ export type GlobalEvent = {
           messageID: string
           prompt: Prompt
           delivery: "steer" | "queue"
+          selection?: SessionInputSelection
         }
       }
     | {
@@ -878,6 +880,7 @@ export type GlobalEvent = {
           messageID: string
           prompt: Prompt
           delivery: "steer" | "queue"
+          selection?: SessionInputSelection
         }
       }
     | {
@@ -1207,6 +1210,13 @@ export type GlobalEvent = {
           timestamp: number
           sessionID: string
           messageID: string
+          replacement?: {
+            messageID: string
+            prompt: Prompt
+            delivery: "steer" | "queue"
+            agent: string
+            model: ModelRef
+          }
         }
       }
     | {
@@ -1227,6 +1237,25 @@ export type GlobalEvent = {
           sessionID: string
           messageIDs: Array<string>
           expectedRevision: number
+        }
+      }
+    | {
+        id: string
+        type: "session.next.execution.status"
+        properties: {
+          timestamp: number
+          sessionID: string
+          status:
+            | {
+                type: "running"
+              }
+            | {
+                type: "idle"
+              }
+            | {
+                type: "failed"
+                error: SessionErrorUnknown
+              }
         }
       }
     | {
@@ -2843,6 +2872,7 @@ export type V2Event =
   | SessionNextRevertCommitted
   | SessionNextInputCanceled
   | SessionNextInputReordered
+  | SessionNextExecutionStatus
   | MessagePartDelta
   | SessionDiff
   | SessionError
@@ -2951,6 +2981,11 @@ export type PromptFileAttachment = {
 export type PromptAgentAttachment = {
   name: string
   source?: PromptSource
+}
+
+export type SessionInputSelection = {
+  agent: string
+  model: ModelRef
 }
 
 export type SessionErrorUnknown = {
@@ -3269,6 +3304,7 @@ export type SyncEventSessionNextPrompted = {
       messageID: string
       prompt: Prompt
       delivery: "steer" | "queue"
+      selection?: SessionInputSelection
     }
   }
 }
@@ -3287,6 +3323,7 @@ export type SyncEventSessionNextPromptAdmitted = {
       messageID: string
       prompt: Prompt
       delivery: "steer" | "queue"
+      selection?: SessionInputSelection
     }
   }
 }
@@ -3741,6 +3778,13 @@ export type SyncEventSessionNextRevertCommitted = {
       timestamp: number
       sessionID: string
       messageID: string
+      replacement?: {
+        messageID: string
+        prompt: Prompt
+        delivery: "steer" | "queue"
+        agent: string
+        model: ModelRef
+      }
     }
   }
 }
@@ -3899,6 +3943,7 @@ export type SessionInputAdmitted = {
   sessionID: string
   prompt: Prompt
   delivery: "steer" | "queue"
+  selection?: SessionInputSelection
   timeCreated: number
   promotedSeq?: number
 }
@@ -3938,6 +3983,8 @@ export type SessionMessageUser = {
   text: string
   files?: Array<PromptFileAttachment>
   agents?: Array<PromptAgentAttachment>
+  agent?: string
+  model?: ModelRef
   type: "user"
 }
 
@@ -4216,6 +4263,7 @@ export type SessionNextPrompted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    selection?: SessionInputSelection
   }
 }
 
@@ -4237,6 +4285,7 @@ export type SessionNextPromptAdmitted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    selection?: SessionInputSelection
   }
 }
 
@@ -4763,6 +4812,13 @@ export type SessionNextRevertCommitted = {
     timestamp: number
     sessionID: string
     messageID: string
+    replacement?: {
+      messageID: string
+      prompt: Prompt
+      delivery: "steer" | "queue"
+      agent: string
+      model: ModelRef
+    }
   }
 }
 
@@ -5333,6 +5389,35 @@ export type SessionNextCompactionDelta = {
     sessionID: string
     messageID: string
     text: string
+  }
+}
+
+export type SessionNextExecutionStatus = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "session.next.execution.status"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    timestamp: number
+    sessionID: string
+    status:
+      | {
+          type: "running"
+        }
+      | {
+          type: "idle"
+        }
+      | {
+          type: "failed"
+          error: SessionErrorUnknown
+        }
   }
 }
 
@@ -6093,6 +6178,8 @@ export type ReferenceInfo = {
   source: ReferenceSource
 }
 
+export type ProjectManagedId = string
+
 export type ProjectCopyCopy = {
   directory: string
 }
@@ -6246,6 +6333,7 @@ export type EventSessionNextPrompted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    selection?: SessionInputSelection
   }
 }
 
@@ -6258,6 +6346,7 @@ export type EventSessionNextPromptAdmitted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    selection?: SessionInputSelection
   }
 }
 
@@ -6615,6 +6704,13 @@ export type EventSessionNextRevertCommitted = {
     timestamp: number
     sessionID: string
     messageID: string
+    replacement?: {
+      messageID: string
+      prompt: Prompt
+      delivery: "steer" | "queue"
+      agent: string
+      model: ModelRef
+    }
   }
 }
 
@@ -6637,6 +6733,26 @@ export type EventSessionNextInputReordered = {
     sessionID: string
     messageIDs: Array<string>
     expectedRevision: number
+  }
+}
+
+export type EventSessionNextExecutionStatus = {
+  id: string
+  type: "session.next.execution.status"
+  properties: {
+    timestamp: number
+    sessionID: string
+    status:
+      | {
+          type: "running"
+        }
+      | {
+          type: "idle"
+        }
+      | {
+          type: "failed"
+          error: SessionErrorUnknown
+        }
   }
 }
 
@@ -11163,6 +11279,7 @@ export type V2SessionPromptData = {
   body: {
     id?: string
     prompt: PromptInput
+    selection?: SessionInputSelection
     delivery?: "steer" | "queue"
     resume?: boolean
   }
@@ -11400,6 +11517,58 @@ export type V2SessionRevertCommitResponses = {
 }
 
 export type V2SessionRevertCommitResponse = V2SessionRevertCommitResponses[keyof V2SessionRevertCommitResponses]
+
+export type V2SessionRevertReplaceData = {
+  body: {
+    messageID: string
+    id: string
+    prompt: PromptInput
+    delivery?: "steer" | "queue"
+    agent: string
+    model: ModelRef
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/revert/replace"
+}
+
+export type V2SessionRevertReplaceErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
+}
+
+export type V2SessionRevertReplaceError = V2SessionRevertReplaceErrors[keyof V2SessionRevertReplaceErrors]
+
+export type V2SessionRevertReplaceResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: SessionInputAdmitted
+  }
+}
+
+export type V2SessionRevertReplaceResponse = V2SessionRevertReplaceResponses[keyof V2SessionRevertReplaceResponses]
 
 export type V2SessionContextData = {
   body?: never
@@ -13093,7 +13262,7 @@ export type V2ReferenceListResponse = V2ReferenceListResponses[keyof V2Reference
 
 export type V2ProjectCreateData = {
   body: {
-    id?: string
+    id?: ProjectManagedId
     name: string
   }
   path?: never

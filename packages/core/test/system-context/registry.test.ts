@@ -58,6 +58,26 @@ describe("SystemContextRegistry", () => {
     }),
   )
 
+  it.effect("does not invoke excluded entry producers", () =>
+    Effect.gen(function* () {
+      const registry = yield* SystemContextRegistry.Service
+      let excludedLoads = 0
+      yield* registry.register(entry("test/included", "included"))
+      yield* registry.register({
+        key: SystemContext.Key.make("test/excluded"),
+        load: Effect.sync(() => {
+          excludedLoads++
+          return SystemContext.empty
+        }),
+      })
+
+      const context = yield* registry.load((key) => key === "test/included")
+
+      expect((yield* SystemContext.initialize(context)).baseline).toBe("included")
+      expect(excludedLoads).toBe(0)
+    }),
+  )
+
   it.effect("propagates entry producer failures", () =>
     Effect.gen(function* () {
       const registry = yield* SystemContextRegistry.Service

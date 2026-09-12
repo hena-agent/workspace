@@ -3,6 +3,7 @@ import type { Auth } from "@/auth"
 import { SessionV1 } from "@hena/core/v1/session"
 import type { RuntimeFlags } from "@/effect/runtime-flags"
 import { InstanceState } from "@/effect/instance-state"
+import { InstanceRef } from "@/effect/instance-ref"
 import { Permission } from "@/permission"
 import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "../message-v2"
@@ -14,6 +15,7 @@ import { Effect, Record } from "effect"
 import { jsonSchema, tool as aiTool, type ModelMessage, type Tool } from "ai"
 import type { Plugin } from "@/plugin"
 import { mergeDeep } from "remeda"
+import { ChatPolicy } from "@hena/core/session/chat-policy"
 
 const USER_AGENT = `hena/${InstallationVersion}`
 
@@ -54,10 +56,11 @@ const mergeOptions = (target: Record<string, any>, source: Record<string, any> |
   mergeDeep(target, source ?? {}) as Record<string, any>
 
 export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: PrepareInput) {
+  const chat = (yield* InstanceRef)?.project.mode === "chat"
   const isOpenaiOauth = input.provider.id === "openai" && input.auth?.type === "oauth"
   const system = [
     [
-      ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
+      ...(chat ? [ChatPolicy.system] : input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
       ...input.system,
       ...(input.user.system ? [input.user.system] : []),
     ]
@@ -66,11 +69,12 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   ]
 
   const header = system[0]
-  yield* input.plugin.trigger(
-    "experimental.chat.system.transform",
-    { sessionID: input.sessionID, model: input.model },
-    { system },
-  )
+  if (!chat)
+    yield* input.plugin.trigger(
+      "experimental.chat.system.transform",
+      { sessionID: input.sessionID, model: input.model },
+      { system },
+    )
   if (system.length > 2 && system[0] === header) {
     const rest = system.slice(1)
     system.length = 0

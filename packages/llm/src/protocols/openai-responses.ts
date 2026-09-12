@@ -6,10 +6,10 @@ import { HttpTransport, WebSocketTransport } from "../route/transport"
 import { Protocol } from "../route/protocol"
 import {
   LLMEvent,
+  LLMRequest,
   Usage,
   type FinishReason,
   type JsonSchema,
-  type LLMRequest,
   type ProviderMetadata,
   type ReasoningPart,
   type TextPart,
@@ -17,6 +17,7 @@ import {
   type ToolDefinition,
   type ToolContent,
   type ToolResultPart,
+  mergeProviderOptions,
 } from "../schema"
 import { JsonObject, optionalArray, optionalNull, ProviderShared } from "./shared"
 import { isContextOverflow } from "../provider-error"
@@ -465,7 +466,7 @@ const lowerOptions = Effect.fn("OpenAIResponses.lowerOptions")(function* (reques
   const instructions = OpenAIOptions.instructions(request)
   const serviceTier = OpenAIOptions.serviceTier(request)
   return {
-    ...(instructions ? { instructions } : {}),
+    ...(instructions !== undefined ? { instructions } : {}),
     ...(store !== undefined ? { store } : {}),
     ...(promptCacheKey ? { prompt_cache_key: promptCacheKey } : {}),
     ...(include ? { include } : {}),
@@ -986,6 +987,41 @@ export const route = Route.make({
   provider: "openai",
   protocol,
   endpoint,
+  auth,
+  transport: httpTransport,
+  defaults: { providerOptions: { openai: { store: false } } },
+})
+
+const codexProtocol = Protocol.make({
+  ...protocol,
+  body: {
+    ...protocol.body,
+    from: (request: LLMRequest) =>
+      fromRequest(
+        LLMRequest.update(request, {
+          system: [],
+          providerOptions: mergeProviderOptions(request.providerOptions, {
+            openai: {
+              instructions: [OpenAIOptions.instructions(request), ProviderShared.joinText(request.system)]
+                .filter((part): part is string => part !== undefined && part.length > 0)
+                .join("\n"),
+            },
+          }),
+        }),
+      ).pipe(
+        Effect.map((body) => {
+          delete body.max_output_tokens
+          return body
+        }),
+      ),
+  },
+})
+
+export const codexRoute = Route.make({
+  id: "openai-codex-responses",
+  provider: "openai",
+  protocol: codexProtocol,
+  endpoint: Endpoint.path(PATH, { baseURL: "https://chatgpt.com/backend-api/codex" }),
   auth,
   transport: httpTransport,
   defaults: { providerOptions: { openai: { store: false } } },

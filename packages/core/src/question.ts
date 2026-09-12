@@ -99,6 +99,9 @@ const layer = Layer.effect(
           pending.set(id, { request, deferred })
           return yield* events.publish(Event.Asked, request).pipe(
             Effect.andThen(restore(Deferred.await(deferred))),
+            Effect.onInterrupt(() =>
+              events.publish(Event.Rejected, { sessionID: request.sessionID, requestID: request.id }).pipe(Effect.asVoid),
+            ),
             Effect.ensuring(
               Effect.sync(() => {
                 pending.delete(id)

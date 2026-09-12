@@ -69,14 +69,20 @@ const layer = Layer.effect(
     const projects = AbsolutePath.make(path.join(global.data, "projects"))
 
     const create = Effect.fn("Project.create")(function* (id = ID.create()) {
-      const directory = AbsolutePath.make(path.join(projects, id))
+      if (!ID.isManaged(id)) return yield* Effect.die(new Error("Invalid managed project ID"))
+      yield* fs.makeDirectory(projects, { recursive: true, mode: 0o700 }).pipe(Effect.orDie)
+      const root = yield* fs.resolve(projects)
+      const directory = AbsolutePath.make(path.join(root, id))
+      if (path.relative(root, yield* fs.resolve(directory)) !== id)
+        return yield* Effect.die(new Error("Managed project directory escapes its storage root"))
       yield* fs.makeDirectory(directory, { recursive: true, mode: 0o700 }).pipe(Effect.orDie)
       if (process.platform !== "win32") yield* fs.chmod(directory, 0o700).pipe(Effect.orDie)
-      return { id, directory }
+      return { id, directory: AbsolutePath.make(yield* fs.resolve(directory)) }
     })
 
     const createChat = Effect.fn("Project.createChat")(function* (input) {
       const id = input.id ?? ID.create()
+      if (!ID.isManaged(id)) return yield* Effect.die(new Error("Invalid managed project ID"))
       const existing = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, id)).get().pipe(Effect.orDie)
       if (existing) return projectInfo(existing)
 
@@ -156,9 +162,10 @@ const layer = Layer.effect(
     })
 
     const resolve = Effect.fn("Project.resolve")(function* (input: AbsolutePath) {
-      const managedID = path.relative(projects, input).split(path.sep)[0]
+      const managedRoot = yield* fs.resolve(projects)
+      const managedID = path.relative(managedRoot, yield* fs.resolve(input)).split(path.sep)[0]
       if (managedID && ID.isManaged(managedID)) {
-        return { id: ID.make(managedID), directory: AbsolutePath.make(path.join(projects, managedID)) }
+        return { id: ID.make(managedID), directory: AbsolutePath.make(path.join(managedRoot, managedID)) }
       }
       const attached = yield* projectDirectories.attached(input)
       if (attached) {
@@ -199,7 +206,11 @@ function projectInfo(row: typeof ProjectTable.$inferSelect) {
     name: row.name ?? undefined,
     icon:
       row.icon_url || row.icon_url_override || row.icon_color
-        ? { url: row.icon_url ?? undefined, override: row.icon_url_override ?? undefined, color: row.icon_color ?? undefined }
+        ? {
+            url: row.icon_url ?? undefined,
+            override: row.icon_url_override ?? undefined,
+            color: row.icon_color ?? undefined,
+          }
         : undefined,
     commands: row.commands ?? undefined,
     time: { created: row.time_created, updated: row.time_updated, initialized: row.time_initialized ?? undefined },

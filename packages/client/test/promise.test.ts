@@ -22,6 +22,7 @@ test("exposes every standard HTTP API group", () => {
     "ptys",
     "questions",
     "references",
+    "projects",
     "projectCopies",
   ])
   expect(Object.keys(client.messages)).toEqual(["list"])
@@ -102,6 +103,7 @@ test("session methods use the public HTTP contract", async () => {
           historyPage === 1 ? { data: [modelSwitchedEvent], hasMore: true } : { data: [], hasMore: false },
         )
       }
+      if (url.includes("/revert/replace")) return Response.json(admission)
       if (url.includes("/prompt")) return Response.json(admission)
       if (url.includes("/context")) return Response.json({ data: [] })
       if (url.includes("/message/")) return Response.json({ data: modelSwitchedMessage })
@@ -125,6 +127,14 @@ test("session methods use the public HTTP contract", async () => {
     prompt: { text: "Hello" },
     resume: false,
   })
+  const replaced = await client.sessions.replace({
+    sessionID: "ses_test",
+    messageID: "msg_old",
+    id: "msg_test",
+    prompt: { text: "Hello" },
+    agent: "build",
+    model: { id: "claude", providerID: "anthropic" },
+  })
   await client.sessions.compact({ sessionID: "ses_test" })
   await client.sessions.wait({ sessionID: "ses_test" })
   const context = await client.sessions.context({ sessionID: "ses_test" })
@@ -142,6 +152,7 @@ test("session methods use the public HTTP contract", async () => {
   expect(active).toEqual({ ses_test: { type: "running" } })
   expect(created.id).toBe("ses_test")
   expect(admitted.id).toBe("msg_test")
+  expect(replaced.id).toBe("msg_test")
   expect(context).toEqual([])
   expect(history).toEqual({ data: [modelSwitchedEvent], hasMore: true })
   expect(historyNext).toEqual({ data: [], hasMore: false })
@@ -154,6 +165,7 @@ test("session methods use the public HTTP contract", async () => {
     ["POST", "http://localhost:3000/api/session/ses_test/agent"],
     ["POST", "http://localhost:3000/api/session/ses_test/model"],
     ["POST", "http://localhost:3000/api/session/ses_test/prompt"],
+    ["POST", "http://localhost:3000/api/session/ses_test/revert/replace"],
     ["POST", "http://localhost:3000/api/session/ses_test/compact"],
     ["POST", "http://localhost:3000/api/session/ses_test/wait"],
     ["GET", "http://localhost:3000/api/session/ses_test/context"],
@@ -168,6 +180,16 @@ test("session methods use the public HTTP contract", async () => {
   expect(JSON.parse(body)).toEqual({
     prompt: { text: "Hello" },
     resume: false,
+  })
+  const replaceBody = requests.find((request) => request.url.endsWith("/api/session/ses_test/revert/replace"))?.init
+    ?.body
+  if (typeof replaceBody !== "string") throw new Error("Expected JSON replacement request body")
+  expect(JSON.parse(replaceBody)).toEqual({
+    messageID: "msg_old",
+    id: "msg_test",
+    prompt: { text: "Hello" },
+    agent: "build",
+    model: { id: "claude", providerID: "anthropic" },
   })
 })
 

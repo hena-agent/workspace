@@ -31,3 +31,12 @@ UPCOMING_CHANGELOG.md
 logs/
 *.bun-build
 tsconfig.tsbuildinfo
+
+# Generated framework output and local tooling state
+.output/
+.wrangler/
+.astro/
+.playwright-mcp/
+
+# Generated console sitemap
+/packages/console/app/public/sitemap.xml

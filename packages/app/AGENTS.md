@@ -9,9 +9,9 @@
 
 ## Local Dev
 
-- `hena dev web` proxies `https://app.hena.dev`, so local UI/CSS changes will not show there.
+- The `serve`/`web` CLI commands start V3, not the legacy App in `packages/app`. They are not the backend for root `dev:web`; without an app-v3 build, legacy URLs can return the SPA fallback `app-v3 is not built`.
 - For local UI changes, run the backend and app dev servers separately.
-- Backend (from `packages/hena`): `bun run --conditions=browser ./src/index.ts serve --port 4096`
+- Backend (from the repo root or `packages/hena`): `bun run dev:server`. This dev-only legacy listener binds to `127.0.0.1:4096` and preserves inherited authentication settings. Use `bun run dev:server --port <free-port>` for an alternate port; never stop an existing server to free its port.
 - App (from `packages/app`): `bun dev -- --port 4444`
 - Open `http://localhost:4444` to verify UI changes (it targets the backend at `http://localhost:4096`).
 

@@ -11,6 +11,7 @@ import { produce } from "immer"
 import { Catalog } from "../../catalog"
 import { Credential } from "../../credential"
 import { Integration } from "../../integration"
+import { InstallationVersion } from "../../installation/version"
 import { ModelV2 } from "../../model"
 import { ProviderV2 } from "../../provider"
 import { SessionSchema } from "../schema"
@@ -81,6 +82,11 @@ export class Service extends Context.Service<Service, Interface>()("@hena/v2/Ses
 export const layerWith = (resolve: Interface["resolve"]) => Layer.succeed(Service, Service.of({ resolve }))
 
 const apiKey = (model: ModelV2.Info, credential?: Credential.Value) => {
+  const compatibility = Credential.getCompatibility(credential)
+  const request = compatibility?.models?.[model.id]
+  const legacy = request?.apiKey ?? compatibility?.apiKey
+  if (legacy !== undefined) return Auth.value(legacy)
+  if (request?.authorizationOnly || compatibility?.authorizationOnly) return
   if (credential?.type === "key") return Auth.value(credential.key)
   if (credential?.type === "oauth") return Auth.value(credential.access)
   const value = model.request.body.apiKey ?? model.api.settings?.apiKey
@@ -128,21 +134,43 @@ const withVariant = (
 const apiName = (model: ModelV2.Info) =>
   model.api.type === "aisdk" ? `${model.api.type}:${model.api.package}` : model.api.type
 
+const isOpenAIEndpoint = (url: string | undefined) =>
+  url === undefined || url.replace(/\/+$/, "") === "https://api.openai.com/v1"
+
 export const fromCatalogModel = (
   model: ModelV2.Info,
   credential?: Credential.Value,
 ): Effect.Effect<Model, UnsupportedApiError> => {
+  const compatibility = Credential.getCompatibility(credential)
+  const request = compatibility?.models?.[model.id]
+  const metadata = Credential.getRequestMetadata(credential)
   const resolved =
-    credential?.type !== "key" || credential.metadata === undefined
+    metadata === undefined && compatibility === undefined
       ? model
       : produce(model, (draft) => {
-          Object.assign(draft.request.body, credential.metadata)
+          Object.assign(draft.request.body, metadata)
+          Object.assign(draft.request.headers, compatibility?.headers, request?.headers)
         })
   const key = apiKey(resolved, credential)
   if (resolved.api.type === "aisdk" && resolved.api.package === "@ai-sdk/openai") {
+    const codex = credential?.type === "oauth" && resolved.providerID === ProviderV2.ID.openai
     return Effect.succeed(
-      withDefaults(resolved, OpenAIResponses.route)
+      withDefaults(resolved, codex ? OpenAIResponses.codexRoute : OpenAIResponses.route)
         .with({
+          ...(codex
+            ? {
+                headers: {
+                  originator: "opencode",
+                  "User-Agent": `hena/${InstallationVersion}`,
+                  ...(typeof credential.metadata?.accountID === "string"
+                    ? { "ChatGPT-Account-ID": credential.metadata.accountID }
+                    : {}),
+                },
+                ...(isOpenAIEndpoint(resolved.api.url)
+                  ? { endpoint: { baseURL: "https://chatgpt.com/backend-api/codex" } }
+                  : {}),
+              }
+            : {}),
           auth: key === undefined ? Auth.none : Auth.bearer(key),
           providerOptions:
             resolved.capabilities.reasoning === true

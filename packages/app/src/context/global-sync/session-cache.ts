@@ -12,10 +12,12 @@ export const SESSION_CACHE_LIMIT = 40
 
 type SessionCache = {
   session_status: Record<string, SessionStatus | undefined>
+  execution_error: Record<string, string | undefined>
   session_diff: Record<string, SnapshotFileDiff[] | undefined>
   todo: Record<string, Todo[] | undefined>
   message: Record<string, Message[] | undefined>
   part: Record<string, Part[] | undefined>
+  part_order?: Record<string, string[] | undefined>
   permission: Record<string, PermissionRequest[] | undefined>
   question: Record<string, QuestionRequest[] | undefined>
   part_text_accum_delta: Record<string, string | undefined>
@@ -32,13 +34,16 @@ export function dropSessionCaches(store: SessionCache, sessionIDs: Iterable<stri
       delete store.part_text_accum_delta[part.id]
     }
     delete store.part[key]
+    delete store.part_order?.[key]
   }
 
   for (const sessionID of stale) {
+    for (const message of store.message[sessionID] ?? []) delete store.part_order?.[message.id]
     delete store.message[sessionID]
     delete store.todo[sessionID]
     delete store.session_diff[sessionID]
     delete store.session_status[sessionID]
+    delete store.execution_error[sessionID]
     delete store.permission[sessionID]
     delete store.question[sessionID]
   }

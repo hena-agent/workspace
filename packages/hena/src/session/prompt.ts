@@ -56,6 +56,9 @@ import { SessionTable } from "@hena/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@hena/llm"
+import { ProjectAttachState } from "@hena/core/project/attach-state"
+import { InstanceRef } from "@/effect/instance-ref"
+import PROMPT_TITLE from "@/agent/prompt/title.txt"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -70,6 +73,13 @@ const SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES = new Set([
   "image/png",
   "image/webp",
 ])
+
+export function supportsChatPrompt(input: Pick<PromptInput, "parts" | "format">) {
+  return (
+    input.format?.type !== "json_schema" &&
+    input.parts.every((part) => part.type === "text" || (part.type === "file" && part.url.startsWith("data:") && !part.source))
+  )
+}
 
 const STRUCTURED_OUTPUT_DESCRIPTION = `Use this tool to return your final response in the requested structured format.
 
@@ -226,7 +236,7 @@ const layer = Layer.effect(
         .stream({
           agent: ag,
           user: firstInfo,
-          system: [],
+          system: (yield* InstanceState.context).project.mode === "chat" ? [PROMPT_TITLE] : [],
           small: true,
           tools: {},
           model: mdl,
@@ -996,7 +1006,7 @@ const layer = Layer.effect(
         Effect.map((x) => x.flat().map(assign)),
       )
 
-      yield* plugin.trigger(
+      if ((yield* InstanceState.context).project.mode !== "chat") yield* plugin.trigger(
         "chat.message",
         {
           sessionID: input.sessionID,
@@ -1053,6 +1063,12 @@ const layer = Layer.effect(
       "SessionPrompt.prompt",
     )(function* (input: PromptInput) {
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+      const ctx = yield* InstanceState.context
+      if (ctx.project.mode === "chat") {
+        if (ProjectAttachState.isBlocked(ctx.project.id)) return yield* Effect.die("Project is being attached")
+        if (session.projectID !== ctx.project.id) return yield* Effect.die("Session does not belong to this chat project")
+        if (!supportsChatPrompt(input)) return yield* Effect.die("Chat prompts support text and inline attachments only")
+      }
       yield* revert.cleanup(session)
       const message = yield* createUserMessage(input)
       yield* sessions.touch(input.sessionID)
@@ -1081,6 +1097,12 @@ const layer = Layer.effect(
     const runLoop: (sessionID: SessionID) => Effect.Effect<SessionV1.WithParts> = Effect.fn("SessionPrompt.run")(
       function* (sessionID: SessionID) {
         const ctx = yield* InstanceState.context
+        if (ProjectAttachState.isBlocked(ctx.project.id)) return yield* Effect.die("Project is being attached")
+        const unregister = ProjectAttachState.register(
+          ctx.project.id,
+          state.cancel(sessionID).pipe(Effect.provideService(InstanceRef, ctx)),
+        )
+        yield* Effect.addFinalizer(() => Effect.sync(unregister))
         let structured: unknown
         let step = 0
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
@@ -1141,7 +1163,7 @@ const layer = Layer.effect(
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
           const task = tasks.pop()
 
-          if (task?.type === "subtask") {
+          if (task?.type === "subtask" && ctx.project.mode !== "chat") {
             yield* handleSubtask({ task, model, lastUser, sessionID, session, msgs })
             continue
           }
@@ -1177,7 +1199,7 @@ const layer = Layer.effect(
           }
           const maxSteps = agent.steps ?? Infinity
           const isLastStep = step >= maxSteps
-          msgs = yield* SessionReminders.apply({ messages: msgs, agent, session }).pipe(
+          if (ctx.project.mode !== "chat") msgs = yield* SessionReminders.apply({ messages: msgs, agent, session }).pipe(
             Effect.provideService(RuntimeFlags.Service, flags),
             Effect.provideService(FSUtil.Service, fsys),
             Effect.provideService(Session.Service, sessions),
@@ -1252,12 +1274,12 @@ const layer = Layer.effect(
             if (step === 1)
               yield* summary.summarize({ sessionID, messageID: lastUser.id }).pipe(Effect.ignore, Effect.forkIn(scope))
 
-            yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
+            if (ctx.project.mode !== "chat") yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
             const [skills, env, instructions, mcpInstructions, modelMsgs] = yield* Effect.all([
               sys.skills(agent),
               sys.environment(model),
-              instruction.system().pipe(Effect.orDie),
+              ctx.project.mode === "chat" ? Effect.succeed([]) : instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
@@ -1338,6 +1360,7 @@ const layer = Layer.effect(
         yield* compaction.prune({ sessionID }).pipe(Effect.ignore, Effect.forkIn(scope))
         return yield* lastAssistant(sessionID)
       },
+      Effect.scoped,
     )
 
     const loop: (input: LoopInput) => Effect.Effect<SessionV1.WithParts> = Effect.fn("SessionPrompt.loop")(function* (

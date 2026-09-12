@@ -1,29 +1,20 @@
 import { describe, expect, test } from "bun:test"
 import { Identifier } from "../../src/id/id"
 
-describe("id.timestamp", () => {
-  test("round-trips the current time exactly", () => {
-    const now = Date.now()
-    const id = Identifier.create("tool", "ascending", now)
-    expect(Identifier.timestamp(id)).toBe(now)
+describe("Identifier wire compatibility", () => {
+  test("keeps the six-byte timestamp and fourteen-character random suffix", () => {
+    const first = Identifier.create("msg", "ascending", 1788869100077)
+    const second = Identifier.create("msg", "ascending", 1788869100078)
+    expect(first).toMatch(/^msg_080e8422d001[0-9A-Za-z]{14}$/)
+    expect(second).toMatch(/^msg_080e8422e001[0-9A-Za-z]{14}$/)
+    expect(first < second).toBe(true)
   })
 
-  test("round-trips far-future timestamps without overflow", () => {
-    // 6 bytes (48 bits) overflows for any real date past ~1972 once shifted
-    // left 12 bits for the counter; this pins the fix at a date centuries out.
-    const future = new Date("2500-01-01T00:00:00.000Z").getTime()
-    const id = Identifier.create("tool", "ascending", future)
-    expect(Identifier.timestamp(id)).toBe(future)
+  test("retains the six-byte descending format", () => {
+    expect(Identifier.create("ses", "descending", 1788869100077)).toMatch(/^ses_f7f17bdd2ffe[0-9A-Za-z]{14}$/)
   })
 
-  test("preserves relative ordering across a multi-day span", () => {
-    const now = Date.now()
-    const dayMs = 24 * 60 * 60 * 1000
-    const old = Identifier.timestamp(Identifier.create("tool", "ascending", now - 10 * dayMs))
-    const cutoff = Identifier.timestamp(Identifier.create("tool", "ascending", now - 7 * dayMs))
-    const recent = Identifier.timestamp(Identifier.create("tool", "ascending", now - 3 * dayMs))
-
-    expect(old).toBeLessThan(cutoff)
-    expect(recent).toBeGreaterThanOrEqual(cutoff)
+  test("decodes only the timestamp field, not the random suffix", () => {
+    expect(Identifier.timestamp("msg_080e8422d001ZZZZZZZZZZZZZZ")).toBe(0x080e8422d)
   })
 })

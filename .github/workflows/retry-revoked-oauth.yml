@@ -27,7 +27,10 @@ permissions:
 
 jobs:
   retry:
-    if: github.event.workflow_run.conclusion == 'failure'
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      !contains(github.event.workflow_run.display_title, '[skip ci]') &&
+      !contains(github.event.workflow_run.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     steps:
       - name: Rerun once if the failure was a revoked OAuth token

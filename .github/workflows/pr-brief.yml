@@ -24,8 +24,11 @@ concurrency:
 jobs:
   resolve:
     if: >-
-      github.event.action != 'labeled' ||
-      github.event.label.name == 'pr-brief'
+      !contains(github.event.pull_request.title, '[skip ci]') &&
+      (
+        github.event.action != 'labeled' ||
+        github.event.label.name == 'pr-brief'
+      )
     uses: ./.github/workflows/_review-model.yml
     with:
       configuration: brief

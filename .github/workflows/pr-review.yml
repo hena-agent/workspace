@@ -31,8 +31,11 @@ jobs:
   # deliberate human request, so it also works on drafts.
   resolve:
     if: >-
-      (github.event.action == 'labeled' && github.event.label.name == 'pr-review') ||
-      (github.event.action != 'labeled' && github.event.pull_request.draft == false)
+      !contains(github.event.pull_request.title, '[skip ci]') &&
+      (
+        (github.event.action == 'labeled' && github.event.label.name == 'pr-review') ||
+        (github.event.action != 'labeled' && github.event.pull_request.draft == false)
+      )
     uses: ./.github/workflows/_review-model.yml
     with:
       configuration: review

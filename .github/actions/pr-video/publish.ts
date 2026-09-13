@@ -10,8 +10,8 @@ if (!process.env.GH_TOKEN)
     "Set PR_VIDEO_TOKEN to an OAuth/PAT credential with repository write access; GitHub App tokens cannot upload attachments.",
   )
 if (!/^[1-9][0-9]*$/.test(pr)) throw new Error("Invalid PR number")
-const current = Bun.spawnSync(["gh", "api", `repos/${repo}/pulls/${pr}`])
-if (current.exitCode !== 0) throw new Error(current.stderr.toString())
+const current = Bun.spawnSync(["gh", "api", `repos/${repo}/pulls/${pr}`], { timeout: 30_000 })
+if (current.exitCode !== 0) throw new Error(current.stderr.toString() || "GitHub PR lookup failed or timed out.")
 const latest = JSON.parse(current.stdout.toString())
 if (latest.head.sha !== event.pull_request.head.sha || latest.base.sha !== event.pull_request.base.sha) {
   await appendFile(process.env.GITHUB_STEP_SUMMARY!, "Skipping stale recordings: the PR head or base changed.\n")
@@ -41,6 +41,6 @@ const posted = Bun.spawnSync(
     "-",
     ...result.clips.flatMap((clip) => ["--attach", clip]),
   ],
-  { stdin: Buffer.from(body), stdout: "inherit", stderr: "inherit" },
+  { stdin: Buffer.from(body), stdout: "inherit", stderr: "inherit", timeout: 180_000 },
 )
 if (posted.exitCode !== 0) throw new Error("Video upload failed; recordings remain in the workflow artifact.")

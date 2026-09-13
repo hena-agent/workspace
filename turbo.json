@@ -41,6 +41,10 @@
         "$TURBO_ROOT$/.opencode/command/**"
       ],
       "outputs": []
+    },
+    "@hena/script#typecheck": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.github/actions/**"],
+      "outputs": []
     }
   }
 }

@@ -3,14 +3,19 @@ import path from "node:path"
 
 export function gate(text: string) {
   const lines = text.trim().split(/\r?\n/)
+  if (lines.length !== 2 || !/^RECORD: (yes|no)$/.test(lines[0]) || !lines[1].trim()) {
+    return { record: false, reason: "No valid browser eligibility verdict was returned." }
+  }
   return {
-    record: lines[0] === "RECORD: yes" && lines.length === 2 && Boolean(lines[1].trim()),
-    reason: lines[1]?.trim() || "No valid browser eligibility verdict was returned.",
+    record: lines[0] === "RECORD: yes",
+    reason: lines[1].trim(),
   }
 }
 
 // The artifact is model/PR-controlled. Only inspect bounded, regular MP4 files;
 // never accept attachment paths supplied by the model as command arguments.
+// directory locates the downloaded files; returned references intentionally use
+// the publisher's tmp/pr-video path, matching the recorder's Markdown contract.
 export async function prepare(directory: string, text: string) {
   if (!(await lstat(directory)).isDirectory()) throw new Error("Recording directory must be a directory")
   const clips: string[] = []
@@ -36,7 +41,7 @@ export async function prepare(directory: string, text: string) {
     clips.push(`tmp/pr-video/${name}`)
   }
   const referenced = new Set<string>()
-  const body = text.slice(0, 24_000).replace(/!\[[^\]]*\]\(([^)]+)\)/g, (_, reference: string) => {
+  const body = text.replace(/!\[[^\]]*\]\(([^)]+)\)/g, (_, reference: string) => {
     if (clips.includes(reference) && !referenced.has(reference)) {
       referenced.add(reference)
       return `\n\n![](${reference})\n\n`

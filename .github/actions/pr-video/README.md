@@ -16,8 +16,24 @@ Remove and re-add the label to request a new run. Pushes do not start another ru
 
 Both model variables support `provider/model@variant` or `off`. Recorder and gate
 credentials use the provider mapping in `_review-model.yml` (by default
-`OPENCODE_AUTH_JSON` and `OPENCODE_ZEN_AUTH_JSON`, respectively). The app receives
-only the extracted opencode-go API credential, not the recorder credential.
+`OPENCODE_AUTH_JSON` and `OPENCODE_ZEN_AUTH_JSON`, respectively).
+`VIDEO_MODEL=off` disables all video runs. `VIDEO_GATE_MODEL=off` disables automatic
+recordings; explicit label requests still bypass the gate.
+
+## Trust boundary
+
+This workflow trusts contributors who can push branches to this repository.
+Fork PRs and Dependabot PRs are skipped, even with the label. On `pull_request`,
+`github.workflow_sha` is PR-influenced workflow code, not a trusted base snapshot.
+Changing checkout refs alone would not make the workflow safe for hostile authors.
+
+The app/build and recorder run as the same OS user. The workflow passes only the
+extracted opencode-go credential to the app's environment, but app processes can
+still read recorder credentials from the shared filesystem after OpenCode setup.
+Starting the app first does not provide credential isolation. The separate publish
+job keeps `PR_VIDEO_TOKEN` out of the app/recorder job; it is not a sandbox for
+malicious workflow changes. The recorder reads a separate sanitized source view,
+so stripping instructions and materializing symlinks does not alter the running app.
 
 **GitHub App installation tokens and `GITHUB_TOKEN` cannot upload attachments.**
 GitHub CLI 2.99+ checks this explicitly. `PR_VIDEO_TOKEN` is used only by the
@@ -40,9 +56,11 @@ publishing and leave the recordings available as a workflow artifact.
 - At most eight H.264 MP4 clips, each at 60 fps, at most 20 seconds, and **strictly
   under 10,000,000 bytes**. The publisher verifies media metadata and file sizes,
   rejects symlinks/non-files, reconciles references, and explains omitted clips.
-- Gate rejection produces only a job summary. A human request with no clips gets
+- Gate rejection (or invalid/error output) produces only a job summary and diagnostic
+  artifact; it never schedules the paid recorder. A human request with no clips gets
   a short explanation comment. Build/boot failure is a failed check. Model timeouts
-  preserve finalized clips; recordings and failure logs are retained for seven days.
+  preserve finalized clips; recordings, gate/recorder event logs, and server logs
+  are retained for seven days, including handled failures that leave the job green.
 
 The browser-automation command permits only localhost navigation and asks the
 agent to select only `opencode/muse-spark-1.3-contributor-free` for app model calls,

@@ -17,7 +17,8 @@ OPENCODE_PERMISSION=$(jq -cn --arg pr "$PR" --arg command "$COMMAND" '
     skill: {"*": "deny"},
     bash: {"*": "deny", ("gh pr view " + $pr): "allow", ("gh pr diff " + $pr): "allow"}
   } | if $command == "pr-video" then
-    .skill["agent-browser"] = "allow" | .bash["agent-browser *"] = "allow"
+    .skill["agent-browser"] = "allow" | .bash["agent-browser *"] = "allow" |
+    .read = {"*": "allow", "*tmp/pr-video-target/*": "deny"}
   else . end
 ')
 export OPENCODE_PERMISSION

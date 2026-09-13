@@ -14,6 +14,8 @@ permissions:
   pull-requests: read
 
 concurrency:
+  # Unrelated label events get a unique group so they cannot cancel a video run.
+  # Open events and explicit pr-video requests supersede previous active runs.
   group: pr-video-${{ github.event.pull_request.number }}-${{ github.event.action == 'labeled' && github.event.label.name != 'pr-video' && github.run_id || 'active' }}
   cancel-in-progress: true
 
@@ -72,6 +74,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
         run: bash .github/actions/pr-video/run.sh pr-video-gate "$PR"
+      - name: Upload gate diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-video-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pr-video.ndjson
+          if-no-files-found: ignore
+          retention-days: 7
 
   record:
     needs: [resolve, gate]
@@ -109,6 +119,16 @@ jobs:
         with:
           directory: tmp/pr-video-target
           opencode-go-auth-json: ${{ secrets.OPENCODE_GO_AUTH_JSON }}
+      # Keep the running app intact: sanitizing its files could change the very
+      # behavior being recorded. The agent gets a separate passive source view.
+      - name: Checkout recorder source data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: tmp/pr-video-source
+          persist-credentials: false
+      - name: Sanitize recorder source data
+        run: bash .github/actions/run-opencode/sanitize-review-checkout.sh tmp/pr-video-source
       # Browser and app setup precede even OpenCode's model verification command.
       - name: Set up OpenCode recorder
         uses: ./.github/actions/setup-opencode
@@ -149,18 +169,22 @@ jobs:
           path: tmp/pr-video/
           if-no-files-found: ignore
           retention-days: 7
-      - name: Upload server log
-        if: failure()
+      - name: Upload recorder diagnostics
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: pr-video-server-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/pr-video-server.log
+          name: pr-video-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/pr-video.ndjson
+            ${{ runner.temp }}/pr-video-server.log
           if-no-files-found: ignore
           retention-days: 7
 
   publish:
     needs: [resolve, record]
-    if: needs.record.outputs.ready == 'true'
+    if: >-
+      !cancelled() && needs.record.result == 'success' &&
+      needs.record.outputs.ready == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

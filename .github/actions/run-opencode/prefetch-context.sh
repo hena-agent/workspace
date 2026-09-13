@@ -29,14 +29,6 @@ if ! gh pr diff "$PR_NUMBER" > "$REVIEW_CONTEXT/diff" 2> "$REVIEW_CONTEXT/diff-e
   git diff --no-ext-diff --find-renames "$MERGE_BASE_SHA" "$HEAD_SHA" > "$REVIEW_CONTEXT/diff"
 fi
 
-read -r CURRENT_HEAD CURRENT_BASE < <(
-  gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '[.head.sha, .base.sha] | @tsv'
-)
-if [ "$CURRENT_HEAD" != "$HEAD_SHA" ] || [ "$CURRENT_BASE" != "$BASE_SHA" ]; then
-  echo "::error::Pull request changed while collecting context; rerun for its current head."
-  exit 1
-fi
-
 # These variables expand when OpenCode invokes the generated wrapper.
 # shellcheck disable=SC2016
 printf '%s\n' \

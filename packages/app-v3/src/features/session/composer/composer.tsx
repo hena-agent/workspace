@@ -35,6 +35,7 @@ const MAX_TOTAL_ATTACHMENT_BYTES = 20 * 1024 * 1024
 const ATTACHMENT_ERROR = "Each attachment must be 5 MiB or smaller and attachments must total 20 MiB or less."
 
 type ComposerProps = {
+  serverUrl?: string
   agents: Agent[]
   models: Model[]
   providers: Provider[]
@@ -66,6 +67,7 @@ export function Composer(props: ComposerProps) {
 }
 
 function ComposerForm({
+  serverUrl,
   agents,
   models,
   providers,
@@ -304,6 +306,7 @@ function ComposerForm({
       <PromptInputFooter>
         <PromptInputTools>
           <AgentModelPicker
+            serverUrl={serverUrl}
             agents={agents}
             models={models}
             providers={providers}

@@ -31,6 +31,7 @@ function NewSessionRoute() {
 
   return (
     <NewSessionView
+      serverUrl={agent?.url}
       project={project}
       agents={catalog.agents}
       models={catalog.models}

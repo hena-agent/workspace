@@ -6,6 +6,7 @@ import { resolveModel } from "@/lib/model"
 import { resolveAgent } from "@/lib/agent"
 
 export function NewSessionView({
+  serverUrl,
   project,
   agents,
   models,
@@ -18,6 +19,7 @@ export function NewSessionView({
   onDraftChange,
   onFindFiles,
 }: {
+  serverUrl?: string
   project: { name: string; path: string }
   agents: Agent[]
   models: Model[]
@@ -59,6 +61,7 @@ export function NewSessionView({
       </div>
       <div className="w-full">
         <Composer
+          serverUrl={serverUrl}
           agents={agents}
           models={models}
           providers={providers}

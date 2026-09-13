@@ -107,6 +107,7 @@ function clearConnectionStorage(storage: Storage, url: string) {
     key === `hena.seen.v1.${slug}` || // legacy key, replaced by hena.recent.v1
     key === `hena.drafts.v1.${slug}` ||
     key === `hena.project-order.v1.${slug}` ||
+    key === `hena.model-visibility.v1.${slug}` ||
     key.startsWith(`hena.draft.v1.${slug}.`),
   )
   keysToRemove.forEach((key) => storage.removeItem(key))

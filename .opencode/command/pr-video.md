@@ -17,8 +17,11 @@ Read/glob tools can inspect source and recordings. All output directories exist.
 Load the agent-browser skill, then `agent-browser skills get core`. Use this CLI
 for all browser interaction. Stay on localhost. The workflow already configured
 a unique browser session; keep it for every command. If model-backed flows are
-enabled, select only opencode-go / ox-alpha-free in the app's model picker. Never use a
-paid model in the app, expose credentials, or record provider settings/API keys.
+enabled, select only `opencode/muse-spark-1.3-contributor-free` in the app's model
+picker (provider `opencode`, model `muse-spark-1.3-contributor-free`). This is the
+only free model. If it is unavailable, report model-dependent paths as unavailable;
+never substitute another model. Never expose credentials or record provider
+settings/API keys.
 If disabled, report model-dependent paths as unavailable instead of inventing
 results. The recorder's own model credentials are not app credentials.
 

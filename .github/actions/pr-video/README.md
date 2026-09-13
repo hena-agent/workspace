@@ -45,7 +45,8 @@ publishing and leave the recordings available as a workflow artifact.
   preserve finalized clips; recordings and failure logs are retained for seven days.
 
 The browser-automation command permits only localhost navigation and asks the
-agent to select `opencode-go/ox-alpha-free` for app model calls. Missing app auth
+agent to select only `opencode/muse-spark-1.3-contributor-free` for app model calls,
+with no fallback to another model if it is unavailable. Missing app auth
 disables those paths without preventing other UI recordings. Paths that cannot be
 demonstrated or fit within the recording budget must be listed as unrecorded.
 

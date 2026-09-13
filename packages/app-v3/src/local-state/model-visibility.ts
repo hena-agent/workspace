@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from "react"
+import { useSyncExternalStore } from "react"
 import { Option, Schema } from "effect"
 import { modelKey } from "@/lib/model"
 import { encodeServerSlug } from "@/lib/server-url"
@@ -10,7 +10,7 @@ const decode = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Array(Sch
 export function useModelVisibility(url: string | undefined) {
   const key = url ? `hena.model-visibility.v1.${encodeServerSlug(url)}` : undefined
   const snapshot = useSyncExternalStore(subscribe, () => (key ? localStorage.getItem(key) : null), () => null)
-  const hidden = useMemo(() => readHidden(snapshot), [snapshot])
+  const hidden = readHidden(snapshot)
 
   return {
     visible: (model: ModelRef) => !hidden.has(modelKey(model)),
@@ -18,8 +18,8 @@ export function useModelVisibility(url: string | undefined) {
       if (!key) return
       const next = readHidden(localStorage.getItem(key))
       models.forEach((model) => {
-        if (visible) next.delete(modelKey(model))
-        if (!visible) next.add(modelKey(model))
+        if (visible) return next.delete(modelKey(model))
+        next.add(modelKey(model))
       })
       localStorage.setItem(key, JSON.stringify([...next]))
       listeners.forEach((listener) => listener())

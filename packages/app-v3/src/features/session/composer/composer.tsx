@@ -103,7 +103,6 @@ function ComposerForm({
   const text = controller.textInput.value
   const mention = text.slice(0, selection.start).match(/(?:^|\s)@([^\s]*)$/)?.[1]
   const attachmentCount = attachments.files.length + mentionedFiles.length
-  const stoppingControl = Boolean(working && onStop)
 
   useEffect(() => {
     if (mention === undefined || !onFindFiles) return
@@ -220,42 +219,14 @@ function ComposerForm({
       onSubmitCapture={() => setSubmitting(true)}
       onSubmit={submit}
     >
-      {attachmentCount > 0 || droppedAttachments > 0 || error ? (
-        <PromptInputHeader className="flex-col items-stretch">
-          {attachmentCount > 0 ? (
-            <Attachments variant="inline">
-              {attachments.files.map((file) => (
-                <Attachment
-                  key={file.id}
-                  data={file}
-                  onRemove={() => removeAttachment(file.id)}
-                >
-                  <AttachmentPreview />
-                  <AttachmentInfo />
-                  <AttachmentRemove disabled={submitting} label={`Remove ${file.filename ?? "attachment"}`} className="opacity-100" />
-                </Attachment>
-              ))}
-              {mentionedFiles.map((file) => (
-                <Attachment
-                  key={file.uri}
-                  data={{ id: file.uri, type: "file", filename: file.name, mediaType: "application/octet-stream", url: file.uri }}
-                  onRemove={() => removeMention(file.uri)}
-                >
-                  <AttachmentPreview />
-                  <AttachmentInfo />
-                  <AttachmentRemove disabled={submitting} label={`Remove ${file.name ?? "attachment"}`} className="opacity-100" />
-                </Attachment>
-              ))}
-            </Attachments>
-          ) : null}
-          {droppedAttachments > 0 && attachmentCount === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              {droppedAttachments} attachment{droppedAttachments === 1 ? " was" : "s were"} not restored after reload.
-            </p>
-          ) : null}
-          {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
-        </PromptInputHeader>
-      ) : null}
+      <ComposerHeader
+        mentionedFiles={mentionedFiles}
+        droppedAttachments={droppedAttachments}
+        error={error}
+        submitting={submitting}
+        onRemoveAttachment={removeAttachment}
+        onRemoveMention={removeMention}
+      />
       <PromptInputBody>
         <InputGroupTextarea
           aria-label="Message"
@@ -327,16 +298,90 @@ function ComposerForm({
             </PromptInputActionMenuContent>
           </PromptInputActionMenu>
         </PromptInputTools>
-        <PromptInputSubmit
-          status={stoppingControl ? "streaming" : undefined}
+        <ComposerSubmit
+          working={working}
           onStop={onStop}
-          variant={stoppingControl ? "destructive" : "default"}
-          aria-label={stoppingControl ? (stopping ? "Stopping session" : "Stop session") : "Send message"}
-          disabled={stopping || submitting || (!stoppingControl && (disabled || text.trim().length === 0))}
-          className="hit-area"
+          stopping={stopping}
+          disabled={disabled}
+          submitting={submitting}
+          text={text}
         />
       </PromptInputFooter>
     </PromptInput>
     </div>
+  )
+}
+
+function ComposerSubmit({
+  working,
+  onStop,
+  stopping,
+  disabled,
+  submitting,
+  text,
+}: Pick<ComposerProps, "working" | "onStop" | "stopping" | "disabled"> & { submitting: boolean; text: string }) {
+  const stoppingControl = Boolean(working && onStop)
+  return (
+    <PromptInputSubmit
+      status={stoppingControl ? "streaming" : undefined}
+      onStop={onStop}
+      variant={stoppingControl ? "destructive" : "default"}
+      aria-label={stoppingControl ? (stopping ? "Stopping session" : "Stop session") : "Send message"}
+      disabled={stopping || submitting || (!stoppingControl && (disabled || text.trim().length === 0))}
+      className="hit-area"
+    />
+  )
+}
+
+function ComposerHeader({
+  mentionedFiles,
+  droppedAttachments,
+  error,
+  submitting,
+  onRemoveAttachment,
+  onRemoveMention,
+}: {
+  mentionedFiles: AttachedFile[]
+  droppedAttachments: number
+  error: string
+  submitting: boolean
+  onRemoveAttachment: (id: string) => void
+  onRemoveMention: (uri: string) => void
+}) {
+  const attachments = usePromptInputAttachments()
+  const attachmentCount = attachments.files.length + mentionedFiles.length
+  if (attachmentCount === 0 && droppedAttachments === 0 && !error) return null
+
+  return (
+    <PromptInputHeader className="flex-col items-stretch">
+      {attachmentCount > 0 ? (
+        <Attachments variant="inline">
+          {attachments.files.map((file) => (
+            <Attachment key={file.id} data={file} onRemove={() => onRemoveAttachment(file.id)}>
+              <AttachmentPreview />
+              <AttachmentInfo />
+              <AttachmentRemove disabled={submitting} label={`Remove ${file.filename ?? "attachment"}`} className="opacity-100" />
+            </Attachment>
+          ))}
+          {mentionedFiles.map((file) => (
+            <Attachment
+              key={file.uri}
+              data={{ id: file.uri, type: "file", filename: file.name, mediaType: "application/octet-stream", url: file.uri }}
+              onRemove={() => onRemoveMention(file.uri)}
+            >
+              <AttachmentPreview />
+              <AttachmentInfo />
+              <AttachmentRemove disabled={submitting} label={`Remove ${file.name ?? "attachment"}`} className="opacity-100" />
+            </Attachment>
+          ))}
+        </Attachments>
+      ) : null}
+      {droppedAttachments > 0 && attachmentCount === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          {droppedAttachments} attachment{droppedAttachments === 1 ? " was" : "s were"} not restored after reload.
+        </p>
+      ) : null}
+      {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
+    </PromptInputHeader>
   )
 }

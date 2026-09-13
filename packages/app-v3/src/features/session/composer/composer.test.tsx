@@ -8,6 +8,7 @@ import { agents, models, providers } from "@/test/fixtures"
 const originalMatchMedia = window.matchMedia
 afterEach(() => {
   window.matchMedia = originalMatchMedia
+  localStorage.clear()
 })
 
 function setup(sent: string[], hasFinePointer = true, queued: string[] = []) {
@@ -28,6 +29,34 @@ function setup(sent: string[], hasFinePointer = true, queued: string[] = []) {
 }
 
 describe("Composer", () => {
+  test("uses its server's model visibility preferences", async () => {
+    const user = userEvent.setup()
+    const props = {
+      providers,
+      agents,
+      models,
+      agentId: agents[0].id,
+      model: models[0],
+      onChangeAgent: () => {},
+      onChangeModel: () => {},
+      onSend: () => {},
+      onQueue: () => {},
+    }
+    const view = render(<Composer {...props} serverUrl="https://one.example" />)
+
+    await user.click(screen.getByRole("button", { name: "Model" }))
+    await user.click(screen.getByRole("button", { name: "Manage Models" }))
+    await user.click(screen.getByRole("switch", { name: models[1].name }))
+    await user.keyboard("{Escape}")
+    await user.click(screen.getByRole("button", { name: "Model" }))
+    expect(screen.queryByRole("option", { name: models[1].name })).not.toBeInTheDocument()
+
+    await user.keyboard("{Escape}")
+    view.rerender(<Composer {...props} serverUrl="https://two.example" />)
+    await user.click(screen.getByRole("button", { name: "Model" }))
+    expect(screen.getByRole("option", { name: models[1].name })).toBeVisible()
+  })
+
   test("the send button is disabled until there is text", async () => {
     const user = userEvent.setup()
     setup([])

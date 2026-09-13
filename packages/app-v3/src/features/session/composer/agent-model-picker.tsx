@@ -85,6 +85,7 @@ export function AgentModelPicker({
           align="start"
           className="max-h-(--radix-popover-content-available-height) w-80 max-w-(--radix-popover-content-available-width) overflow-hidden p-0"
           onCloseAutoFocus={(event) => {
+            // Let the management dialog take focus instead of restoring this popover's trigger.
             if (open === "manage") event.preventDefault()
           }}
         >
@@ -198,7 +199,7 @@ function ManageModelsContent({
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />
-      <div className="min-h-0 scroll-pt-12 overflow-y-auto" aria-label="Model visibility">
+      <div role="group" className="min-h-0 scroll-pt-12 overflow-y-auto" aria-label="Model visibility">
         {groups.length === 0 ? (
           <Empty role="status">
             <EmptyHeader>

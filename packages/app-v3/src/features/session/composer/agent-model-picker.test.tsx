@@ -17,6 +17,7 @@ describe("AgentModelPicker", () => {
     await user.click(trigger)
     await user.click(screen.getByRole("button", { name: "Manage Models" }))
     const dialog = screen.getByRole("dialog", { name: "Manage Models" })
+    expect(within(dialog).getByRole("group", { name: "Model visibility" })).toBeInTheDocument()
     expect(screen.queryByRole("dialog", { name: "Select model" })).not.toBeInTheDocument()
     expect(within(dialog).getByRole("searchbox", { name: "Search models" })).toHaveFocus()
     await user.click(within(dialog).getByRole("switch", { name: models[0].name }))

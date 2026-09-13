@@ -8,7 +8,9 @@ import { Cause, Effect, Exit, Fiber } from "effect"
 import { bootstrap as cliBootstrap } from "../../src/cli/bootstrap"
 import { InstanceBootstrap } from "../../src/project/bootstrap"
 import { InstanceStore } from "../../src/project/instance-store"
+import { Global } from "../../src/global"
 import { disposeAllInstances, tmpdirScoped } from "../fixture/fixture"
+import { markPluginDependenciesReady } from "../fixture/plugin"
 import { testEffect } from "../lib/effect"
 import { waitGlobalBusEvent } from "../server/global-bus"
 
@@ -32,6 +34,8 @@ afterEach(async () => {
 
 const bootstrapFixture = Effect.gen(function* () {
   const dir = yield* tmpdirScoped({ git: true })
+  // This local plugin has no dependencies. Bootstrap must not wait on an npm registry install.
+  yield* Effect.promise(() => markPluginDependenciesReady(Global.Path.config))
   const marker = path.join(dir, "config-hook-fired")
   const pluginFile = path.join(dir, "plugin.ts")
   yield* Effect.promise(() =>

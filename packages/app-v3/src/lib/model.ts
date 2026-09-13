@@ -1,5 +1,9 @@
 import type { ModelRef } from "./types"
 
+export function modelKey(model: ModelRef) {
+  return JSON.stringify([model.providerId, model.id])
+}
+
 export function modelFromWire(value: unknown): ModelRef | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined
   if (!("id" in value) || !("providerID" in value)) return undefined

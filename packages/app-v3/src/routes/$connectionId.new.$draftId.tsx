@@ -50,6 +50,7 @@ function NewProjectSessionRoute() {
 
   return (
     <NewSessionView
+      serverUrl={agent.url}
       project={{ name: directory.split(/[\\/]/).filter(Boolean).at(-1) || directory, path: directory }}
       agents={catalog.agents}
       models={catalog.models}

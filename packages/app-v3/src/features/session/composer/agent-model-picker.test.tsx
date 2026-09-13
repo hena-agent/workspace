@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
 import userEvent from "@testing-library/user-event"
 import { render, screen, within } from "@/test/test-utils"
 import { AgentModelPicker } from "./agent-model-picker"
@@ -6,6 +6,88 @@ import { agents, models, providers } from "@/test/fixtures"
 import type { Model, ModelRef, Provider } from "@/lib/types"
 
 describe("AgentModelPicker", () => {
+  afterEach(() => localStorage.clear())
+
+  test("manages model visibility from the dropdown and restores focus to the model button", async () => {
+    const user = userEvent.setup()
+    render(<AgentModelPicker agents={agents} models={models} providers={providers} agentId={agents[0].id}
+      model={models[0]} serverUrl="https://models.example" onChangeAgent={() => {}} onChangeModel={() => {}} />)
+
+    const trigger = screen.getByLabelText("Model")
+    await user.click(trigger)
+    await user.click(screen.getByRole("button", { name: "Manage Models" }))
+    const dialog = screen.getByRole("dialog", { name: "Manage Models" })
+    expect(within(dialog).getByRole("group", { name: "Model visibility" })).toBeInTheDocument()
+    expect(screen.queryByRole("dialog", { name: "Select model" })).not.toBeInTheDocument()
+    expect(within(dialog).getByRole("searchbox", { name: "Search models" })).toHaveFocus()
+    await user.click(within(dialog).getByRole("switch", { name: models[0].name }))
+    await user.keyboard("{Escape}")
+    expect(trigger).toHaveFocus()
+    expect(trigger).toHaveTextContent(models[0].name)
+    await user.click(trigger)
+    expect(screen.queryByRole("option", { name: models[0].name })).not.toBeInTheDocument()
+    expect(screen.getByRole("option", { selected: true })).toHaveTextContent(models[1].name)
+  })
+
+  test("opens a non-modal searchable dropdown and dismisses on outside interaction", async () => {
+    const user = userEvent.setup()
+    render(<>
+      <AgentModelPicker agents={agents} models={models} providers={providers} agentId={agents[0].id}
+        model={models[0]} onChangeAgent={() => {}} onChangeModel={() => {}} />
+      <button type="button">Outside</button>
+    </>)
+
+    await user.click(screen.getByLabelText("Model"))
+    expect(screen.getByRole("dialog", { name: "Select model" })).not.toHaveAttribute("aria-modal", "true")
+    expect(screen.getByRole("combobox", { name: "Search models" })).toHaveFocus()
+    await user.click(screen.getByRole("button", { name: "Outside" }))
+    expect(screen.queryByRole("combobox", { name: "Search models" })).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Outside" })).toHaveFocus()
+  })
+
+  test("provider switches affect all models while searching and an empty picker can be restored", async () => {
+    const user = userEvent.setup()
+    render(<AgentModelPicker agents={agents} models={models} providers={providers} agentId={agents[0].id}
+      model={models[0]} serverUrl="https://models.example" onChangeAgent={() => {}} onChangeModel={() => {}} />)
+
+    await user.click(screen.getByLabelText("Model"))
+    await user.click(screen.getByRole("button", { name: "Manage Models" }))
+    const search = screen.getByRole("searchbox", { name: "Search models" })
+    await user.type(search, "sonnet")
+    expect(screen.queryByRole("switch", { name: models[1].name })).not.toBeInTheDocument()
+    await user.click(screen.getByRole("switch", { name: "All Anthropic models" }))
+    await user.clear(search)
+    expect(screen.getByRole("switch", { name: models[0].name })).not.toBeChecked()
+    expect(screen.getByRole("switch", { name: models[1].name })).not.toBeChecked()
+    await user.click(screen.getByRole("switch", { name: "All OpenAI models" }))
+    await user.click(screen.getByRole("switch", { name: "All Google models" }))
+    await user.keyboard("{Escape}")
+    await user.click(screen.getByLabelText("Model"))
+    expect(screen.getByText("No models found.")).toBeVisible()
+    await user.click(screen.getByRole("button", { name: "Manage Models" }))
+    await user.type(screen.getByRole("searchbox", { name: "Search models" }), "open ai")
+    expect(screen.getByRole("switch", { name: "GPT-5.2" })).not.toBeChecked()
+    await user.click(screen.getByRole("switch", { name: "GPT-5.2" }))
+    expect(screen.getByRole("switch", { name: "All OpenAI models" })).toBeChecked()
+    await user.keyboard("{Escape}")
+    await user.click(screen.getByLabelText("Model"))
+    expect(screen.getAllByRole("option")).toHaveLength(1)
+    expect(screen.getByRole("option")).toHaveTextContent("GPT-5.2")
+  })
+
+  test("opens Manage Models with the keyboard without selecting a model", async () => {
+    const user = userEvent.setup()
+    const changed: ModelRef[] = []
+    render(<AgentModelPicker agents={agents} models={models} providers={providers} agentId={agents[0].id}
+      model={models[0]} serverUrl="https://models.example" onChangeAgent={() => {}} onChangeModel={(model) => changed.push(model)} />)
+    await user.click(screen.getByLabelText("Model"))
+    await user.tab()
+    expect(screen.getByRole("button", { name: "Manage Models" })).toHaveFocus()
+    await user.keyboard("{Enter}")
+    expect(screen.getByRole("dialog", { name: "Manage Models" })).toBeInTheDocument()
+    expect(changed).toEqual([])
+  })
+
   test("shows the currently selected agent and model", () => {
     render(
       <AgentModelPicker

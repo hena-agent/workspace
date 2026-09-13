@@ -21,6 +21,7 @@ import { SessionTranscriptHeader } from "./session-transcript-header"
 import type { DraftBody } from "@/local-state/drafts"
 
 export function SessionTranscriptView({
+  serverUrl,
   session,
   messages,
   messagesReady,
@@ -53,6 +54,7 @@ export function SessionTranscriptView({
   stopping,
   mutationNotice,
 }: {
+  serverUrl?: string
   session: Session
   messages: SessionMessage[]
   messagesReady: boolean
@@ -132,6 +134,7 @@ export function SessionTranscriptView({
           />
         ) : null}
         <Composer
+          serverUrl={serverUrl}
           agents={agents}
           models={models}
           providers={providers}

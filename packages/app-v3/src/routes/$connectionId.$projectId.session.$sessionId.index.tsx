@@ -132,6 +132,7 @@ function SessionTranscript({
     <div className="flex h-full w-full min-w-0">
       <div className="min-w-0 flex-1">
         <SessionTranscriptView
+          serverUrl={agent?.url}
           session={session}
           messages={transcript.messages}
           messagesReady={transcript.ready}

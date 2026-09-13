@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       configuration:
-        description: Configuration to resolve (review, brief, scan, or resolve)
+        description: Configuration to resolve (review, brief, video, video-gate, scan, or resolve)
         required: true
         type: string
     outputs:
@@ -69,6 +69,8 @@ jobs:
           CONFIGURATION: ${{ inputs.configuration }}
           RAW_REVIEW_MODELS: ${{ vars.REVIEW_MODELS }}
           RAW_BRIEF_MODEL: ${{ vars.BRIEF_MODEL }}
+          RAW_VIDEO_MODEL: ${{ vars.VIDEO_MODEL }}
+          RAW_VIDEO_GATE_MODEL: ${{ vars.VIDEO_GATE_MODEL }}
           RAW_SCAN_MODEL: ${{ vars.SCAN_MODEL }}
           RAW_RESOLVE_MODEL: ${{ vars.RESOLVE_MODEL }}
           RAW_OPENCODE_VERSION: ${{ vars.REVIEWER_OPENCODE_VERSION }}
@@ -107,6 +109,8 @@ jobs:
           CONFIGURATIONS=$(jq -nc \
             --arg review "$RAW_REVIEW_MODELS" \
             --arg brief "$RAW_BRIEF_MODEL" \
+            --arg video "$RAW_VIDEO_MODEL" \
+            --arg video_gate "$RAW_VIDEO_GATE_MODEL" \
             --arg scan "$RAW_SCAN_MODEL" \
             --arg resolve "$RAW_RESOLVE_MODEL" '
             {
@@ -120,6 +124,18 @@ jobs:
                 variable: "BRIEF_MODEL",
                 raw: $brief,
                 default: "opencode-go/ox-alpha-free@max",
+                multiple: false
+              },
+              video: {
+                variable: "VIDEO_MODEL",
+                raw: $video,
+                default: "anthropic/claude-sonnet-5@max",
+                multiple: false
+              },
+              "video-gate": {
+                variable: "VIDEO_GATE_MODEL",
+                raw: $video_gate,
+                default: "opencode/muse-spark-1.3-contributor-free@xhigh",
                 multiple: false
               },
               scan: {
@@ -239,7 +255,8 @@ jobs:
             PRIVATE_KEY_SECRET=$(jq -r --arg provider "$PROVIDER" '.[$provider].private_key_secret' <<< "$MODEL_CONFIG")
             CLIENT_ID_VAR="${CONFIG_CLIENT_ID_VAR:-$CLIENT_ID_VAR}"
             PRIVATE_KEY_SECRET="${CONFIG_PRIVATE_KEY_SECRET:-$PRIVATE_KEY_SECRET}"
-            if ! jq -e --arg name "$CLIENT_ID_VAR" '.[$name] | type == "string" and length > 0' <<< "$VARS_JSON" >/dev/null; then
+            # Video publishing uses a separate PAT/OAuth token, and its gate never publishes.
+            if [[ "$CONFIGURATION" != video && "$CONFIGURATION" != video-gate ]] && ! jq -e --arg name "$CLIENT_ID_VAR" '.[$name] | type == "string" and length > 0' <<< "$VARS_JSON" >/dev/null; then
               echo "::error::Repository variable $CLIENT_ID_VAR is empty. Register the GitHub App selected by configuration '$CONFIGURATION' before using provider '$PROVIDER'."
               exit 1
             fi

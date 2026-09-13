@@ -1,0 +1,56 @@
+name: Serve App V3 for PR videos
+description: Build and start the PR's full-stack App V3 before browser automation.
+inputs:
+  directory:
+    description: Credential-free PR head checkout
+    required: true
+  opencode-go-auth-json:
+    description: Optional auth.json containing an opencode-go API credential
+    required: false
+    default: ""
+outputs:
+  model-flows:
+    description: Whether free model-backed app flows are enabled
+    value: ${{ steps.serve.outputs.model-flows }}
+runs:
+  using: composite
+  steps:
+    - name: Install PR dependencies
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      run: bun install --frozen-lockfile
+
+    - name: Build embedded App V3
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      run: bun --cwd packages/app-v3 build:embedded
+
+    - name: Start and await Server V3
+      id: serve
+      shell: bash
+      working-directory: ${{ inputs.directory }}/packages/app-v3
+      env:
+        APP_AUTH: ${{ inputs.opencode-go-auth-json }}
+      run: |
+        set -euo pipefail
+        # e2e/server.ts expects one credential entry, not the auth.json envelope.
+        OPENCODE_GO_AUTH_JSON=''
+        MODEL_FLOWS=disabled
+        if jq -e '.["opencode-go"] | .type == "api" and (.key | type == "string" and test("\\S"))' <<< "$APP_AUTH" >/dev/null 2>&1; then
+          OPENCODE_GO_AUTH_JSON=$(jq -c '.["opencode-go"]' <<< "$APP_AUTH")
+          MODEL_FLOWS=enabled
+        fi
+        unset APP_AUTH
+        export OPENCODE_GO_AUTH_JSON
+        E2E_PORT=4117 bun ./e2e/server.ts > "$RUNNER_TEMP/pr-video-server.log" 2>&1 &
+        echo "$!" > "$RUNNER_TEMP/pr-video-server.pid"
+        for attempt in {1..120}; do
+          if curl --fail --silent http://127.0.0.1:4117/api/collection/capabilities >/dev/null; then
+            echo "model-flows=$MODEL_FLOWS" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          kill -0 "$(<"$RUNNER_TEMP/pr-video-server.pid")" || exit 1
+          sleep 1
+        done
+        echo "::error::Server V3 did not become healthy within 120 seconds."
+        exit 1

@@ -1,0 +1,214 @@
+name: pr-video
+
+# Browser recording executes PR code. Unlike _opencode.yml's github-run path,
+# these read-only jobs use opencode run: no automatic comments, commits or pushes.
+# A separate publisher receives PR_VIDEO_TOKEN, a PAT/OAuth credential with repo
+# write access: gh --attach rejects GitHub App tokens (including GITHUB_TOKEN).
+# VIDEO_MODEL and VIDEO_GATE_MODEL accept provider/model@variant or "off".
+on:
+  pull_request:
+    types: [opened, labeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  # Unrelated label events get a unique group so they cannot cancel a video run.
+  # Open events and explicit pr-video requests supersede previous active runs.
+  group: pr-video-${{ github.event.pull_request.number }}-${{ github.event.action == 'labeled' && github.event.label.name != 'pr-video' && github.run_id || 'active' }}
+  cancel-in-progress: true
+
+jobs:
+  resolve:
+    if: >-
+      (github.event.action == 'opened' && github.event.pull_request.draft == false) ||
+      (github.event.action == 'labeled' && github.event.label.name == 'pr-video')
+    uses: ./.github/workflows/_review-model.yml
+    with:
+      configuration: video
+
+  gate-model:
+    needs: resolve
+    if: needs.resolve.outputs.enabled == 'true' && github.event.action == 'opened'
+    uses: ./.github/workflows/_review-model.yml
+    with:
+      configuration: video-gate
+
+  gate:
+    needs: gate-model
+    if: needs.gate-model.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      record: ${{ steps.gate.outputs.record }}
+    steps:
+      - name: Checkout workflow workspace
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Checkout PR as gate data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: tmp/pr-video-target
+          persist-credentials: false
+      - name: Sanitize gate data
+        run: bash .github/actions/run-opencode/sanitize-review-checkout.sh tmp/pr-video-target
+      - name: Set up OpenCode gate
+        uses: ./.github/actions/setup-opencode
+        with:
+          model: ${{ needs.gate-model.outputs.model }}
+          variant: ${{ needs.gate-model.outputs.variant }}
+          command: pr-video-gate
+          opencode-auth-json: ${{ secrets[needs.gate-model.outputs.auth_secret] }}
+          opencode-version: ${{ needs.gate-model.outputs.opencode_version }}
+          timeout-minutes: 10
+      - name: Check browser eligibility
+        id: gate
+        env:
+          MODEL: ${{ needs.gate-model.outputs.model }}
+          VARIANT: ${{ needs.gate-model.outputs.variant }}
+          JOB_TIMEOUT_MINUTES: "10"
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: bash .github/actions/pr-video/run.sh pr-video-gate "$PR"
+      - name: Upload gate diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-video-gate-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/pr-video.ndjson
+          if-no-files-found: ignore
+          retention-days: 7
+
+  record:
+    needs: [resolve, gate]
+    # An explicit label bypasses the free-model gate, including on draft PRs.
+    if: >-
+      !cancelled() && needs.resolve.outputs.enabled == 'true' &&
+      (github.event.action == 'labeled' || (needs.gate.result == 'success' && needs.gate.outputs.record == 'true'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      ready: ${{ steps.package.outputs.ready }}
+    steps:
+      - name: Reserve time for cleanup and artifact upload
+        run: echo "PR_VIDEO_DEADLINE=$(( $(date +%s) + 40 * 60 ))" >> "$GITHUB_ENV"
+      - name: Checkout workflow workspace
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Set up Bun and dependencies
+        uses: ./.github/actions/setup-bun
+        with:
+          install-flags: --frozen-lockfile
+      - name: Set up browser recording
+        uses: ./.github/actions/setup-agent-browser
+      - name: Checkout exact PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: tmp/pr-video-target
+          persist-credentials: false
+      - name: Serve PR App V3 and Server V3
+        id: serve
+        uses: ./.github/actions/serve-app-v3
+        with:
+          directory: tmp/pr-video-target
+          opencode-go-auth-json: ${{ secrets.OPENCODE_GO_AUTH_JSON }}
+      # Keep the running app intact: sanitizing its files could change the very
+      # behavior being recorded. The agent gets a separate passive source view.
+      - name: Checkout recorder source data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: tmp/pr-video-source
+          persist-credentials: false
+      - name: Sanitize recorder source data
+        run: bash .github/actions/run-opencode/sanitize-review-checkout.sh tmp/pr-video-source
+      # Browser and app setup precede even OpenCode's model verification command.
+      - name: Set up OpenCode recorder
+        uses: ./.github/actions/setup-opencode
+        with:
+          model: ${{ needs.resolve.outputs.model }}
+          variant: ${{ needs.resolve.outputs.variant }}
+          command: pr-video
+          opencode-auth-json: ${{ secrets[needs.resolve.outputs.auth_secret] }}
+          opencode-version: ${{ needs.resolve.outputs.opencode_version }}
+          timeout-minutes: 45
+      - name: Record affected browser paths
+        env:
+          MODEL: ${{ needs.resolve.outputs.model }}
+          VARIANT: ${{ needs.resolve.outputs.variant }}
+          MODEL_FLOWS: ${{ steps.serve.outputs.model-flows }}
+          JOB_TIMEOUT_MINUTES: "45"
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p tmp/pr-video
+          bash .github/actions/pr-video/run.sh pr-video "$PR"
+      - name: Package recorder response
+        id: package
+        run: |
+          cp "$RUNNER_TEMP/pr-video-result.md" tmp/pr-video/result.md
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+      - name: Stop the app
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/pr-video-server.pid" ]; then
+            kill "$(<"$RUNNER_TEMP/pr-video-server.pid")" 2>/dev/null || true
+          fi
+      - name: Upload recordings for publishing and debugging
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-video-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/pr-video/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload recorder diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-video-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/pr-video.ndjson
+            ${{ runner.temp }}/pr-video-server.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    needs: [resolve, record]
+    if: >-
+      !cancelled() && needs.record.result == 'success' &&
+      needs.record.outputs.ready == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout publishing code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+      - name: Install video validation tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          gh pr comment --help | grep -- --attach
+      - name: Download untrusted recordings
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pr-video-${{ github.run_id }}-${{ github.run_attempt }}
+          path: tmp/pr-video
+      - name: Validate and publish one video comment
+        env:
+          GH_TOKEN: ${{ secrets.PR_VIDEO_TOKEN }}
+          MODEL: ${{ needs.resolve.outputs.label }}
+        run: bun .github/actions/pr-video/publish.ts

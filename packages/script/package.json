@@ -3,14 +3,16 @@
   "name": "@hena/script",
   "license": "MIT",
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "typecheck": "bunx --package @typescript/native tsc --noEmit"
   },
   "dependencies": {
     "semver": "catalog:"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
-    "@types/semver": "catalog:"
+    "@types/semver": "catalog:",
+    "@typescript/native": "catalog:"
   },
   "exports": {
     ".": "./src/index.ts"

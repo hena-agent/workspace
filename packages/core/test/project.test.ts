@@ -57,6 +57,20 @@ async function rootCommit(dir: string) {
 }
 
 describe("ProjectV2.createChat", () => {
+  it.live("creates unique managed project IDs", () =>
+    Effect.gen(function* () {
+      const project = yield* ProjectV2.Service
+
+      const first = yield* project.createChat({ name: "First" })
+      const second = yield* project.createChat({ name: "Second" })
+
+      expect(first.id).toMatch(/^prj_[0-9A-Za-z]{26}$/)
+      expect(second.id).not.toBe(first.id)
+      expect(path.basename(first.worktree)).toBe(first.id)
+      expect(path.basename(second.worktree)).toBe(second.id)
+    }),
+  )
+
   it.live("rejects path IDs and symlink storage before changing external directories", () =>
     Effect.gen(function* () {
       const project = yield* ProjectV2.Service

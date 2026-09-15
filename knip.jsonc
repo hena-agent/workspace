@@ -60,11 +60,14 @@
       "entry": [
         "src/**/*.stories.{js,jsx,mjs,ts,tsx}",
         "**/*.test.{ts,tsx}",
+        "src/**/*.fixture.{ts,tsx}",
         "test-browser/**/*.{ts,tsx}",
         "e2e/**/*.spec.ts",
         "e2e/**/playwright*.config.ts",
         "e2e/reproduction/**/*.{ts,tsx}",
       ],
+      // The cold-start fixture resolves the compiler bundled with vite-plugin-solid.
+      "ignoreDependencies": ["@babel/core", "babel-preset-solid"],
       "ignoreUnresolved": ["@/context/global-sync"],
     },
     "packages/app-v3": {

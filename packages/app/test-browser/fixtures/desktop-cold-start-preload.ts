@@ -1,4 +1,3 @@
-import { strict } from "node:assert"
 import { createRequire } from "node:module"
 import { plugin } from "bun"
 
@@ -23,13 +22,9 @@ plugin({
     }))
     build.onLoad({ filter: /\.tsx$/ }, async ({ path }) => {
       const source = await Bun.file(path).text()
-      const previous =
-        process.env.HENA_TEST_OLD_BOOTSTRAP === "1" && path.replaceAll("\\", "/").endsWith("/context/server-sync.tsx")
-      const fixed = 'await queryClient.fetchQuery({ queryKey: [serverSDK.scope, "bootstrap"] })'
-      if (previous) strict.ok(source.includes(fixed), "before-fix transform must match the production await")
       return {
         contents: (
-          await transformAsync(previous ? source.replace(fixed, "await bootstrap.promise") : source, {
+          await transformAsync(source, {
             filename: path,
             presets: [[solid, { generate: "dom", hydratable: false }]],
             parserOpts: { plugins: ["jsx", "typescript"] },

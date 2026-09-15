@@ -15,7 +15,8 @@
     "bench:test": "bun run script/bench-test-suite.ts",
     "profile:test": "bun run script/profile-test-files.ts",
     "build": "bun run script/build.ts",
-    "dev": "bun run --conditions=browser ./src/index.ts"
+    "dev": "bun run --conditions=browser ./src/index.ts",
+    "dev:server": "bun run --conditions=browser ./script/dev-server.ts"
   },
   "bin": {
     "hena": "./bin/hena"

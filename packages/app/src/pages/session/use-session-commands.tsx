@@ -13,12 +13,13 @@ import { useSettings } from "@/context/settings"
 import { useSync } from "@/context/sync"
 import { useTerminal } from "@/context/terminal"
 import { showToast } from "@/utils/toast"
-import { findLast } from "@hena/core/util/array"
 import { createSessionTabs } from "@/pages/session/helpers"
 import { extractPromptFromParts } from "@/utils/prompt"
 import { UserMessage } from "@hena/sdk/v2"
 import { useSessionLayout } from "@/pages/session/session-layout"
 import { createSessionOwnership } from "./session-ownership"
+import { splitAtMessage } from "./message-order"
+import { interruptSession, usesCanonicalSession } from "@/context/session-runtime"
 
 export type SessionCommandContext = {
   navigateMessageByOffset: (offset: number) => void
@@ -64,8 +65,10 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     updateViewport: () => void
   }) => {
     await input.request()
-    input.updatePrompt(input.prompt)
-    input.owner.run(input.updateViewport)
+    input.owner.run(() => {
+      input.updatePrompt(input.prompt)
+      input.updateViewport()
+    })
   }
 
   const info = () => {
@@ -93,13 +96,13 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   const messages = () => {
     const id = params.id
     if (!id) return []
-    return sync().data.message[id] ?? []
+    return sync().session.timeline(id)
   }
   const userMessages = () => messages().filter((m) => m.role === "user") as UserMessage[]
   const visibleUserMessages = () => {
     const revert = info()?.revert?.messageID
     if (!revert) return userMessages()
-    return userMessages().filter((m) => m.id < revert)
+    return splitAtMessage(userMessages(), revert).before
   }
 
   const showAllFiles = () => {
@@ -307,26 +310,33 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     if (!sessionID) return
     const owner = sessionOwnership.capture()
     const client = sdk().client
+    const target = sync()
     const directory = sdk().directory
     const promptSession = prompt.capture()
+    const managedChat = usesCanonicalSession(info(), sync().project?.mode === "chat")
     const revert = info()?.revert?.messageID
     const messages = userMessages()
-    const message = findLast(messages, (x) => !revert || x.id < revert)
+    const message = revert ? splitAtMessage(messages, revert).before.at(-1) : messages.at(-1)
     if (!message) return
     const parts = sync().data.part[message.id]
 
-    if (sync().data.session_working(sessionID)) {
-      await client.session.abort({ sessionID }).catch(() => {})
+    if (!managedChat && sync().data.session_working(sessionID)) {
+      await interruptSession(client, sessionID, info()).catch(() => {})
     }
 
     await runCommand({
       owner,
       prompt: promptSession,
-      request: () => client.session.revert({ sessionID, messageID: message.id }),
+      request: () =>
+        managedChat
+          ? client.v2.session.revert
+              .stage({ sessionID, messageID: message.id, files: false })
+              .then(() => target.session.sync(sessionID, { force: true }))
+          : client.session.revert({ sessionID, messageID: message.id }),
       updatePrompt: (promptSession) => {
         if (parts) promptSession.set(extractPromptFromParts(parts, { directory }))
       },
-      updateViewport: () => setActiveMessage(findLast(messages, (x) => x.id < message.id)),
+      updateViewport: () => setActiveMessage(splitAtMessage(messages, message.id).before.at(-1)),
     })
   }
 
@@ -335,20 +345,26 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     if (!sessionID) return
     const owner = sessionOwnership.capture()
     const client = sdk().client
+    const target = sync()
     const messages = userMessages()
     const promptSession = prompt.capture()
+    const managedChat = usesCanonicalSession(info(), sync().project?.mode === "chat")
 
     const revertMessageID = info()?.revert?.messageID
     if (!revertMessageID) return
 
-    const next = messages.find((x) => x.id > revertMessageID)
+    const boundary = splitAtMessage(messages, revertMessageID)
+    const next = boundary.after[0]
     if (!next) {
       await runCommand({
         owner,
         prompt: promptSession,
-        request: () => client.session.unrevert({ sessionID }),
+        request: () =>
+          managedChat
+            ? client.v2.session.revert.clear({ sessionID }).then(() => target.session.sync(sessionID, { force: true }))
+            : client.session.unrevert({ sessionID }),
         updatePrompt: (promptSession) => promptSession.reset(),
-        updateViewport: () => setActiveMessage(findLast(messages, (x) => x.id >= revertMessageID)),
+        updateViewport: () => setActiveMessage((boundary.at ? [boundary.at, ...boundary.after] : messages).at(-1)),
       })
       return
     }
@@ -356,9 +372,14 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     await runCommand({
       owner,
       prompt: promptSession,
-      request: () => client.session.revert({ sessionID, messageID: next.id }),
+      request: () =>
+        managedChat
+          ? client.v2.session.revert
+              .stage({ sessionID, messageID: next.id, files: false })
+              .then(() => target.session.sync(sessionID, { force: true }))
+          : client.session.revert({ sessionID, messageID: next.id }),
       updatePrompt: () => undefined,
-      updateViewport: () => setActiveMessage(findLast(messages, (x) => x.id < next.id)),
+      updateViewport: () => setActiveMessage(splitAtMessage(messages, next.id).before.at(-1)),
     })
   }
 

@@ -161,6 +161,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                 sessionID: ctx.params.sessionID,
                 id: ctx.payload.id,
                 prompt: ctx.payload.prompt,
+                selection: ctx.payload.selection,
                 delivery: ctx.payload.delivery,
                 resume: ctx.payload.resume,
               })
@@ -188,6 +189,11 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                       resource: error.projectID,
                     }),
                   ),
+                ),
+                Effect.mapError((error) =>
+                  error instanceof SessionNotFoundError || error instanceof ConflictError
+                    ? error
+                    : new InvalidRequestError({ message: error.message }),
                 ),
               ),
           }
@@ -323,6 +329,39 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
             ),
           )
           return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.revert.replace",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session.revert.replace({ ...ctx.params, ...ctx.payload }).pipe(
+              Effect.catch((error) => {
+                const mapped: SessionNotFoundError | ConflictError =
+                  error._tag === "Session.NotFoundError"
+                    ? new SessionNotFoundError({
+                        sessionID: error.sessionID,
+                        message: `Session not found: ${error.sessionID}`,
+                      })
+                    : new ConflictError({
+                        resource: ctx.params.sessionID,
+                        message: error.message,
+                      })
+                return Effect.fail(mapped)
+              }),
+              Effect.catchDefect((cause) => {
+                const ref = `err_${crypto.randomUUID().slice(0, 8)}`
+                return Effect.logError("failed to replace session revert", { cause }).pipe(
+                  Effect.annotateLogs({ ref, sessionID: ctx.params.sessionID, messageID: ctx.payload.messageID }),
+                  Effect.andThen(
+                    Effect.fail(
+                      new UnknownError({ message: "Unexpected server error. Check server logs for details.", ref }),
+                    ),
+                  ),
+                )
+              }),
+            ),
+          }
         }),
       )
       .handle(

@@ -92,7 +92,9 @@ import { TerminalPanel } from "@/pages/session/terminal-panel"
 import { TerminalPanelV2 } from "@/pages/session/terminal-panel-v2"
 import { useComposerCommands } from "@/pages/session/use-composer-commands"
 import { useSessionCommands } from "@/pages/session/use-session-commands"
+import { interruptSession, usesCanonicalSession } from "@/context/session-runtime"
 import { useSessionHashScroll } from "@/pages/session/use-session-hash-scroll"
+import { splitAtMessage } from "@/pages/session/message-order"
 import { Identifier } from "@/utils/id"
 import { diffs as list } from "@/utils/diffs"
 import { Persist, persisted } from "@/utils/persist"
@@ -127,6 +129,7 @@ async function runPromptRollbackMutation<T, R>(input: {
   complete: (result: R) => void
   rollback: () => void
   fail: (error: unknown) => void
+  owner?: { run: <A>(action: () => A) => A | undefined }
 }) {
   const prompt = input.capturePrompt()
   const previous = prompt.current().slice()
@@ -137,9 +140,11 @@ async function runPromptRollbackMutation<T, R>(input: {
     .catch((error) => {
       batch(() => {
         input.rollback()
-        prompt.set(previous)
+        if (input.owner) input.owner.run(() => prompt.set(previous))
+        if (!input.owner) prompt.set(previous)
       })
-      input.fail(error)
+      if (input.owner) input.owner.run(() => input.fail(error))
+      if (!input.owner) input.fail(error)
     })
 }
 
@@ -294,10 +299,20 @@ function TargetSessionPage() {
 function TargetServerScopedProviders(
   props: ParentProps<{ directory?: () => string | undefined; sessionID?: () => string | undefined }>,
 ) {
+  const sync = useServerSync()
+  const managedChat = createMemo(() => {
+    const sessionID = props.sessionID?.()
+    const session = sessionID ? sync().session.lineage.peek(sessionID)?.session : undefined
+    return session
+      ? usesCanonicalSession(session, sync().data.project.some((project) => project.id === session.projectID && project.mode === "chat"))
+      : false
+  })
   return (
     <>
       <MarkSessionNotificationsViewed sessionID={props.sessionID} />
-      <ModelsProvider directory={props.directory}>{props.children}</ModelsProvider>
+      <ModelsProvider directory={props.directory} managedChat={managedChat}>
+        {props.children}
+      </ModelsProvider>
     </>
   )
 }
@@ -374,6 +389,7 @@ export default function Page() {
   const reviewFile = () => view().review.file()
   const sessionOwnership = createSessionOwnership(sessionKey)
   const newSessionDesign = createMemo(() => settings.general.newLayoutDesigns())
+  const managedChat = createMemo(() => sync().project?.mode === "chat")
 
   createEffect(() => {
     if (!prompt.ready()) return
@@ -446,9 +462,9 @@ export default function Page() {
 
   const isDesktop = createMediaQuery("(min-width: 768px)")
   const size = createSizing()
-  const desktopReviewOpen = createMemo(() => isDesktop() && view().reviewPanel.opened())
+  const desktopReviewOpen = createMemo(() => !managedChat() && isDesktop() && view().reviewPanel.opened())
   const desktopV2ReviewOpen = createMemo(() => newSessionDesign() && desktopReviewOpen() && !!params.id)
-  const terminalOpen = createMemo(() => view().terminal.opened())
+  const terminalOpen = createMemo(() => !managedChat() && view().terminal.opened())
   const desktopTerminalOpen = createMemo(() => isDesktop() && terminalOpen())
   const desktopInlineTerminalOnlyOpen = createMemo(
     () => newSessionDesign() && desktopTerminalOpen() && !desktopV2ReviewOpen(),
@@ -456,6 +472,7 @@ export default function Page() {
   const desktopFileTreeOpen = createMemo(
     () =>
       isDesktop() &&
+      !managedChat() &&
       shouldShowFileTree({
         visible: settings.visibility.fileTree(),
         opened: layout.fileTree.opened(),
@@ -1505,6 +1522,7 @@ export default function Page() {
   let treeDir: string | undefined
   createEffect(() => {
     const dir = sdk().directory
+    if (managedChat()) return
     if (!isDesktop()) return
     if (!layout.fileTree.opened()) return
     if (sync().status === "loading") return
@@ -1852,15 +1870,15 @@ export default function Page() {
 
   const halt = (sessionID: string) =>
     busy(sessionID)
-      ? sdk()
-          .client.session.abort({ sessionID })
-          .catch(() => {})
+      ? interruptSession(sdk().client, sessionID, sync().session.get(sessionID)).catch(() => {})
       : Promise.resolve()
 
   const revertMutation = useMutation(() => ({
     mutationFn: async (input: { sessionID: string; messageID: string }) => {
+      const owner = sessionOwnership.capture()
       const client = sdk().client
       const target = sync()
+      const managedChat = usesCanonicalSession(target.session.get(input.sessionID), target.project?.mode === "chat")
       const last = target.session.get(input.sessionID)?.revert
       const value = draft(input.messageID)
       await runPromptRollbackMutation({
@@ -1869,24 +1887,33 @@ export default function Page() {
           roll(input.sessionID, { messageID: input.messageID }, target)
           prompt.set(value)
         },
-        request: () => halt(input.sessionID).then(() => client.session.revert(input)),
-        complete: (result) => {
+        request: async () => {
+          if (managedChat) {
+            await client.v2.session.revert.stage({ sessionID: input.sessionID, messageID: input.messageID, files: false })
+            await target.session.sync(input.sessionID, { force: true })
+            return
+          }
+          const result = await halt(input.sessionID).then(() => client.session.revert(input))
           if (result.data) merge(result.data, target)
         },
+        complete: () => undefined,
         rollback: () => roll(input.sessionID, last, target),
         fail,
+        owner,
       })
     },
   }))
 
   const restoreMutation = useMutation(() => ({
     mutationFn: async (id: string) => {
+      const owner = sessionOwnership.capture()
       const sessionID = params.id
       if (!sessionID) return
 
       const client = sdk().client
       const target = sync()
-      const next = userMessages().find((item) => item.id > id)
+      const managedChat = usesCanonicalSession(target.session.get(sessionID), target.project?.mode === "chat")
+      const next = splitAtMessage(userMessages(), id).after[0]
       const last = target.session.get(sessionID)?.revert
 
       await runPromptRollbackMutation({
@@ -1899,15 +1926,22 @@ export default function Page() {
           }
           promptSession.reset()
         },
-        request: () =>
-          !next
-            ? halt(sessionID).then(() => client.session.unrevert({ sessionID }))
-            : halt(sessionID).then(() => client.session.revert({ sessionID, messageID: next.id })),
-        complete: (result) => {
+        request: async () => {
+          if (managedChat) {
+            if (!next) await client.v2.session.revert.clear({ sessionID })
+            else await client.v2.session.revert.stage({ sessionID, messageID: next.id, files: false })
+            await target.session.sync(sessionID, { force: true })
+            return
+          }
+          const result = !next
+            ? await halt(sessionID).then(() => client.session.unrevert({ sessionID }))
+            : await halt(sessionID).then(() => client.session.revert({ sessionID, messageID: next.id }))
           if (result.data) merge(result.data, target)
         },
+        complete: () => undefined,
         rollback: () => roll(sessionID, last, target),
         fail,
+        owner,
       })
     },
   }))
@@ -1928,8 +1962,8 @@ export default function Page() {
   const rolled = createMemo(() => {
     const id = revertMessageID()
     if (!id) return []
-    return userMessages()
-      .filter((item) => item.id >= id)
+    const boundary = splitAtMessage(userMessages(), id)
+    return (boundary.at ? [boundary.at, ...boundary.after] : [])
       .map((item) => ({ id: item.id, text: line(item.id) }))
   })
 
@@ -2418,7 +2452,7 @@ export default function Page() {
         </Show>
       </div>
 
-      <Show when={!newSessionDesign()}>
+      <Show when={!managedChat() && !newSessionDesign()}>
         <TerminalPanel />
       </Show>
     </SessionRouteFrame>

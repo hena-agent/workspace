@@ -179,6 +179,11 @@ export function combine(values: ReadonlyArray<SystemContext>): SystemContext {
   return context(sources)
 }
 
+/** Selects sources without changing their identity or rendering behavior. */
+export function filter(value: SystemContext, predicate: (key: Key) => boolean): SystemContext {
+  return context(value[ContextTypeId].filter((source) => predicate(source.key)))
+}
+
 const observe = (value: SystemContext) =>
   Effect.forEach(
     value[ContextTypeId],

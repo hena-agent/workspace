@@ -8,6 +8,8 @@ import { State } from "./state"
 export const ID = Agent.ID
 export type ID = typeof ID.Type
 export const defaultID = ID.make("build")
+export const defaultSystem =
+  "You are an AI coding agent. Help the user accomplish software engineering tasks by inspecting the workspace, making targeted changes, and using tools according to the configured permissions."
 
 export const Color = Agent.Color
 

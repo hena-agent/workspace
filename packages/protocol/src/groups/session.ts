@@ -81,9 +81,7 @@ export const SessionsCursor = Schema.String.pipe(
 )
 export type SessionsCursor = typeof SessionsCursor.Type
 
-const SessionActive = Schema.Struct({
-  type: Schema.Literal("running"),
-}).annotate({ identifier: "SessionActive" })
+const SessionActive = Schema.Struct({ type: Schema.Literal("running") }).annotate({ identifier: "SessionActive" })
 
 const SessionHistoryLimit = PositiveInt.check(Schema.isLessThanOrEqualTo(100))
 
@@ -152,8 +150,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
         OpenApi.annotations({
           identifier: "v2.session.active",
           summary: "List active sessions",
-          description:
-            "Retrieve foreground Session drains currently owned by this Hena process. Sessions absent from the result are inactive.",
+          description: "Retrieve Sessions currently running in this Hena process.",
         }),
       ),
     )
@@ -210,6 +207,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
         payload: Schema.Struct({
           id: SessionMessage.ID.pipe(Schema.optional),
           prompt: PromptInput.Prompt,
+          selection: SessionInput.Selection.pipe(Schema.optional),
           delivery: SessionInput.Delivery.pipe(Schema.optional),
           resume: Schema.Boolean.pipe(Schema.optional),
         }),
@@ -289,6 +287,29 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
           OpenApi.annotations({ identifier: "v2.session.revert.commit", summary: "Commit staged revert" }),
+        ),
+    )
+    .add(
+      HttpApiEndpoint.post("session.revert.replace", "/api/session/:sessionID/revert/replace", {
+        params: { sessionID: Session.ID },
+        payload: Schema.Struct({
+          messageID: SessionMessage.ID,
+          id: SessionMessage.ID,
+          prompt: PromptInput.Prompt,
+          delivery: SessionInput.Delivery.pipe(Schema.optional),
+          agent: Agent.ID,
+          model: Model.Ref,
+        }),
+        success: Schema.Struct({ data: SessionInput.Admitted }),
+        error: [ConflictError, SessionNotFoundError, UnknownError],
+      })
+        .middleware(sessionLocationMiddleware)
+        .annotateMerge(
+          OpenApi.annotations({
+            identifier: "v2.session.revert.replace",
+            summary: "Replace staged session suffix",
+            description: "Atomically commit a staged revert and admit its replacement prompt.",
+          }),
         ),
     )
     .add(

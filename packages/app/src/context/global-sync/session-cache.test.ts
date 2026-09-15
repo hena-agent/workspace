@@ -33,6 +33,7 @@ describe("app session cache", () => {
   test("dropSessionCaches clears orphaned parts without message rows", () => {
     const store: {
       session_status: Record<string, SessionStatus | undefined>
+      execution_error: Record<string, string | undefined>
       session_diff: Record<string, SnapshotFileDiff[] | undefined>
       todo: Record<string, Todo[] | undefined>
       message: Record<string, Message[] | undefined>
@@ -42,6 +43,7 @@ describe("app session cache", () => {
       part_text_accum_delta: Record<string, string | undefined>
     } = {
       session_status: { ses_1: { type: "busy" } as SessionStatus },
+      execution_error: { ses_1: "error" },
       session_diff: { ses_1: [] },
       todo: { ses_1: [] as Todo[] },
       message: {},
@@ -67,6 +69,7 @@ describe("app session cache", () => {
     const m = msg("msg_1", "ses_1")
     const store: {
       session_status: Record<string, SessionStatus | undefined>
+      execution_error: Record<string, string | undefined>
       session_diff: Record<string, SnapshotFileDiff[] | undefined>
       todo: Record<string, Todo[] | undefined>
       message: Record<string, Message[] | undefined>
@@ -76,6 +79,7 @@ describe("app session cache", () => {
       part_text_accum_delta: Record<string, string | undefined>
     } = {
       session_status: {},
+      execution_error: {},
       session_diff: {},
       todo: {},
       message: { ses_1: [m] },

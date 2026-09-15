@@ -3,6 +3,7 @@ import { createMemo, createResource, onCleanup, untrack, type Accessor } from "s
 import { useServerSync } from "@/context/server-sync"
 import { useSync } from "@/context/sync"
 import { same } from "@/utils/same"
+import { splitAtMessage } from "../message-order"
 
 const emptyUserMessages: UserMessage[] = []
 const sessionFreshness = 15_000
@@ -41,7 +42,7 @@ export function createTimelineModel(input: {
   )
   const messages = createMemo(() => {
     const id = input.sessionID()
-    return id ? (sync().data.message[id] ?? []) : []
+    return id ? sync().session.timeline(id) : []
   })
   const ready = createMemo(() => {
     const id = input.sessionID()
@@ -104,7 +105,7 @@ export function isTimelineReady(messages: Message[] | undefined, loading: boolea
 
 export function selectVisibleUserMessages(messages: UserMessage[], revertMessageID?: string) {
   if (!revertMessageID) return messages
-  return messages.filter((message) => message.id < revertMessageID)
+  return splitAtMessage(messages, revertMessageID).before
 }
 
 export async function loadOlderTimeline(input: {

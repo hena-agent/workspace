@@ -13,6 +13,8 @@ import { Config } from "@/config/config"
 import { Plugin } from "@/plugin"
 import { Agent } from "@/agent/agent"
 import { InstanceState } from "@/effect/instance-state"
+import { InstanceRef } from "@/effect/instance-ref"
+import { Truncate } from "@/tool/truncate"
 
 import { ToolJsonSchema } from "@/tool/json-schema"
 import { MessageID, SessionID } from "@/session/schema"
@@ -50,7 +52,7 @@ const brokenPluginLayer = Layer.succeed(
   }),
 )
 
-const root = LayerNode.group([ToolRegistry.node, Agent.node])
+const root = LayerNode.group([ToolRegistry.node, Agent.node, Truncate.node])
 const replacements = [
   [Config.node, configLayer],
   [RuntimeFlags.node, RuntimeFlags.layer()],
@@ -100,6 +102,21 @@ afterEach(async () => {
 })
 
 describe("tool.registry", () => {
+  it.instance("limits chat tools and truncates without exposing a saved filesystem path", () =>
+    Effect.gen(function* () {
+      const ctx = yield* InstanceState.context
+      yield* Effect.gen(function* () {
+        const registry = yield* ToolRegistry.Service
+        const truncate = yield* Truncate.Service
+        expect((yield* registry.ids()).sort()).toEqual(["question", "todowrite", "webfetch", "websearch"])
+        const result = yield* truncate.output("first\nsecond\nthird", { maxLines: 1 })
+        expect(result).toEqual({ content: "first\n\n...2 lines truncated...", truncated: true })
+        expect(JSON.stringify(result)).not.toContain(ctx.directory)
+        expect(JSON.stringify(result)).not.toContain("outputPath")
+      }).pipe(Effect.provideService(InstanceRef, { ...ctx, project: { ...ctx.project, mode: "chat" } }))
+    }),
+  )
+
   it.instance("does not expose task_status", () =>
     Effect.gen(function* () {
       const registry = yield* ToolRegistry.Service

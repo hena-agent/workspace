@@ -47,5 +47,6 @@ export const migrations = (
     import("./migration/20260827073015_project-mode"),
     import("./migration/20260830125514_attach-directory-unique"),
     import("./migration/20260903041953_session-read-watermark"),
+    import("./migration/20260911182441_session-input-selection"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

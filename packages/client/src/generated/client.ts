@@ -27,6 +27,8 @@ import type {
   SessionsClearOutput,
   SessionsCommitInput,
   SessionsCommitOutput,
+  SessionsReplaceInput,
+  SessionsReplaceOutput,
   SessionsContextInput,
   SessionsContextOutput,
   SessionsHistoryInput,
@@ -377,7 +379,13 @@ export function make(options: ClientOptions) {
           {
             method: "POST",
             path: `/api/session/${encodeURIComponent(input.sessionID)}/prompt`,
-            body: { id: input["id"], prompt: input["prompt"], delivery: input["delivery"], resume: input["resume"] },
+            body: {
+              id: input["id"],
+              prompt: input["prompt"],
+              selection: input["selection"],
+              delivery: input["delivery"],
+              resume: input["resume"],
+            },
             successStatus: 200,
             declaredStatuses: [409, 404, 400, 401],
             empty: false,
@@ -440,6 +448,25 @@ export function make(options: ClientOptions) {
           },
           requestOptions,
         ),
+      replace: (input: SessionsReplaceInput, requestOptions?: RequestOptions) =>
+        request<{ readonly data: SessionsReplaceOutput }>(
+          {
+            method: "POST",
+            path: `/api/session/${encodeURIComponent(input.sessionID)}/revert/replace`,
+            body: {
+              messageID: input["messageID"],
+              id: input["id"],
+              prompt: input["prompt"],
+              delivery: input["delivery"],
+              agent: input["agent"],
+              model: input["model"],
+            },
+            successStatus: 200,
+            declaredStatuses: [409, 404, 500, 400, 401],
+            empty: false,
+          },
+          requestOptions,
+        ).then((value) => value.data),
       context: (input: SessionsContextInput, requestOptions?: RequestOptions) =>
         request<{ readonly data: SessionsContextOutput }>(
           {

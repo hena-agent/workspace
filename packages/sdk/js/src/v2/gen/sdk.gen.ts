@@ -146,6 +146,7 @@ import type {
   ProjectInitGitResponses,
   ProjectListErrors,
   ProjectListResponses,
+  ProjectManagedId,
   ProjectUpdateErrors,
   ProjectUpdateResponses,
   PromptInput,
@@ -201,6 +202,7 @@ import type {
   SessionGetResponses,
   SessionInitErrors,
   SessionInitResponses,
+  SessionInputSelection,
   SessionListErrors,
   SessionListResponses,
   SessionMessageErrors,
@@ -361,6 +363,8 @@ import type {
   V2SessionRevertClearResponses,
   V2SessionRevertCommitErrors,
   V2SessionRevertCommitResponses,
+  V2SessionRevertReplaceErrors,
+  V2SessionRevertReplaceResponses,
   V2SessionRevertStageErrors,
   V2SessionRevertStageResponses,
   V2SessionSwitchAgentErrors,
@@ -4724,6 +4728,55 @@ export class Revert extends HeyApiClient {
       ...params,
     })
   }
+
+  /**
+   * Replace staged session suffix
+   *
+   * Atomically commit a staged revert and admit its replacement prompt.
+   */
+  public replace<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      messageID: string
+      id: string
+      prompt: PromptInput
+      delivery?: "steer" | "queue"
+      agent: string
+      model: ModelRef
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<V2SessionRevertReplaceResponses, V2SessionRevertReplaceErrors, ThrowOnError> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "body", key: "messageID" },
+            { in: "body", key: "id" },
+            { in: "body", key: "prompt" },
+            { in: "body", key: "delivery" },
+            { in: "body", key: "agent" },
+            { in: "body", key: "model" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2SessionRevertReplaceResponses,
+      V2SessionRevertReplaceErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/revert/replace",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
 }
 
 export class Permission2 extends HeyApiClient {
@@ -5068,7 +5121,7 @@ export class Session3 extends HeyApiClient {
   /**
    * List active sessions
    *
-   * Retrieve foreground Session drains currently owned by this Hena process. Sessions absent from the result are inactive.
+   * Retrieve Sessions currently running in this Hena process.
    */
   public active<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -5186,6 +5239,7 @@ export class Session3 extends HeyApiClient {
       sessionID: string
       id?: string
       prompt: PromptInput
+      selection?: SessionInputSelection
       delivery?: "steer" | "queue"
       resume?: boolean
     },
@@ -5199,6 +5253,7 @@ export class Session3 extends HeyApiClient {
             { in: "path", key: "sessionID" },
             { in: "body", key: "id" },
             { in: "body", key: "prompt" },
+            { in: "body", key: "selection" },
             { in: "body", key: "delivery" },
             { in: "body", key: "resume" },
           ],
@@ -6443,7 +6498,7 @@ export class Project2 extends HeyApiClient {
    */
   public create<ThrowOnError extends boolean = false>(
     parameters: {
-      id?: string
+      id?: ProjectManagedId
       name: string
     },
     options?: Options<never, ThrowOnError>,

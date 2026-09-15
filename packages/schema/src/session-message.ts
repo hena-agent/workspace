@@ -47,6 +47,8 @@ export const User = Schema.Struct({
   text: Prompt.fields.text,
   files: Prompt.fields.files,
   agents: Prompt.fields.agents,
+  agent: AgentSwitched.fields.agent.pipe(optional),
+  model: ModelSwitched.fields.model.pipe(optional),
   type: Schema.Literal("user"),
 }).annotate({ identifier: "Session.Message.User" })
 

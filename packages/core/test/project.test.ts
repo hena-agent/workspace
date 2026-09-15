@@ -2,15 +2,33 @@ import { describe, expect } from "bun:test"
 import { $ } from "bun"
 import fs from "fs/promises"
 import path from "path"
-import { Effect, Schema } from "effect"
+import { Effect, Layer, Schema } from "effect"
 import { AppNodeBuilder } from "@hena/core/effect/app-node-builder"
+import { LayerNode } from "@hena/core/effect/layer-node"
 import { ProjectV2 } from "@hena/core/project"
 import { AbsolutePath } from "@hena/core/schema"
 import { Hash } from "@hena/core/util/hash"
+import { Global } from "@hena/core/global"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 
-const it = testEffect(AppNodeBuilder.build(ProjectV2.node))
+const it = testEffect(
+  AppNodeBuilder.build(LayerNode.group([ProjectV2.node, Global.node]), [
+    [
+      Global.node,
+      Layer.effect(
+        Global.Service,
+        Effect.gen(function* () {
+          const tmp = yield* Effect.acquireRelease(
+            Effect.promise(() => tmpdir()),
+            (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
+          )
+          return Global.make({ data: tmp.path })
+        }),
+      ),
+    ],
+  ]),
+)
 
 function remoteID(remote: string) {
   return ProjectV2.ID.make(Hash.fast(`git-remote:${remote}`))
@@ -39,6 +57,26 @@ async function rootCommit(dir: string) {
 }
 
 describe("ProjectV2.createChat", () => {
+  it.live("rejects path IDs and symlink storage before changing external directories", () =>
+    Effect.gen(function* () {
+      const project = yield* ProjectV2.Service
+      const global = yield* Global.Service
+      const outside = path.join(global.data, "outside")
+      const root = path.join(global.data, "projects")
+      yield* Effect.promise(async () => {
+        await fs.mkdir(outside, { recursive: true, mode: 0o755 })
+        await fs.mkdir(root, { recursive: true })
+        await fs.symlink(outside, path.join(root, "prj_link"))
+      })
+      const mode = (yield* Effect.promise(() => fs.stat(outside))).mode
+      for (const value of ["../outside", "prj_../outside", "prj_link"]) {
+        const result = yield* project.createChat({ id: ProjectV2.ID.make(value), name: "Invalid" }).pipe(Effect.exit)
+        expect(result._tag).toBe("Failure")
+        expect((yield* Effect.promise(() => fs.stat(outside))).mode).toBe(mode)
+      }
+    }),
+  )
+
   it.live("creates one named managed project", () =>
     Effect.gen(function* () {
       const project = yield* ProjectV2.Service

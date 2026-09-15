@@ -5377,7 +5377,7 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnauthorizedError" } } }
           }
         },
-        "description": "Retrieve foreground Session drains currently owned by this Hena process. Sessions absent from the result are inactive.",
+        "description": "Retrieve Sessions currently running in this Hena process.",
         "summary": "List active sessions",
         "x-codeSamples": [
           {
@@ -5609,6 +5609,7 @@
                 "properties": {
                   "id": { "type": "string", "pattern": "^msg_" },
                   "prompt": { "$ref": "#/components/schemas/PromptInput" },
+                  "selection": { "$ref": "#/components/schemas/SessionInputSelection" },
                   "delivery": { "type": "string", "enum": ["steer", "queue"] },
                   "resume": { "type": "boolean" }
                 },
@@ -5873,6 +5874,88 @@
           {
             "lang": "js",
             "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.session.revert.commit({\n  ...\n})"
+          }
+        ]
+      }
+    },
+    "/api/session/{sessionID}/revert/replace": {
+      "post": {
+        "tags": ["sessions"],
+        "operationId": "v2.session.revert.replace",
+        "parameters": [
+          { "name": "sessionID", "in": "path", "schema": { "type": "string", "pattern": "^ses" }, "required": true }
+        ],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "data": { "$ref": "#/components/schemas/SessionInputAdmitted" } },
+                  "required": ["data"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "InvalidRequestError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/InvalidRequestError" } } }
+          },
+          "401": {
+            "description": "UnauthorizedError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnauthorizedError" } } }
+          },
+          "404": {
+            "description": "SessionNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    { "$ref": "#/components/schemas/SessionNotFoundError" },
+                    { "$ref": "#/components/schemas/SessionNotFoundError" }
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ConflictError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConflictError" } } }
+          },
+          "500": {
+            "description": "UnknownError",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UnknownError1" } } }
+          }
+        },
+        "description": "Atomically commit a staged revert and admit its replacement prompt.",
+        "summary": "Replace staged session suffix",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "messageID": { "type": "string", "pattern": "^msg_" },
+                  "id": { "type": "string", "pattern": "^msg_" },
+                  "prompt": { "$ref": "#/components/schemas/PromptInput" },
+                  "delivery": { "type": "string", "enum": ["steer", "queue"] },
+                  "agent": { "type": "string" },
+                  "model": { "$ref": "#/components/schemas/ModelRef" }
+                },
+                "required": ["messageID", "id", "prompt", "agent", "model"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "x-codeSamples": [
+          {
+            "lang": "js",
+            "source": "import { createHenaClient } from \"@hena/sdk\"\n\nconst client = createHenaClient()\nawait client.v2.session.revert.replace({\n  ...\n})"
           }
         ]
       }
@@ -8330,7 +8413,10 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": { "id": { "type": "string" }, "name": { "type": "string" } },
+                "properties": {
+                  "id": { "$ref": "#/components/schemas/ProjectManagedID" },
+                  "name": { "type": "string" }
+                },
                 "required": ["name"],
                 "additionalProperties": false
               }
@@ -8654,6 +8740,7 @@
           { "$ref": "#/components/schemas/EventSessionNextRevertCommitted" },
           { "$ref": "#/components/schemas/EventSessionNextInputCanceled" },
           { "$ref": "#/components/schemas/EventSessionNextInputReordered" },
+          { "$ref": "#/components/schemas/EventSessionNextExecutionStatus" },
           { "$ref": "#/components/schemas/EventMessagePartDelta" },
           { "$ref": "#/components/schemas/EventSessionDiff" },
           { "$ref": "#/components/schemas/EventSessionError" },
@@ -8747,6 +8834,7 @@
           { "$ref": "#/components/schemas/SessionNextRevertCommitted" },
           { "$ref": "#/components/schemas/SessionNextInputCanceled" },
           { "$ref": "#/components/schemas/SessionNextInputReordered" },
+          { "$ref": "#/components/schemas/SessionNextExecutionStatus" },
           { "$ref": "#/components/schemas/MessagePartDelta" },
           { "$ref": "#/components/schemas/SessionDiff" },
           { "$ref": "#/components/schemas/SessionError" },
@@ -9926,7 +10014,8 @@
                       "sessionID": { "type": "string", "pattern": "^ses" },
                       "messageID": { "type": "string", "pattern": "^msg_" },
                       "prompt": { "$ref": "#/components/schemas/Prompt" },
-                      "delivery": { "type": "string", "enum": ["steer", "queue"] }
+                      "delivery": { "type": "string", "enum": ["steer", "queue"] },
+                      "selection": { "$ref": "#/components/schemas/SessionInputSelection" }
                     },
                     "required": ["timestamp", "sessionID", "messageID", "prompt", "delivery"],
                     "additionalProperties": false
@@ -9947,7 +10036,8 @@
                       "sessionID": { "type": "string", "pattern": "^ses" },
                       "messageID": { "type": "string", "pattern": "^msg_" },
                       "prompt": { "$ref": "#/components/schemas/Prompt" },
-                      "delivery": { "type": "string", "enum": ["steer", "queue"] }
+                      "delivery": { "type": "string", "enum": ["steer", "queue"] },
+                      "selection": { "$ref": "#/components/schemas/SessionInputSelection" }
                     },
                     "required": ["timestamp", "sessionID", "messageID", "prompt", "delivery"],
                     "additionalProperties": false
@@ -10580,7 +10670,19 @@
                     "properties": {
                       "timestamp": { "type": "number" },
                       "sessionID": { "type": "string", "pattern": "^ses" },
-                      "messageID": { "type": "string", "pattern": "^msg_" }
+                      "messageID": { "type": "string", "pattern": "^msg_" },
+                      "replacement": {
+                        "type": "object",
+                        "properties": {
+                          "messageID": { "type": "string", "pattern": "^msg_" },
+                          "prompt": { "$ref": "#/components/schemas/Prompt" },
+                          "delivery": { "type": "string", "enum": ["steer", "queue"] },
+                          "agent": { "type": "string" },
+                          "model": { "$ref": "#/components/schemas/ModelRef" }
+                        },
+                        "required": ["messageID", "prompt", "delivery", "agent", "model"],
+                        "additionalProperties": false
+                      }
                     },
                     "required": ["timestamp", "sessionID", "messageID"],
                     "additionalProperties": false
@@ -10623,6 +10725,49 @@
                       "expectedRevision": { "type": "integer", "minimum": 0 }
                     },
                     "required": ["timestamp", "sessionID", "messageIDs", "expectedRevision"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string", "pattern": "^evt_" },
+                  "type": { "type": "string", "enum": ["session.next.execution.status"] },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": { "type": "number" },
+                      "sessionID": { "type": "string", "pattern": "^ses" },
+                      "status": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": { "type": { "type": "string", "enum": ["running"] } },
+                            "required": ["type"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": { "type": { "type": "string", "enum": ["idle"] } },
+                            "required": ["type"],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "type": { "type": "string", "enum": ["failed"] },
+                              "error": { "$ref": "#/components/schemas/SessionErrorUnknown" }
+                            },
+                            "required": ["type", "error"],
+                            "additionalProperties": false
+                          }
+                        ]
+                      }
+                    },
+                    "required": ["timestamp", "sessionID", "status"],
                     "additionalProperties": false
                   }
                 },
@@ -12739,6 +12884,12 @@
         "required": ["name"],
         "additionalProperties": false
       },
+      "SessionInputSelection": {
+        "type": "object",
+        "properties": { "agent": { "type": "string" }, "model": { "$ref": "#/components/schemas/ModelRef" } },
+        "required": ["agent", "model"],
+        "additionalProperties": false
+      },
       "SessionErrorUnknown": {
         "type": "object",
         "properties": { "type": { "type": "string", "enum": ["unknown"] }, "message": { "type": "string" } },
@@ -13235,7 +13386,8 @@
                   "sessionID": { "type": "string", "pattern": "^ses" },
                   "messageID": { "type": "string", "pattern": "^msg_" },
                   "prompt": { "$ref": "#/components/schemas/Prompt" },
-                  "delivery": { "type": "string", "enum": ["steer", "queue"] }
+                  "delivery": { "type": "string", "enum": ["steer", "queue"] },
+                  "selection": { "$ref": "#/components/schemas/SessionInputSelection" }
                 },
                 "required": ["timestamp", "sessionID", "messageID", "prompt", "delivery"],
                 "additionalProperties": false
@@ -13267,7 +13419,8 @@
                   "sessionID": { "type": "string", "pattern": "^ses" },
                   "messageID": { "type": "string", "pattern": "^msg_" },
                   "prompt": { "$ref": "#/components/schemas/Prompt" },
-                  "delivery": { "type": "string", "enum": ["steer", "queue"] }
+                  "delivery": { "type": "string", "enum": ["steer", "queue"] },
+                  "selection": { "$ref": "#/components/schemas/SessionInputSelection" }
                 },
                 "required": ["timestamp", "sessionID", "messageID", "prompt", "delivery"],
                 "additionalProperties": false
@@ -14081,7 +14234,19 @@
                 "properties": {
                   "timestamp": { "type": "number" },
                   "sessionID": { "type": "string", "pattern": "^ses" },
-                  "messageID": { "type": "string", "pattern": "^msg_" }
+                  "messageID": { "type": "string", "pattern": "^msg_" },
+                  "replacement": {
+                    "type": "object",
+                    "properties": {
+                      "messageID": { "type": "string", "pattern": "^msg_" },
+                      "prompt": { "$ref": "#/components/schemas/Prompt" },
+                      "delivery": { "type": "string", "enum": ["steer", "queue"] },
+                      "agent": { "type": "string" },
+                      "model": { "$ref": "#/components/schemas/ModelRef" }
+                    },
+                    "required": ["messageID", "prompt", "delivery", "agent", "model"],
+                    "additionalProperties": false
+                  }
                 },
                 "required": ["timestamp", "sessionID", "messageID"],
                 "additionalProperties": false
@@ -14672,6 +14837,7 @@
           "sessionID": { "type": "string", "pattern": "^ses" },
           "prompt": { "$ref": "#/components/schemas/Prompt" },
           "delivery": { "type": "string", "enum": ["steer", "queue"] },
+          "selection": { "$ref": "#/components/schemas/SessionInputSelection" },
           "timeCreated": { "type": "number" },
           "promotedSeq": { "type": "integer", "minimum": 0 }
         },
@@ -14767,6 +14933,8 @@
           "text": { "type": "string" },
           "files": { "type": "array", "items": { "$ref": "#/components/schemas/PromptFileAttachment" } },
           "agents": { "type": "array", "items": { "$ref": "#/components/schemas/PromptAgentAttachment" } },
+          "agent": { "type": "string" },
+          "model": { "$ref": "#/components/schemas/ModelRef" },
           "type": { "type": "string", "enum": ["user"] }
         },
         "required": ["id", "time", "text", "type"],
@@ -15174,7 +15342,8 @@
               "sessionID": { "type": "string", "pattern": "^ses" },
               "messageID": { "type": "string", "pattern": "^msg_" },
               "prompt": { "$ref": "#/components/schemas/Prompt" },
-              "delivery": { "type": "string", "enum": ["steer", "queue"] }
+              "delivery": { "type": "string", "enum": ["steer", "queue"] },
+              "selection": { "$ref": "#/components/schemas/SessionInputSelection" }
             },
             "required": ["timestamp", "sessionID", "messageID", "prompt", "delivery"],
             "additionalProperties": false
@@ -15207,7 +15376,8 @@
               "sessionID": { "type": "string", "pattern": "^ses" },
               "messageID": { "type": "string", "pattern": "^msg_" },
               "prompt": { "$ref": "#/components/schemas/Prompt" },
-              "delivery": { "type": "string", "enum": ["steer", "queue"] }
+              "delivery": { "type": "string", "enum": ["steer", "queue"] },
+              "selection": { "$ref": "#/components/schemas/SessionInputSelection" }
             },
             "required": ["timestamp", "sessionID", "messageID", "prompt", "delivery"],
             "additionalProperties": false
@@ -16034,7 +16204,19 @@
             "properties": {
               "timestamp": { "type": "number" },
               "sessionID": { "type": "string", "pattern": "^ses" },
-              "messageID": { "type": "string", "pattern": "^msg_" }
+              "messageID": { "type": "string", "pattern": "^msg_" },
+              "replacement": {
+                "type": "object",
+                "properties": {
+                  "messageID": { "type": "string", "pattern": "^msg_" },
+                  "prompt": { "$ref": "#/components/schemas/Prompt" },
+                  "delivery": { "type": "string", "enum": ["steer", "queue"] },
+                  "agent": { "type": "string" },
+                  "model": { "$ref": "#/components/schemas/ModelRef" }
+                },
+                "required": ["messageID", "prompt", "delivery", "agent", "model"],
+                "additionalProperties": false
+              }
             },
             "required": ["timestamp", "sessionID", "messageID"],
             "additionalProperties": false
@@ -16643,6 +16825,7 @@
         "required": ["name", "path", "source"],
         "additionalProperties": false
       },
+      "ProjectManagedID": { "type": "string", "pattern": "^prj_[0-9A-Za-z]+$" },
       "ProjectCopyCopy": {
         "type": "object",
         "properties": { "directory": { "type": "string" } },
@@ -16933,7 +17116,8 @@
               "sessionID": { "type": "string", "pattern": "^ses" },
               "messageID": { "type": "string", "pattern": "^msg_" },
               "prompt": { "$ref": "#/components/schemas/Prompt" },
-              "delivery": { "type": "string", "enum": ["steer", "queue"] }
+              "delivery": { "type": "string", "enum": ["steer", "queue"] },
+              "selection": { "$ref": "#/components/schemas/SessionInputSelection" }
             },
             "required": ["timestamp", "sessionID", "messageID", "prompt", "delivery"],
             "additionalProperties": false
@@ -16954,7 +17138,8 @@
               "sessionID": { "type": "string", "pattern": "^ses" },
               "messageID": { "type": "string", "pattern": "^msg_" },
               "prompt": { "$ref": "#/components/schemas/Prompt" },
-              "delivery": { "type": "string", "enum": ["steer", "queue"] }
+              "delivery": { "type": "string", "enum": ["steer", "queue"] },
+              "selection": { "$ref": "#/components/schemas/SessionInputSelection" }
             },
             "required": ["timestamp", "sessionID", "messageID", "prompt", "delivery"],
             "additionalProperties": false
@@ -17576,7 +17761,19 @@
             "properties": {
               "timestamp": { "type": "number" },
               "sessionID": { "type": "string", "pattern": "^ses" },
-              "messageID": { "type": "string", "pattern": "^msg_" }
+              "messageID": { "type": "string", "pattern": "^msg_" },
+              "replacement": {
+                "type": "object",
+                "properties": {
+                  "messageID": { "type": "string", "pattern": "^msg_" },
+                  "prompt": { "$ref": "#/components/schemas/Prompt" },
+                  "delivery": { "type": "string", "enum": ["steer", "queue"] },
+                  "agent": { "type": "string" },
+                  "model": { "$ref": "#/components/schemas/ModelRef" }
+                },
+                "required": ["messageID", "prompt", "delivery", "agent", "model"],
+                "additionalProperties": false
+              }
             },
             "required": ["timestamp", "sessionID", "messageID"],
             "additionalProperties": false
@@ -17619,6 +17816,49 @@
               "expectedRevision": { "type": "integer", "minimum": 0 }
             },
             "required": ["timestamp", "sessionID", "messageIDs", "expectedRevision"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventSessionNextExecutionStatus": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^evt_" },
+          "type": { "type": "string", "enum": ["session.next.execution.status"] },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "timestamp": { "type": "number" },
+              "sessionID": { "type": "string", "pattern": "^ses" },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": { "type": { "type": "string", "enum": ["running"] } },
+                    "required": ["type"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": { "type": { "type": "string", "enum": ["idle"] } },
+                    "required": ["type"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string", "enum": ["failed"] },
+                      "error": { "$ref": "#/components/schemas/SessionErrorUnknown" }
+                    },
+                    "required": ["type", "error"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": ["timestamp", "sessionID", "status"],
             "additionalProperties": false
           }
         },
@@ -18762,6 +19002,61 @@
               "text": { "type": "string" }
             },
             "required": ["timestamp", "sessionID", "messageID", "text"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
+      "SessionNextExecutionStatus": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "pattern": "^evt_" },
+          "metadata": { "type": "object" },
+          "type": { "type": "string", "enum": ["session.next.execution.status"] },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": { "type": "string" },
+              "seq": { "type": "integer" },
+              "version": { "type": "integer" }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": { "$ref": "#/components/schemas/LocationRef" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "timestamp": { "type": "number" },
+              "sessionID": { "type": "string", "pattern": "^ses" },
+              "status": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": { "type": { "type": "string", "enum": ["running"] } },
+                    "required": ["type"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": { "type": { "type": "string", "enum": ["idle"] } },
+                    "required": ["type"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string", "enum": ["failed"] },
+                      "error": { "$ref": "#/components/schemas/SessionErrorUnknown" }
+                    },
+                    "required": ["type", "error"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "required": ["timestamp", "sessionID", "status"],
             "additionalProperties": false
           }
         },

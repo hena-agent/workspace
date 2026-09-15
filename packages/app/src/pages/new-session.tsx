@@ -33,6 +33,7 @@ import { useSettingsCommand } from "@/components/settings-dialog"
 import { Persist, persisted } from "@/utils/persist"
 import createPresence from "solid-presence"
 import { useLocal } from "@/context/local"
+import { useTabs } from "@/context/tabs"
 import { createPromptModelSelection } from "@/pages/session/composer/prompt-model-selection"
 
 const workspaceBarEnabled = import.meta.env.VITE_HENA_CHANNEL !== "prod"
@@ -64,7 +65,12 @@ export default function NewSessionPage() {
   const route = useSessionKey()
   const [searchParams, setSearchParams] = useSearchParams<{ draftId?: string; prompt?: string }>()
   const local = useLocal()
+  const tabs = useTabs()
   const model = createPromptModelSelection({ agent: local.agent.current })
+  const managedChat = createMemo(() => {
+    const draftID = searchParams.draftId
+    return (draftID ? !!tabs.draft(draftID).projectID : false) || sync().project?.mode === "chat"
+  })
 
   useComposerCommands({ model })
 
@@ -170,10 +176,10 @@ export default function NewSessionPage() {
               <div class={NEW_SESSION_CONTENT_WIDTH}>
                 <div class="flex flex-col gap-8">
                   <PromptInputV2Composer controller={promptInputV2Controller} />
-                  <Show when={projectController.empty()}>
+                  <Show when={!managedChat() && projectController.empty()}>
                     <PromptProjectAddButton controller={projectController} />
                   </Show>
-                  <Show when={projectController.selected()}>
+                  <Show when={!managedChat() && projectController.selected()}>
                     <div class="flex min-h-7 min-w-0 flex-col items-center justify-center gap-0 text-v2-text-text-faint sm:flex-row">
                       <PromptProjectSelector controller={projectController} placement="bottom" />
                       <Show

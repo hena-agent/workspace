@@ -27,6 +27,8 @@ import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
 import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "@hena/core/session/sql"
+import { getTableColumns } from "drizzle-orm"
+import { runtime, runtimeMetadata } from "./runtime"
 import { ProjectTable } from "@hena/core/project/sql"
 import { MessageV2 } from "./message-v2"
 import type { InstanceContext } from "../project/instance-context"
@@ -55,8 +57,9 @@ export function isDefaultTitle(title: string) {
 }
 
 type SessionRow = typeof SessionTable.$inferSelect
+export const columns = { ...getTableColumns(SessionTable), app_runtime: runtime }
 
-export function fromRow(row: SessionRow): Info {
+export function fromRow(row: SessionRow & { app_runtime: "legacy" | "canonical" }): Info {
   const summary =
     row.summary_additions !== null || row.summary_deletions !== null || row.summary_files !== null
       ? {
@@ -105,7 +108,7 @@ export function fromRow(row: SessionRow): Info {
       },
     },
     share,
-    metadata: row.metadata ?? undefined,
+    metadata: runtimeMetadata(row.app_runtime, row.metadata),
     revert,
     permission: row.permission ? [...row.permission] : undefined,
     time: {
@@ -517,13 +520,13 @@ const layer: Layer.Layer<
         version: InstallationVersion,
         projectID: ctx.project.id,
         directory: input.directory,
-        path: input.path,
+        path: ctx.project.mode === "chat" ? undefined : input.path,
         workspaceID: input.workspaceID,
         parentID: input.parentID,
         title: input.title ?? (input.parentID ? childTitlePrefix : parentTitlePrefix) + new Date().toISOString(),
         agent: input.agent,
         model: input.model,
-        metadata: input.metadata,
+        metadata: ctx.project.mode === "chat" ? { ...input.metadata, appRuntime: "legacy" } : input.metadata,
         permission: input.permission ? [...input.permission] : undefined,
         cost: 0,
         tokens: EmptyTokens,
@@ -540,7 +543,7 @@ const layer: Layer.Layer<
     })
 
     const get = Effect.fn("Session.get")(function* (id: SessionID) {
-      const row = yield* db.select().from(SessionTable).where(eq(SessionTable.id, id)).get().pipe(Effect.orDie)
+      const row = yield* db.select(columns).from(SessionTable).where(eq(SessionTable.id, id)).get().pipe(Effect.orDie)
       if (!row) return yield* Effect.fail(new NotFoundError({ message: `Session not found: ${id}` }))
       return fromRow(row)
     })
@@ -566,10 +569,10 @@ const layer: Layer.Layer<
       const query =
         conditions.length > 0
           ? db
-              .select()
+              .select(columns)
               .from(SessionTable)
               .where(and(...conditions))
-          : db.select().from(SessionTable)
+          : db.select(columns).from(SessionTable)
       const rows = yield* query
         .orderBy(desc(SessionTable.time_updated), desc(SessionTable.id))
         .limit(input?.limit ?? 100)
@@ -597,7 +600,7 @@ const layer: Layer.Layer<
 
     const children = Effect.fn("Session.children")(function* (parentID: SessionID) {
       const rows = yield* db
-        .select()
+        .select(columns)
         .from(SessionTable)
         .where(and(eq(SessionTable.parent_id, parentID)))
         .all()
@@ -997,7 +1000,7 @@ function listByProject(
   const limit = input.limit ?? 100
 
   return db
-    .select()
+    .select(columns)
     .from(SessionTable)
     .where(and(...conditions))
     .orderBy(desc(SessionTable.time_updated))

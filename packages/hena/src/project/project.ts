@@ -221,6 +221,8 @@ const layer = Layer.effect(
       const projectID = ProjectV2.ID.make(data.id)
       yield* migrateProjectId(data.previous ? ProjectV2.ID.make(data.previous) : undefined, projectID)
       const row = yield* db.select().from(ProjectTable).where(eq(ProjectTable.id, projectID)).get().pipe(Effect.orDie)
+      // Opening managed storage must not register it as an attached workspace.
+      if (row?.mode === "chat") return { project: fromRow(row), sandbox: row.worktree }
       const existing = row
         ? fromRow(row)
         : {

@@ -161,6 +161,7 @@ export default {
           \`session_id\` text NOT NULL,
           \`prompt\` text NOT NULL,
           \`delivery\` text NOT NULL,
+          \`selection\` text,
           \`admitted_seq\` integer NOT NULL,
           \`queue_position\` integer DEFAULT 9007199254740991 NOT NULL,
           \`promoted_seq\` integer,

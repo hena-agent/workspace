@@ -1,4 +1,8 @@
+import { SystemContext } from "../system-context/index"
+
 export const tools = new Set(["question", "todowrite", "webfetch", "websearch"])
+export const contextEntries = new Set<SystemContext.Key>([SystemContext.Key.make("core/builtins")])
+export const context = new Set<SystemContext.Key>([SystemContext.Key.make("core/date")])
 
 export const system = [
   "This is a chat project without an attached workspace.",

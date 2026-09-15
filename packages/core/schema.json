@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "1b670bdc-b8d0-485b-a9ac-3776b48dc92f",
+  "id": "a5c1d0fc-0f88-4789-bc4d-188799f5f7b3",
   "prevIds": [
-    "d95a221a-7bf8-485b-8086-0e13bd2b42b6"
+    "4c098da2-79e6-434f-94fa-be78fac30a31"
   ],
   "ddl": [
     {
@@ -694,6 +694,16 @@
     },
     {
       "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'workspace'",
+      "generated": null,
+      "name": "mode",
+      "entityType": "columns",
+      "table": "project"
+    },
+    {
+      "type": "text",
       "notNull": false,
       "autoincrement": false,
       "default": null,
@@ -979,6 +989,16 @@
       "default": null,
       "generated": null,
       "name": "delivery",
+      "entityType": "columns",
+      "table": "session_input"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "selection",
       "entityType": "columns",
       "table": "session_input"
     },
@@ -2350,6 +2370,20 @@
       "name": "permission_project_action_resource_idx",
       "entityType": "indexes",
       "table": "permission"
+    },
+    {
+      "columns": [
+        {
+          "value": "directory",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "\"project_directory\".\"strategy\" = 'attach'",
+      "origin": "manual",
+      "name": "project_directory_attach_directory_idx",
+      "entityType": "indexes",
+      "table": "project_directory"
     },
     {
       "columns": [

@@ -15,6 +15,7 @@ import type { State, VcsCache } from "./types"
 import { trimSessions } from "./session-trim"
 import { dropSessionCaches } from "./session-cache"
 import { diffs as list, message as clean } from "@/utils/diffs"
+import { preserveSessionRuntime } from "../session-runtime"
 
 const SKIP_PARTS = new Set(["patch", "step-start", "step-finish"])
 const SESSION_CONTENT_EVENTS = new Set([
@@ -31,10 +32,13 @@ const SESSION_CONTENT_EVENTS = new Set([
   "question.asked",
   "question.replied",
   "question.rejected",
+  "question.v2.asked",
+  "question.v2.replied",
+  "question.v2.rejected",
 ])
 
 export function applyGlobalEvent(input: {
-  event: { type: string; properties?: unknown }
+  event: { type: string; properties?: unknown; data?: unknown }
   project: Project[]
   setGlobalProject: (next: Project[] | ((draft: Project[]) => Project[])) => void
   refresh: () => void
@@ -106,7 +110,7 @@ export function cleanupDroppedSessionCaches(
 }
 
 export function applyDirectoryEvent(input: {
-  event: { type: string; properties?: unknown }
+  event: { type: string; properties?: unknown; data?: unknown }
   store: Store<State>
   setStore: SetStoreFunction<State>
   push: (directory: string) => void
@@ -121,6 +125,15 @@ export function applyDirectoryEvent(input: {
 }) {
   const event = input.event
   if (input.sessionContent === false && SESSION_CONTENT_EVENTS.has(event.type)) return
+  if (event.type === "session.next.execution.status") {
+    const props = (event.properties ?? event.data) as {
+      sessionID: string
+      status: { type: "running" } | { type: "idle" } | { type: "failed"; error: { message: string } }
+    }
+    input.setStore("execution_error", props.sessionID, props.status.type === "failed" ? props.status.error.message : undefined)
+    input.setStore("session_status", props.sessionID, { type: props.status.type === "running" ? "busy" : "idle" })
+    return
+  }
   const limit = Math.max(input.store.limit, input.retainedLimit ?? 0)
   switch (event.type) {
     case "server.instance.disposed": {
@@ -131,7 +144,7 @@ export function applyDirectoryEvent(input: {
       const info = (event.properties as { info: Session }).info
       const result = Binary.search(input.store.session, info.id, (s) => s.id)
       if (result.found) {
-        input.setStore("session", result.index, reconcile(info))
+        input.setStore("session", result.index, reconcile(preserveSessionRuntime(input.store.session[result.index], info)))
         break
       }
       const next = input.store.session.slice()
@@ -160,7 +173,7 @@ export function applyDirectoryEvent(input: {
         break
       }
       if (result.found) {
-        input.setStore("session", result.index, reconcile(info))
+        input.setStore("session", result.index, reconcile(preserveSessionRuntime(input.store.session[result.index], info)))
         break
       }
       const next = input.store.session.slice()
@@ -363,8 +376,12 @@ export function applyDirectoryEvent(input: {
       )
       break
     }
+    case "question.v2.asked":
     case "question.asked": {
-      const question = event.properties as QuestionRequest
+      const question = {
+        ...((event.properties ?? event.data) as QuestionRequest),
+        appRuntime: event.type === "question.v2.asked" ? "canonical" : "legacy",
+      }
       const questions = input.store.question[question.sessionID]
       if (!questions) {
         input.setStore("question", question.sessionID, [question])
@@ -385,8 +402,10 @@ export function applyDirectoryEvent(input: {
       break
     }
     case "question.replied":
+    case "question.v2.replied":
+    case "question.v2.rejected":
     case "question.rejected": {
-      const props = event.properties as { sessionID: string; requestID: string }
+      const props = (event.properties ?? event.data) as { sessionID: string; requestID: string }
       const questions = input.store.question[props.sessionID]
       if (!questions) break
       const result = Binary.search(questions, props.requestID, (q) => q.id)

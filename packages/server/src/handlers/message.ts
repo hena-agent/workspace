@@ -38,10 +38,12 @@ export const MessageHandler = HttpApiBuilder.group(Api, "server.message", (handl
           catch: () => new InvalidCursorError({ message: "Invalid cursor" }),
         })
         const order = decoded?.order ?? ctx.query.order ?? "desc"
+        const limit = ctx.query.limit ?? DefaultMessagesLimit
+        // A full terminal page must not advertise another, empty page.
         const messages = yield* session
           .messages({
             sessionID: ctx.params.sessionID,
-            limit: ctx.query.limit ?? DefaultMessagesLimit,
+            limit: limit + 1,
             order,
             cursor: decoded ? { id: decoded.id, direction: decoded.direction } : undefined,
           })
@@ -66,13 +68,17 @@ export const MessageHandler = HttpApiBuilder.group(Api, "server.message", (handl
               )
             }),
           )
-        const first = messages[0]
-        const last = messages.at(-1)
+        const previous = decoded?.direction === "previous"
+        const more = messages.length > limit
+        // Core restores display order for previous pages, putting their lookahead at the front.
+        const page = previous ? messages.slice(-limit) : messages.slice(0, limit)
+        const first = page[0]
+        const last = page.at(-1)
         return {
-          data: messages,
+          data: page,
           cursor: {
-            previous: first ? cursor.encode(first, order, "previous") : undefined,
-            next: last ? cursor.encode(last, order, "next") : undefined,
+            previous: first && (previous ? more : !!decoded) ? cursor.encode(first, order, "previous") : undefined,
+            next: last && (previous ? !!decoded : more) ? cursor.encode(last, order, "next") : undefined,
           },
         }
       }),

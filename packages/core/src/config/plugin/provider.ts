@@ -5,18 +5,24 @@ import { Effect } from "effect"
 import { Config } from "../../config"
 import { ModelV2 } from "../../model"
 import { ProviderV2 } from "../../provider"
+import { Integration } from "../../integration"
 
 export const Plugin = define({
   id: "config-provider",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
+    const integration = yield* Integration.Service
+    if (config.credential) yield* integration.compatibility(config.credential)
     yield* ctx.integration.transform(
       Effect.fn(function* (integrations) {
         const files = (yield* config.entries()).filter((entry): entry is Config.Document => entry.type === "document")
+        const credentials = new Set(
+          (yield* config.credential?.list() ?? Effect.succeed([])).map((credential) => credential.integrationID),
+        )
         const configuredIntegrations = new Set(
           files.flatMap((file) =>
             Object.entries(file.info.providers ?? {}).flatMap(([id, provider]) =>
-              provider.env === undefined ? [] : [id],
+              provider.env === undefined && !credentials.has(Integration.ID.make(id)) ? [] : [id],
             ),
           ),
         )

@@ -9,7 +9,9 @@ import { provideInstance, TestInstance, tmpdirScoped } from "../fixture/fixture"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(
-  LayerNode.compile(LayerNode.group([SessionNs.node, SessionProjector.node, Project.node, CrossSpawnSpawner.node])),
+  LayerNode.compile(
+    LayerNode.group([SessionNs.node, SessionProjector.node, Project.node, CrossSpawnSpawner.node]),
+  ),
 )
 
 const withSession = (input?: Parameters<SessionNs.Interface["create"]>[0]) =>

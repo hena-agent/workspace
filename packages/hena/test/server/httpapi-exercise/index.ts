@@ -221,6 +221,25 @@ const scenarios: Scenario[] = [
     }))
     .json(200, array, "status"),
   http.protected
+    .post("/api/project", "v2.project.create")
+    .mutating()
+    .at((ctx) => ({ path: "/api/project", headers: ctx.headers(), body: { name: "Managed Chat" } }))
+    .json(200, (body) => {
+      object(body)
+      object(body.data)
+      check(body.data.mode === "chat", "created project should be in chat mode")
+      check(body.data.name === "Managed Chat", "created project should preserve its name")
+    }),
+  http.protected
+    .post("/api/project/{projectID}/attach", "v2.project.attach")
+    .seeded((ctx) => ctx.project())
+    .at((ctx) => ({
+      path: route("/api/project/{projectID}/attach", { projectID: ctx.state.id }),
+      headers: ctx.headers(),
+      body: { directory: `${ctx.directory}-attached` },
+    }))
+    .status(409, undefined, "status"),
+  http.protected
     .post("/experimental/project/{projectID}/copy/generate-name", "experimental.projectCopy.generateName")
     .seeded((ctx) => ctx.project())
     .at((ctx) => ({
@@ -1039,6 +1058,20 @@ const scenarios: Scenario[] = [
     }))
     .json(404, object, "status"),
   http.protected
+    .post("/api/session/{sessionID}/revert/replace", "v2.session.revert.replace")
+    .at((ctx) => ({
+      path: route("/api/session/{sessionID}/revert/replace", { sessionID: "ses_httpapi_missing" }),
+      headers: { ...ctx.headers(), "content-type": "application/json" },
+      body: {
+        messageID: "msg_httpapi_missing",
+        id: "msg_httpapi_replacement",
+        prompt: { parts: [{ type: "text", text: "Replacement prompt" }] },
+        agent: "build",
+        model: { providerID: "hena", id: "big-pickle" },
+      },
+    }))
+    .json(404, object, "status"),
+  http.protected
     .get("/api/session/{sessionID}/message", "v2.session.messages")
     .at((ctx) => ({
       path: route("/api/session/{sessionID}/message", { sessionID: "ses_httpapi_missing" }),
@@ -1277,7 +1310,9 @@ const scenarios: Scenario[] = [
     .json(200, (body, ctx) => {
       check(Array.isArray(body) && body.length === ctx.state.todos.length, "todos should match seeded state")
       check(
-        isRecord(body[0]) && typeof body[0].id === "string" && body[0].id.startsWith("todo_") &&
+        isRecord(body[0]) &&
+          typeof body[0].id === "string" &&
+          body[0].id.startsWith("todo_") &&
           body[0].content === ctx.state.todos[0]?.content,
         "todos should expose stable IDs",
       )

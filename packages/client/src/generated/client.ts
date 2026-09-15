@@ -27,6 +27,8 @@ import type {
   SessionsClearOutput,
   SessionsCommitInput,
   SessionsCommitOutput,
+  SessionsReplaceInput,
+  SessionsReplaceOutput,
   SessionsContextInput,
   SessionsContextOutput,
   SessionsHistoryInput,
@@ -106,6 +108,10 @@ import type {
   QuestionsRejectOutput,
   ReferencesListInput,
   ReferencesListOutput,
+  ProjectsCreateInput,
+  ProjectsCreateOutput,
+  ProjectsAttachInput,
+  ProjectsAttachOutput,
   ProjectCopiesCreateInput,
   ProjectCopiesCreateOutput,
   ProjectCopiesRemoveInput,
@@ -313,10 +319,11 @@ export function make(options: ClientOptions) {
               id: input?.["id"],
               agent: input?.["agent"],
               model: input?.["model"],
+              projectID: input?.["projectID"],
               location: input?.["location"],
             },
             successStatus: 200,
-            declaredStatuses: [401, 400],
+            declaredStatuses: [400, 404, 401],
             empty: false,
           },
           requestOptions,
@@ -372,7 +379,13 @@ export function make(options: ClientOptions) {
           {
             method: "POST",
             path: `/api/session/${encodeURIComponent(input.sessionID)}/prompt`,
-            body: { id: input["id"], prompt: input["prompt"], delivery: input["delivery"], resume: input["resume"] },
+            body: {
+              id: input["id"],
+              prompt: input["prompt"],
+              selection: input["selection"],
+              delivery: input["delivery"],
+              resume: input["resume"],
+            },
             successStatus: 200,
             declaredStatuses: [409, 404, 400, 401],
             empty: false,
@@ -435,6 +448,25 @@ export function make(options: ClientOptions) {
           },
           requestOptions,
         ),
+      replace: (input: SessionsReplaceInput, requestOptions?: RequestOptions) =>
+        request<{ readonly data: SessionsReplaceOutput }>(
+          {
+            method: "POST",
+            path: `/api/session/${encodeURIComponent(input.sessionID)}/revert/replace`,
+            body: {
+              messageID: input["messageID"],
+              id: input["id"],
+              prompt: input["prompt"],
+              delivery: input["delivery"],
+              agent: input["agent"],
+              model: input["model"],
+            },
+            successStatus: 200,
+            declaredStatuses: [409, 404, 500, 400, 401],
+            empty: false,
+          },
+          requestOptions,
+        ).then((value) => value.data),
       context: (input: SessionsContextInput, requestOptions?: RequestOptions) =>
         request<{ readonly data: SessionsContextOutput }>(
           {
@@ -943,6 +975,32 @@ export function make(options: ClientOptions) {
             successStatus: 200,
             declaredStatuses: [401, 400],
             empty: false,
+          },
+          requestOptions,
+        ),
+    },
+    projects: {
+      create: (input: ProjectsCreateInput, requestOptions?: RequestOptions) =>
+        request<{ readonly data: ProjectsCreateOutput }>(
+          {
+            method: "POST",
+            path: `/api/project`,
+            body: { id: input["id"], name: input["name"] },
+            successStatus: 200,
+            declaredStatuses: [500, 401, 400],
+            empty: false,
+          },
+          requestOptions,
+        ).then((value) => value.data),
+      attach: (input: ProjectsAttachInput, requestOptions?: RequestOptions) =>
+        request<ProjectsAttachOutput>(
+          {
+            method: "POST",
+            path: `/api/project/${encodeURIComponent(input.projectID)}/attach`,
+            body: { directory: input["directory"] },
+            successStatus: 204,
+            declaredStatuses: [404, 409, 400, 500, 401],
+            empty: true,
           },
           requestOptions,
         ),

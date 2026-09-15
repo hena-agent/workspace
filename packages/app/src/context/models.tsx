@@ -5,6 +5,9 @@ import { filter, firstBy, flat, groupBy, mapValues, pipe, uniqueBy, values } fro
 import { createSimpleContext } from "@hena/ui/context"
 import { useProviders } from "@/hooks/use-providers"
 import { Persist, persisted } from "@/utils/persist"
+import { useServerSDK } from "@/context/server-sdk"
+import type { Model, ModelV2Info } from "@hena/sdk/v2/client"
+import { modelCatalogKey } from "./models-source"
 
 export type ModelKey = { providerID: string; modelID: string }
 
@@ -25,8 +28,21 @@ function modelKey(model: ModelKey) {
 export const { use: useModels, provider: ModelsProvider } = createSimpleContext({
   name: "Models",
   gate: false,
-  init: (props: { directory?: Accessor<string | undefined> } = {}) => {
+  init: (props: { directory?: Accessor<string | undefined>; managedChat?: Accessor<boolean> } = {}) => {
     const providers = useProviders(props.directory)
+    const serverSDK = useServerSDK()
+    const catalogKey = createMemo(() => {
+      return modelCatalogKey({
+        directory: props.directory?.(),
+        managedChat: props.managedChat?.() === true,
+        scope: serverSDK().scope,
+      })
+    })
+    const [v2Catalog] = createResource(catalogKey, (key) =>
+      serverSDK()
+        .client.v2.model.list({ location: { directory: key.directory } })
+        .then((response) => response.data?.data ?? []),
+    )
 
     const [store, setStore, _, ready] = persisted(
       Persist.global("model", ["model.v1"]),
@@ -37,14 +53,27 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
       }),
     )
 
-    const available = createMemo(() =>
-      providers.connected().flatMap((p) =>
+    const available = createMemo(() => {
+      const directory = props.directory?.()
+      if (directory && props.managedChat?.()) {
+        if (v2Catalog.error) throw v2Catalog.error
+        if (v2Catalog.state === "pending") return []
+        const catalog = v2Catalog.latest
+        if (!catalog) return []
+        return catalog.flatMap((model) => {
+          const provider = providers.all().get(model.providerID)
+          if (!provider) return []
+          const legacy = provider.models[model.id] ?? toLegacyModel(model)
+          return [{ ...legacy, name: model.name, variants: toLegacyVariants(model), provider }]
+        })
+      }
+      return providers.connected().flatMap((p) =>
         Object.values(p.models).map((m) => ({
           ...m,
           provider: p,
         })),
-      ),
-    )
+      )
+    })
 
     const release = createMemo(
       () =>
@@ -171,3 +200,57 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
     }
   },
 })
+
+function toLegacyVariants(model: ModelV2Info) {
+  return Object.fromEntries(model.variants.map((variant) => [variant.id, variant.body]))
+}
+
+function toLegacyModel(model: ModelV2Info): Model {
+  const cost = model.cost[0]
+  return {
+    id: model.id,
+    providerID: model.providerID,
+    api: {
+      id: model.api.id,
+      url: model.api.url ?? "",
+      npm: model.api.type === "aisdk" ? model.api.package : "",
+    },
+    name: model.name,
+    family: model.family,
+    capabilities: {
+      temperature: false,
+      reasoning: model.capabilities.reasoning === true,
+      attachment: model.capabilities.input.some((value) => value !== "text"),
+      toolcall: model.capabilities.tools,
+      input: {
+        text: model.capabilities.input.some((value) => value.startsWith("text")),
+        audio: model.capabilities.input.some((value) => value.startsWith("audio")),
+        image: model.capabilities.input.some((value) => value.startsWith("image")),
+        video: model.capabilities.input.some((value) => value.startsWith("video")),
+        pdf: model.capabilities.input.some((value) => value.startsWith("pdf")),
+      },
+      output: {
+        text: model.capabilities.output.some((value) => value.startsWith("text")),
+        audio: model.capabilities.output.some((value) => value.startsWith("audio")),
+        image: model.capabilities.output.some((value) => value.startsWith("image")),
+        video: model.capabilities.output.some((value) => value.startsWith("video")),
+        pdf: model.capabilities.output.some((value) => value.startsWith("pdf")),
+      },
+      interleaved: false,
+    },
+    cost: {
+      input: cost?.input ?? 0,
+      output: cost?.output ?? 0,
+      cache: {
+        read: cost?.cache.read ?? 0,
+        write: cost?.cache.write ?? 0,
+      },
+    },
+    limit: model.limit,
+    status: model.status,
+    options: model.request.body,
+    headers: model.request.headers,
+    release_date: new Date(model.time.released).toISOString(),
+    variants: toLegacyVariants(model),
+  }
+}

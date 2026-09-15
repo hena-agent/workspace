@@ -12,6 +12,7 @@ import { SessionID } from "./session-id"
 import { Location } from "./location"
 import { SessionMessage } from "./session-message"
 import { Revert } from "./revert"
+import { Selection } from "./session-input"
 
 export { FileAttachment }
 
@@ -33,6 +34,7 @@ const PromptFields = {
   messageID: SessionMessage.ID,
   prompt: Prompt,
   delivery: Delivery,
+  selection: Selection.pipe(optional),
 }
 
 const options = {
@@ -461,7 +463,19 @@ export namespace RevertEvent {
   export const Committed = Event.define({
     type: "session.next.revert.committed",
     ...options,
-    schema: { ...Base, messageID: SessionMessage.ID },
+    schema: {
+      ...Base,
+      messageID: SessionMessage.ID,
+      // Absence preserves v1 semantics: keep the boundary; discard inputs admitted or promoted later.
+      // Presence replaces the boundary atomically and preserves unrelated pending inputs.
+      replacement: Schema.Struct({
+        messageID: SessionMessage.ID,
+        prompt: Prompt,
+        delivery: Delivery,
+        agent: Schema.String,
+        model: Model.Ref,
+      }).pipe(optional),
+    },
   })
 }
 

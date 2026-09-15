@@ -96,6 +96,8 @@ const execution = Layer.effect(
       resume: coordinator.run,
       wake: coordinator.wake,
       interrupt: coordinator.interrupt,
+      mutate: coordinator.mutate,
+      serialize: coordinator.serialize,
     })
   }),
 ).pipe(Layer.provide(runnerLayer))

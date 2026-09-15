@@ -146,6 +146,7 @@ import type {
   ProjectInitGitResponses,
   ProjectListErrors,
   ProjectListResponses,
+  ProjectManagedId,
   ProjectUpdateErrors,
   ProjectUpdateResponses,
   PromptInput,
@@ -201,6 +202,7 @@ import type {
   SessionGetResponses,
   SessionInitErrors,
   SessionInitResponses,
+  SessionInputSelection,
   SessionListErrors,
   SessionListResponses,
   SessionMessageErrors,
@@ -286,12 +288,16 @@ import type {
   V2PermissionSavedListResponses,
   V2PermissionSavedRemoveErrors,
   V2PermissionSavedRemoveResponses,
+  V2ProjectAttachErrors,
+  V2ProjectAttachResponses,
   V2ProjectCopyCreateErrors,
   V2ProjectCopyCreateResponses,
   V2ProjectCopyRefreshErrors,
   V2ProjectCopyRefreshResponses,
   V2ProjectCopyRemoveErrors,
   V2ProjectCopyRemoveResponses,
+  V2ProjectCreateErrors,
+  V2ProjectCreateResponses,
   V2ProviderGetErrors,
   V2ProviderGetResponses,
   V2ProviderListErrors,
@@ -357,6 +363,8 @@ import type {
   V2SessionRevertClearResponses,
   V2SessionRevertCommitErrors,
   V2SessionRevertCommitResponses,
+  V2SessionRevertReplaceErrors,
+  V2SessionRevertReplaceResponses,
   V2SessionRevertStageErrors,
   V2SessionRevertStageResponses,
   V2SessionSwitchAgentErrors,
@@ -4720,6 +4728,55 @@ export class Revert extends HeyApiClient {
       ...params,
     })
   }
+
+  /**
+   * Replace staged session suffix
+   *
+   * Atomically commit a staged revert and admit its replacement prompt.
+   */
+  public replace<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      messageID: string
+      id: string
+      prompt: PromptInput
+      delivery?: "steer" | "queue"
+      agent: string
+      model: ModelRef
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<V2SessionRevertReplaceResponses, V2SessionRevertReplaceErrors, ThrowOnError> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "body", key: "messageID" },
+            { in: "body", key: "id" },
+            { in: "body", key: "prompt" },
+            { in: "body", key: "delivery" },
+            { in: "body", key: "agent" },
+            { in: "body", key: "model" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      V2SessionRevertReplaceResponses,
+      V2SessionRevertReplaceErrors,
+      ThrowOnError
+    >({
+      url: "/api/session/{sessionID}/revert/replace",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
 }
 
 export class Permission2 extends HeyApiClient {
@@ -5023,13 +5080,14 @@ export class Session3 extends HeyApiClient {
   /**
    * Create session
    *
-   * Create a session at the requested location.
+   * Create a session in an existing chat project or at a workspace location.
    */
   public create<ThrowOnError extends boolean = false>(
     parameters?: {
       id?: string
       agent?: string
       model?: ModelRef
+      projectID?: string
       location?: LocationRef
     },
     options?: Options<never, ThrowOnError>,
@@ -5042,6 +5100,7 @@ export class Session3 extends HeyApiClient {
             { in: "body", key: "id" },
             { in: "body", key: "agent" },
             { in: "body", key: "model" },
+            { in: "body", key: "projectID" },
             { in: "body", key: "location" },
           ],
         },
@@ -5062,7 +5121,7 @@ export class Session3 extends HeyApiClient {
   /**
    * List active sessions
    *
-   * Retrieve foreground Session drains currently owned by this Hena process. Sessions absent from the result are inactive.
+   * Retrieve Sessions currently running in this Hena process.
    */
   public active<ThrowOnError extends boolean = false>(
     options?: Options<never, ThrowOnError>,
@@ -5180,6 +5239,7 @@ export class Session3 extends HeyApiClient {
       sessionID: string
       id?: string
       prompt: PromptInput
+      selection?: SessionInputSelection
       delivery?: "steer" | "queue"
       resume?: boolean
     },
@@ -5193,6 +5253,7 @@ export class Session3 extends HeyApiClient {
             { in: "path", key: "sessionID" },
             { in: "body", key: "id" },
             { in: "body", key: "prompt" },
+            { in: "body", key: "selection" },
             { in: "body", key: "delivery" },
             { in: "body", key: "resume" },
           ],
@@ -6429,6 +6490,78 @@ export class Reference extends HeyApiClient {
   }
 }
 
+export class Project2 extends HeyApiClient {
+  /**
+   * Create chat project
+   *
+   * Create a named chat project in managed storage.
+   */
+  public create<ThrowOnError extends boolean = false>(
+    parameters: {
+      id?: ProjectManagedId
+      name: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<V2ProjectCreateResponses, V2ProjectCreateErrors, ThrowOnError> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "body", key: "id" },
+            { in: "body", key: "name" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2ProjectCreateResponses, V2ProjectCreateErrors, ThrowOnError>({
+      url: "/api/project",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+
+  /**
+   * Attach chat project
+   *
+   * Move a chat project's managed files and sessions into a new or empty workspace directory.
+   */
+  public attach<ThrowOnError extends boolean = false>(
+    parameters: {
+      projectID: string
+      directory: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ): RequestResult<V2ProjectAttachResponses, V2ProjectAttachErrors, ThrowOnError> {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "projectID" },
+            { in: "body", key: "directory" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<V2ProjectAttachResponses, V2ProjectAttachErrors, ThrowOnError>({
+      url: "/api/project/{projectID}/attach",
+      ...options,
+      ...params,
+      headers: {
+        "Content-Type": "application/json",
+        ...options?.headers,
+        ...params.headers,
+      },
+    })
+  }
+}
+
 export class ProjectCopy2 extends HeyApiClient {
   public remove<ThrowOnError extends boolean = false>(
     parameters: {
@@ -6624,6 +6757,11 @@ export class V2 extends HeyApiClient {
   private _reference?: Reference
   get reference(): Reference {
     return (this._reference ??= new Reference({ client: this.client }))
+  }
+
+  private _project?: Project2
+  get project(): Project2 {
+    return (this._project ??= new Project2({ client: this.client }))
   }
 
   private _projectCopy?: ProjectCopy2

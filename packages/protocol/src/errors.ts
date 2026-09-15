@@ -61,6 +61,15 @@ export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundErro
   { httpApiStatus: 404 },
 ) {}
 
+export class ProjectNotFoundError extends Schema.TaggedError<ProjectNotFoundError>()(
+  "ProjectNotFoundError",
+  {
+    projectID: Schema.String,
+    message: Schema.String,
+  },
+  { httpApiStatus: 404 },
+) {}
+
 export class MessageNotFoundError extends Schema.TaggedError<MessageNotFoundError>()(
   "MessageNotFoundError",
   {

@@ -26,6 +26,7 @@ function directoryState() {
     session: [],
     sessionTotal: 0,
     session_status: {},
+    execution_error: {},
     session_working(id: string) {
       return this.session_status[id]?.type !== "idle"
     },
@@ -74,7 +75,7 @@ describe("bootstrapDirectory", () => {
         },
         permission: { list: async () => ({ data: [] }) },
         question: { list: async () => ({ data: [] }) },
-        v2: { reference: { list: async () => ({ data: { data: [] } }) } },
+        v2: { reference: { list: async () => ({ data: { data: [] } }) }, question: { request: { list: async () => ({ data: { data: [] } }) } } },
         mcp: {
           status: async () => {
             mcpReads.push("status")
@@ -113,7 +114,7 @@ describe("bootstrapDirectory", () => {
       command: { list: async () => ({ data: [] }) },
       permission: { list: async () => ({ data: [] }) },
       question: { list: async () => ({ data: [] }) },
-      v2: { reference: { list: async () => ({ data: { data: [] } }) } },
+      v2: { reference: { list: async () => ({ data: { data: [] } }) }, question: { request: { list: async () => ({ data: { data: [] } }) } } },
       mcp: { status: async () => ({ data: {} }) },
       provider: { list: async () => ({ data: { all: [], connected: [], default: {} } }) },
     } as unknown as HenaClient

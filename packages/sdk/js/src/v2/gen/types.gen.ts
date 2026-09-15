@@ -52,6 +52,7 @@ export type Event =
   | EventSessionNextRevertCommitted
   | EventSessionNextInputCanceled
   | EventSessionNextInputReordered
+  | EventSessionNextExecutionStatus
   | EventMessagePartDelta
   | EventSessionDiff
   | EventSessionError
@@ -143,6 +144,7 @@ export type V2Event =
   | SessionNextRevertCommitted
   | SessionNextInputCanceled
   | SessionNextInputReordered
+  | SessionNextExecutionStatus
   | MessagePartDelta
   | SessionDiff
   | SessionError
@@ -906,6 +908,7 @@ export type GlobalEvent = {
           messageID: string
           prompt: Prompt
           delivery: "steer" | "queue"
+          selection?: SessionInputSelection
         }
       }
     | {
@@ -917,6 +920,7 @@ export type GlobalEvent = {
           messageID: string
           prompt: Prompt
           delivery: "steer" | "queue"
+          selection?: SessionInputSelection
         }
       }
     | {
@@ -1246,6 +1250,13 @@ export type GlobalEvent = {
           timestamp: number
           sessionID: string
           messageID: string
+          replacement?: {
+            messageID: string
+            prompt: Prompt
+            delivery: "steer" | "queue"
+            agent: string
+            model: ModelRef
+          }
         }
       }
     | {
@@ -1266,6 +1277,25 @@ export type GlobalEvent = {
           sessionID: string
           messageIDs: Array<string>
           expectedRevision: number
+        }
+      }
+    | {
+        id: string
+        type: "session.next.execution.status"
+        properties: {
+          timestamp: number
+          sessionID: string
+          status:
+            | {
+                type: "running"
+              }
+            | {
+                type: "idle"
+              }
+            | {
+                type: "failed"
+                error: SessionErrorUnknown
+              }
         }
       }
     | {
@@ -1509,6 +1539,7 @@ export type GlobalEvent = {
         properties: {
           id: string
           worktree: string
+          mode: ProjectMode
           vcs?: ProjectVcs
           name?: string
           icon?: ProjectIcon
@@ -2340,6 +2371,7 @@ export type McpStatus =
 export type Project = {
   id: string
   worktree: string
+  mode: ProjectMode
   vcs?: ProjectVcs
   name?: string
   icon?: ProjectIcon
@@ -2597,6 +2629,11 @@ export type PromptAgentAttachment = {
   source?: PromptSource
 }
 
+export type SessionInputSelection = {
+  agent: string
+  model: ModelRef
+}
+
 export type SessionErrorUnknown = {
   type: "unknown"
   message: string
@@ -2693,6 +2730,8 @@ export type QuestionV2Tool = {
 }
 
 export type QuestionV2Answer = Array<string>
+
+export type ProjectMode = "chat" | "workspace"
 
 export type ProjectVcs = "git"
 
@@ -2911,6 +2950,7 @@ export type SyncEventSessionNextPrompted = {
       messageID: string
       prompt: Prompt
       delivery: "steer" | "queue"
+      selection?: SessionInputSelection
     }
   }
 }
@@ -2929,6 +2969,7 @@ export type SyncEventSessionNextPromptAdmitted = {
       messageID: string
       prompt: Prompt
       delivery: "steer" | "queue"
+      selection?: SessionInputSelection
     }
   }
 }
@@ -3383,6 +3424,13 @@ export type SyncEventSessionNextRevertCommitted = {
       timestamp: number
       sessionID: string
       messageID: string
+      replacement?: {
+        messageID: string
+        prompt: Prompt
+        delivery: "steer" | "queue"
+        agent: string
+        model: ModelRef
+      }
     }
   }
 }
@@ -3750,6 +3798,7 @@ export type SessionInputAdmitted = {
   sessionID: string
   prompt: Prompt
   delivery: "steer" | "queue"
+  selection?: SessionInputSelection
   timeCreated: number
   promotedSeq?: number
 }
@@ -3814,6 +3863,8 @@ export type SessionMessageUser = {
   text: string
   files?: Array<PromptFileAttachment>
   agents?: Array<PromptAgentAttachment>
+  agent?: string
+  model?: ModelRef
   type: "user"
 }
 
@@ -4092,6 +4143,7 @@ export type SessionNextPrompted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    selection?: SessionInputSelection
   }
 }
 
@@ -4113,6 +4165,7 @@ export type SessionNextPromptAdmitted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    selection?: SessionInputSelection
   }
 }
 
@@ -4639,6 +4692,13 @@ export type SessionNextRevertCommitted = {
     timestamp: number
     sessionID: string
     messageID: string
+    replacement?: {
+      messageID: string
+      prompt: Prompt
+      delivery: "steer" | "queue"
+      agent: string
+      model: ModelRef
+    }
   }
 }
 
@@ -4990,6 +5050,8 @@ export type ReferenceInfo = {
   source: ReferenceSource
 }
 
+export type ProjectManagedId = string
+
 export type ProjectCopyCopy = {
   directory: string
 }
@@ -5155,6 +5217,7 @@ export type EventSessionNextPrompted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    selection?: SessionInputSelection
   }
 }
 
@@ -5167,6 +5230,7 @@ export type EventSessionNextPromptAdmitted = {
     messageID: string
     prompt: Prompt
     delivery: "steer" | "queue"
+    selection?: SessionInputSelection
   }
 }
 
@@ -5524,6 +5588,13 @@ export type EventSessionNextRevertCommitted = {
     timestamp: number
     sessionID: string
     messageID: string
+    replacement?: {
+      messageID: string
+      prompt: Prompt
+      delivery: "steer" | "queue"
+      agent: string
+      model: ModelRef
+    }
   }
 }
 
@@ -5546,6 +5617,26 @@ export type EventSessionNextInputReordered = {
     sessionID: string
     messageIDs: Array<string>
     expectedRevision: number
+  }
+}
+
+export type EventSessionNextExecutionStatus = {
+  id: string
+  type: "session.next.execution.status"
+  properties: {
+    timestamp: number
+    sessionID: string
+    status:
+      | {
+          type: "running"
+        }
+      | {
+          type: "idle"
+        }
+      | {
+          type: "failed"
+          error: SessionErrorUnknown
+        }
   }
 }
 
@@ -5816,6 +5907,7 @@ export type EventProjectUpdated = {
   properties: {
     id: string
     worktree: string
+    mode: ProjectMode
     vcs?: ProjectVcs
     name?: string
     icon?: ProjectIcon
@@ -6225,6 +6317,35 @@ export type SessionNextCompactionDelta = {
     sessionID: string
     messageID: string
     text: string
+  }
+}
+
+export type SessionNextExecutionStatus = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "session.next.execution.status"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    timestamp: number
+    sessionID: string
+    status:
+      | {
+          type: "running"
+        }
+      | {
+          type: "idle"
+        }
+      | {
+          type: "failed"
+          error: SessionErrorUnknown
+        }
   }
 }
 
@@ -6738,6 +6859,7 @@ export type ProjectUpdated = {
   data: {
     id: string
     worktree: string
+    mode: ProjectMode
     vcs?: ProjectVcs
     name?: string
     icon?: ProjectIcon
@@ -10935,6 +11057,7 @@ export type V2SessionCreateData = {
     id?: string
     agent?: string
     model?: ModelRef
+    projectID?: string
     location?: LocationRef
   }
   path?: never
@@ -10951,6 +11074,10 @@ export type V2SessionCreateErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
 }
 
 export type V2SessionCreateError = V2SessionCreateErrors[keyof V2SessionCreateErrors]
@@ -11114,6 +11241,7 @@ export type V2SessionPromptData = {
   body: {
     id?: string
     prompt: PromptInput
+    selection?: SessionInputSelection
     delivery?: "steer" | "queue"
     resume?: boolean
   }
@@ -11351,6 +11479,58 @@ export type V2SessionRevertCommitResponses = {
 }
 
 export type V2SessionRevertCommitResponse = V2SessionRevertCommitResponses[keyof V2SessionRevertCommitResponses]
+
+export type V2SessionRevertReplaceData = {
+  body: {
+    messageID: string
+    id: string
+    prompt: PromptInput
+    delivery?: "steer" | "queue"
+    agent: string
+    model: ModelRef
+  }
+  path: {
+    sessionID: string
+  }
+  query?: never
+  url: "/api/session/{sessionID}/revert/replace"
+}
+
+export type V2SessionRevertReplaceErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * SessionNotFoundError
+   */
+  404: SessionNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
+}
+
+export type V2SessionRevertReplaceError = V2SessionRevertReplaceErrors[keyof V2SessionRevertReplaceErrors]
+
+export type V2SessionRevertReplaceResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: SessionInputAdmitted
+  }
+}
+
+export type V2SessionRevertReplaceResponse = V2SessionRevertReplaceResponses[keyof V2SessionRevertReplaceResponses]
 
 export type V2SessionContextData = {
   body?: never
@@ -13041,6 +13221,89 @@ export type V2ReferenceListResponses = {
 }
 
 export type V2ReferenceListResponse = V2ReferenceListResponses[keyof V2ReferenceListResponses]
+
+export type V2ProjectCreateData = {
+  body: {
+    id?: ProjectManagedId
+    name: string
+  }
+  path?: never
+  query?: never
+  url: "/api/project"
+}
+
+export type V2ProjectCreateErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
+}
+
+export type V2ProjectCreateError = V2ProjectCreateErrors[keyof V2ProjectCreateErrors]
+
+export type V2ProjectCreateResponses = {
+  /**
+   * Success
+   */
+  200: {
+    data: Project
+  }
+}
+
+export type V2ProjectCreateResponse = V2ProjectCreateResponses[keyof V2ProjectCreateResponses]
+
+export type V2ProjectAttachData = {
+  body: {
+    directory: string
+  }
+  path: {
+    projectID: string
+  }
+  query?: never
+  url: "/api/project/{projectID}/attach"
+}
+
+export type V2ProjectAttachErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
+  /**
+   * ConflictError
+   */
+  409: ConflictError
+  /**
+   * UnknownError
+   */
+  500: UnknownError1
+}
+
+export type V2ProjectAttachError = V2ProjectAttachErrors[keyof V2ProjectAttachErrors]
+
+export type V2ProjectAttachResponses = {
+  /**
+   * <No Content>
+   */
+  204: void
+}
+
+export type V2ProjectAttachResponse = V2ProjectAttachResponses[keyof V2ProjectAttachResponses]
 
 export type V2ProjectCopyRemoveData = {
   body?: {

@@ -98,7 +98,7 @@ const require = __cjs_mod__.createRequire(import.meta.url);
       sourcemap: true,
       rolldownOptions: {
         input: {
-          main: "src/renderer/index.html",
+          main: "index.html",
         },
       },
     },

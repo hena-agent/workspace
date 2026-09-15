@@ -282,7 +282,11 @@ export function MessageTimeline(props: {
     if (!id) return idle
     return sync().data.session_status[id] ?? idle
   })
-  const sessionMessages = createMemo(() => (sessionID() ? (sync().data.message[sessionID()!] ?? []) : []))
+  const executionError = createMemo(() => {
+    const id = sessionID()
+    return id ? sync().data.execution_error[id] : undefined
+  })
+  const sessionMessages = createMemo(() => (sessionID() ? sync().session.timeline(sessionID()!) : []))
   const info = createMemo(() => {
     const id = sessionID()
     if (!id) return
@@ -304,7 +308,7 @@ export function MessageTimeline(props: {
     return sync().data.message[id] ?? emptyMessages
   })
   const parentTitle = createMemo(() => sessionTitle(parent()?.title) ?? language.t("command.session.new"))
-  const getMsgParts = (msgId: string) => sync().data.part[msgId] ?? emptyParts
+  const getMsgParts = (msgId: string) => sync().session.parts(msgId) ?? emptyParts
   const getMsgPart = (messageID: string, partID: string) => getMsgParts(messageID).find((part) => part.id === partID)
   const childTaskDescription = createMemo(() => {
     const id = sessionID()
@@ -1382,6 +1386,13 @@ export function MessageTimeline(props: {
           "--sticky-accordion-top": showHeader() ? "48px" : "0px",
         }}
       >
+        <Show when={executionError()}>
+          {(message) => (
+            <div role="alert" class="mx-3 mt-2 rounded-md border border-border-weak-base bg-surface-raised px-3 py-2 text-12-regular text-text-base">
+              {message()}
+            </div>
+          )}
+        </Show>
         <Show when={showHeader()}>
           <div
             data-session-title

@@ -20,6 +20,7 @@ import { setCursorPosition } from "./editor-dom"
 import { formatServerError } from "@/utils/server-errors"
 import { ScopedKey } from "@/utils/server-scope"
 import { createPromptSubmissionState } from "./submission-state"
+import { interruptSession, usesCanonicalSession } from "@/context/session-runtime"
 
 type PendingPrompt = {
   abort: AbortController
@@ -36,6 +37,7 @@ export type FollowupDraft = {
   agent: string
   model: { providerID: string; modelID: string }
   variant?: string
+  managedChat?: boolean
 }
 
 type FollowupSendInput = {
@@ -55,6 +57,7 @@ const draftImages = (prompt: Prompt) => prompt.filter((part): part is ImageAttac
 export async function sendFollowupDraft(input: FollowupSendInput) {
   const text = draftText(input.draft.prompt)
   const images = draftImages(input.draft.prompt)
+  const managedChat = input.draft.managedChat || input.sync.project?.mode === "chat"
   const setBusy = () => {
     if (!input.optimisticBusy) return
     input.serverSync.session.set("session_status", input.draft.sessionID, { type: "busy" })
@@ -73,7 +76,7 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
 
   const [head, ...tail] = text.split(" ")
   const cmd = head?.startsWith("/") ? head.slice(1) : undefined
-  if (cmd && input.sync.data.command.find((item) => item.name === cmd)) {
+  if (!managedChat && cmd && input.sync.data.command.find((item) => item.name === cmd)) {
     setBusy()
     try {
       if (!(await wait())) {
@@ -105,8 +108,10 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
 
   const messageID = input.messageID ?? Identifier.ascending("message")
   const { requestParts, optimisticParts } = buildRequestParts({
-    prompt: input.draft.prompt,
-    context: input.draft.context,
+    prompt: managedChat
+      ? input.draft.prompt.filter((part) => part.type === "text" || part.type === "image")
+      : input.draft.prompt,
+    context: managedChat ? [] : input.draft.context,
     images,
     text,
     sessionID: input.draft.sessionID,
@@ -152,14 +157,74 @@ export async function sendFollowupDraft(input: FollowupSendInput) {
       return false
     }
 
-    await input.client.session.promptAsync({
-      sessionID: input.draft.sessionID,
-      agent: input.draft.agent,
-      model: input.draft.model,
-      messageID,
-      parts: requestParts,
-      variant: input.draft.variant,
-    })
+    if (usesCanonicalSession(input.sync.session.get(input.draft.sessionID), !!managedChat)) {
+      const prompt = {
+        text: requestParts
+          .filter((part) => part.type === "text")
+          .map((part) => part.text)
+          .join("\n"),
+        files: requestParts
+          .filter((part) => part.type === "file")
+          .map((part) => ({
+            uri: part.url,
+            name: part.filename,
+            source: part.source?.text
+              ? {
+                  text: part.source.text.value,
+                  start: part.source.text.start,
+                  end: part.source.text.end,
+                }
+              : undefined,
+          })),
+        agents: requestParts
+          .filter((part) => part.type === "agent")
+          .map((part) => ({
+            name: part.name,
+            source: part.source
+              ? { text: part.source.value, start: part.source.start, end: part.source.end }
+              : undefined,
+          })),
+      }
+      const revert = input.sync.session.get(input.draft.sessionID)?.revert
+      if (revert) {
+        await input.client.v2.session.revert.replace({
+          sessionID: input.draft.sessionID,
+          messageID: revert.messageID,
+          id: messageID,
+          prompt,
+          agent: input.draft.agent,
+          model: {
+            id: input.draft.model.modelID,
+            providerID: input.draft.model.providerID,
+            variant: input.draft.variant,
+          },
+        })
+        await input.sync.session.sync(input.draft.sessionID, { force: true })
+        return true
+      }
+      await input.client.v2.session.prompt({
+        sessionID: input.draft.sessionID,
+        id: messageID,
+        prompt,
+        selection: {
+          agent: input.draft.agent,
+          model: {
+            id: input.draft.model.modelID,
+            providerID: input.draft.model.providerID,
+            variant: input.draft.variant,
+          },
+        },
+      })
+    } else {
+      await input.client.session.promptAsync({
+        sessionID: input.draft.sessionID,
+        agent: input.draft.agent,
+        model: input.draft.model,
+        messageID,
+        parts: requestParts,
+        variant: input.draft.variant,
+      })
+    }
     return true
   } catch (err) {
     batch(() => {
@@ -234,11 +299,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       pending.delete(key)
       return Promise.resolve()
     }
-    return sdk()
-      .client.session.abort({
-        sessionID,
-      })
-      .catch(() => {})
+    return interruptSession(sdk().client, sessionID, sync().session.get(sessionID)).catch(() => {})
   }
 
   const restoreCommentItems = (
@@ -292,7 +353,12 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     const context = submission.context
     const text = currentPrompt.map((part) => ("content" in part ? part.content : "")).join("")
     const images = input.imageAttachments().slice()
-    const mode = input.mode()
+    const draftID = search.draftId
+    const project = sync().project
+    const projectID =
+      (draftID ? tabs.draft(draftID).projectID : undefined) ?? (project?.mode === "chat" ? project.id : undefined)
+    const managedChat = !!projectID
+    const mode = managedChat ? "normal" : input.mode()
 
     if (text.trim().length === 0 && images.length === 0 && input.commentCount() === 0) {
       if (input.working()) void abort()
@@ -318,7 +384,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     const permissionState = permission.currentServerState()
     const isNewSession = !params.id
     const shouldAutoAccept = isNewSession && input.autoAccept()
-    const worktreeSelection = input.newSessionWorktree?.() || "main"
+    const worktreeSelection = managedChat ? "main" : input.newSessionWorktree?.() || "main"
 
     let sessionDirectory = projectDirectory
     let client = sdk().client
@@ -366,7 +432,11 @@ export function createPromptSubmit(input: PromptSubmitInput) {
     if (!session && isNewSession) {
       const created = await client.session
         .create()
-        .then((x) => x.data ?? undefined)
+        .then((x) => {
+          if (managedChat && x.data?.projectID !== projectID)
+            throw new Error("Session was created in a different project")
+          return x.data ?? undefined
+        })
         .catch((err) => {
           showToast({
             title: language.t("prompt.toast.sessionCreateFailed.title"),
@@ -414,6 +484,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       agent,
       model,
       variant,
+      managedChat,
     }
 
     const clearInput = () => {
@@ -467,7 +538,7 @@ export function createPromptSubmit(input: PromptSubmitInput) {
       return
     }
 
-    if (text.startsWith("/")) {
+    if (!managedChat && text.startsWith("/")) {
       const [cmdName, ...args] = text.split(" ")
       const commandName = cmdName.slice(1)
       const customCommand = sync().data.command.find((c) => c.name === commandName)

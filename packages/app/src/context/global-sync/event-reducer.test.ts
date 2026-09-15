@@ -71,6 +71,7 @@ const baseState = (input: Partial<State> = {}) =>
     session: [],
     sessionTotal: 0,
     session_status: {},
+    execution_error: {},
     session_diff: {},
     todo: {},
     permission: {},
@@ -134,6 +135,78 @@ describe("applyGlobalEvent", () => {
 })
 
 describe("applyDirectoryEvent", () => {
+  test("tracks canonical status without a second directory transcript projector", () => {
+    const session = rootSession({ id: "session" })
+    const [store, setStore] = createStore(
+      baseState({
+        session: [session],
+        message: { session: [userMessage("user", "session")] },
+      }),
+    )
+    const apply = (event: { type: string; data: unknown }) =>
+      applyDirectoryEvent({ event, store, setStore, push() {}, directory: "/tmp", loadLsp() {} })
+
+    apply({ type: "session.next.execution.status", data: { sessionID: "session", status: { type: "running" } } })
+    expect(store.session_status.session).toEqual({ type: "busy" })
+    apply({
+      type: "session.next.step.started",
+      data: {
+        sessionID: "session",
+        assistantMessageID: "assistant",
+        timestamp: 2,
+        agent: "build",
+        model: { providerID: "provider", id: "model" },
+      },
+    })
+    apply({ type: "session.next.text.started", data: { sessionID: "session", assistantMessageID: "assistant", textID: "text" } })
+    apply({ type: "session.next.text.delta", data: { sessionID: "session", assistantMessageID: "assistant", textID: "text", delta: "hello" } })
+    expect(store.part.assistant).toBeUndefined()
+    expect(store.message.session?.map((message) => message.id)).toEqual(["user"])
+    apply({ type: "session.next.execution.status", data: { sessionID: "session", status: { type: "failed", error: { message: "unavailable" } } } })
+    expect(store.session_status.session).toEqual({ type: "idle" })
+    expect(store.execution_error.session).toBe("unavailable")
+  })
+
+  test("keeps canonical content mirrors out of the workspace directory cache", () => {
+    const session = rootSession({ id: "session" })
+    const user = userMessage("user", session.id)
+    const part = textPart("part", session.id, user.id)
+    const [store, setStore] = createStore(
+      baseState({ session: [session], message: { [session.id]: [user] }, part: { [user.id]: [part] } }),
+    )
+    const pushes: string[] = []
+    const apply = (event: { type: string; data: unknown }) =>
+      applyDirectoryEvent({
+        event,
+        store,
+        setStore,
+        push: (directory) => pushes.push(directory),
+        directory: "/tmp",
+        loadLsp() {},
+        sessionContent: false,
+      })
+
+    apply({
+      type: "session.next.step.started",
+      data: {
+        sessionID: session.id,
+        assistantMessageID: "assistant",
+        timestamp: 2,
+        agent: "build",
+        model: { providerID: "provider", id: "model" },
+      },
+    })
+    apply({
+      type: "session.next.revert.committed",
+      data: { sessionID: session.id, timestamp: 3, messageID: user.id },
+    })
+
+    expect(store.message[session.id]).toEqual([user])
+    expect(store.part[user.id]).toEqual([part])
+    expect(store.message[session.id]?.some((message) => message.id === "assistant")).toBe(false)
+    expect(pushes).toEqual([])
+  })
+
   test("initializes text delta accumulation from the current part text", () => {
     const part = { ...textPart("part", "session", "message"), text: "existing" }
     const [store, setStore] = createStore(baseState({ part: { message: [part] } }))

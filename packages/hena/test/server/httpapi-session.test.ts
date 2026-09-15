@@ -27,16 +27,21 @@ import { Session } from "@/session/session"
 import { MessageID, PartID, SessionID, type SessionID as SessionIDType } from "../../src/session/schema"
 import { Database } from "@hena/core/database/database"
 import { SessionInputTable, SessionMessageTable, SessionTable } from "@hena/core/session/sql"
+import { EventTable } from "@hena/core/event/sql"
 import { SessionMessage } from "@hena/core/session/message"
 import { ModelV2 } from "@hena/core/model"
 import { ProviderV2 } from "@hena/core/provider"
 import * as DateTime from "effect/DateTime"
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { resetDatabase } from "../fixture/db"
 import { disposeAllInstances, provideInstanceEffect, TestInstance, tmpdirScoped } from "../fixture/fixture"
 import { TestLLMServer } from "../lib/llm-server"
 import { testProviderConfig } from "../lib/test-provider"
 import { pollWithTimeout, testEffect } from "../lib/effect"
+import { GlobalBus, type GlobalEvent } from "@/bus/global"
+import { EventV2Bridge } from "@/event-v2-bridge"
+import { createHenaClient } from "@hena/sdk/v2/client"
+import { interruptSession, pendingQuestions, respondToQuestion } from "../../../app/src/context/session-runtime"
 
 const originalWorkspaces = Flag.HENA_EXPERIMENTAL_WORKSPACES
 const noopBootstrapLayer = Layer.succeed(
@@ -44,7 +49,15 @@ const noopBootstrapLayer = Layer.succeed(
   InstanceBootstrapService.Service.of({ run: Effect.void }),
 )
 const appLayer = AppNodeBuilder.build(
-  LayerNode.group([InstanceStore.node, Project.node, Session.node, Workspace.node, Database.node, Ripgrep.node]),
+  LayerNode.group([
+    InstanceStore.node,
+    Project.node,
+    Session.node,
+    Workspace.node,
+    Database.node,
+    Ripgrep.node,
+    EventV2Bridge.node,
+  ]),
   [[InstanceStore.bootstrapNode, noopBootstrapLayer]],
 )
 const servedRoutes: Layer.Layer<never, Config.ConfigError, HttpServer.HttpServer> = HttpRouter.serve(
@@ -427,6 +440,283 @@ describe("session HttpApi", () => {
     }).pipe(Effect.provide(TestLLMServer.layer), Effect.provide(AppNodeBuilder.build(CrossSpawnSpawner.node))),
   )
 
+  it.live("runs named chat projects through legacy HTTP without workspace tools or context", () =>
+    Effect.gen(function* () {
+      const llm = yield* TestLLMServer
+      yield* llm.text("first reply")
+      yield* llm.text("second reply")
+      expect(
+        (yield* request("/api/project", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id: "../outside", name: "Invalid" }),
+        })).status,
+      ).toBe(400)
+      const project = (yield* requestJson<{ data: Project.Info }>("/api/project", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Research chat" }),
+      })).data
+      expect(project).toMatchObject({ name: "Research chat", mode: "chat" })
+      const database = yield* Database.Service
+      expect(
+        yield* database.db.select().from(SessionTable).where(eq(SessionTable.project_id, project.id)).all(),
+      ).toEqual([])
+      yield* Effect.promise(() =>
+        Bun.write(
+          path.join(project.worktree, "hena.json"),
+          JSON.stringify({
+            ...testProviderConfig(llm.url),
+            share: "disabled",
+            instructions: ["SECRET.md"],
+            agent: { build: { prompt: `Private workspace: ${project.worktree}` } },
+          }),
+        ),
+      )
+      yield* Effect.promise(() => Bun.write(path.join(project.worktree, "SECRET.md"), "PRIVATE WORKSPACE INSTRUCTIONS"))
+      const headers = { "x-hena-directory": project.worktree, "content-type": "application/json" }
+      const session = yield* requestJson<Session.Info>(SessionPaths.create, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ title: "Research" }),
+      })
+      expect(session).toMatchObject({ projectID: project.id, metadata: { appRuntime: "legacy" } })
+      for (const text of ["first prompt", "second prompt"]) {
+        const response = yield* request(pathFor(SessionPaths.prompt, { sessionID: session.id }), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            agent: "build",
+            model: { providerID: "test", modelID: "test-model" },
+            system: "Caller context stays intact.",
+            parts: [{ type: "text", text }],
+          }),
+        })
+        expect(response.status).toBe(200)
+        yield* responseJson(response)
+      }
+      const inputs = yield* llm.inputs
+      expect(inputs).toHaveLength(2)
+      for (const input of inputs) {
+        const tools = input.tools as { function: { name: string } }[]
+        expect(tools.map((tool) => tool.function.name).sort()).toEqual([
+          "question",
+          "todowrite",
+          "webfetch",
+          "websearch",
+        ])
+        expect(JSON.stringify(input.messages)).not.toContain(project.worktree)
+        expect(JSON.stringify(input.messages)).not.toContain("PRIVATE WORKSPACE INSTRUCTIONS")
+        expect(JSON.stringify(input.messages)).toContain("Caller context stays intact.")
+      }
+      expect(JSON.stringify(inputs[1].messages)).toContain("first reply")
+      const history = yield* requestJson<SessionV1.WithParts[]>(
+        pathFor(SessionPaths.messages, { sessionID: session.id }),
+        { headers },
+      )
+      expect(history.map((message) => message.info.role)).toEqual(["user", "assistant", "user", "assistant"])
+      for (const part of [
+        { type: "file", url: "file:///etc/passwd", mime: "text/plain" },
+        { type: "agent", name: "explore" },
+      ]) {
+        const response = yield* request(pathFor(SessionPaths.prompt, { sessionID: session.id }), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ parts: [part] }),
+        })
+        expect(response.status).toBe(400)
+      }
+      expect(yield* llm.calls).toBe(2)
+      yield* llm.tool("question", {
+        questions: [{ header: "Choice", question: "Which option?", options: [{ label: "A", description: "First" }] }],
+      })
+      yield* llm.text("answer received")
+      expect(
+        (yield* request(pathFor(SessionPaths.promptAsync, { sessionID: session.id }), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            model: { providerID: "test", modelID: "test-model" },
+            parts: [{ type: "text", text: "ask me" }],
+          }),
+        })).status,
+      ).toBe(204)
+      const question = yield* pollWithTimeout(
+        Effect.gen(function* () {
+          return (yield* requestJson<{ id: string; sessionID: string }[]>("/question", { headers })).find(
+            (item) => item.sessionID === session.id,
+          )
+        }),
+        "chat question was not published",
+      )
+      const pending = yield* requestJson<SessionV1.WithParts[]>(
+        pathFor(SessionPaths.messages, { sessionID: session.id }),
+        { headers },
+      )
+      expect(
+        pending
+          .flatMap((message) => message.parts)
+          .some((part) => part.type === "tool" && part.tool === "question" && part.state.status === "running"),
+      ).toBe(true)
+      expect(
+        yield* requestJson<boolean>(`/question/${question.id}/reply`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ answers: [["A"]] }),
+        }),
+      ).toBe(true)
+      yield* pollWithTimeout(
+        Effect.gen(function* () {
+          const messages = yield* requestJson<SessionV1.WithParts[]>(
+            pathFor(SessionPaths.messages, { sessionID: session.id }),
+            { headers },
+          )
+          return messages
+            .flatMap((message) => message.parts)
+            .some((part) => part.type === "text" && part.text === "answer received")
+            ? true
+            : undefined
+        }),
+        "chat did not resume after answering",
+      )
+      yield* llm.hang
+      yield* request(pathFor(SessionPaths.promptAsync, { sessionID: session.id }), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: { providerID: "test", modelID: "test-model" },
+          parts: [{ type: "text", text: "stop me" }],
+        }),
+      })
+      yield* llm.wait(5)
+      expect(
+        yield* requestJson<boolean>(pathFor(SessionPaths.abort, { sessionID: session.id }), {
+          method: "POST",
+          headers,
+        }),
+      ).toBe(true)
+      const stopped = yield* requestJson<SessionV1.WithParts[]>(
+        pathFor(SessionPaths.messages, { sessionID: session.id }),
+        { headers },
+      )
+      expect(stopped.at(-1)?.info).toMatchObject({ role: "assistant", error: { name: "MessageAbortedError" } })
+      const revert = yield* requestJson<Session.Info>(pathFor(SessionPaths.revert, { sessionID: session.id }), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ messageID: history[2].info.id }),
+      })
+      expect(revert.revert?.messageID).toBe(history[2].info.id)
+      expect(
+        (yield* requestJson<Session.Info>(pathFor(SessionPaths.unrevert, { sessionID: session.id }), {
+          method: "POST",
+          headers,
+        })).revert,
+      ).toBeUndefined()
+      yield* requestJson<Session.Info>(pathFor(SessionPaths.revert, { sessionID: session.id }), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ messageID: history[2].info.id }),
+      })
+      yield* llm.text("edited reply")
+      const edited = yield* request(pathFor(SessionPaths.prompt, { sessionID: session.id }), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: { providerID: "test", modelID: "test-model" },
+          parts: [{ type: "text", text: "edited prompt" }],
+        }),
+      })
+      expect(edited.status).toBe(200)
+      yield* responseJson(edited)
+      const refreshed = yield* requestJson<SessionV1.WithParts[]>(
+        pathFor(SessionPaths.messages, { sessionID: session.id }),
+        { headers },
+      )
+      expect(refreshed).toHaveLength(4)
+      expect(JSON.stringify(refreshed)).toContain("edited reply")
+      expect(JSON.stringify(refreshed)).not.toContain("second reply")
+      const saved = (yield* requestJson<{ data: { id: SessionIDType } }>("/api/session", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          projectID: project.id,
+          agent: "build",
+          model: { id: "test-model", providerID: "test" },
+        }),
+      })).data
+      const savedMessage = yield* insertLegacyAssistantMessage(saved.id)
+      expect(
+        (yield* request(pathFor(SessionPaths.promptAsync, { sessionID: saved.id }), {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ parts: [{ type: "text", text: "do not mix transcripts" }] }),
+        })).status,
+      ).toBe(400)
+      yield* llm.hang
+      yield* request(pathFor(SessionPaths.promptAsync, { sessionID: session.id }), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: { providerID: "test", modelID: "test-model" },
+          parts: [{ type: "text", text: "attach while running" }],
+        }),
+      })
+      yield* llm.wait(7)
+      const beforeAttach = yield* requestJson<SessionV1.WithParts[]>(
+        pathFor(SessionPaths.messages, { sessionID: session.id }),
+        { headers },
+      )
+      const target = yield* tmpdirScoped()
+      const attach = yield* request(`/api/project/${project.id}/attach`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ directory: target }),
+      })
+      expect({ status: attach.status, body: yield* attach.text }).toEqual({ status: 204, body: "" })
+      const attached = yield* requestJson<Session.Info>(pathFor(SessionPaths.get, { sessionID: session.id }), {
+        headers,
+      })
+      expect(attached).toMatchObject({ id: session.id, projectID: project.id, directory: target })
+      const attachedHistory = yield* requestJson<SessionV1.WithParts[]>(
+        pathFor(SessionPaths.messages, { sessionID: session.id }),
+        { headers },
+      )
+      expect(attachedHistory.map((message) => message.info.id)).toEqual(beforeAttach.map((message) => message.info.id))
+      expect(attachedHistory.at(-1)?.info).toMatchObject({ role: "assistant", error: { name: "MessageAbortedError" } })
+      expect(
+        yield* requestJson<Session.Info>(pathFor(SessionPaths.get, { sessionID: saved.id }), { headers }),
+      ).toMatchObject({ id: saved.id, directory: target, metadata: { appRuntime: "canonical" } })
+      const listed = yield* requestJson<Session.Info[]>(
+        `${SessionPaths.list}?directory=${encodeURIComponent(target)}`,
+        {
+          headers: { "x-hena-directory": target },
+        },
+      )
+      expect(listed.find((item) => item.id === saved.id)?.metadata?.appRuntime).toBe("canonical")
+      expect(listed.find((item) => item.id === session.id)?.metadata?.appRuntime).toBe("legacy")
+      expect(
+        (yield* requestJson<{ data: SessionMessage.Message[] }>(`/api/session/${saved.id}/message`, { headers })).data,
+      ).toMatchObject([{ id: savedMessage.id, type: "assistant" }])
+      expect(
+        (yield* database.db.select().from(SessionTable).where(eq(SessionTable.id, saved.id)).get())?.metadata,
+      ).toBeNull()
+      yield* llm.text("workspace reply")
+      const workspace = yield* request(pathFor(SessionPaths.prompt, { sessionID: session.id }), {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: { providerID: "test", modelID: "test-model" },
+          parts: [{ type: "text", text: "continue in workspace" }],
+        }),
+      })
+      expect(workspace.status).toBe(200)
+      yield* responseJson(workspace)
+      const workspaceInput = (yield* llm.inputs).at(-1)!
+      expect(JSON.stringify(workspaceInput.tools)).toContain('"read"')
+      expect(JSON.stringify(workspaceInput.messages)).toContain(target)
+    }).pipe(Effect.provide(TestLLMServer.layer), Effect.provide(AppNodeBuilder.build(CrossSpawnSpawner.node))),
+  )
+
   it.instance(
     "returns v2 public request errors for cursor and workspace query failures",
     () =>
@@ -634,6 +924,343 @@ describe("session HttpApi", () => {
         expect(message).toMatchObject({ id: wakeID, type: "user" })
       }),
     { git: true, config: { formatter: false, lsp: false } },
+  )
+
+  it.instance(
+    "classifies inbox-only canonical sessions in get, lists, children, and compatibility events",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-hena-directory": test.directory, "content-type": "application/json" }
+        const parent = yield* createSession({ title: "parent" })
+        const child = yield* createSession({
+          title: "pending",
+          parentID: parent.id,
+          metadata: { appRuntime: "legacy" },
+        })
+        expect(
+          (yield* request(`/api/session/${child.id}/prompt`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ id: "msg_pending_runtime", prompt: { text: "admit only" }, resume: false }),
+          })).status,
+        ).toBe(200)
+        expect((yield* requestJson<{ data: unknown[] }>(`/api/session/${child.id}/message`, { headers })).data).toEqual(
+          [],
+        )
+        expect(
+          (yield* requestJson<Session.Info>(pathFor(SessionPaths.get, { sessionID: child.id }), { headers })).metadata
+            ?.appRuntime,
+        ).toBe("canonical")
+        for (const route of [
+          SessionPaths.list,
+          ExperimentalPaths.session,
+          pathFor(SessionPaths.children, { sessionID: parent.id }),
+        ]) {
+          expect(
+            (yield* requestJson<Session.Info[]>(route, { headers })).find((item) => item.id === child.id)?.metadata
+              ?.appRuntime,
+          ).toBe("canonical")
+        }
+        const seen: unknown[] = []
+        const listener = (event: GlobalEvent) => {
+          seen.push(event.payload)
+        }
+        GlobalBus.on("event", listener)
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            GlobalBus.off("event", listener)
+          }),
+        )
+        // Publish an incomplete compatibility update directly; the read boundary must enrich it.
+        const events = yield* EventV2Bridge.Service
+        yield* events.publish(SessionV1.Event.Updated, { sessionID: child.id, info: { ...child, title: "updated" } })
+        expect(seen).toContainEqual(
+          expect.objectContaining({
+            type: "session.updated",
+            properties: expect.objectContaining({
+              info: expect.objectContaining({ id: child.id, metadata: { appRuntime: "canonical" } }),
+            }),
+          }),
+        )
+      }),
+    { git: true, config: { formatter: false, lsp: false, share: "disabled" } },
+  )
+
+  it.live(
+    "App runtime actions answer, reject, and stop existing canonical chats over HTTP",
+    () =>
+      Effect.gen(function* () {
+        const llm = yield* TestLLMServer
+        const project = (yield* requestJson<{ data: Project.Info }>("/api/project", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name: "Saved canonical chat" }),
+        })).data
+        yield* Effect.promise(() =>
+          Bun.write(
+            path.join(project.worktree, "hena.json"),
+            JSON.stringify({
+              providers: {
+                test: {
+                  api: { type: "aisdk", package: "@ai-sdk/openai-compatible", url: llm.url },
+                  request: { body: { apiKey: "test-key" } },
+                  models: {
+                    "test-model": {
+                      capabilities: { tools: true, input: ["text"], output: ["text"] },
+                      limit: { context: 100_000, output: 10_000 },
+                    },
+                  },
+                },
+              },
+            }),
+          ),
+        )
+        const server = yield* HttpServer.HttpServer
+        if (server.address._tag !== "TcpAddress") return yield* Effect.die("Expected a TCP test server")
+        const client = createHenaClient({
+          baseUrl: `http://127.0.0.1:${server.address.port}`,
+          directory: project.worktree,
+          throwOnError: true,
+        })
+        const created = yield* Effect.promise(() =>
+          client.v2.session.create({
+            projectID: project.id,
+            agent: "build",
+            model: { id: "test-model", providerID: "test" },
+          }),
+        )
+        const sessionID = created.data!.data.id
+        const original = (yield* Effect.promise(() => client.v2.session.get({ sessionID }))).data!.data
+        const invalid = yield* Effect.tryPromise(() =>
+          client.v2.session.prompt({
+            sessionID,
+            prompt: { text: "must not be admitted" },
+            resume: false,
+            selection: { agent: "plan", model: { id: "missing", providerID: "test" } },
+          }),
+        ).pipe(Effect.exit)
+        expect(invalid._tag).toBe("Failure")
+        expect(
+          (yield* Effect.tryPromise(() =>
+            client.v2.session.prompt({
+              sessionID,
+              prompt: { text: "invalid agent" },
+              resume: false,
+              selection: { agent: "missing-agent", model: { id: "test-model", providerID: "test" } },
+            }),
+          ).pipe(Effect.exit))._tag,
+        ).toBe("Failure")
+        expect((yield* Effect.promise(() => client.v2.session.get({ sessionID }))).data!.data).toMatchObject({
+          agent: original.agent,
+          model: original.model,
+        })
+        const database = yield* Database.Service
+        expect(
+          yield* database.db
+            .select()
+            .from(SessionInputTable)
+            .where(eq(SessionInputTable.session_id, SessionID.make(sessionID)))
+            .all(),
+        ).toEqual([])
+        const seen: unknown[] = []
+        const listener = (event: GlobalEvent) => {
+          seen.push(event.payload)
+        }
+        GlobalBus.on("event", listener)
+        yield* Effect.addFinalizer(() =>
+          Effect.sync(() => {
+            GlobalBus.off("event", listener)
+          }),
+        )
+        const questions = {
+          questions: [{ header: "Choice", question: "Pick one", options: [{ label: "A", description: "First" }] }],
+        }
+        for (const action of ["reply", "reject", "stop"] as const) {
+          yield* llm.tool("question", questions)
+          if (action === "reply") yield* llm.text("reply resumed")
+          const id = MessageID.ascending()
+          const selection = { agent: "build", model: { id: "test-model", providerID: "test" } }
+          const admitted = yield* Effect.promise(() =>
+            client.v2.session.prompt({ sessionID, id, prompt: { text: action }, selection, resume: false }),
+          )
+          expect(admitted.data!.data).toMatchObject({ id, selection })
+          expect(
+            (yield* Effect.tryPromise(() =>
+              client.v2.session.prompt({
+                sessionID,
+                id,
+                prompt: { text: action },
+                selection: { ...selection, agent: "plan" },
+                resume: false,
+              }),
+            ).pipe(Effect.exit))._tag,
+          ).toBe("Failure")
+          yield* Effect.promise(() => client.v2.session.prompt({ sessionID, id, prompt: { text: action }, selection }))
+          const pending = yield* pollWithTimeout(
+            Effect.promise(() => pendingQuestions(client, project.worktree)).pipe(
+              Effect.map((result) => result.data.find((item) => item.sessionID === sessionID)),
+            ),
+            "canonical question was not hydrated through the App helper",
+            "10 seconds",
+          )
+          expect(pending.appRuntime).toBe("canonical")
+          if (action === "stop") {
+            yield* Effect.promise(() => interruptSession(client, sessionID))
+          } else {
+            yield* Effect.promise(() => respondToQuestion(client, pending, action === "reply" ? [["A"]] : undefined))
+            if (action === "reply")
+              yield* pollWithTimeout(
+                Effect.promise(() => client.v2.session.messages({ sessionID })).pipe(
+                  Effect.map((result) =>
+                    JSON.stringify(result.data?.data).includes(`${action} resumed`) ? true : undefined,
+                  ),
+                ),
+                "canonical execution did not resume",
+              )
+          }
+          yield* pollWithTimeout(
+            Effect.promise(() => client.v2.session.active()).pipe(
+              Effect.map((result) => {
+                const status = result.data?.data[sessionID]
+                return status && typeof status === "object" && "type" in status && status.type === "running"
+                  ? undefined
+                  : true
+              }),
+            ),
+            "canonical execution did not become idle",
+          )
+          expect((yield* Effect.promise(() => pendingQuestions(client, project.worktree))).data).toEqual([])
+          expect(seen).toContainEqual(
+            expect.objectContaining({
+              type: action === "reply" ? "question.v2.replied" : "question.v2.rejected",
+              properties: expect.objectContaining({ sessionID, requestID: pending.id }),
+            }),
+          )
+        }
+        expect(yield* llm.calls).toBe(5)
+      }).pipe(Effect.provide(TestLLMServer.layer), Effect.provide(AppNodeBuilder.build(CrossSpawnSpawner.node))),
+    { timeout: 20000 },
+  )
+
+  it.live("replaces a staged persisted prompt through the mounted v2 HttpApi", () =>
+    Effect.gen(function* () {
+      const llm = yield* TestLLMServer
+      yield* llm.text("first", { usage: { input: 1, output: 1 } })
+      yield* llm.text("replacement", { usage: { input: 1, output: 1 } })
+      const directory = yield* tmpdirScoped({
+        git: true,
+        init: (directory) =>
+          Effect.promise(() =>
+            Bun.write(
+              path.join(directory, "hena.json"),
+              JSON.stringify({
+                providers: {
+                  test: {
+                    api: { type: "aisdk", package: "@ai-sdk/openai-compatible", url: llm.url },
+                    request: { body: { apiKey: "test-key" } },
+                    models: {
+                      "test-model": {
+                        capabilities: { tools: true, input: ["text"], output: ["text"] },
+                        limit: { context: 100_000, output: 10_000 },
+                      },
+                    },
+                  },
+                },
+              }),
+            ),
+          ).pipe(Effect.asVoid),
+      })
+      const headers = { "x-hena-directory": directory, "content-type": "application/json" }
+      const model = { providerID: "test", id: "test-model" }
+
+      const created = yield* request("/api/session", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ location: { directory }, model }),
+      })
+      expect(created.status).toBe(200)
+      const session = (yield* responseJson(created)) as { data: Session.Info }
+
+      const switchedAgent = yield* request(`/api/session/${session.data.id}/agent`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ agent: "plan" }),
+      })
+      expect(switchedAgent.status).toBe(204)
+
+      const prompted = yield* request(`/api/session/${session.data.id}/prompt`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ id: "msg_http_revert", prompt: { text: "original" } }),
+      })
+      expect(prompted.status).toBe(200)
+      yield* pollWithTimeout(
+        requestJson<{ data: SessionMessage.Message[] }>(`/api/session/${session.data.id}/message`, { headers }).pipe(
+          Effect.map(({ data }) => data.find((message) => message.id === "msg_http_revert")),
+        ),
+        "V2 prompt was not persisted before revert",
+        "10 seconds",
+      )
+
+      const staged = yield* request(`/api/session/${session.data.id}/revert/stage`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ messageID: "msg_http_revert", files: false }),
+      })
+      expect(staged.status).toBe(200)
+
+      const replace = (selected = model) =>
+        request(`/api/session/${session.data.id}/revert/replace`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            messageID: "msg_http_revert",
+            id: "msg_http_replacement",
+            prompt: { text: "replacement" },
+            agent: "build",
+            model: selected,
+          }),
+        })
+      const unavailable = yield* replace({ providerID: "missing", id: "missing" })
+      expect(unavailable.status).toBe(409)
+      expect(yield* responseJson(unavailable)).toMatchObject({
+        _tag: "ConflictError",
+        message: "Model unavailable: missing/missing",
+      })
+      const replaced = yield* replace()
+      const replacementBody = yield* responseJson(replaced)
+      expect(replaced.status).toBe(200)
+      expect(replacementBody).toMatchObject({
+        data: { id: "msg_http_replacement", prompt: { text: "replacement" }, delivery: "steer" },
+      })
+
+      yield* Database.Service.use(({ db }) =>
+        db
+          .update(EventTable)
+          .set({
+            data: {
+              sessionID: session.data.id,
+              timestamp: Date.now(),
+              messageID: "msg_http_revert",
+              replacement: { messageID: "msg_http_replacement" },
+            },
+          })
+          .where(
+            and(eq(EventTable.aggregate_id, session.data.id), eq(EventTable.type, "session.next.revert.committed.1")),
+          )
+          .run()
+          .pipe(Effect.orDie),
+      )
+      const corruptRetry = yield* replace()
+      const corruptBody = yield* responseJson(corruptRetry)
+      expect(corruptRetry.status).toBe(500)
+      expect(corruptBody).toMatchObject({
+        _tag: "UnknownError",
+        message: "Unexpected server error. Check server logs for details.",
+      })
+      expect((corruptBody as { ref?: unknown }).ref).toMatch(/^err_[0-9a-f-]{8}$/)
+    }).pipe(Effect.provide(TestLLMServer.layer), Effect.provide(AppNodeBuilder.build(CrossSpawnSpawner.node))),
   )
 
   it.instance(
@@ -970,6 +1597,66 @@ describe("session HttpApi", () => {
         expect(response.headers["access-control-expose-headers"]?.toLowerCase()).toContain("x-next-cursor")
       }),
     { git: true, config: { formatter: false, lsp: false } },
+  )
+
+  it.instance(
+    "terminates canonical sequence cursors at exact page boundaries in both directions",
+    () =>
+      Effect.gen(function* () {
+        const test = yield* TestInstance
+        const headers = { "x-hena-directory": test.directory }
+        const session = yield* createSession({ title: "canonical sequence boundaries" })
+        // Invert insertion/ID order while keeping timestamps tied.
+        const third = yield* insertLegacyAssistantMessage(session.id, 3, 1)
+        const first = yield* insertLegacyAssistantMessage(session.id, 1, 1)
+        const second = yield* insertLegacyAssistantMessage(session.id, 2, 1)
+        type Page = { data: { id: string }[]; cursor: { next?: string | null; previous?: string | null } }
+        for (const order of ["asc", "desc"] as const) {
+          const expected = order === "asc" ? [first.id, second.id, third.id] : [third.id, second.id, first.id]
+          const start = yield* requestJson<Page>(`/api/session/${session.id}/message?limit=1&order=${order}`, {
+            headers,
+          })
+          expect(start.data.map((message) => message.id)).toEqual(expected.slice(0, 1))
+          expect(start.cursor.previous ?? undefined).toBeUndefined()
+          expect(start.cursor.next).toEqual(expect.any(String))
+          const middle = yield* requestJson<Page>(
+            `/api/session/${session.id}/message?limit=1&cursor=${start.cursor.next}`,
+            { headers },
+          )
+          expect(middle.data.map((message) => message.id)).toEqual(expected.slice(1, 2))
+          const end = yield* requestJson<Page>(
+            `/api/session/${session.id}/message?limit=1&cursor=${middle.cursor.next}`,
+            { headers },
+          )
+          expect(end.data.map((message) => message.id)).toEqual(expected.slice(2))
+          expect(end.cursor.next ?? undefined).toBeUndefined()
+          expect(end.cursor.previous).toEqual(expect.any(String))
+          const back = yield* requestJson<Page>(
+            `/api/session/${session.id}/message?limit=1&cursor=${end.cursor.previous}`,
+            { headers },
+          )
+          expect(back.data.map((message) => message.id)).toEqual(expected.slice(1, 2))
+          expect(back.cursor.previous).toEqual(expect.any(String))
+          expect(back.cursor.next).toEqual(expect.any(String))
+          const beginning = yield* requestJson<Page>(
+            `/api/session/${session.id}/message?limit=1&cursor=${back.cursor.previous}`,
+            { headers },
+          )
+          expect(beginning.data.map((message) => message.id)).toEqual(expected.slice(0, 1))
+          expect(beginning.cursor.previous ?? undefined).toBeUndefined()
+          const full = yield* requestJson<Page>(`/api/session/${session.id}/message?limit=3&order=${order}`, {
+            headers,
+          })
+          expect(full.data.map((message) => message.id)).toEqual(expected)
+          expect(full.cursor.next ?? undefined).toBeUndefined()
+          expect(full.cursor.previous ?? undefined).toBeUndefined()
+          const invalid = yield* request(`/api/session/${session.id}/message?limit=0&cursor=${end.cursor.previous}`, {
+            headers,
+          })
+          expect(invalid.status).toBe(400)
+        }
+      }),
+    { git: true, config: { formatter: false, lsp: false, share: "disabled" } },
   )
 
   it.instance(

@@ -191,6 +191,13 @@ const main = Effect.gen(function* () {
   app.commandLine.appendSwitch("proxy-bypass-list", "<-loopback>")
   const features = app.commandLine.getSwitchValue("enable-features")
   app.commandLine.appendSwitch("enable-features", features ? `${jsCallStackFeature},${features}` : jsCallStackFeature)
+  // Electron 44's bounded NetLog needs access to the macOS temporary directory.
+  if (process.platform === "darwin") {
+    app.commandLine.appendSwitch(
+      "enable-features",
+      `${app.commandLine.getSwitchValue("enable-features")},MacSandboxNetworkUserDirAccess`,
+    )
+  }
   if (!app.isPackaged) app.commandLine.appendSwitch("remote-debugging-port", "9222")
 
   if (!app.requestSingleInstanceLock()) {
